@@ -1,0 +1,916 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* إخفاء أيقونة خدمة العملاء في هذه الصفحة لعدم التداخل */
+    .fab-chat { display: none !important; }
+
+    /* تنسيق الصفحات */
+    .doc-page {
+        display: none; /* إخفاء الكل افتراضياً */
+        animation: fadeIn 0.4s ease-in-out;
+    }
+    .doc-page.active {
+        display: block; /* إظهار الصفحة النشطة */
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* تنسيق أزرار التنقل السفلية */
+    .nav-arrow-btn {
+        position: fixed;
+        bottom: 2rem;
+        z-index: 60;
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 50%;
+        background-color: #000;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        transition: all 0.3s ease;
+        border: 2px solid #333;
+        cursor: pointer;
+    }
+    .nav-arrow-btn:hover {
+        transform: scale(1.1);
+        background-color: #222;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+    .nav-arrow-btn:disabled {
+        opacity: 0;
+        pointer-events: none;
+    }
+    .nav-arrow-btn i { font-size: 1.2rem; }
+
+    /* سيتم التحكم بمواقع الأزرار عبر JS لضمان عدم الانعكاس الخاطئ */
+    #nextBtn { right: 2rem; } 
+    #prevBtn { left: 2rem; }
+
+    .dark .nav-arrow-btn {
+        background-color: #fff;
+        color: #000;
+        border-color: #ccc;
+    }
+
+    /* تنسيق نوافذ الكود */
+    .code-window {
+        background: #1e1e1e;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-top: 1rem;
+        border: 1px solid #333;
+        direction: ltr; /* الكود دائماً من اليسار لليمين */
+    }
+    .code-tabs {
+        display: flex;
+        background: #252526;
+        border-bottom: 1px solid #333;
+    }
+    .code-tab {
+        padding: 8px 16px;
+        color: #999;
+        font-size: 0.85rem;
+        cursor: pointer;
+        border-right: 1px solid #333;
+    }
+    .code-tab.active {
+        background: #1e1e1e;
+        color: #fff;
+        font-weight: bold;
+        border-top: 2px solid #4f46e5;
+    }
+
+    /* تحسين تنسيق منطقة الكود */
+    .code-content-area {
+        padding: 20px;          
+        overflow-x: auto;       
+        color: #d4d4d4;
+        font-family: 'Consolas', 'Monaco', 'Andale Mono', 'Ubuntu Mono', monospace; 
+        font-size: 0.9rem;
+        line-height: 1.7;       
+        direction: ltr; 
+        text-align: left;
+        white-space: pre;       
+        tab-size: 4;            
+    }
+
+    .hidden-code { display: none; }
+
+    /* تنسيق القائمة العلوية المنسدلة */
+    #mobile-docs-menu {
+        transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+    }
+    #mobile-docs-menu.open {
+        max-height: 500px;
+        opacity: 1;
+        overflow-y: auto;
+    }
+</style>
+
+<div class="min-h-screen bg-gray-50 dark:bg-darkbg flex flex-col relative pb-20">
+
+    <div class="md:hidden sticky top-20 z-40 bg-white dark:bg-cardbg border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <button onclick="toggleMobileMenu()" class="w-full px-5 py-3 flex items-center justify-between text-sm font-bold text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+            <span class="flex items-center gap-2">
+                <i class="fa-solid fa-list-ul text-primary"></i>
+                <span id="mobile-current-title">القائمة (Menu)</span>
+            </span>
+            <i id="mobile-chevron" class="fa-solid fa-chevron-down text-gray-400 transition-transform duration-300"></i>
+        </button>
+
+        <div id="mobile-docs-menu" class="bg-gray-50 dark:bg-[#151e2e] border-t border-gray-100 dark:border-gray-700 absolute w-full shadow-xl">
+             <button onclick="goToPage(0); toggleMobileMenu()" class="mobile-link w-full px-6 py-3 border-b border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-cardbg text-sm text-gray-600 dark:text-gray-300 transition text-left rtl:text-right">
+                1. <span data-i18n="toc_quickstart">Quick Start</span>
+            </button>
+            <button onclick="goToPage(1); toggleMobileMenu()" class="mobile-link w-full px-6 py-3 border-b border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-cardbg text-sm text-gray-600 dark:text-gray-300 transition text-left rtl:text-right">
+                2. <span data-i18n="toc_auth">Authentication</span>
+            </button>
+            <button onclick="goToPage(2); toggleMobileMenu()" class="mobile-link w-full px-6 py-3 border-b border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-cardbg text-sm text-gray-600 dark:text-gray-300 transition text-left rtl:text-right">
+                3. <span data-i18n="toc_endpoints">Endpoints</span>
+            </button>
+            <button onclick="goToPage(3); toggleMobileMenu()" class="mobile-link w-full px-6 py-3 border-b border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-cardbg text-sm text-gray-600 dark:text-gray-300 transition text-left rtl:text-right">
+                4. <span data-i18n="toc_requests">Requests & Responses</span>
+            </button>
+            <button onclick="goToPage(4); toggleMobileMenu()" class="mobile-link w-full px-6 py-3 border-b border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-cardbg text-sm text-gray-600 dark:text-gray-300 transition text-left rtl:text-right">
+                5. <span data-i18n="toc_limits">Rate Limits</span>
+            </button>
+            <button onclick="goToPage(5); toggleMobileMenu()" class="mobile-link w-full px-6 py-3 border-b border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-cardbg text-sm text-gray-600 dark:text-gray-300 transition text-left rtl:text-right">
+                6. <span data-i18n="toc_errors">Errors</span>
+            </button>
+            <button onclick="goToPage(6); toggleMobileMenu()" class="mobile-link w-full px-6 py-3 border-b border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-cardbg text-sm text-gray-600 dark:text-gray-300 transition text-left rtl:text-right">
+                7. <span data-i18n="toc_tools">Nexus Tools</span>
+            </button>
+            <button onclick="goToPage(7); toggleMobileMenu()" class="mobile-link w-full px-6 py-3 border-b border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-cardbg text-sm text-gray-600 dark:text-gray-300 transition text-left rtl:text-right">
+                8. <span data-i18n="toc_integration">AI Code Builder</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="desktop-sidebar" class="hidden md:block fixed top-24 w-64 z-40 transition-all duration-300 left-8">
+        <div class="bg-white dark:bg-cardbg rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4">
+            <h3 class="font-bold text-gray-400 text-xs uppercase tracking-wider mb-4 px-2" data-i18n="docs_guide">Guide</h3>
+            <nav class="space-y-1">
+                <button onclick="goToPage(0)" class="nav-item w-full px-3 py-2 text-sm font-medium rounded-md transition-colors text-primary bg-primary/5 text-left rtl:text-right" id="nav-quickstart">
+                    1. <span data-i18n="toc_quickstart">Quick Start</span>
+                </button>
+                <button onclick="goToPage(1)" class="nav-item w-full px-3 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 text-left rtl:text-right" id="nav-auth">
+                    2. <span data-i18n="toc_auth">Authentication</span>
+                </button>
+                <button onclick="goToPage(2)" class="nav-item w-full px-3 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 text-left rtl:text-right" id="nav-endpoints">
+                    3. <span data-i18n="toc_endpoints">Endpoints</span>
+                </button>
+                <button onclick="goToPage(3)" class="nav-item w-full px-3 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 text-left rtl:text-right" id="nav-requests">
+                    4. <span data-i18n="toc_requests">Requests & Responses</span>
+                </button>
+                <button onclick="goToPage(4)" class="nav-item w-full px-3 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 text-left rtl:text-right" id="nav-limits">
+                    5. <span data-i18n="toc_limits">Rate Limits</span>
+                </button>
+                <button onclick="goToPage(5)" class="nav-item w-full px-3 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 text-left rtl:text-right" id="nav-errors">
+                    6. <span data-i18n="toc_errors">Errors</span>
+                </button>
+                <button onclick="goToPage(6)" class="nav-item w-full px-3 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 text-left rtl:text-right" id="nav-tools">
+                    7. <span data-i18n="toc_tools">Nexus Tools</span>
+                </button>
+                <button onclick="goToPage(7)" class="nav-item w-full px-3 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 text-left rtl:text-right" id="nav-integration">
+                    8. <span data-i18n="toc_integration">AI Code Builder</span>
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <div id="main-doc-content" class="max-w-3xl mx-auto w-full px-6 pt-10 transition-all duration-300 md:pl-72">
+
+        <div id="page-quickstart" class="doc-page active">
+            <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="quickstart_title">Quick Start Guide</h1>
+            <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
+                <p data-i18n="qs_p1">
+                    Welcome to the Nexus API documentation. This guide is designed to get you up and running with our enterprise-grade AI models in less than 5 minutes. Our platform is architected to be a fully compatible drop-in replacement for the standard OpenAI SDKs, ensuring seamless migration.
+                </p>
+                <p data-i18n="qs_p2">
+                    The integration process involves three critical steps: Creating your secure account, generating your unique API Key, and configuring your development environment.
+                </p>
+
+                <div class="my-8 border-l-4 border-primary bg-blue-50 dark:bg-blue-900/10 p-4 rounded-r-lg">
+                    <h4 class="font-bold text-gray-900 dark:text-white mb-2" data-i18n="qs_step_title">Your First Request Workflow:</h4>
+                    <ul class="list-disc list-inside space-y-2 text-sm">
+                        <li data-i18n="qs_step_1"><strong>Register:</strong> Create a new account to access the dashboard.</li>
+                        <li data-i18n="qs_step_2"><strong>Get Key:</strong> Generate a new key (starts with <code>Nexus_</code>).</li>
+                        <li data-i18n="qs_step_3"><strong>Base URL:</strong> Point your SDK to <code>https://your-domain.com/v1</code>.</li>
+                    </ul>
+                </div>
+
+                <p data-i18n="qs_p3">
+                    Once you have your key, you are ready to send requests. We recommend storing keys in environment variables to prevent leaks.
+                </p>
+            </div>
+        </div>
+
+        <div id="page-auth" class="doc-page">
+            <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="auth_title">Authentication</h1>
+            <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
+                <p data-i18n="auth_p1">
+                    Security is paramount at Nexus. Our API strictly enforces the <strong>Bearer Token</strong> authentication standard over HTTPS. You must pass your unique API Key in the headers of every request.
+                </p>
+                <p data-i18n="auth_p2">
+                    Your API Key is a secret credential. <strong>Never</strong> expose this key in client-side code (browsers) or commit it to public repositories.
+                </p>
+
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mt-8 mb-4" data-i18n="auth_header_structure">Header Structure</h3>
+                <p data-i18n="auth_p3">
+                    Every API call must include the <code>Authorization</code> header in the format `Bearer <KEY>`.
+                </p>
+
+                <div class="bg-gray-900 text-gray-200 p-4 rounded-lg font-mono text-sm shadow-lg mt-4" dir="ltr">
+                    <div class="mb-2 text-gray-500"># HTTP Header Format</div>
+                    <div>Authorization: Bearer <span class="text-green-400">Nexus_ai8x7d6f5g4h...</span></div>
+                </div>
+
+                <p class="mt-6" data-i18n="auth_p4">
+                    We support key rotation. If you suspect a leak, regenerate your key instantly from the dashboard.
+                </p>
+            </div>
+        </div>
+
+        <div id="page-endpoints" class="doc-page">
+            <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="endpoints_title">Endpoints & Models</h1>
+            <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
+                <p data-i18n="end_p1">
+                    Nexus consolidates all capabilities into a single, polymorphic endpoint: <code>/v1/chat/completions</code>. This abstraction layer handles routing to GPU clusters automatically.
+                </p>
+                <p data-i18n="end_p2">
+                    Our platform hosts state-of-the-art models like **DeepSeek-V3** for coding and speed, and **Kimi (Moonshot)** for reasoning and long-context analysis.
+                </p>
+
+                <div class="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg mt-8 mb-8">
+                    <table class="min-w-full text-sm text-left rtl:text-right">
+                        <thead class="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white uppercase font-bold">
+                            <tr>
+                                <th class="px-6 py-3" data-i18n="tbl_header_model">Model ID</th>
+                                <th class="px-6 py-3" data-i18n="tbl_header_usecase">Best Use Case</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-cardbg">
+                            {% for model in models_metadata %}
+                            <tr>
+                                <td class="px-6 py-4 font-mono text-primary font-bold">{{ model.id }}</td>
+                                <td class="px-6 py-4" data-i18n="model_desc_{{ model.short_key }}">
+                                    {{ model.name }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <p data-i18n="end_p3">
+                    All requests are processed on NVIDIA H100 GPUs for minimal latency. Choose the model that fits your latency vs. context requirements.
+                </p>
+            </div>
+        </div>
+
+        <div id="page-requests" class="doc-page">
+            <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="req_title">Requests & Responses</h1>
+            <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed mb-6">
+                <p data-i18n="req_p1">
+                    Interacting with the Nexus API involves sending a POST request with a JSON body, primarily managing the `messages` array for conversation history.
+                </p>
+                <p data-i18n="req_p2">
+                    We support advanced features like **Streaming** (`stream: true`), which sends Server-Sent Events (SSE) for real-time typing effects.
+                </p>
+            </div>
+
+            <div class="code-window">
+                <div class="code-tabs">
+                    <div class="code-tab active" onclick="switchCode('python', this)">Python (SDK)</div>
+                    <div class="code-tab" onclick="switchCode('js', this)">JavaScript (Fetch)</div>
+                    <div class="code-tab" onclick="switchCode('http', this)">HTTP / cURL</div>
+                </div>
+
+                <div id="code-python" class="code-content-area">
+<span class="text-pink-400">from</span> openai <span class="text-pink-400">import</span> OpenAI
+
+<span class="text-gray-500"># Configure client with Nexus Base URL</span>
+client = OpenAI(
+    base_url=<span class="text-yellow-300">"https://nexus-api.com/v1"</span>,
+    api_key=<span class="text-yellow-300">"Nexus_ai..."</span>
+)
+
+<span class="text-gray-500"># Send a streaming request</span>
+response = client.chat.completions.create(
+    model=<span class="text-yellow-300">"deepseek-ai/deepseek-v3.2"</span>,
+    messages=[
+        {
+            <span class="text-green-300">"role"</span>: <span class="text-green-300">"system"</span>, 
+            <span class="text-green-300">"content"</span>: <span class="text-green-300">"You are a helpful assistant."</span>
+        },
+        {
+            <span class="text-green-300">"role"</span>: <span class="text-green-300">"user"</span>, 
+            <span class="text-green-300">"content"</span>: <span class="text-green-300">"Hello world!"</span>
+        }
+    ],
+    temperature=0.7,
+    stream=True <span class="text-gray-500"># Enable real-time token streaming</span>
+)
+
+<span class="text-pink-400">for</span> chunk <span class="text-pink-400">in</span> response:
+    <span class="text-pink-400">if</span> chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end=<span class="text-yellow-300">""</span>)</div>
+
+                <div id="code-js" class="code-content-area hidden-code">
+<span class="text-pink-400">const</span> url = <span class="text-yellow-300">"https://nexus-api.com/v1/chat/completions"</span>;
+
+<span class="text-gray-500">// Request Configuration</span>
+const requestOptions = {
+    method: <span class="text-yellow-300">"POST"</span>,
+    headers: {
+        <span class="text-green-300">"Content-Type"</span>: <span class="text-green-300">"application/json"</span>,
+        <span class="text-green-300">"Authorization"</span>: <span class="text-green-300">"Bearer Nexus_ai..."</span>
+    },
+    body: JSON.stringify({
+        model: <span class="text-yellow-300">"deepseek-ai/deepseek-v3.2"</span>,
+        messages: [
+            { role: <span class="text-yellow-300">"user"</span>, content: <span class="text-yellow-300">"Hello from JS!"</span> }
+        ],
+        temperature: 0.7
+    })
+};
+
+<span class="text-gray-500">// Execution</span>
+fetch(url, requestOptions)
+    .then(res => res.json())
+    .then(data => {
+        console.log(data.choices[0].message.content);
+    })
+    .catch(error => console.error(<span class="text-yellow-300">"Error:"</span>, error));</div>
+
+                <div id="code-http" class="code-content-area hidden-code">
+POST /v1/chat/completions HTTP/1.1
+Host: nexus-api.com
+Authorization: Bearer Nexus_ai...
+Content-Type: application/json
+
+{
+    "model": "deepseek-ai/deepseek-v3.2",
+    "messages": [
+        {
+            "role": "system",
+            "content": "You are a concise assistant."
+        },
+        {
+            "role": "user",
+            "content": "Write a haiku about APIs"
+        }
+    ],
+    "temperature": 0.5,
+    "max_tokens": 100
+}</div>
+            </div>
+
+            <p class="mt-4 text-xs text-gray-500" data-i18n="req_note">Note: The response format follows the standard OpenAI Schema, making it easy to parse.</p>
+        </div>
+
+        <div id="page-limits" class="doc-page">
+            <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="limits_title">Rate Limits & Quotas</h1>
+            <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
+                <p data-i18n="lim_p1">
+                    Nexus applies limits based on your tier. We use a unique <strong>"Smart Queue & Overdraft"</strong> mechanism to keep your apps running during spikes.
+                </p>
+
+                <div class="bg-white dark:bg-cardbg border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-sm my-8">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-gauge-high text-primary"></i> 
+                        <span data-i18n="lim_box_title">Daily Limit Example</span>
+                    </h3>
+
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700/50 pb-2">
+                            <span class="font-medium">DeepSeek V3 Plan:</span>
+                            <span class="font-bold font-mono text-primary">300 requests/day</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700/50 pb-2">
+                            <span class="font-medium">Kimi K2 Plan:</span>
+                            <span class="font-bold font-mono text-primary">200 requests/day</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 bg-yellow-50 dark:bg-yellow-900/10 p-4 rounded-lg border border-yellow-100 dark:border-yellow-800/30">
+                        <h4 class="text-sm font-bold text-yellow-800 dark:text-yellow-500 mb-2">⚡ Smart Overdraft Protection</h4>
+                        <p class="text-sm text-yellow-700 dark:text-yellow-400 leading-relaxed" data-i18n="lim_overdraft_desc">
+                            When your daily limit is exhausted, your account automatically switches to "Low Priority Mode". You will continue to receive responses, but they are processed in the secondary queue.
+                        </p>
+                    </div>
+
+                    <div class="mt-6 text-center">
+                        <a href="/pricing" class="inline-flex items-center gap-2 text-primary font-bold hover:underline">
+                            <span data-i18n="lim_check_pricing">Check Full Pricing & Limits</span>
+                            <i class="fa-solid fa-arrow-right rtl:rotate-180"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <p data-i18n="lim_p2">
+                    Limits reset automatically every day at 00:00 UTC. We also provide headers in every response (e.g., `x-ratelimit-remaining`) to help you programmatically track your usage.
+                </p>
+            </div>
+        </div>
+
+        <div id="page-errors" class="doc-page">
+            <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="err_title">Common Errors</h1>
+            <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
+                <p data-i18n="err_p1">
+                    While we strive for 99.9% uptime, errors can occur due to network instability, invalid input formatting, or rate limiting. The Nexus API utilizes standard HTTP status codes.
+                </p>
+                <p data-i18n="err_p2">
+                    Below is a detailed breakdown of the most common errors you might encounter, along with actionable steps to resolve them.
+                </p>
+
+                <div class="space-y-4 mt-8">
+                    <div class="border-l-4 border-red-500 bg-white dark:bg-cardbg p-4 shadow-sm rounded-r-lg">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="font-mono font-bold text-red-500 text-lg">401</span>
+                            <h3 class="font-bold text-gray-900 dark:text-white">Unauthorized</h3>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">
+                            Authentication failure. Check your API key format and validity.
+                        </p>
+                    </div>
+
+                    <div class="border-l-4 border-yellow-500 bg-white dark:bg-cardbg p-4 shadow-sm rounded-r-lg">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="font-mono font-bold text-yellow-500 text-lg">429</span>
+                            <h3 class="font-bold text-gray-900 dark:text-white">Too Many Requests</h3>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">
+                            You have exceeded your daily limit. Wait for the reset or upgrade your plan.
+                        </p>
+                    </div>
+
+                    <div class="border-l-4 border-gray-500 bg-white dark:bg-cardbg p-4 shadow-sm rounded-r-lg">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="font-mono font-bold text-gray-500 text-lg">500 / 503</span>
+                            <h3 class="font-bold text-gray-900 dark:text-white">Server Errors</h3>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">
+                            Transient server issue. Please retry with exponential backoff.
+                        </p>
+                    </div>
+                </div>
+
+                <p class="mt-8" data-i18n="err_p3">
+                    For persistent issues, please share the `x-request-id` with our support team.
+                </p>
+            </div>
+        </div>
+
+        <div id="page-tools" class="doc-page">
+            <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="tools_title">Nexus Tools (Add-ons)</h1>
+            <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
+                <p data-i18n="tools_intro">
+                    In addition to our LLM endpoints, Nexus provides a suite of specialized "Function Tools". These are standalone APIs designed to handle complex tasks like scraping, financial data aggregation, and computer vision. They are perfect for building RAG pipelines or autonomous agents.
+                </p>
+
+                <div class="mt-10 space-y-12">
+
+                    <div class="pl-4 ltr:border-l-4 rtl:border-r-4 rtl:border-l-0 border-green-500">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
+                            <i class="fa-solid fa-chart-line text-green-500"></i>
+                            Global Market Pulse
+                        </h3>
+                        <p class="text-base text-gray-600 dark:text-gray-300 leading-relaxed" data-i18n="tools_finance_desc">
+                            The Nexus Finance engine is not just a simple RSS reader. It is a robust, multi-source aggregator that combines GNews real-time data with over 20 backup RSS feeds. It features a smart 'Sniper' scraping engine that bypasses paywalls and anti-bot protections to retrieve full article content, not just summaries. With the new Time Filter parameter, you can strictly limit results to the last hour or day, making it perfect for AI trading bots that need the freshest market sentiment without hallucinating on old data.
+                        </p>
+                    </div>
+
+                    <div class="pl-4 ltr:border-l-4 rtl:border-r-4 rtl:border-l-0 border-blue-500">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
+                            <i class="fa-solid fa-earth-americas text-blue-500"></i>
+                            World News Stream
+                        </h3>
+                        <p class="text-base text-gray-600 dark:text-gray-400 leading-relaxed" data-i18n="tools_news_desc">
+                            Designed for global awareness, this tool aggregates breaking news from top-tier sources like BBC, CNN, and Al Jazeera. Unlike standard scrapers, it uses the advanced Trafilatura engine to strip away ads, navigation bars, and noise, delivering clean, raw text ready for LLM consumption. It supports a hybrid fetching mode: prioritizing Google News for immediacy and falling back to a deep database of RSS feeds for diversity. It is essential for building news summarization bots, trend analyzers, or political monitoring agents.
+                        </p>
+                    </div>
+
+                    <div class="pl-4 ltr:border-l-4 rtl:border-r-4 rtl:border-l-0 border-purple-500">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
+                            <i class="fa-solid fa-eye text-purple-500"></i>
+                            Nexus Vision (OCR)
+                        </h3>
+                        <p class="text-base text-gray-600 dark:text-gray-400 leading-relaxed" data-i18n="tools_ocr_desc">
+                            Nexus Vision goes beyond traditional optical character recognition. It utilizes a vision-language model approach to understand the structure of documents, receipts, and invoices. Instead of returning a jumbled mess of characters, it preserves the spatial context of the text, making it significantly easier to extract structured data like dates, totals, and vendor names. This tool handles various image formats and low-quality scans with high precision, acting as the perfect bridge between physical documents and your digital AI workflows.
+                        </p>
+                    </div>
+
+                    <div class="pl-4 ltr:border-l-4 rtl:border-r-4 rtl:border-l-0 border-orange-500">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
+                            <i class="fa-solid fa-network-wired text-orange-500"></i>
+                            Semantic Core V2
+                        </h3>
+                        <p class="text-base text-gray-600 dark:text-gray-400 leading-relaxed" data-i18n="tools_embed_desc">
+                            The Semantic Core V2 is the backbone of any Retrieval-Augmented Generation (RAG) system. It transforms text into high-dimensional vector representations that capture deep semantic meaning rather than just keyword matching. By using this tool, you can build smart search engines, recommendation systems, or long-term memory for your chatbots. It is optimized for speed and works seamlessly with vector databases like Pinecone or Milvus, allowing your AI to retrieve accurate context before generating an answer, effectively reducing hallucinations.
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div id="page-integration" class="doc-page">
+            <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="integ_title">AI Code Builder</h1>
+            <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
+                <p data-i18n="integ_intro">
+                    The <strong>AI Code Builder</strong> (Code Hub) is a comprehensive development environment directly within your browser. It enables you to generate full projects from scratch, intelligently integrate AI capabilities into uploaded files, and preview applications instantly in a secure sandbox.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 my-8">
+                    <div class="bg-white dark:bg-[#151e2e] p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition">
+                        <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-primary text-2xl mb-4">
+                            <i class="fa-solid fa-laptop-code"></i>
+                        </div>
+                        <h3 class="font-bold text-lg mb-2 text-gray-900 dark:text-white" data-i18n="cb_feat_scratch">Build from Scratch</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="cb_feat_scratch_desc">Describe your idea, and Nexus will generate all necessary HTML, CSS, and JS files instantly.</p>
+                    </div>
+
+                    <div class="bg-white dark:bg-[#151e2e] p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition">
+                        <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center text-green-600 text-2xl mb-4">
+                            <i class="fa-solid fa-syringe"></i>
+                        </div>
+                        <h3 class="font-bold text-lg mb-2 text-gray-900 dark:text-white" data-i18n="cb_feat_inject">Smart Injection</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="cb_feat_inject_desc">Upload your existing files. Nexus analyzes them and injects the API Key and connection logic automatically.</p>
+                    </div>
+
+                    <div class="bg-white dark:bg-[#151e2e] p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition">
+                        <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center text-purple-600 text-2xl mb-4">
+                            <i class="fa-solid fa-eye"></i>
+                        </div>
+                        <h3 class="font-bold text-lg mb-2 text-gray-900 dark:text-white" data-i18n="cb_feat_preview">Live Preview</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="cb_feat_preview_desc">See your generated application running live in a secure sandbox before downloading.</p>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mt-8 mb-4" data-i18n="cb_workflow_title">How to Use</h3>
+
+                <div class="bg-gray-900 text-gray-300 p-6 rounded-xl border border-gray-700 relative overflow-hidden">
+                    <ul class="list-disc list-inside text-sm space-y-3 marker:text-primary">
+                        <li data-i18n="cb_step_1"><strong>Go to Code Hub:</strong> Navigate to the <a href="/code-hub" class="text-white font-bold underline">Code Builder</a> page.</li>
+                        <li data-i18n="cb_step_2"><strong>Select Models:</strong> Choose one or more models (e.g., DeepSeek + Mistral) to power your application.</li>
+                        <li data-i18n="cb_step_3"><strong>Chat or Upload:</strong> describe your project, or upload files (e.g., `main.py`) for integration.</li>
+                        <li data-i18n="cb_step_4"><strong>Preview & Download:</strong> Watch the app run in the 'Preview' tab, then download the full ZIP file.</li>
+                    </ul>
+                </div>
+
+                <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border-l-4 border-blue-500 rounded-r-lg">
+                    <p class="text-sm text-blue-800 dark:text-blue-400">
+                        <strong data-i18n="note_label">Important:</strong> <span data-i18n="cb_note_text">When uploading files, Nexus creates a 'README.md' explaining exactly what was changed or injected. It respects your existing code structure.</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <button id="prevBtn" class="nav-arrow-btn" onclick="prevPage()" title="Previous">
+        <i class="fa-solid fa-arrow-left"></i>
+    </button>
+
+    <button id="nextBtn" class="nav-arrow-btn" onclick="nextPage()" title="Next">
+        <i class="fa-solid fa-arrow-right"></i>
+    </button>
+
+</div>
+
+<script>
+    // --- Data & State ---
+    const pages = ['page-quickstart', 'page-auth', 'page-endpoints', 'page-requests', 'page-limits', 'page-errors', 'page-tools', 'page-integration'];
+    let currentPageIndex = 0;
+
+    // --- Core Navigation Function ---
+    function updateView() {
+        pages.forEach((pageId, index) => {
+            const el = document.getElementById(pageId);
+            if (index === currentPageIndex) {
+                el.classList.add('active');
+            } else {
+                el.classList.remove('active');
+            }
+        });
+
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        prevBtn.disabled = (currentPageIndex === 0);
+        nextBtn.disabled = (currentPageIndex === pages.length - 1);
+        prevBtn.style.opacity = (currentPageIndex === 0) ? "0" : "1";
+        prevBtn.style.pointerEvents = (currentPageIndex === 0) ? "none" : "auto";
+        nextBtn.style.opacity = (currentPageIndex === pages.length - 1) ? "0" : "1";
+        nextBtn.style.pointerEvents = (currentPageIndex === pages.length - 1) ? "none" : "auto";
+
+        document.querySelectorAll('.nav-item').forEach((btn, index) => {
+            if (index === currentPageIndex) {
+                btn.classList.add('bg-primary/5', 'text-primary');
+                btn.classList.remove('text-gray-600', 'dark:text-gray-400');
+            } else {
+                btn.classList.remove('bg-primary/5', 'text-primary');
+                btn.classList.add('text-gray-600', 'dark:text-gray-400');
+            }
+        });
+
+        const lang = localStorage.getItem('lang') || 'ar';
+        const pageNames = {
+            'page-quickstart': docsTranslations[lang]['toc_quickstart'],
+            'page-auth': docsTranslations[lang]['toc_auth'],
+            'page-endpoints': docsTranslations[lang]['toc_endpoints'],
+            'page-requests': docsTranslations[lang]['toc_requests'],
+            'page-limits': docsTranslations[lang]['toc_limits'],
+            'page-errors': docsTranslations[lang]['toc_errors'],
+            'page-tools': docsTranslations[lang]['toc_tools'],
+            'page-integration': docsTranslations[lang]['toc_integration']
+        };
+        const currentTitleEl = document.getElementById('mobile-current-title');
+        if(currentTitleEl) currentTitleEl.textContent = pageNames[pages[currentPageIndex]];
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function nextPage() {
+        if (currentPageIndex < pages.length - 1) {
+            currentPageIndex++;
+            updateView();
+        }
+    }
+
+    function prevPage() {
+        if (currentPageIndex > 0) {
+            currentPageIndex--;
+            updateView();
+        }
+    }
+
+    function goToPage(index) {
+        currentPageIndex = index;
+        updateView();
+    }
+
+    function toggleMobileMenu() {
+        const menu = document.getElementById('mobile-docs-menu');
+        const chevron = document.getElementById('mobile-chevron');
+        if (menu.classList.contains('open')) {
+            menu.classList.remove('open');
+            chevron.style.transform = "rotate(0deg)";
+        } else {
+            menu.classList.add('open');
+            chevron.style.transform = "rotate(180deg)";
+        }
+    }
+
+    function switchCode(lang, tabEl) {
+        const tabs = tabEl.parentElement.querySelectorAll('.code-tab');
+        tabs.forEach(t => {
+            t.classList.remove('active', 'text-white', 'font-bold', 'border-t-2', 'border-primary', 'bg-[#1e1e1e]');
+            t.classList.add('text-[#999]');
+        });
+        tabEl.classList.add('active', 'text-white', 'font-bold', 'border-t-2', 'border-primary', 'bg-[#1e1e1e]');
+        tabEl.classList.remove('text-[#999]');
+
+        document.getElementById('code-python').classList.add('hidden-code');
+        document.getElementById('code-js').classList.add('hidden-code');
+        document.getElementById('code-http').classList.add('hidden-code');
+        document.getElementById('code-' + lang).classList.remove('hidden-code');
+    }
+
+    // --- Translations ---
+    const docsTranslations = {
+        en: {
+            "docs_guide": "Guide",
+            "toc_quickstart": "Quick Start",
+            "toc_auth": "Authentication",
+            "toc_endpoints": "Endpoints",
+            "toc_requests": "Requests & Responses",
+            "toc_limits": "Rate Limits",
+            "toc_errors": "Errors",
+            "toc_tools": "Nexus Tools",
+            "toc_integration": "AI Code Builder",
+
+            "quickstart_title": "Quick Start Guide",
+            "qs_p1": "Welcome to the Nexus API documentation. This guide is designed to get you up and running with our enterprise-grade AI models in less than 5 minutes. Our platform is architected to be a fully compatible drop-in replacement for the standard OpenAI SDKs, ensuring seamless migration.",
+            "qs_p2": "The integration process involves three critical steps: Creating your secure account, generating your unique API Key, and configuring your development environment.",
+            "qs_step_title": "Your First Request Workflow:",
+            "qs_step_1": "<strong>Register:</strong> Create a new account to access the dashboard.",
+            "qs_step_2": "<strong>Get Key:</strong> Generate a new key (starts with <code>Nexus_</code>).",
+            "qs_step_3": "<strong>Base URL:</strong> Point your SDK to <code>https://your-domain.com/v1</code>.",
+            "qs_p3": "Once you have your key, you are ready to send requests. We recommend storing keys in environment variables to prevent leaks.",
+
+            "auth_title": "Authentication",
+            "auth_p1": "Security is paramount at Nexus. Our API strictly enforces the <strong>Bearer Token</strong> authentication standard over HTTPS. You must pass your unique API Key in the headers of every request.",
+            "auth_p2": "Your API Key is a secret credential. <strong>Never</strong> expose this key in client-side code (browsers) or commit it to public repositories.",
+            "auth_header_structure": "Header Structure",
+            "auth_p3": "Every API call must include the <code>Authorization</code> header in the format `Bearer <KEY>`.",
+            "auth_p4": "We support key rotation. If you suspect a leak, regenerate your key instantly from the dashboard.",
+
+            "endpoints_title": "Endpoints & Models",
+            "end_p1": "Nexus consolidates all capabilities into a single, polymorphic endpoint: <code>/v1/chat/completions</code>. This abstraction layer handles routing to GPU clusters automatically.",
+            "end_p2": "Our platform hosts state-of-the-art models like **DeepSeek-V3** for coding and speed, and **Kimi (Moonshot)** for reasoning and long-context analysis.",
+            "end_p3": "All requests are processed on NVIDIA H100 GPUs for minimal latency. Choose the model that fits your latency vs. context requirements.",
+            "tbl_header_model": "Model ID",
+            "tbl_header_usecase": "Best Use Case",
+            "model_desc_deepseek": "High-speed coding, chat bots, and general logic.",
+            "model_desc_kimi": "Complex reasoning, large context analysis, academic tasks.",
+            "model_desc_mistral": "Multi-lingual support (European languages), nuance, and creative writing.",
+            "model_desc_llama": "Fast and lightweight (3B). Great for edge-like latency.",
+            "model_desc_gemma": "Google's efficient open model. Balanced performance.",
+
+            "req_title": "Requests & Responses",
+            "req_p1": "Interacting with the Nexus API involves sending a POST request with a JSON body, primarily managing the `messages` array for conversation history.",
+            "req_p2": "We support advanced features like **Streaming** (`stream: true`), which sends Server-Sent Events (SSE) for real-time typing effects.",
+            "req_note": "Note: The response format follows the standard OpenAI Schema, making it easy to parse.",
+
+            "limits_title": "Rate Limits & Quotas",
+            "lim_p1": "Nexus applies limits based on your tier. We use a unique <strong>'Smart Queue & Overdraft'</strong> mechanism to keep your apps running during spikes.",
+            "lim_box_title": "Daily Limit Example",
+            "lim_overdraft_desc": "When your limit is exhausted, your account switches to 'Low Priority Mode'. You still receive responses, but with slightly higher latency.",
+            "lim_check_pricing": "Check Full Pricing & Limits",
+            "lim_p2": "Limits reset daily at 00:00 UTC. Use response headers to track your remaining quota programmatically.",
+
+            "err_title": "Common Errors",
+            "err_p1": "We use standard HTTP status codes. Understanding these is essential for building robust, self-healing applications.",
+            "err_p2": "Below is a detailed breakdown of common errors like 401 (Auth) and 429 (Rate Limit), with actionable solutions.",
+            "err_p3": "For persistent issues, please share the `x-request-id` with our support team.",
+
+            "tools_title": "Nexus Tools (Add-ons)",
+            "tools_intro": "In addition to our LLM endpoints, Nexus provides a suite of specialized 'Function Tools'. These are standalone APIs designed to handle complex tasks like scraping, financial data aggregation, and computer vision.",
+            "tools_finance_desc": "The Nexus Finance engine is not just a simple RSS reader. It is a robust, multi-source aggregator...",
+            "tools_news_desc": "Designed for global awareness, this tool aggregates breaking news from top-tier sources like BBC...",
+            "tools_ocr_desc": "Nexus Vision goes beyond traditional optical character recognition. It utilizes a vision-language model...",
+            "tools_embed_desc": "The Semantic Core V2 is the backbone of any Retrieval-Augmented Generation (RAG) system...",
+
+            "integ_title": "AI Code Builder",
+            "integ_intro": "The <strong>AI Code Builder</strong> (Code Hub) is a comprehensive development environment directly within your browser. It enables you to generate full projects from scratch, intelligently integrate AI capabilities into uploaded files, and preview applications instantly in a secure sandbox.",
+            "cb_feat_scratch": "Build from Scratch",
+            "cb_feat_scratch_desc": "Describe your idea, and Nexus will generate all necessary HTML, CSS, and JS files instantly.",
+            "cb_feat_inject": "Smart Injection",
+            "cb_feat_inject_desc": "Upload your existing files. Nexus analyzes them and injects the API Key and connection logic automatically.",
+            "cb_feat_preview": "Live Preview",
+            "cb_feat_preview_desc": "See your generated application running live in a secure sandbox before downloading.",
+            "cb_workflow_title": "How to Use",
+            "cb_step_1": "<strong>Go to Code Hub:</strong> Navigate to the <a href='/code-hub' class='text-white font-bold underline'>Code Builder</a> page.",
+            "cb_step_2": "<strong>Select Models:</strong> Choose one or more models (e.g., DeepSeek + Mistral) to power your application.",
+            "cb_step_3": "<strong>Chat or Upload:</strong> describe your project, or upload files (e.g., `main.py`) for integration.</li>",
+            "cb_step_4": "<strong>Preview & Download:</strong> Watch the app run in the 'Preview' tab, then download the full ZIP file.",
+            "note_label": "Important:",
+            "cb_note_text": "When uploading files, Nexus creates a 'README.md' explaining exactly what was changed or injected. It respects your existing code structure."
+        },
+        ar: {
+            "docs_guide": "الدليل",
+            "toc_quickstart": "البدء السريع",
+            "toc_auth": "المصادقة والأمان",
+            "toc_endpoints": "نقاط الاتصال",
+            "toc_requests": "الطلبات والردود",
+            "toc_limits": "حدود الاستخدام",
+            "toc_errors": "الأخطاء الشائعة",
+            "toc_tools": "أدوات Nexus",
+            "toc_integration": "منشئ الكود الذكي",
+
+            "quickstart_title": "دليل البدء السريع",
+            "qs_p1": "مرحباً بك في توثيق Nexus API. صممت هذه المنصة لتكون بديلاً متوافقاً تماماً مع مكتبات OpenAI، مما يعني أنك إذا كنت تملك تطبيقاً يعمل بنماذج GPT، يمكنك نقله إلينا في دقائق بتغيير الرابط والمفتاح فقط.",
+            "qs_p2": "تبدأ الرحلة بثلاث خطوات: إنشاء حساب آمن، توليد مفتاح API فريد، وتهيئة بيئة التطوير.",
+            "qs_step_title": "خطوات إرسال أول طلب:",
+            "qs_step_1": "<strong>التسجيل:</strong> أنشئ حساباً جديداً للوصول إلى لوحة التحكم.",
+            "qs_step_2": "<strong>المفتاح:</strong> استخرج مفتاحاً جديداً (يبدأ بـ <code>Nexus_</code>).",
+            "qs_step_3": "<strong>الرابط:</strong> وجه مكتبتك إلى <code>https://your-domain.com/v1</code>.",
+            "qs_p3": "بمجرد حصولك على المفتاح، أنت جاهز. نوصي بحفظ المفتاح في متغيرات البيئة وعدم كتابته مباشرة في الكود لضمان الأمان.",
+
+            "auth_title": "المصادقة والأمان",
+            "auth_p1": "الأمان هو الأهم في Nexus. نستخدم معيار <strong>Bearer Token</strong> الصارم عبر HTTPS. يجب تمرير مفتاحك في ترويسة كل طلب ليتم السماح له بالعبور.",
+            "auth_p2": "مفتاح API هو سر خاص جداً. <strong>لا تقم أبداً</strong> بكشفه في كود الواجهة الأمامية (المتصفح) أو رفعه على GitHub.",
+            "auth_header_structure": "هيكلية الترويسة",
+            "auth_p3": "كل طلب يجب أن يحتوي على ترويسة <code>Authorization</code> وإلا سيتم رفضه فوراً بـ 401 Unauthorized.",
+            "auth_p4": "ندعم تدوير المفاتيح (Rotation). إذا شككت بتسرب مفتاحك، قم بتوليد مفتاح جديد فوراً من لوحة التحكم لإبطال القديم.",
+
+            "endpoints_title": "نقاط الاتصال والنماذج",
+            "end_p1": "توفر Nexus نقطة اتصال موحدة ذكية: <code>/v1/chat/completions</code>. هذا التصميم يسمح لك بالتبديل بين النماذج بمجرد تغيير اسم النموذج في الطلب دون تعديل الكود.",
+            "end_p2": "نستضيف نخبة من النماذج العالمية. نموذج **DeepSeek-V3** هو الأفضل للسرعة والبرمجة، بينما نموذج **Kimi** مخصص للمهام التي تتطلب تفكيراً عميقاً وسياقاً طويلاً.",
+            "end_p3": "تتم معالجة جميع الطلبات على خوادم NVIDIA H100 لضمان أقل زمن استجابة ممكن. اختر النموذج الأنسب لاحتياجات تطبيقك.",
+            "tbl_header_model": "معرف النموذج",
+            "tbl_header_usecase": "أفضل حالات الاستخدام",
+            "model_desc_deepseek": "برمجة عالية السرعة، روبوتات محادثة، ومنطق عام.",
+            "model_desc_kimi": "تفكير معقد، تحليل سياق كبير، ومهام أكاديمية.",
+            "model_desc_mistral": "دعم متعدد اللغات (أوروبي)، دقة عالية، وكتابة إبداعية.",
+            "model_desc_llama": "سريع وخفيف (3 مليار). ممتاز للاستجابة الفورية.",
+            "model_desc_gemma": "نموذج جوجل المفتوح الفعال. أداء متوازن.",
+
+            "req_title": "الطلبات والردود",
+            "req_p1": "التفاعل مع API يتم عبر إرسال طلب POST بصيغة JSON. العنصر الأهم هو مصفوفة `messages` التي تحفظ تاريخ المحادثة لضمان استمرار السياق.",
+            "req_p2": "ندعم ميزة **البث المباشر (Streaming)**، حيث تصلك الكلمات تباعاً فور توليدها، مما يعطي انطباعاً بالسرعة الفائقة للمستخدم النهائي.",
+            "req_note": "ملاحظة: صيغة الرد تتبع معايير OpenAI Schema ليسهل التعامل معها بأي مكتبة جاهزة.",
+
+            "limits_title": "حدود الاستخدام والحصص",
+            "lim_p1": "نطبق نظاماً فريداً يسمى <strong>'الطابور الذكي والسحب الزائد'</strong>. بدلاً من حظر طلباتك عند انتهاء الرصيد، نسمح لك بالاستمرار لكن بأولوية منخفضة.",
+            "lim_box_title": "مثال على الحد اليومي",
+            "lim_overdraft_desc": "عند انتهاء حدك اليومي، يتحول حسابك لوضع 'Low Priority'. ستستمر الطلبات بالعمل لكن قد تلاحظ تأخيراً بسيطاً بسبب الطابور الثانوي.",
+            "lim_check_pricing": "شاهد الأسعار والحدود الكاملة",
+            "lim_p2": "تتجدد الحدود يومياً الساعة 00:00 UTC. استخدم الترويسات العائدة مع الرد لمراقبة استهلاكك برمجياً.",
+
+            "err_title": "الأخطاء الشائعة",
+            "err_p1": "نستخدم أكواد HTTP القياسية. فهم هذه الأكواد ضروري لبناء تطبيق قوي قادر على التعامل مع المشاكل ذاتياً (Self-healing).",
+            "err_p2": "نستعرض أدناه الأخطاء الشائعة مثل 401 (خطأ مصادقة) و 429 (تجاوز الحدود) وكيفية التعامل معها برمجياً.",
+            "err_p3": "للمشاكل المستعصية، يرجى تزويد الدعم الفني برقم `x-request-id` الخاص بالطلب.",
+
+            "tools_title": "أدوات Nexus الإضافية",
+            "tools_intro": "بالإضافة إلى نماذج الذكاء الاصطناعي، توفر Nexus مجموعة من 'الأدوات الوظيفية' (Tools). وهي واجهات برمجية مستقلة مصممة للقيام بمهام معقدة مثل جلب البيانات المالية، الأخبار، وتحليل الصور.",
+            "tools_finance_desc": "محرك Nexus Finance ليس مجرد قارئ RSS بسيط. إنه مجمع بيانات قوي متعدد المصادر...",
+            "tools_news_desc": "صُممت هذه الأداة لرفع الوعي العالمي، حيث تجمع الأخبار العاجلة من مصادر موثوقة مثل BBC...",
+            "tools_ocr_desc": "يتجاوز Nexus Vision تقنيات التعرف الضوئي التقليدية (OCR). فهو يستخدم نموذج رؤية لغوي...",
+            "tools_embed_desc": "المحرك الدلالي Semantic Core V2 هو العمود الفقري لأي نظام بحث معزز (RAG)...",
+
+            "integ_title": "منشئ الكود الذكي (AI Code Builder)",
+            "integ_intro": "<strong>منشئ الكود الذكي</strong> (Code Hub) هو بيئة تطوير متكاملة داخل المتصفح. تتيح لك هذه الأداة بناء مشاريع برمجية كاملة من الصفر، أو دمج قدرات الذكاء الاصطناعي بذكاء في ملفاتك الحالية، مع إمكانية معاينة التطبيقات وتشغيلها فوراً في بيئة آمنة.",
+            "cb_feat_scratch": "البناء من الصفر",
+            "cb_feat_scratch_desc": "اشرح فكرتك فقط، وسيقوم Nexus بتوليد ملفات HTML و CSS و JS اللازمة فوراً.",
+            "cb_feat_inject": "الدمج الذكي (Injection)",
+            "cb_feat_inject_desc": "ارفع ملفاتك الحالية. سيقوم Nexus بتحليلها وحقن مفتاح API وكود الاتصال تلقائياً دون تدمير بنيتك.",
+            "cb_feat_preview": "المعاينة الحية",
+            "cb_feat_preview_desc": "شاهد تطبيقك يعمل بشكل حي في بيئة آمنة (Sandbox) قبل تحميله.",
+            "cb_workflow_title": "كيفية الاستخدام",
+            "cb_step_1": "<strong>الذهاب للأداة:</strong> انتقل إلى صفحة <a href='/code-hub' class='text-white font-bold underline'>منشئ الكود</a>.",
+            "cb_step_2": "<strong>اختيار النماذج:</strong> اختر نموذجاً واحداً أو أكثر (مثلاً دمج DeepSeek مع Mistral) لتشغيل تطبيقك.",
+            "cb_step_3": "<strong>المحادثة أو الرفع:</strong> اشرح فكرتك لبناء مشروع جديد، أو ارفع ملفات (مثل `main.py`) لدمجها.",
+            "cb_step_4": "<strong>المعاينة والتحميل:</strong> شاهد النتيجة في تبويب 'المعاينة'، ثم حمل المشروع كاملاً بملف ZIP.",
+            "note_label": "تنبيه هام:",
+            "cb_note_text": "عند رفع ملفات، يقوم Nexus بإنشاء ملف 'README.md' يشرح بالتفصيل التعديلات التي تمت أو الأكواد التي تم حقنها، مع الحفاظ على ملفاتك الأصلية سليمة."
+        }
+    };
+
+    function applyDocsTranslations() {
+        const lang = localStorage.getItem('lang') || 'ar';
+        const t = docsTranslations[lang];
+
+        // 🔥 FIX 1: Do NOT change global direction, rely on base.html structure
+        // document.documentElement.dir = ...  <-- REMOVED
+
+        // 🔥 FIX 2: Apply Direction Specific Logic Manually
+        const sidebar = document.getElementById('desktop-sidebar');
+        const mainContent = document.getElementById('main-doc-content');
+        const mobileLinks = document.querySelectorAll('.mobile-link');
+        const tableHeaders = document.querySelectorAll('th, td');
+
+        if (lang === 'ar') {
+            // ARABIC: Sidebar on Right, Content has Right Padding, Text is RTL
+            if(sidebar) {
+                sidebar.classList.remove('left-8');
+                sidebar.classList.add('right-8');
+            }
+            if(mainContent) {
+                mainContent.classList.remove('md:pl-72');
+                mainContent.classList.add('md:pr-72');
+                mainContent.setAttribute('dir', 'rtl'); // Only flip the content text
+            }
+            mobileLinks.forEach(el => {
+                el.classList.remove('text-left', 'rtl:text-right');
+                el.classList.add('text-right');
+            });
+            tableHeaders.forEach(el => el.classList.add('text-right'));
+
+        } else {
+            // ENGLISH: Sidebar on Left, Content has Left Padding, Text is LTR
+            if(sidebar) {
+                sidebar.classList.remove('right-8');
+                sidebar.classList.add('left-8');
+            }
+            if(mainContent) {
+                mainContent.classList.remove('md:pr-72');
+                mainContent.classList.add('md:pl-72');
+                mainContent.setAttribute('dir', 'ltr');
+            }
+            mobileLinks.forEach(el => {
+                el.classList.remove('text-right');
+                el.classList.add('text-left');
+            });
+            tableHeaders.forEach(el => el.classList.remove('text-right'));
+        }
+
+        if(!t) return;
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (t[key]) el.innerHTML = t[key];
+        });
+
+        updateView(); 
+    }
+
+    // --- Init ---
+    window.addEventListener('DOMContentLoaded', () => {
+        applyDocsTranslations();
+        updateView(); 
+        window.addEventListener('langChange', applyDocsTranslations);
+    });
+
+</script>
+{% endblock %}

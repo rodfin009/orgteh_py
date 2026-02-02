@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlalchemy
+jinja2
+httpx
+openai
+upstash-redis
+passlib[bcrypt]
+python-multipart
+python-dotenv
+itsdangerous
+starlette
+bcrypt
+requests
+pandas

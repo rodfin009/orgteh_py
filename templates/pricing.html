@@ -1,0 +1,714 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .tab-active { background: linear-gradient(to right, #3b82f6, #8b5cf6); color: white; }
+    .tab-inactive { background: transparent; color: #9ca3af; }
+    .bonus-glow { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    .card-popular { transform: scale(1.02); }
+    @media (min-width: 768px) { .card-popular { transform: scale(1.05); } }
+
+    /* Ribbon Styles */
+    .ribbon-wrapper {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden; 
+        border-radius: 1rem; 
+        pointer-events: none;
+        z-index: 10;
+    }
+    .ribbon {
+        position: absolute;
+        top: 20px;
+        right: -45px;
+        width: 150px;
+        transform: rotate(45deg);
+        background: linear-gradient(to right, #ef4444, #dc2626);
+        color: white;
+        text-align: center;
+        padding: 6px 0;
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        z-index: 20;
+    }
+    .ribbon-green { background: linear-gradient(to right, #10b981, #059669); }
+    .ribbon-blue { background: linear-gradient(to right, #3b82f6, #2563eb); }
+
+    html[dir="rtl"] .ribbon-wrapper { right: auto; left: 0; }
+    html[dir="rtl"] .ribbon { right: auto; left: -45px; transform: rotate(-45deg); }
+</style>
+
+<div class="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-darkbg min-h-screen">
+    <div class="max-w-7xl mx-auto">
+
+        <div class="text-center mb-12">
+            <h2 class="text-primary font-bold tracking-wide uppercase text-sm" data-i18n="pricing.lbl_plans_header">Subscription Plans</h2>
+            <p class="mt-2 text-4xl font-extrabold text-gray-900 dark:text-white sm:text-5xl">
+                <span data-i18n="pricing.title_main">Nexus API Plans</span>
+            </p>
+            <p class="mt-4 max-w-2xl text-xl text-gray-600 dark:text-gray-400 mx-auto" data-i18n="pricing.subtitle_main">
+                Flexible options: Individual models, smart bundles, or global access.
+            </p>
+        </div>
+
+        <div class="mx-auto mb-10 max-w-3xl overflow-hidden rounded-2xl border border-yellow-500/30 bg-gradient-to-r from-yellow-500/10 via-yellow-400/5 to-yellow-500/10">
+            <div class="flex flex-col items-center gap-4 p-6 text-center md:flex-row md:text-right ltr:md:text-left">
+                <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-yellow-600 to-yellow-400 shadow-lg">
+                    <i class="fa-solid fa-shield-halved text-xl text-white"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="flex items-center justify-center gap-2 text-lg font-bold text-gray-900 dark:text-white md:justify-start">
+                        <i class="fa-solid fa-bolt text-yellow-500"></i>
+                        <span data-i18n="pricing.promo_emergency_title">Extra Credit</span>
+                        <i class="fa-solid fa-bolt text-yellow-500"></i>
+                    </h3>
+                    <p class="mt-1 text-gray-600 dark:text-gray-400" data-i18n="pricing.promo_emergency_desc">
+                        Service does not stop when limit is reached.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-center mb-10">
+            <div class="inline-flex rounded-xl bg-gray-200 dark:bg-gray-800 p-1.5">
+                <button onclick="switchTab('individual')" id="tab-individual" class="flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-base transition-all tab-active">
+                    <i class="fa-solid fa-user"></i>
+                    <span data-i18n="pricing.tab_individual">Individual</span>
+                </button>
+                <button onclick="switchTab('global')" id="tab-global" class="flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-base transition-all tab-inactive">
+                    <i class="fa-solid fa-cubes"></i>
+                    <span data-i18n="pricing.tab_global">Bundles</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="section-individual" class="block">
+            <div class="text-center mb-8">
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white" data-i18n="pricing.sec_individual_title">For Professionals</h3>
+                <p class="mt-2 text-gray-500 dark:text-gray-400" data-i18n="pricing.sec_individual_desc">Choose your specific model.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 lg:gap-8">
+
+                <div class="relative flex flex-col rounded-2xl border-2 border-primary bg-white dark:bg-cardbg p-6 shadow-xl ring-2 ring-primary/20 card-popular">
+                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
+                        <span class="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-1.5 text-sm font-bold text-white shadow-lg whitespace-nowrap">
+                            <i class="fa-solid fa-crown"></i>
+                            <span data-i18n="pricing.lbl_popular">Popular</span>
+                        </span>
+                    </div>
+                    <div class="mb-4 text-center pt-4">
+                        <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png@latest/light/deepseek-color.png" class="mx-auto mb-4 w-16 h-16 object-contain drop-shadow-md hover:scale-110 transition-transform duration-300">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">DeepSeek V3</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">DeepSeek-AI</p>
+                    </div>
+                    <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-deepseek">
+                        <button onclick="setPeriod('deepseek', 'weekly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all bg-white dark:bg-cardbg text-gray-900 dark:text-white shadow-sm" data-period="weekly" data-i18n="pricing.btn_weekly">Weekly</button>
+                        <button onclick="setPeriod('deepseek', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
+                        <button onclick="setPeriod('deepseek', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                    </div>
+                    <div class="mb-4 text-center">
+                        <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-deepseek">$1.49</span>
+                        <span class="text-gray-500 price-label" data-i18n="pricing.lbl_per_week">/week</span>
+                    </div>
+                    <div class="mb-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                        <div class="text-2xl font-bold text-primary">300</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.lbl_req_day">req/day</div>
+                    </div>
+                    <div class="mb-4 relative overflow-hidden rounded-xl border-2 border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 via-yellow-400/20 to-yellow-500/10 p-4">
+                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500/10 to-transparent bonus-glow"></div>
+                        <div class="relative flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-bolt text-xl text-yellow-500 bonus-glow"></i>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-yellow-600 dark:text-yellow-500" id="bonus-deepseek">+100</div>
+                                <div class="text-sm font-semibold text-yellow-700 dark:text-yellow-600" data-i18n="pricing.lbl_extra_credit">Extra Credit</div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="w-full py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-primary/30" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                </div>
+
+                <div class="relative flex flex-col rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-cardbg p-6 shadow-lg hover:border-primary/50 transition-all">
+                    <div class="mb-4 text-center mt-2">
+                        <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png@latest/light/kimi-color.png" class="mx-auto mb-4 w-16 h-16 object-contain drop-shadow-md hover:scale-110 transition-transform duration-300">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Moonshot Kimi k2</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Moonshot AI</p>
+                    </div>
+                    <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-kimi">
+                         <button onclick="setPeriod('kimi', 'weekly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all bg-white dark:bg-cardbg text-gray-900 dark:text-white shadow-sm" data-period="weekly" data-i18n="pricing.btn_weekly">Weekly</button>
+                        <button onclick="setPeriod('kimi', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
+                        <button onclick="setPeriod('kimi', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                    </div>
+                    <div class="mb-4 text-center">
+                        <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-kimi">$2.49</span>
+                        <span class="text-gray-500 price-label" data-i18n="pricing.lbl_per_week">/week</span>
+                    </div>
+                    <div class="mb-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                        <div class="text-2xl font-bold text-primary">200</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.lbl_req_day">req/day</div>
+                    </div>
+                    <div class="mb-4 relative overflow-hidden rounded-xl border-2 border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 via-yellow-400/20 to-yellow-500/10 p-4">
+                        <div class="relative flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-bolt text-xl text-yellow-500 bonus-glow"></i>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-yellow-600 dark:text-yellow-500" id="bonus-kimi">+75</div>
+                                <div class="text-sm font-semibold text-yellow-700 dark:text-yellow-600" data-i18n="pricing.lbl_extra_credit">Extra Credit</div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold rounded-xl transition" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                </div>
+
+                <div class="relative flex flex-col rounded-2xl border-2 border-yellow-500 bg-gradient-to-b from-white dark:from-cardbg to-yellow-500/5 p-6 shadow-lg">
+                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
+                        <span class="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-yellow-700 via-yellow-500 to-yellow-400 px-4 py-1.5 text-sm font-bold text-white shadow-lg whitespace-nowrap">
+                            <i class="fa-solid fa-gem"></i>
+                            <span data-i18n="pricing.lbl_elite">Elite</span>
+                        </span>
+                    </div>
+                    <div class="mb-4 text-center pt-4">
+                        <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png@latest/light/mistral-color.png" class="mx-auto mb-4 w-16 h-16 object-contain drop-shadow-md hover:scale-110 transition-transform duration-300">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Mistral Large</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Mistral AI</p>
+                    </div>
+                    <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-mistral">
+                        <button onclick="setPeriod('mistral', 'weekly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all bg-white dark:bg-cardbg text-gray-900 dark:text-white shadow-sm" data-period="weekly" data-i18n="pricing.btn_weekly">Weekly</button>
+                        <button onclick="setPeriod('mistral', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
+                        <button onclick="setPeriod('mistral', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                    </div>
+                    <div class="mb-4 text-center">
+                        <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-mistral">$3.99</span>
+                        <span class="text-gray-500 price-label" data-i18n="pricing.lbl_per_week">/week</span>
+                    </div>
+                    <div class="mb-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                        <div class="text-2xl font-bold text-primary">100</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.lbl_req_day">req/day</div>
+                    </div>
+                    <div class="mb-4 relative overflow-hidden rounded-xl border-2 border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 via-yellow-400/20 to-yellow-500/10 p-4">
+                        <div class="relative flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-bolt text-xl text-yellow-500 bonus-glow"></i>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-yellow-600 dark:text-yellow-500" id="bonus-mistral">+50</div>
+                                <div class="text-sm font-semibold text-yellow-700 dark:text-yellow-600" data-i18n="pricing.lbl_extra_credit">Extra Credit</div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="w-full py-3 bg-gradient-to-r from-yellow-700 via-yellow-500 to-yellow-400 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                </div>
+
+                <div class="relative flex flex-col rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-cardbg p-6 shadow-lg hover:border-blue-500/50 transition-all">
+                    <div class="mb-4 text-center mt-2">
+                        <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png@latest/light/gemma-color.png" class="mx-auto mb-4 w-16 h-16 object-contain drop-shadow-md hover:scale-110 transition-transform duration-300">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Gemma 3</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Google DeepMind</p>
+                    </div>
+                    <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-gemma">
+                        <button onclick="setPeriod('gemma', 'weekly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all bg-white dark:bg-cardbg text-gray-900 dark:text-white shadow-sm" data-period="weekly" data-i18n="pricing.btn_weekly">Weekly</button>
+                        <button onclick="setPeriod('gemma', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
+                        <button onclick="setPeriod('gemma', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                    </div>
+                    <div class="mb-4 text-center">
+                        <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-gemma">$0.99</span>
+                        <span class="text-gray-500 price-label" data-i18n="pricing.lbl_per_week">/week</span>
+                    </div>
+                    <div class="mb-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                        <div class="text-2xl font-bold text-primary">500</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.lbl_req_day">req/day</div>
+                    </div>
+                    <div class="mb-4 relative overflow-hidden rounded-xl border-2 border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 via-yellow-400/20 to-yellow-500/10 p-4">
+                        <div class="relative flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-bolt text-xl text-yellow-500 bonus-glow"></i>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-yellow-600 dark:text-yellow-500" id="bonus-gemma">+200</div>
+                                <div class="text-sm font-semibold text-yellow-700 dark:text-yellow-600" data-i18n="pricing.lbl_extra_credit">Extra Credit</div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                </div>
+
+                <div class="relative flex flex-col rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-cardbg p-6 shadow-lg hover:border-indigo-500/50 transition-all">
+                    <div class="mb-4 text-center mt-2">
+                        <img src="https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png@latest/light/meta-color.png" class="mx-auto mb-4 w-16 h-16 object-contain drop-shadow-md hover:scale-110 transition-transform duration-300">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Llama 3.2</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Meta AI</p>
+                    </div>
+                    <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-llama">
+                        <button onclick="setPeriod('llama', 'weekly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all bg-white dark:bg-cardbg text-gray-900 dark:text-white shadow-sm" data-period="weekly" data-i18n="pricing.btn_weekly">Weekly</button>
+                        <button onclick="setPeriod('llama', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
+                        <button onclick="setPeriod('llama', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                    </div>
+                    <div class="mb-4 text-center">
+                        <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-llama">$0.79</span>
+                        <span class="text-gray-500 price-label" data-i18n="pricing.lbl_per_week">/week</span>
+                    </div>
+                    <div class="mb-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                        <div class="text-2xl font-bold text-primary">400</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.lbl_req_day">req/day</div>
+                    </div>
+                    <div class="mb-4 relative overflow-hidden rounded-xl border-2 border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 via-yellow-400/20 to-yellow-500/10 p-4">
+                        <div class="relative flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-bolt text-xl text-yellow-500 bonus-glow"></i>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-yellow-600 dark:text-yellow-500" id="bonus-llama">+150</div>
+                                <div class="text-sm font-semibold text-yellow-700 dark:text-yellow-600" data-i18n="pricing.lbl_extra_credit">Extra Credit</div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="section-global" class="hidden">
+            <div class="text-center mb-8">
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white" data-i18n="pricing.sec_global_title">Smart Bundles</h3>
+                <p class="mt-2 text-gray-500 dark:text-gray-400" data-i18n="pricing.sec_global_desc">Combined power for specific needs.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+
+                <div class="relative flex flex-col rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-cardbg p-6 shadow-xl">
+                    <div class="ribbon-wrapper">
+                        <div class="ribbon ribbon-green" data-i18n="pricing.ribbon_forever">Forever</div>
+                    </div>
+                     <div class="mb-4 mt-2 text-center">
+                        <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
+                             <i class="fa-solid fa-gift text-3xl text-gray-600 dark:text-gray-400"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white" data-i18n="pricing.title_free">Free Tier</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.desc_free">For testing & simple tasks</p>
+                    </div>
+                     <div class="mb-4 flex rounded-lg bg-transparent p-1">
+                        <button class="flex-1 rounded-md px-3 py-2 text-sm font-medium text-transparent cursor-default">.</button>
+                    </div>
+
+                    <div class="mb-4 text-center">
+                        <span class="text-5xl font-bold text-gray-900 dark:text-white">$0</span>
+                        <span class="text-gray-500 price-label" data-i18n="pricing.lbl_forever">/forever</span>
+                    </div>
+
+                    <div class="mb-4 grid grid-cols-2 gap-2 text-center">
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-2">
+                            <div class="text-lg font-bold text-primary">10</div>
+                            <div class="text-xs text-gray-500">Llama</div>
+                        </div>
+                         <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-2">
+                            <div class="text-lg font-bold text-primary">5</div>
+                            <div class="text-xs text-gray-500">Kimi</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 rounded-xl border border-gray-200 bg-gray-50 dark:bg-gray-800/20 p-4 text-center">
+                         <span class="text-sm font-semibold text-gray-500" data-i18n="pricing.no_overdraft">No Overdraft</span>
+                    </div>
+
+                    <ul class="mb-6 flex-1 space-y-3">
+                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_free_1">Access to Llama 3.2</span></li>
+                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_free_2">Access to Kimi k2</span></li>
+                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_free_3">Community Support</span></li>
+                    </ul>
+
+                    {% if not is_logged_in %}
+                    <a href="/" class="block w-full text-center py-3 bg-gray-900 dark:bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-800 transition" data-i18n="pricing.btn_start_free">Start Now</a>
+                    {% else %}
+                    <button class="w-full py-3 bg-gray-200 dark:bg-gray-700 text-gray-500 font-bold rounded-xl cursor-default" data-i18n="pricing.lbl_active">Active</button>
+                    {% endif %}
+                </div>
+
+                <div class="relative flex flex-col rounded-2xl border-2 border-indigo-500 bg-gradient-to-b from-white dark:from-cardbg via-indigo-50/50 to-indigo-100/20 p-6 shadow-xl">
+                     <div class="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
+                        <span class="inline-flex items-center gap-1 rounded-full bg-indigo-600 px-4 py-1.5 text-sm font-bold text-white shadow-lg whitespace-nowrap">
+                            <i class="fa-solid fa-comments"></i>
+                            <span data-i18n="pricing.lbl_agents_badge">Chat Agents</span>
+                        </span>
+                    </div>
+
+                    <div class="mb-4 mt-2 text-center">
+                        <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-100 dark:bg-indigo-900/50">
+                             <i class="fa-solid fa-robot text-3xl text-indigo-600 dark:text-indigo-400"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white" data-i18n="pricing.title_agents">Chat Agents</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.desc_agents">High volume conversational AI</p>
+                    </div>
+
+                    <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-agents">
+                        <button onclick="setPeriod('agents', 'weekly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all bg-white dark:bg-cardbg text-gray-900 dark:text-white shadow-sm" data-period="weekly" data-i18n="pricing.btn_weekly">Weekly</button>
+                        <button onclick="setPeriod('agents', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
+                        <button onclick="setPeriod('agents', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                    </div>
+
+                    <div class="mb-4 text-center">
+                        <span class="text-5xl font-bold text-indigo-600" id="price-agents">$2.49</span>
+                        <span class="text-gray-500 price-label" data-i18n="pricing.lbl_per_week">/week</span>
+                    </div>
+
+                    <div class="mb-4 grid grid-cols-3 gap-1 text-center">
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-2">
+                            <div class="text-lg font-bold text-primary">270</div>
+                            <div class="text-xs text-gray-500">Gemma</div>
+                        </div>
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-2">
+                            <div class="text-lg font-bold text-primary">200</div>
+                            <div class="text-xs text-gray-500">Llama</div>
+                        </div>
+                         <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-2">
+                            <div class="text-lg font-bold text-primary">30</div>
+                            <div class="text-xs text-gray-500">Kimi</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 relative overflow-hidden rounded-xl border-2 border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 via-yellow-400/20 to-yellow-500/10 p-4">
+                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500/10 to-transparent bonus-glow"></div>
+                        <div class="relative flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-bolt text-xl text-yellow-500 bonus-glow"></i>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-yellow-600 dark:text-yellow-500" id="bonus-agents">+250</div>
+                                <div class="text-sm font-semibold text-yellow-700 dark:text-yellow-600" data-i18n="pricing.lbl_unified_credit">Unified Credit</div>
+                            </div>
+                        </div>
+                    </div>
+
+                     <ul class="mb-6 flex-1 space-y-3">
+                        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_agents_1">High volume Gemma</span></li>
+                        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_agents_2">Optimized for Chat</span></li>
+                        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_agents_3">Unified Backup</span></li>
+                    </ul>
+
+                    <button class="mt-auto w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                </div>
+
+                <div class="relative flex flex-col rounded-2xl border-2 border-primary bg-gradient-to-b from-white dark:from-cardbg via-primary/5 to-blue-500/5 p-6 shadow-xl ring-2 ring-primary/20">
+
+                    <div class="ribbon-wrapper">
+                        <div class="ribbon ribbon-blue" data-i18n="pricing.ribbon_free">3 Days Free</div>
+                    </div>
+
+                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
+                        <span class="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-1.5 text-sm font-bold text-white shadow-lg whitespace-nowrap">
+                            <i class="fa-solid fa-globe"></i>
+                            <span data-i18n="pricing.lbl_global_badge">All Access</span>
+                        </span>
+                    </div>
+
+                    <div class="mb-4 mt-2 text-center">
+                        <div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 shadow-xl ring-4 ring-white dark:ring-gray-800 transform hover:scale-105 transition-transform duration-300 relative overflow-hidden">
+                            <div class="absolute inset-0 bg-white/10 skew-x-12 -translate-x-10 w-1/2 h-full blur-md"></div>
+                            <span class="text-4xl font-black text-white tracking-tighter z-10" style="font-family: sans-serif;">NX</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-gray-900 dark:text-white" data-i18n="pricing.title_global">Nexus Global</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.sec_global_desc">All models in one package.</p>
+                    </div>
+
+                    <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-global">
+                        <button onclick="setPeriod('global', 'weekly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all bg-white dark:bg-cardbg text-gray-900 dark:text-white shadow-sm" data-period="weekly" data-i18n="pricing.btn_weekly">Weekly</button>
+                        <button onclick="setPeriod('global', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
+                        <button onclick="setPeriod('global', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                    </div>
+
+                    <div class="mb-4 text-center">
+                        <span class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600" id="price-global">$6.99</span>
+                        <span class="text-gray-500 price-label" data-i18n="pricing.lbl_per_week">/week</span>
+                    </div>
+
+                    <div class="mb-4 grid grid-cols-3 gap-2">
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                            <div class="text-lg font-bold text-primary">150</div>
+                            <div class="text-xs text-gray-500">DeepSeek</div>
+                        </div>
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                            <div class="text-lg font-bold text-primary">100</div>
+                            <div class="text-xs text-gray-500">Kimi k2</div>
+                        </div>
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                            <div class="text-lg font-bold text-primary">50</div>
+                            <div class="text-xs text-gray-500">Mistral</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 relative overflow-hidden rounded-xl border-2 border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 via-yellow-400/20 to-yellow-500/10 p-4">
+                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500/10 to-transparent bonus-glow"></div>
+                        <div class="relative flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-bolt text-xl text-yellow-500 bonus-glow"></i>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-yellow-600 dark:text-yellow-500" id="bonus-global">+50</div>
+                                <div class="text-sm font-semibold text-yellow-700 dark:text-yellow-600" data-i18n="pricing.lbl_unified_credit">Unified Credit</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ul class="mb-6 flex-1 space-y-3">
+                        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_global_1">All 3 models</span></li>
+                        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_global_2">Seamless switching</span></li>
+                        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_global_3">Unified credit</span></li>
+                        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_global_4">Priority support</span></li>
+                    </ul>
+
+                    <button class="w-full py-3 bg-gradient-to-r from-blue-600 to-violet-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-12 text-center">
+            <p class="text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.footer_note_1">Prices in USD.</p>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // --- 1. LOCAL TRANSLATION DATA ---
+    const pageTranslations = {
+        en: {
+            "pricing.lbl_plans_header": "Subscription Plans",
+            "pricing.title_main": "Nexus API Plans",
+            "pricing.subtitle_main": "Two payment systems: A cost-effective global subscription, or a smart single-model purchase.",
+            "pricing.promo_emergency_title": "Extra Credit Feature",
+            "pricing.promo_emergency_desc": "When your daily fast limit is reached, service does not stop! Extra credit is activated.",
+            "pricing.tab_individual": "Individual Plans",
+            "pricing.tab_global": "Bundles & Global",
+            "pricing.sec_individual_title": "For Professionals & Specialists",
+            "pricing.sec_individual_desc": "Highest cap and priority - Choose the model that fits your specialty.",
+            "pricing.sec_global_title": "Bundles & Access",
+            "pricing.sec_global_desc": "Combined power for specific needs.",
+            "pricing.btn_weekly": "Weekly",
+            "pricing.btn_monthly": "Monthly",
+            "pricing.btn_yearly": "Yearly",
+            "pricing.lbl_per_week": "/week",
+            "pricing.lbl_per_month": "/month",
+            "pricing.lbl_per_year": "/year",
+            "pricing.lbl_popular": "Most Popular",
+            "pricing.lbl_elite": "For Elite",
+            "pricing.lbl_global_badge": "All Access",
+            "pricing.lbl_agents_badge": "Chat Agents",
+            "pricing.lbl_req_day": "req/day",
+            "pricing.lbl_extra_credit": "Extra Credit",
+            "pricing.lbl_unified_credit": "Unified Extra Credit",
+            "pricing.btn_subscribe": "Subscribe Now",
+            "pricing.footer_note_1": "All prices in USD. Limits reset daily at midnight (UTC).",
+            "pricing.ribbon_free": "3 Days Free",
+            "pricing.ribbon_forever": "Forever",
+            "pricing.title_free": "Free Tier",
+            "pricing.desc_free": "For testing & simple tasks",
+            "pricing.title_agents": "Chat Agents",
+            "pricing.desc_agents": "High volume conversational AI",
+            "pricing.title_global": "Nexus Global",
+            "pricing.btn_start_free": "Start Free",
+            "pricing.lbl_active": "Active",
+            "pricing.lbl_forever": "/forever",
+            "pricing.no_overdraft": "No Overdraft",
+            "feat_free_1": "Access to Llama 3.2 (10/day)",
+            "feat_free_2": "Access to Kimi k2 (5/day)",
+            "feat_free_3": "Community Support",
+            "feat_agents_1": "High volume Gemma",
+            "feat_agents_2": "Optimized for Chat",
+            "feat_agents_3": "Unified Backup",
+            "feat_global_1": "Access to all 3 models",
+            "feat_global_2": "Seamless switching",
+            "feat_global_3": "Unified extra credit",
+            "feat_global_4": "Priority support"
+        },
+        ar: {
+            "pricing.lbl_plans_header": "خطط الاشتراكات",
+            "pricing.title_main": "خطط Nexus API",
+            "pricing.subtitle_main": "نظامان للدفع: اشتراك شامل موفر، أو شراء ذكي لنموذج واحد.",
+            "pricing.promo_emergency_title": "ميزة \"رصيد إضافي\"",
+            "pricing.promo_emergency_desc": "عند انتهاء حدك اليومي السريع، لا تتوقف الخدمة! يتم تفعيل رصيد إضافي.",
+            "pricing.tab_individual": "الباقات الفردية",
+            "pricing.tab_global": "الباقات المجمعة",
+            "pricing.sec_individual_title": "للمحترفين والمتخصصين",
+            "pricing.sec_individual_desc": "أعلى سقف وأعلى أولوية - اختر النموذج المناسب لتخصصك",
+            "pricing.sec_global_title": "الباقات والوصول الشامل",
+            "pricing.sec_global_desc": "قوة مجمعة لاحتياجات محددة",
+            "pricing.btn_weekly": "أسبوعي",
+            "pricing.btn_monthly": "شهري",
+            "pricing.btn_yearly": "سنوي",
+            "pricing.lbl_per_week": "/أسبوعي",
+            "pricing.lbl_per_month": "/شهري",
+            "pricing.lbl_per_year": "/سنوي",
+            "pricing.lbl_popular": "الأكثر شعبية",
+            "pricing.lbl_elite": "للنخبة",
+            "pricing.lbl_global_badge": "الوصول الشامل",
+            "pricing.lbl_agents_badge": "وكلاء الدردشة",
+            "pricing.lbl_req_day": "طلب/يوم",
+            "pricing.lbl_extra_credit": "رصيد إضافي",
+            "pricing.lbl_unified_credit": "رصيد إضافي موحد",
+            "pricing.btn_subscribe": "اشترك الآن",
+            "pricing.footer_note_1": "جميع الأسعار بالدولار الأمريكي. الحدود تتجدد يومياً.",
+            "pricing.ribbon_free": "3 أيام مجاناً",
+            "pricing.ribbon_forever": "دائمة",
+            "pricing.title_free": "الباقة المجانية",
+            "pricing.desc_free": "للتجربة والمهام البسيطة",
+            "pricing.title_agents": "وكلاء الدردشة",
+            "pricing.desc_agents": "ذكاء محادثة بحجم ضخم",
+            "pricing.title_global": "باقة نيكسوس الشاملة",
+            "pricing.btn_start_free": "ابدأ مجاناً",
+            "pricing.lbl_active": "مشترك",
+            "pricing.lbl_forever": "/دائماً",
+            "pricing.no_overdraft": "لا يوجد رصيد إضافي",
+            "feat_free_1": "وصول لـ Llama 3.2 (10/يوم)",
+            "feat_free_2": "وصول لـ Kimi k2 (5/يوم)",
+            "feat_free_3": "دعم مجتمعي",
+            "feat_agents_1": "Gemma بحجم ضخم",
+            "feat_agents_2": "محسنة للمحادثات",
+            "feat_agents_3": "نسخ احتياطي موحد",
+            "feat_global_1": "وصول لجميع النماذج الثلاثة",
+            "feat_global_2": "تبديل سلس بين النماذج",
+            "feat_global_3": "رصيد إضافي موحد",
+            "feat_global_4": "أولوية في الدعم الفني"
+        }
+    };
+
+    // --- 2. PRICING LOGIC ---
+    const pricingData = {
+        deepseek: {
+            weekly: { price: 1.49, bonus: 100 },
+            monthly: { price: 3.99, bonus: 600 },
+            yearly: { price: 39.99, bonus: 1500 }
+        },
+        kimi: {
+            weekly: { price: 2.49, bonus: 75 },
+            monthly: { price: 6.99, bonus: 300 },
+            yearly: { price: 69.99, bonus: 1000 }
+        },
+        mistral: {
+            weekly: { price: 3.99, bonus: 50 },
+            monthly: { price: 11.99, bonus: 200 },
+            yearly: { price: 119.99, bonus: 500 }
+        },
+        gemma: {
+            weekly: { price: 0.99, bonus: 200 },
+            monthly: { price: 3.49, bonus: 1000 },
+            yearly: { price: 34.99, bonus: 3000 }
+        },
+        llama: {
+            weekly: { price: 0.79, bonus: 150 },
+            monthly: { price: 2.49, bonus: 800 },
+            yearly: { price: 24.99, bonus: 2500 }
+        },
+        agents: {
+            weekly: { price: 2.49, bonus: 250 },
+            monthly: { price: 6.99, bonus: 750 },
+            yearly: { price: 69.99, bonus: 2000 }
+        },
+        global: {
+            weekly: { price: 6.99, bonus: 50 },
+            monthly: { price: 18.99, bonus: 200 },
+            yearly: { price: 189.99, bonus: 500 }
+        }
+    };
+
+    const labelKeys = {
+        weekly: 'pricing.lbl_per_week',
+        monthly: 'pricing.lbl_per_month',
+        yearly: 'pricing.lbl_per_year'
+    };
+
+    // --- 3. CORE FUNCTIONS ---
+
+    function applyLocalTranslations() {
+        const lang = localStorage.getItem('lang') || 'ar';
+        const t = pageTranslations[lang];
+
+        if (!t) return;
+
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (t[key]) {
+                 el.innerHTML = t[key];
+            }
+        });
+
+        document.querySelectorAll('[id^=period-]').forEach(group => {
+            const activeBtn = group.querySelector('.bg-white'); 
+            if(activeBtn) {
+                const period = activeBtn.dataset.period;
+                const plan = group.id.replace('period-', '');
+                updatePriceLabels(plan, period); 
+            }
+        });
+    }
+
+    function setPeriod(plan, period) {
+        const container = document.getElementById(`period-${plan}`);
+        if(!container) return;
+        const buttons = container.querySelectorAll('button');
+        buttons.forEach(btn => {
+            if (btn.dataset.period === period) {
+                btn.classList.add('bg-white', 'dark:bg-cardbg', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+                btn.classList.remove('text-gray-500');
+            } else {
+                btn.classList.remove('bg-white', 'dark:bg-cardbg', 'text-gray-900', 'dark:text-white', 'shadow-sm');
+                btn.classList.add('text-gray-500');
+            }
+        });
+
+        const data = pricingData[plan][period];
+        const priceEl = document.getElementById(`price-${plan}`);
+        if(priceEl) priceEl.textContent = `$${data.price}`;
+
+        const bonusEl = document.getElementById(`bonus-${plan}`);
+        if(bonusEl) bonusEl.textContent = `+${data.bonus}`;
+
+        updatePriceLabels(plan, period);
+    }
+
+    function updatePriceLabels(plan, period) {
+         const priceLabelEl = document.querySelector(`#price-${plan}`).nextElementSibling;
+         if(priceLabelEl) {
+             const lang = localStorage.getItem('lang') || 'ar';
+             const key = labelKeys[period];
+             if(pageTranslations[lang][key]) {
+                 priceLabelEl.innerHTML = pageTranslations[lang][key];
+             }
+         }
+    }
+
+    function switchTab(tab) {
+        const individualTab = document.getElementById('tab-individual');
+        const globalTab = document.getElementById('tab-global');
+        const individualSection = document.getElementById('section-individual');
+        const globalSection = document.getElementById('section-global');
+
+        if (tab === 'individual') {
+            individualTab.classList.add('tab-active');
+            individualTab.classList.remove('tab-inactive');
+            globalTab.classList.remove('tab-active');
+            globalTab.classList.add('tab-inactive');
+            individualSection.classList.remove('hidden');
+            globalSection.classList.add('hidden');
+        } else {
+            globalTab.classList.add('tab-active');
+            globalTab.classList.remove('tab-inactive');
+            individualTab.classList.remove('tab-active');
+            individualTab.classList.add('tab-inactive');
+            globalSection.classList.remove('hidden');
+            individualSection.classList.add('hidden');
+        }
+    }
+
+    // --- 4. INITIALIZATION ---
+    window.addEventListener('DOMContentLoaded', () => {
+       applyLocalTranslations();
+       setPeriod('deepseek', 'weekly');
+       setPeriod('kimi', 'weekly');
+       setPeriod('mistral', 'weekly');
+       setPeriod('gemma', 'weekly');
+       setPeriod('llama', 'weekly');
+       setPeriod('agents', 'weekly');
+       setPeriod('global', 'weekly');
+    });
+
+    window.addEventListener('langChange', () => {
+        applyLocalTranslations();
+    });
+
+</script>
+{% endblock %}

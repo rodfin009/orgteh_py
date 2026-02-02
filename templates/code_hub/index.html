@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<script>const NEXUS_MODE = "{{ mode }}";</script>
+
+{% include "code_hub/styles.html" %}
+
+<div id="ide-layout">
+    <div id="view-chat" class="view-section active">
+        <div id="chat-container" class="custom-scrollbar">
+            <div id="welcome-message-container" class="msg-row ai"></div>
+        </div>
+    </div>
+
+    <div id="view-preview" class="view-section">
+        <iframe id="preview-frame"></iframe>
+        <div id="preview-empty" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-[#09090b] text-gray-400">
+            <i class="fa-solid fa-layer-group text-4xl mb-4 opacity-30"></i>
+            <p data-i18n-ide="no_preview">No build available yet.</p>
+        </div>
+    </div>
+
+    <div class="bottom-controls-layer">
+
+        <div class="input-row {% if mode == 'advanced' %}v2-glow{% endif %}" id="main-input-row">
+
+            <div class="mode-toggle-wrapper">
+                <div class="mode-btn" onclick="toggleModeDropdown()">
+                    {% if mode == 'advanced' %}
+                        <i class="fa-solid fa-brain text-purple-500"></i>
+                        <span class="hidden md:block">V2 Advanced</span>
+                    {% else %}
+                        <i class="fa-solid fa-bolt text-indigo-500"></i>
+                        <span class="hidden md:block">V1 Standard</span>
+                    {% endif %}
+                    <i class="fa-solid fa-chevron-down text-xs opacity-50 ml-1"></i>
+                </div>
+
+                <div class="mode-dropdown" id="modeDropdown">
+                    <div class="mode-option {% if mode != 'advanced' %}active{% endif %}" onclick="selectMode('v1')">
+                        <div class="mode-icon-box"><i class="fa-solid fa-bolt"></i></div>
+                        <div class="mode-info">
+                            <h4 data-i18n-ide="mode_v1_title">Standard (V1)</h4>
+                            <p data-i18n-ide="mode_v1_desc">Fast generation for snippets.</p>
+                        </div>
+                    </div>
+                    <div class="mode-option v2 {% if mode == 'advanced' %}active{% endif %}" onclick="selectMode('v2')">
+                        <div class="mode-icon-box"><i class="fa-solid fa-brain"></i></div>
+                        <div class="mode-info">
+                            <h4 data-i18n-ide="mode_v2_title">Advanced (V2)</h4>
+                            <p data-i18n-ide="mode_v2_desc">Agentic workflow for projects.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="relative">
+                <button onclick="document.getElementById('file-input').click()" class="action-btn">
+                    <i class="fa-solid fa-paperclip"></i>
+                </button>
+                <input type="file" id="file-input" multiple class="hidden" onchange="updateFileBadge()">
+                <div id="file-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center hidden">0</div>
+            </div>
+            <textarea id="prompt-input" rows="1" data-i18n-ide="input_placeholder" placeholder="Ask Nexus..." oninput="autoResize(this)"></textarea>
+            <button onclick="sendMessage()" class="send-btn flex items-center justify-center transition">
+                <i class="fa-solid fa-arrow-up"></i>
+            </button>
+        </div>
+
+        <div class="nav-container" id="nav-container">
+            <div onclick="toggleNavVisibility()" class="visibility-btn" title="Toggle UI">
+                <i id="eye-icon" class="fa-solid fa-eye-slash"></i>
+            </div>
+            <div class="tab-pill">
+                <div onclick="switchView('chat')" id="tab-chat" class="tab-item active" data-i18n-ide="tab_chat">Chat</div>
+                <div onclick="switchView('preview')" id="tab-preview" class="tab-item" data-i18n-ide="tab_preview">Preview</div>
+            </div>
+            <button onclick="openSpecificModal('main-menu-modal')" class="action-btn model-trigger" id="nexus-menu-btn">
+                <i class="fa-solid fa-ellipsis"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+{% include "code_hub/modals.html" %}
+{% include "code_hub/scripts.html" %}
+
+{% endblock %}
