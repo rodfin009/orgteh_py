@@ -538,18 +538,3 @@ async def get_my_key(request: Request):
 # SERVER UTILITIES
 # ============================================================================
 
-def force_kill_port(port: int):
-    try:
-        result = subprocess.run(["lsof", "-t", f"-i:{port}"], capture_output=True, text=True)
-        pids = result.stdout.strip().split("\n")
-        for pid in pids:
-            if pid:
-                print(f">>> [SYSTEM] Killing old process on port {port} (PID: {pid})...", flush=True)
-                os.kill(int(pid), signal.SIGKILL)
-    except Exception as e:
-        print(f">>> [SYSTEM] Warning: Could not clean up port {port}: {e}", flush=True)
-
-if __name__ == "__main__":
-    import uvicorn # استيراد محلي فقط عند التشغيل اليدوي
-    force_kill_port(8000)
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
