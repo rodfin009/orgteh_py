@@ -10,7 +10,7 @@ python-multipart
 python-dotenv
 itsdangerous
 starlette
-bcrypt==4.0.1
+bcrypt
 requests
 pandas
 pydantic
