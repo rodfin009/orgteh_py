@@ -32,7 +32,8 @@
                 "nav_code_builder": "AI Code Builder",
                 "nav_pricing": "Pricing",
                 "nav_docs": "Documentation",
-                "nav_custom_solutions": "Custom Solutions", // مفتاح جديد تماماً
+                "nav_custom_solutions": "Custom Solutions",
+                "nav_policy": "Policy", 
                 "nav_dashboard": "Dashboard",
                 "nav_performance": "Performance",
                 "footer_rights": "All rights reserved © 2026 Nexus API",
@@ -48,7 +49,8 @@
                 "nav_code_builder": "منشئ الكود الذكي",
                 "nav_pricing": "الأسعار",
                 "nav_docs": "التوثيق",
-                "nav_custom_solutions": "حلول مخصصة", // مفتاح جديد تماماً
+                "nav_custom_solutions": "حلول مخصصة",
+                "nav_policy": "سياسة الاستخدام",
                 "nav_dashboard": "لوحة التحكم",
                 "nav_performance": "الأداء",
                 "footer_rights": "جميع الحقوق محفوظة © 2026 Nexus API",
@@ -117,6 +119,7 @@
                     <a href="/enterprise" class="font-bold hover:text-primary transition" data-i18n="nav_custom_solutions">حلول مخصصة</a>
 
                     <a href="/docs" class="font-bold hover:text-primary transition" data-i18n="nav_docs">التوثيق</a>
+                    <a href="/policy" class="font-bold hover:text-primary transition" data-i18n="nav_policy">سياسة الاستخدام</a>
                     <a href="/performance" class="font-bold hover:text-primary transition" data-i18n="nav_performance">الأداء</a>
                 </div>
 
@@ -130,12 +133,15 @@
                     {% if is_logged_in %}
                     <div class="flex items-center gap-4">
                         <span class="text-sm font-bold text-gray-500 hidden lg:inline">{{ user_email }}</span>
-                        <button onclick="handleLogout()" class="text-sm font-bold text-red-500 hover:text-red-600">خروج</button>
+                        <button onclick="confirmLogout()" class="px-5 py-2 rounded-lg font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition flex items-center gap-2">
+                            <i class="fa-solid fa-sign-out-alt"></i>
+                            <span>تسجيل الخروج</span>
+                        </button>
                     </div>
                     {% else %}
                     <div class="flex items-center gap-4">
-                        <button onclick="openModal('loginModal')" class="px-5 py-2 rounded-lg font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition">دخول</button>
-                        <button onclick="openModal('regModal')" class="px-5 py-2 bg-primary text-white rounded-lg font-bold hover:opacity-90 transition shadow-lg shadow-primary/30">تسجيل</button>
+                        <a href="/auth" class="px-5 py-2 rounded-lg font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition">دخول</a>
+                        <a href="/auth?tab=register" class="px-5 py-2 bg-primary text-white rounded-lg font-bold hover:opacity-90 transition shadow-lg shadow-primary/30">تسجيل</a>
                     </div>
                     {% endif %}
                 </div>
@@ -165,19 +171,22 @@
             <a href="/enterprise" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-building w-6"></i> <span data-i18n="nav_custom_solutions">حلول مخصصة</span></a>
 
             <a href="/docs" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-book w-6"></i> <span data-i18n="nav_docs">التوثيق</span></a>
+            <a href="/policy" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-shield-halved w-6"></i> <span data-i18n="nav_policy">سياسة الاستخدام</span></a>
             <a href="/performance" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-chart-line w-6"></i> <span data-i18n="nav_performance">الأداء</span></a>
 
             <hr class="border-gray-200 dark:border-gray-700">
 
             {% if is_logged_in %}
                 <a href="/dashboard" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-gauge w-6"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span></a>
-                <button onclick="handleLogout()" class="text-red-500 font-bold flex items-center gap-3 mt-2"><i class="fa-solid fa-sign-out-alt w-6"></i> تسجيل الخروج</button>
+                <button onclick="confirmLogout(); toggleSidebar();" class="w-full text-red-500 font-bold flex items-center gap-3 mt-2 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition">
+                    <i class="fa-solid fa-sign-out-alt w-6"></i> تسجيل الخروج
+                </button>
             {% else %}
-                <a href="#" onclick="openModal('loginModal'); toggleSidebar(); return false;" class="font-bold text-gray-500 hover:text-primary flex items-center gap-3">
+                <a href="/auth" onclick="toggleSidebar()" class="font-bold text-gray-500 hover:text-primary flex items-center gap-3">
                     <i class="fa-solid fa-gauge w-6"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span> <i class="fa-solid fa-lock text-xs text-primary/50"></i>
                 </a>
-                <button onclick="openModal('loginModal'); toggleSidebar()" class="w-full py-3 rounded-lg border border-gray-200 dark:border-gray-700 font-bold hover:bg-gray-50 dark:hover:bg-gray-800">تسجيل الدخول</button>
-                <button onclick="openModal('regModal'); toggleSidebar()" class="w-full py-3 bg-primary text-white rounded-lg font-bold hover:opacity-90">إنشاء حساب جديد</button>
+                <a href="/auth" onclick="toggleSidebar()" class="w-full py-3 rounded-lg border border-gray-200 dark:border-gray-700 font-bold hover:bg-gray-50 dark:hover:bg-gray-800 text-center block">تسجيل الدخول</a>
+                <a href="/auth?tab=register" onclick="toggleSidebar()" class="w-full py-3 bg-primary text-white rounded-lg font-bold hover:opacity-90 text-center block mt-3">إنشاء حساب جديد</a>
             {% endif %}
         </div>
 
@@ -399,5 +408,56 @@
 
         window.addEventListener('DOMContentLoaded', applyGlobalTranslations);
     </script>
+<script>
+        // Logout Confirmation Functions
+        function confirmLogout() {
+            const modal = document.getElementById('logoutConfirmModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            const content = modal.querySelector('div.relative');
+            content.classList.remove('scale-95');
+            content.classList.add('scale-100');
+        }
+
+        function closeLogoutModal() {
+            const modal = document.getElementById('logoutConfirmModal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            const content = modal.querySelector('div.relative');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+        }
+
+        async function executeLogout() {
+            closeLogoutModal();
+            try {
+                const res = await fetch('/auth/logout', { method: 'POST' });
+                if (res.ok) {
+                    window.location.href = '/';
+                }
+            } catch (e) {
+                console.error('Logout error:', e);
+            }
+        }
+</script>
+
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutConfirmModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition duration-300">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeLogoutModal()"></div>
+        <div class="bg-white dark:bg-cardbg p-8 rounded-2xl shadow-2xl w-full max-w-sm relative z-10 transform scale-95 transition-transform duration-300 text-center">
+            <div class="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-sign-out-alt text-2xl text-red-500"></i>
+            </div>
+            <h3 class="text-2xl font-bold mb-2 text-gray-900 dark:text-white">تسجيل الخروج</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-6">هل أنت متأكد أنك تريد تسجيل الخروج من حسابك؟</p>
+            <div class="flex gap-3">
+                <button onclick="closeLogoutModal()" class="flex-1 py-3 rounded-xl font-bold border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                    إلغاء
+                </button>
+                <button onclick="executeLogout()" class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition">
+                    نعم، تسجيل الخروج
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>

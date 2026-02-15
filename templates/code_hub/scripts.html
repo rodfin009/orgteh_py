@@ -1,98 +1,130 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<div style="display: none !important;">
+    <iframe id="sandbox-frame"></iframe>
+</div>
+
 <script>
-    // --- COMPLETE TRANSLATIONS ---
+    // ==========================================
+    // [1] GLOBAL RESOURCES & TRANSLATIONS
+    // ==========================================
     const ideTranslations = {
         en: {
             welcome_title: "👋 Welcome to Nexus",
-            welcome_desc: "Standard Mode: Fast generation for snippets & small files.",
-            welcome_title_v2: "🧠 Nexus Advanced V2",
-            welcome_desc_v2: "Agentic Mode: I will plan, decompose, and execute complex projects step-by-step.",
-            input_placeholder: "Ask Nexus...",
+            welcome_desc: "Generate code snippets & applications instantly.",
+            input_placeholder: "Ask Nexus to build something...",
             tab_chat: "Chat",
             tab_preview: "Preview",
-            no_preview: "No build available yet.",
-
-            // Modes
-            mode_v1_title: "Standard (V1)",
-            mode_v1_desc: "Fast generation for snippets.",
-            mode_v2_title: "Advanced (V2)",
-            mode_v2_desc: "Agentic workflow for projects.",
-
-            // Menus
-            menu_title: "Nexus Options",
-            menu_models: "Embedding Models",
-            menu_tools: "Tools Library",
-            select_model_title: "Choose Embedding Models",
-            select_model_desc: "Select one or more models to use",
-            select_tool_title: "Select Tools",
-            select_tool_desc: "Enable tools for the AI to use in generation",
-
-            // Status
-            thinking_process: "Thinking Process...",
-            thinking_done: "Thinking Complete",
-            writing_files: "Writing files...",
-            files_generated: "Files Generated Successfully",
+            no_preview: "Start building a project to be showcased here.",
+            analyzing: "Analyzing...",
             download_files: "Download Project (ZIP)",
             file_attached: "Files attached",
-
-            // V2 Specific
-            v2_planning: "Agents at work...",
-            v2_plan_header: "Execution Plan"
+            writing_files: "Writing files...",
+            thinking_process: "Thinking...",
+            thinking_finished: "Reasoning Completed",
+            verifying: "Verifying...",
+            menu_title: "Nexus Options",
+            menu_models: "AI Models",
+            menu_tools: "Tools Library",
+            select_model_desc: "Select the AI model for this project",
+            select_tool_desc: "Enable extra capabilities",
+            select_model_title: "Choose AI Model",
+            select_tool_title: "Select Tools",
+            models: {
+                "deepseek-ai/deepseek-v3.2": { name: "DeepSeek V3.2", desc: "Best Architect. Excellent logic.", badge: "Recommended" },
+                "mistralai/mistral-large-3-675b-instruct-2512": { name: "Mistral Large 3", desc: "High precision & Documentation.", badge: "Stable" },
+                "moonshotai/kimi-k2-thinking": { name: "Kimi K2 thinking", desc: "Deep Reasoning capabilities.", badge: "Reasoning" },
+                "meta/llama-3.2-3b-instruct": { name: "Llama 3.2", desc: "Fast & Lightweight.", badge: "Fast" },
+                "google/gemma-3n-e4b-it": { name: "Gemma 3n", desc: "Balanced performance.", badge: "New" }
+            },
+            tools: {
+                "nexus-finance-rss": { name: "Global Market Pulse", desc: "Real-time financial news." },
+                "nexus-news-general": { name: "World News", desc: "Global news coverage." },
+                "nexus-vision-ocr": { name: "OCR Vision", desc: "Extract text from images." },
+                "nexus-semantic-embed": { name: "Semantic Core", desc: "Vector embeddings." }
+            }
         },
         ar: {
             welcome_title: "👋 مرحباً بك في Nexus",
-            welcome_desc: "الوضع القياسي: توليد سريع للأكواد والنصوص للمهام اليومية.",
-            welcome_title_v2: "🧠 Nexus المتقدم V2",
-            welcome_desc_v2: "نظام الوكلاء المستقل: سأقوم بتخطيط وتجزئة وتنفيذ مشاريعك المعقدة خطوة بخطوة.",
-            input_placeholder: "اطلب من Nexus...",
+            welcome_desc: "توليد سريع للأكواد والنصوص للمهام اليومية.",
+            input_placeholder: "اطلب من Nexus بناء مشروع...",
             tab_chat: "المحادثة",
             tab_preview: "المعاينة",
-            no_preview: "لا يوجد بناء متاح حالياً.",
-
-            // Modes
-            mode_v1_title: "الوضع القياسي (V1)",
-            mode_v1_desc: "توليد سريع للأكواد والنصوص.",
-            mode_v2_title: "الوضع المتقدم (V2)",
-            mode_v2_desc: "نظام وكلاء ذكي للمشاريع المعقدة.",
-
-            // Menus
-            menu_title: "خيارات Nexus",
-            menu_models: "نماذج التضمين",
-            menu_tools: "مكتبة الأدوات",
-            select_model_title: "اختر نماذج التضمين",
-            select_model_desc: "اختر نموذجاً واحداً أو أكثر للاستخدام",
-            select_tool_title: "اختر الأدوات",
-            select_tool_desc: "قم بتمكين الأدوات ليستخدمها الذكاء الاصطناعي",
-
-            // Status
-            thinking_process: "جاري التفكير والتحليل...",
-            thinking_done: "انتهى التفكير",
-            writing_files: "جاري كتابة الملفات...",
-            files_generated: "تم إنشاء الملفات بنجاح",
+            no_preview: ".ابدأ بناء مشروع ليتم عرضه هنا",
+            analyzing: "جاري التحليل...",
             download_files: "تحميل المشروع (ZIP)",
             file_attached: "ملفات مرفقة",
-
-            // V2 Specific
-            v2_planning: "جاري عمل الوكلاء...",
-            v2_plan_header: "خطة التنفيذ"
+            writing_files: "جاري كتابة الملفات...",
+            thinking_process: "جاري التفكير...",
+            thinking_finished: "تم الانتهاء من التفكير",
+            verifying: "جاري التحقق...",
+            menu_title: "خيارات Nexus",
+            menu_models: "نماذج الذكاء",
+            menu_tools: "مكتبة الأدوات",
+            select_model_desc: "اختر النموذج المناسب لمشروعك",
+            select_tool_desc: "قم بتفعيل الأدوات الإضافية",
+            select_model_title: "اختيار نموذج الذكاء",
+            select_tool_title: "اختيار الأدوات",
+            models: {
+                "deepseek-ai/deepseek-v3.2": { name: "DeepSeek V3.2", desc: "المهندس الأفضل. ممتاز في المنطق.", badge: "موصى به" },
+                "mistralai/mistral-large-3-675b-instruct-2512": { name: "Mistral Large 3", desc: "دقة عالية وتوثيق ممتاز.", badge: "مستقر" },
+                "moonshotai/kimi-k2-thinking": { name: "Kimi K2 thinking", desc: "قدرات تفكير منطقي عميقة.", badge: "تفكير" },
+                "meta/llama-3.2-3b-instruct": { name: "Llama 3.2", desc: "سريع وخفيف للأكواد البسيطة.", badge: "سريع" },
+                "google/gemma-3n-e4b-it": { name: "Gemma 3n", desc: "أداء متوازن.", badge: "جديد" }
+            },
+            tools: {
+                "nexus-finance-rss": { name: "نبض الأسواق المالية", desc: "أخبار مالية لحظية." },
+                "nexus-news-general": { name: "أخبار العالم", desc: "تغطية شاملة للأخبار." },
+                "nexus-vision-ocr": { name: "محرك الرؤية (OCR)", desc: "استخراج النصوص من الصور." },
+                "nexus-semantic-embed": { name: "المحرك الدلالي", desc: "توليد متجهات للبحث." }
+            }
         }
     };
 
-    // --- STATE ---
+    // --- [2] STATE MANAGEMENT ---
     let chatHistory = [];
     let currentFiles = {};
-    let selectedItems = { models: ["{{ models[0].id }}"], tools: [] };
+    let filesBuffer = {}; 
+    // FIXED: Initialize empty to force user selection or default fallback, NOT hardcoded Kimi
+    let selectedItems = { models: [], tools: [] };
+    let isPreviewDirty = false;
+    let currentPreviewFile = "index.html"; 
 
+    // --- [3] INITIALIZATION & LOCALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
         applyIdeTranslations();
-        console.log("Nexus System Init. Mode:", NEXUS_MODE);
+
+        // DEFAULT MODEL SELECTION LOGIC
+        // If no model selected, select the first one available in the HTML (usually DeepSeek)
+        const firstModelCard = document.querySelector('#model-list-container .option-card');
+        if (firstModelCard) {
+            const onclickAttr = firstModelCard.getAttribute('onclick');
+            const match = onclickAttr.match(/'([^']+)'/g); // Extract IDs
+            if (match && match[1]) {
+                // Remove quotes
+                const modelId = match[1].replace(/'/g, "");
+                selectedItems.models = [modelId];
+                firstModelCard.classList.add('selected');
+                firstModelCard.querySelector('.check-icon').classList.remove('hidden');
+            }
+        }
+
+        const lang = localStorage.getItem('lang') || 'ar';
+        if (lang === 'ar') {
+            document.documentElement.dir = 'rtl';
+            document.documentElement.lang = 'ar';
+        }
     });
 
-    // --- TRANSLATION LOGIC ---
+    function getTrans() {
+        return ideTranslations[localStorage.getItem('lang') || 'ar'];
+    }
+
     function applyIdeTranslations() {
         const lang = localStorage.getItem('lang') || 'ar';
         const t = ideTranslations[lang];
-
-        // 1. Static Text
         document.querySelectorAll('[data-i18n-ide]').forEach(el => {
             const key = el.getAttribute('data-i18n-ide');
             if (t[key]) {
@@ -100,201 +132,162 @@
                 else el.innerHTML = t[key];
             }
         });
+        updateCardsContent('model-list-container', 'models', t.models);
+        updateCardsContent('tool-list-container', 'tools', t.tools);
 
-        // 2. Models & Badges
-        document.querySelectorAll('.model-desc-dynamic, .model-badge-dynamic').forEach(el => {
-            const txt = el.getAttribute(`data-${lang}`);
-            if(txt) el.textContent = txt;
-        });
-
-        // 3. Tools visibility
-        document.querySelectorAll(lang === 'ar' ? '.lang-en' : '.lang-ar').forEach(el => el.classList.add('hidden'));
-        document.querySelectorAll(lang === 'ar' ? '.lang-ar' : '.lang-en').forEach(el => el.classList.remove('hidden'));
-
-        // 4. Welcome Message (Dynamic based on Mode)
+        // Render Welcome Message
         const welcomeContainer = document.getElementById('welcome-message-container');
         if (chatHistory.length === 0 && welcomeContainer) {
-            const isV2 = NEXUS_MODE === 'advanced';
-            const title = isV2 ? t.welcome_title_v2 : t.welcome_title;
-            const desc = isV2 ? t.welcome_desc_v2 : t.welcome_desc;
-            const gradient = isV2 ? "bg-gradient-to-r from-purple-600 to-indigo-600" : "bg-gradient-to-r from-indigo-600 to-purple-600";
-
+            const title = t.welcome_title;
+            const desc = t.welcome_desc;
+            const gradient = "bg-gradient-to-r from-indigo-600 to-purple-600";
             welcomeContainer.innerHTML = `
                 <div class="msg-bubble msg-ai" style="width: 100%">
                     <div class="p-6 ${gradient} text-white rounded-2xl shadow-lg">
                         <h2 class="text-xl font-bold mb-2">${title}</h2>
                         <p class="opacity-90 text-sm">${desc}</p>
                     </div>
-                </div>
-            `;
+                </div>`;
         }
+    }
+
+    function updateCardsContent(containerId, type, dataObj) {
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        const cards = container.querySelectorAll('.option-card');
+        cards.forEach(card => {
+            const onclickStr = card.getAttribute('onclick');
+            if(!onclickStr) return;
+            const match = onclickStr.match(/selectItem\('[^']+',\s*'([^']+)'/);
+            if(match && match[1]) {
+                const id = match[1];
+                const info = dataObj[id];
+                if(info) {
+                    const nameEl = card.querySelector('.font-bold');
+                    if(nameEl) nameEl.innerText = info.name;
+                    const descEl = card.querySelector('.text-xs, .text-sm.text-gray-500'); 
+                    if(descEl) descEl.innerText = info.desc;
+                }
+            }
+        });
     }
 
     window.addEventListener('langChange', applyIdeTranslations);
 
-    // --- MAIN SEND LOGIC ---
+    // --- [4] MAIN CHAT HANDLERS ---
     async function sendMessage() {
         const input = document.getElementById('prompt-input');
         const fileInput = document.getElementById('file-input');
         const text = input.value.trim();
-
         if(!text && fileInput.files.length === 0) return;
 
-        // UI Update
-        const lang = localStorage.getItem('lang') || 'ar';
-        const t = ideTranslations[lang];
+        if(window.event) window.event.preventDefault();
+
+        const t = getTrans();
         let displayMsg = text.replace(/\n/g, '<br>');
         if(fileInput.files.length > 0) displayMsg += `<div class="text-xs opacity-70 mt-1"><i class="fa-solid fa-paperclip"></i> ${fileInput.files.length} ${t.file_attached}</div>`;
 
         addMessageUI('user', displayMsg);
-        chatHistory.push({ role: 'user', content: text });
-        input.value = ''; input.style.height = 'auto';
 
-        // BRANCH LOGIC
-        if (NEXUS_MODE === 'advanced') {
-            await handleV2Stream(text, fileInput.files);
-        } else {
-            await handleV1Stream(text, fileInput.files);
-        }
+        chatHistory.push({ role: 'user', content: text });
+        currentPreviewFile = "index.html"; 
+
+        input.value = ''; input.style.height = 'auto';
+        filesBuffer = {}; 
+        isPreviewDirty = true; 
+
+        switchView('chat');
+
+        // FORCE V1 ONLY (Advanced mode removed)
+        await handleV1Stream(text, fileInput.files);
 
         fileInput.value = "";
         updateFileBadge();
     }
 
-    // --- V1 HANDLER ---
+    // --- [5] V1 STANDARD LOGIC ---
     async function handleV1Stream(text, files) {
         const aiContainer = createAIContainer('v1');
         const formData = new FormData();
         formData.append('instruction', text);
-        formData.append('target_model', selectedItems.models.join(','));
+
+        // Ensure we send the user's SELECTED model
+        const targetModel = selectedItems.models.length > 0 ? selectedItems.models[0] : "deepseek-ai/deepseek-v3.2";
+        formData.append('target_model', targetModel);
+
         formData.append('target_tools', selectedItems.tools.join(','));
         formData.append('chat_history', JSON.stringify(chatHistory));
         formData.append('current_files', JSON.stringify(currentFiles));
         for(let f of files) formData.append('files', f);
 
+        const t = getTrans();
         try {
             const response = await fetch('/api/process-code', { method: 'POST', body: formData });
             await processStream(response, aiContainer, (data) => {
                 if(data.type === 'thinking') {
-                    aiContainer.querySelector('.thinking-body').innerText += data.content;
+                     const tb = aiContainer.querySelector('.thinking-body');
+                     if(tb) tb.innerText += data.content;
                 } else if(data.type === 'code') {
-                    // Start fake progress
-                    const pb = aiContainer.querySelector('.progress-fill');
-                    if(pb) pb.style.width = '75%';
-                    // Close thinking
-                    aiContainer.querySelector('.thinking-wrapper').classList.add('done');
-                    aiContainer.querySelector('.thinking-wrapper').classList.remove('open');
+                    const wrapper = aiContainer.querySelector('.thinking-wrapper');
+                    const header = aiContainer.querySelector('.thinking-header');
+                    if(wrapper && !wrapper.classList.contains('done')) {
+                        wrapper.classList.add('done');
+                        header.innerHTML = `<i class="fa-solid fa-circle-check text-green-500"></i> ${t.thinking_finished}`;
+                    }
                     aiContainer.querySelector('.progress-container').classList.remove('hidden');
+                    aiContainer.querySelector('.progress-fill').style.width = '75%';
                     return data.content;
                 }
             });
-            // Complete progress
-             aiContainer.querySelector('.progress-fill').style.width = '100%';
-        } catch(e) {
-            aiContainer.innerHTML += `<div class="text-red-500 p-2 text-sm">Error: ${e.message}</div>`;
+            const finalWrapper = aiContainer.querySelector('.thinking-wrapper');
+            if (finalWrapper && !finalWrapper.classList.contains('done')) {
+                finalWrapper.classList.add('done');
+                aiContainer.querySelector('.thinking-header').innerHTML = `<i class="fa-solid fa-circle-check text-green-500"></i> ${t.thinking_finished}`;
+            }
+            aiContainer.querySelector('.progress-fill').style.width = '100%';
+            if (document.querySelector('.tab-item.active')?.id === 'tab-preview') {
+                renderPreview(currentPreviewFile);
+            }
+        } catch(e) { 
+            aiContainer.innerHTML += `<div class="text-red-500">Err: ${e.message}</div>`; 
         }
     }
 
-    // --- V2 HANDLER (Fixed Undefined Issue) ---
-    async function handleV2Stream(text, files) {
-        const aiContainer = createAIContainer('v2');
-        const formData = new FormData();
-        formData.append('instruction', text);
-        formData.append('files_context', JSON.stringify(currentFiles));
-
-        const stepsContainer = aiContainer.querySelector('.v2-steps-container');
-        const thinkingBody = aiContainer.querySelector('.thinking-body');
-        const lang = localStorage.getItem('lang') || 'ar';
-        const t = ideTranslations[lang];
-
-        try {
-            const response = await fetch('/api/v2/advanced-process', { method: 'POST', body: formData });
-            await processStream(response, aiContainer, (evt) => {
-                // FIXED: Check data structure carefully
-                const type = evt.type;
-                const data = evt.data || {}; 
-
-                if(type === 'thought') {
-                    // FIX: Ensure data.agent and data.content exist
-                    const agent = data.agent || "System";
-                    const content = data.content || "";
-                    thinkingBody.innerText += `[${agent}] ${content}\n`;
-                    thinkingBody.scrollTop = thinkingBody.scrollHeight;
-                }
-                else if(type === 'plan_created') {
-                    stepsContainer.innerHTML = `<div class="v2-step-header">${t.v2_plan_header}</div>`;
-                    if(data.steps && Array.isArray(data.steps)) {
-                        data.steps.forEach(step => {
-                            stepsContainer.innerHTML += `
-                                <div id="step-${step.id}" class="v2-step-item">
-                                    <div class="v2-step-icon"><i class="fa-regular fa-circle"></i></div>
-                                    <span>${step.description || "Task"}</span>
-                                </div>`;
-                        });
-                        stepsContainer.classList.remove('hidden');
-                    }
-                }
-                else if(type === 'step_update') {
-                    const el = document.getElementById(`step-${data.task_id}`);
-                    if(el) {
-                        el.className = `v2-step-item ${data.status}`;
-                        const icon = el.querySelector('i');
-                        if(data.status === 'in_progress') icon.className = 'fa-solid fa-spinner fa-spin';
-                        else if(data.status === 'completed') icon.className = 'fa-solid fa-circle-check';
-                        else if(data.status === 'failed') icon.className = 'fa-solid fa-circle-xmark';
-                    }
-                }
-                else if(type === 'artifact') {
-                    currentFiles[data.filename] = data.content;
-                    const artDiv = aiContainer.querySelector('.file-artifacts');
-                    if(artDiv) {
-                        artDiv.innerHTML += `
-                            <div class="artifact-badge" onclick="downloadSingle('${data.filename}')">
-                                <span>${data.filename}</span><i class="fa-solid fa-check text-green-500"></i>
-                            </div>`;
-                    }
-                }
-                return null; // V2 doesn't stream raw code to the main buffer usually
-            });
-        } catch(e) {
-             aiContainer.innerHTML += `<div class="text-red-500 p-2 text-sm">Error: ${e.message}</div>`;
-        }
+    // --- [6] UI UTILITIES ---
+    function toggleThinking(el) {
+        const wrapper = el.closest('.thinking-wrapper');
+        if (wrapper) wrapper.classList.toggle('open');
     }
 
-    // --- CORE STREAM PROCESSOR ---
     async function processStream(response, container, callback) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = "";
-        let fullCode = "";
-
+        let buffer = ""; let fullCode = "";
         while(true) {
             const { done, value } = await reader.read();
             if(done) break;
             buffer += decoder.decode(value, { stream: true });
             let lines = buffer.split('\n');
             buffer = lines.pop();
-
             for(const line of lines) {
                 if(!line.trim()) continue;
                 try {
                     const data = JSON.parse(line);
-                    const res = callback(data);
-                    if(res) fullCode += res;
-                } catch(e) { console.error("JSON Parse Error", e); }
+                    const res = await callback(data); 
+                    if(res && typeof res === 'string') fullCode += res;
+                } catch(e) {}
             }
         }
-
-        // Finalize V1 Code
         if(fullCode) {
             const newFiles = parseFiles(fullCode);
             Object.assign(currentFiles, newFiles);
             chatHistory.push({ role: 'assistant', content: fullCode });
-            renderArtifacts(newFiles, container);
+            Object.keys(newFiles).forEach(f => renderArtifactBadge(container, f));
+            renderDownloadAllBtn(container);
+            isPreviewDirty = true;
         }
     }
 
-    // --- UI HELPERS ---
     function addMessageUI(role, html) {
         const feed = document.getElementById('chat-container');
         const row = document.createElement('div');
@@ -307,127 +300,247 @@
     function createAIContainer(type) {
         const feed = document.getElementById('chat-container');
         const row = document.createElement('div');
-        row.className = 'msg-row ai';
-        const lang = localStorage.getItem('lang') || 'ar';
-        const t = ideTranslations[lang];
-
-        // V2 Visual Enhancements
-        const stepsHTML = type === 'v2' ? `<div class="v2-steps-container hidden"></div>` : '';
-        const thinkClass = type === 'v2' ? 'thinking-terminal-mode' : '';
-        const thinkIcon = type === 'v2' ? 'fa-brain text-purple-500' : 'fa-circle-notch';
-        const thinkLabel = type === 'v2' ? t.v2_planning : t.thinking_process;
-
+        row.className = `msg-row ai ${type}-msg-row`;
+        const t = getTrans();
         row.innerHTML = `
             <div class="msg-bubble msg-ai" style="width: 100%">
-                ${stepsHTML}
-                <div class="thinking-wrapper open">
-                    <div class="thinking-header" onclick="this.parentElement.classList.toggle('open')">
-                        <i class="fa-solid ${thinkIcon} thinking-icon thinking-icon-spin"></i>
-                        <span class="thinking-status-text">${thinkLabel}</span>
-                        <i class="fa-solid fa-chevron-down chevron-icon"></i>
+                 <div class="thinking-wrapper open">
+                    <div class="thinking-header" onclick="toggleThinking(this)">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i> ${t.thinking_process}
                     </div>
-                    <div class="thinking-body ${thinkClass}"></div>
-                </div>
-
-                <div class="progress-container ${type === 'v2' ? 'hidden' : 'hidden'}">
-                    <div class="flex justify-between text-sm text-gray-400 mb-2">
-                        <span class="status-text">${t.writing_files}</span>
-                    </div>
-                    <div class="progress-track"><div class="progress-fill"></div></div>
-                    <div class="file-artifacts"></div>
-                </div>
-
+                    <div class="thinking-body"></div>
+                 </div>
+                 <div class="progress-container hidden"><div class="progress-track"><div class="progress-fill"></div></div></div>
                 <div class="file-artifacts mt-2 pl-1"></div>
-            </div>
-        `;
+            </div>`;
         feed.appendChild(row);
         feed.scrollTop = feed.scrollHeight;
         return row;
     }
 
-    function renderArtifacts(files, container) {
-        const artDiv = container.querySelector('.file-artifacts');
-        artDiv.innerHTML = ''; // Clear prev
-        Object.keys(files).forEach(fname => {
-            artDiv.innerHTML += `
-                <div class="artifact-badge" onclick="downloadSingle('${fname}')">
-                    <span>${fname}</span><i class="fa-solid fa-download"></i>
-                </div>`;
-        });
-
-        const btn = document.createElement('button');
-        btn.className = "mt-2 text-xs bg-indigo-600 text-white px-3 py-1 rounded";
-        btn.innerText = "Download ZIP";
-        btn.onclick = downloadAll;
-        container.querySelector('.msg-bubble').appendChild(btn);
-    }
-
     function parseFiles(text) {
-        const regex = /###\s*([\w\.-]+)\s*###\s*([\s\S]*?)(?=###|$)/g;
-        let match; const files = {};
-        while ((match = regex.exec(text)) !== null) {
-            let content = match[2].trim().replace(/^```[a-z]*\n/i, '').replace(/```$/, '');
-            files[match[1].trim()] = content;
+        const cleanText = text.replace(/```\w+\n/g, '').replace(/```/g, ''); 
+        const regex = /###\s*([\w\.-]+)(?:\s*###)?\s*\n([\s\S]*?)(?=###|$)/g;
+        let match; 
+        const files = {};
+
+        while ((match = regex.exec(cleanText)) !== null) {
+            files[match[1].trim()] = match[2].trim();
+        }
+
+        if (Object.keys(files).length === 0 && cleanText.trim().length > 0) {
+             const fname = cleanText.includes('<html') ? 'index.html' : 'code.txt';
+             files[fname] = cleanText;
         }
         return files;
     }
 
-    // --- UTILS ---
     function updateFileBadge() {
         const c = document.getElementById('file-input').files.length;
-        document.getElementById('file-badge').innerText = c;
-        document.getElementById('file-badge').classList.toggle('hidden', c===0);
+        const b = document.getElementById('file-badge');
+        if(b) { b.innerText = c; b.classList.toggle('hidden', c===0); }
     }
-    function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 100) + 'px'; }
-    function downloadSingle(fname) {
-        const blob = new Blob([currentFiles[fname]], {type: "text/plain;charset=utf-8"});
-        saveAs(blob, fname);
+
+    function renderArtifactBadge(container, filename) {
+        const artDiv = container.querySelector('.file-artifacts');
+        if(artDiv && ![...artDiv.children].some(c => c.textContent.includes(filename))) {
+            const badge = document.createElement('div');
+            badge.className = "artifact-badge animate-fadeIn";
+            badge.innerHTML = `<span>${filename}</span><i class="fa-solid fa-file-code text-indigo-500 ml-2"></i>`;
+            badge.onclick = () => downloadSingle(filename);
+            artDiv.appendChild(badge);
+        }
     }
+
+    function renderDownloadAllBtn(container) {
+         if(!container.querySelector('.dl-all-btn')) {
+             const btn = document.createElement('button');
+             const t = getTrans();
+             btn.className = "dl-all-btn mt-4 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition shadow-md";
+             btn.innerHTML = `<i class="fa-solid fa-download mr-2"></i> ${t.download_files}`;
+             btn.onclick = downloadAll;
+             container.querySelector('.msg-bubble').appendChild(btn);
+         }
+    }
+
+    function downloadSingle(fname) { 
+        saveAs(new Blob([currentFiles[fname]], {type: "text/plain;charset=utf-8"}), fname); 
+    }
+
     function downloadAll() {
         const zip = new JSZip();
         Object.keys(currentFiles).forEach(f => zip.file(f, currentFiles[f]));
         zip.generateAsync({type:"blob"}).then(c => saveAs(c, "nexus-project.zip"));
     }
 
-    // --- Navigation & Modals ---
     function switchView(view) {
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.view-section, .tab-item').forEach(el => el.classList.remove('active'));
         document.getElementById(`view-${view}`).classList.add('active');
         document.getElementById(`tab-${view}`).classList.add('active');
-        if(view === 'preview') renderPreview();
+        const inputRow = document.getElementById('main-input-row');
+        if (view === 'preview') { 
+            inputRow.classList.add('hidden'); 
+            if (isPreviewDirty || Object.keys(currentFiles).length > 0) {
+                renderPreview(currentPreviewFile);
+                isPreviewDirty = false; 
+            }
+        } else {
+            inputRow.classList.remove('hidden'); 
+        }
     }
-    function renderPreview() {
+
+    function cleanCodeFence(content) {
+        if (!content) return "";
+        const match = content.match(/```(?:\w+)?\s*([\s\S]*?)\s*```/);
+        return (match && match[1]) ? match[1].trim() : content.replace(/^```[a-z]*\n/i, '').replace(/```$/, '').trim();
+    }
+
+    function navigateVirtualPage(targetFile) {
+        console.log(`[VirtualRouter] Request to navigate to: ${targetFile}`);
+        if(currentFiles[targetFile]) {
+            currentPreviewFile = targetFile;
+            renderPreview(targetFile);
+        } else {
+            const fallback = Object.keys(currentFiles).find(f => f.endsWith(targetFile) || targetFile.endsWith(f));
+            if(fallback) {
+                 currentPreviewFile = fallback;
+                 renderPreview(fallback);
+            }
+        }
+    }
+    window.navigateVirtualPage = navigateVirtualPage;
+
+    function renderPreview(targetFilename = "index.html") {
         const frame = document.getElementById('preview-frame');
         const empty = document.getElementById('preview-empty');
-        if(Object.keys(currentFiles).length === 0) { frame.style.display = 'none'; empty.style.display = 'flex'; return; }
-        frame.style.display = 'block'; empty.style.display = 'none';
-        let html = currentFiles['index.html'] || Object.values(currentFiles).find(c => c.includes('<html'));
-        if(!html) {
-             const doc = frame.contentWindow.document; doc.open(); doc.write('<pre style="color:black">' + JSON.stringify(currentFiles, null, 2) + '</pre>'); doc.close(); return;
+        const t = getTrans();
+
+        if(Object.keys(currentFiles).length === 0) { 
+            frame.style.display = 'none'; empty.style.display = 'flex'; 
+            return; 
         }
+
+        let htmlFileName = targetFilename;
+        if (!currentFiles[htmlFileName] && targetFilename === "index.html") {
+             htmlFileName = Object.keys(currentFiles).find(f => f.endsWith('.html') && (f.includes('index') || f.includes('home'))) || Object.keys(currentFiles).find(f => f.endsWith('.html'));
+        }
+
+        if(!htmlFileName || !currentFiles[htmlFileName]) {
+            frame.style.display = 'block'; empty.style.display = 'none';
+            const doc = frame.contentWindow.document;
+            doc.open();
+            doc.write(`<div style="font-family:system-ui; text-align:center; padding:50px; color:#666;">
+                        <h2>404 Not Found</h2>
+                        <p>File '<b>${targetFilename}</b>' does not exist in the project.</p>
+                       </div>`);
+            doc.close();
+            return;
+        }
+
+        let html = currentFiles[htmlFileName]; 
+        html = cleanCodeFence(html);
+
         Object.keys(currentFiles).forEach(fname => {
-            if(fname.endsWith('.css')) html = html.replace('</head>', `<style>${currentFiles[fname]}</style></head>`);
-            if(fname.endsWith('.js')) html = html.replace('</body>', `<script>${currentFiles[fname]}<\/script></body>`);
+            if (fname === htmlFileName) return;
+            const content = cleanCodeFence(currentFiles[fname]);
+
+            if(fname.endsWith('.css')) {
+                 if(html.includes(fname)) {
+                     const cssRegex = new RegExp(`<link[^>]+href=["']${fname}["'][^>]*>`, 'i');
+                     if (cssRegex.test(html)) {
+                         html = html.replace(cssRegex, `<style>\n${content}\n</style>`);
+                     } else {
+                         html = html.replace('</head>', `<style>\n${content}\n</style></head>`);
+                     }
+                 } else {
+                     html = html.replace('</head>', `<style>\n${content}\n</style></head>`);
+                 }
+            }
+
+            if(fname.endsWith('.js')) {
+                 const closingScript = '<\/script>'; 
+                 if(html.includes(fname)) {
+                     const jsRegex = new RegExp(`<script[^>]+src=["']${fname}["'][^>]*>[\\s\\S]*?<\/script>`, 'i');
+                     if(jsRegex.test(html)) {
+                         html = html.replace(jsRegex, `<script>\n${content}\n` + closingScript);
+                     } else {
+                         html = html.replace('</body>', `<script>\n${content}\n` + closingScript + '</body>');
+                     }
+                 } else {
+                     html = html.replace('</body>', `<script>\n${content}\n` + closingScript + '</body>');
+                 }
+            }
         });
-        const doc = frame.contentWindow.document; doc.open(); doc.write(html); doc.close();
+
+        const interceptorScript = `
+        <script>
+            document.addEventListener('click', function(e) {
+                const link = e.target.closest('a');
+                if (link) {
+                    const href = link.getAttribute('href');
+                    if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto')) {
+                        e.preventDefault();
+                        if(window.parent && window.parent.navigateVirtualPage) {
+                            window.parent.navigateVirtualPage(href);
+                        }
+                    }
+                }
+            });
+        <\/script>
+        `;
+
+        html = html.replace('</body>', interceptorScript + '</body>');
+
+        const doc = frame.contentWindow.document; 
+        doc.open(); doc.write(html); doc.close();
+
+        frame.style.display = 'block'; empty.style.display = 'none';
     }
 
-    function toggleModeDropdown() { document.getElementById('modeDropdown').classList.toggle('show'); }
-    function selectMode(target) {
-        if(target === 'v2' && NEXUS_MODE !== 'advanced') window.location.href = '/advanced-mode';
-        else if(target === 'v1' && NEXUS_MODE === 'advanced') window.location.href = '/code-hub';
-        else toggleModeDropdown();
+    function toggleNavVisibility() { 
+        const nav = document.getElementById('nav-container'); 
+        if(nav) {
+            nav.classList.toggle('minimized'); 
+            document.getElementById('eye-icon').className = nav.classList.contains('minimized') ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'; 
+        }
     }
-    document.addEventListener('click', (e) => { if (!e.target.closest('.mode-toggle-wrapper')) document.getElementById('modeDropdown').classList.remove('show'); });
-    function toggleNavVisibility() { const nav = document.getElementById('nav-container'); const icon = document.getElementById('eye-icon'); nav.classList.toggle('minimized'); if (nav.classList.contains('minimized')) { icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); } else { icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); } }
 
-    function openSpecificModal(id) { document.getElementById(id).classList.add('open'); }
-    function closeSpecificModal(id) { document.getElementById(id).classList.remove('open'); }
+    function openSpecificModal(id) { document.getElementById(id)?.classList.add('open'); }
+    function closeSpecificModal(id) { document.getElementById(id)?.classList.remove('open'); }
     function switchModal(c, o) { closeSpecificModal(c); setTimeout(() => openSpecificModal(o), 100); }
+
     function selectItem(category, itemId, elemId) {
-        const list = selectedItems[category]; const index = list.indexOf(itemId); const elem = document.getElementById(elemId);
-        if (index > -1) { if(category === 'models' && list.length <= 1) return; list.splice(index, 1); elem.classList.remove('selected'); elem.querySelector('.check-icon').classList.add('hidden'); }
-        else { list.push(itemId); elem.classList.add('selected'); elem.querySelector('.check-icon').classList.remove('hidden'); }
+        // Clear previous selection for single-choice (models)
+        if (category === 'models') {
+             const allCards = document.querySelectorAll('#model-list-container .option-card');
+             allCards.forEach(c => {
+                 c.classList.remove('selected');
+                 c.querySelector('.check-icon').classList.add('hidden');
+             });
+             selectedItems.models = [itemId];
+             const elem = document.getElementById(elemId);
+             elem.classList.add('selected');
+             elem.querySelector('.check-icon').classList.remove('hidden');
+             return;
+        }
+
+        // Multi-choice for tools
+        const list = selectedItems[category]; 
+        const index = list.indexOf(itemId); 
+        const elem = document.getElementById(elemId);
+        if (index > -1) { 
+            list.splice(index, 1); 
+            elem.classList.remove('selected'); 
+            elem.querySelector('.check-icon').classList.add('hidden'); 
+        } else { 
+            list.push(itemId); 
+            elem.classList.add('selected'); 
+            elem.querySelector('.check-icon').classList.remove('hidden'); 
+        }
     }
 </script>
+
+<style>
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
+</style>

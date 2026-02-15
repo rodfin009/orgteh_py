@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-[#f8f9fa] dark:bg-[#0b1120] py-16 px-4 sm:px-6 lg:px-8 font-sans">
+
+    <div class="max-w-5xl mx-auto bg-white dark:bg-[#151e2e] shadow-sm border border-gray-200 dark:border-gray-700 p-10 sm:p-16 rounded-xl">
+
+        <div class="border-b border-gray-200 dark:border-gray-700 pb-8 mb-10">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4" data-i18n="policy_title">
+                Technical Usage Policy & Data Sovereignty Agreement
+            </h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm uppercase tracking-widest font-semibold" data-i18n="policy_ref">
+                REF: NX-LEGAL-2026-V1 | EFFECTIVE DATE: FEB 10, 2026
+            </p>
+        </div>
+
+        <div class="space-y-10 text-gray-700 dark:text-gray-300 leading-relaxed text-justify">
+
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-primary">1.</span> <span data-i18n="sec1_title">Architectural Principles & Ephemeral Processing</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <p data-i18n="sec1_p1">
+                        The Nexus API infrastructure operates on a strict <strong>Stateless Execution Model</strong>. We distinguish fundamentally between "Content Payloads" (User Prompts and Generated Completions) and "Transactional Metadata" (Billing counts and API timestamps).
+                    </p>
+                    <p data-i18n="sec1_p2">
+                        Content Payloads are processed in volatile memory (RAM) solely for the duration of the inference request. Upon the successful transmission of the response to the client or the termination of the connection, these payloads are systematically purged from the memory buffers. No persistent storage (SSD/HDD) is utilized for archiving user inputs or model outputs. We function as a secure, encrypted tunnel for inference execution, ensuring complete data isolation.
+                    </p>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-primary">2.</span> <span data-i18n="sec2_title">Model Training & System Optimization</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <p class="font-semibold text-gray-900 dark:text-white" data-i18n="sec2_subtitle">Non-Training Guarantee:</p>
+                    <p data-i18n="sec2_p1">
+                        Nexus explicitly warrants that User Content submitted via the API is <strong>NOT utilized for Generative AI Training</strong>, Fine-Tuning (SFT), Reinforcement Learning (RLHF), or Knowledge Distillation. Your proprietary code, business logic, and sensitive queries remain mathematically excluded from the model's weight updates and future iterations.
+                    </p>
+                    <p class="font-semibold text-gray-900 dark:text-white mt-4" data-i18n="sec2_subtitle2">Operational Telemetry:</p>
+                    <p data-i18n="sec2_p2">
+                        While content is never accessed, Nexus employs aggregated, anonymized telemetry strictly to enhance <strong>System Reliability and Performance</strong>. This includes monitoring latency curves, throughput volume, and error rate distribution. This data is utilized solely for engineering purposes—such as auto-scaling infrastructure, optimizing routing logic, and preventing DDoS attacks—ensuring the stability of the API for all enterprise tenants.
+                    </p>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-primary">3.</span> <span data-i18n="sec3_title">Intellectual Property & Rights Assignment</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <p data-i18n="sec3_p1">
+                        In accordance with international digital asset laws, the User retains full, irrevocable ownership and Intellectual Property (IP) rights over all inputs provided and all outputs generated via the Nexus API.
+                    </p>
+                    <p data-i18n="sec3_p2">
+                        Nexus claims no copyright, license, or residual rights over the generated code, text, or data. The User acts as the sole controller of the data, while Nexus acts exclusively as the processor. This assignment of rights applies regardless of the subscription tier, ensuring that generated assets are legally safe for use in commercial, closed-source, and proprietary applications.
+                    </p>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-primary">4.</span> <span data-i18n="sec4_title">Compliance & Prohibited Utilization</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <p data-i18n="sec4_p1">
+                        Access to the API is governed by strict adherence to ethical computing standards. Users are prohibited from utilizing the inference engine for: (a) generation of malicious code or malware payloads; (b) automated social engineering or harassment campaigns; (c) bypass of regulatory censorship or safety guardrails.
+                    </p>
+                    <p data-i18n="sec4_p2">
+                        We reserve the right to perform heuristic analysis on traffic metadata (packet size, frequency) to identify and mitigate abusive behavior. Violation of these protocols will result in the immediate termination of the API access credentials to preserve the integrity of the ecosystem.
+                    </p>
+                </div>
+            </section>
+
+        </div>
+
+        <div class="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700 text-center">
+            <p class="text-xs text-gray-400 uppercase font-mono" data-i18n="legal_footer">
+                This document constitutes a binding technical agreement between Nexus and the API Consumer.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const policyTranslations = {
+        en: {
+            "policy_title": "Technical Usage Policy & Data Sovereignty Agreement",
+            "policy_ref": "REF: NX-LEGAL-2026-V1 | EFFECTIVE DATE: FEB 10, 2026",
+
+            "sec1_title": "Architectural Principles & Ephemeral Processing",
+            "sec1_p1": "The Nexus API infrastructure operates on a strict <strong>Stateless Execution Model</strong>. We distinguish fundamentally between 'Content Payloads' (User Prompts and Generated Completions) and 'Transactional Metadata' (Billing counts and API timestamps).",
+            "sec1_p2": "Content Payloads are processed in volatile memory (RAM) solely for the duration of the inference request. Upon the successful transmission of the response to the client or the termination of the connection, these payloads are systematically purged from the memory buffers. No persistent storage (SSD/HDD) is utilized for archiving user inputs or model outputs. We function as a secure, encrypted tunnel for inference execution, ensuring complete data isolation.",
+
+            "sec2_title": "Model Training & System Optimization",
+            "sec2_subtitle": "Non-Training Guarantee:",
+            "sec2_p1": "Nexus explicitly warrants that User Content submitted via the API is <strong>NOT utilized for Generative AI Training</strong>, Fine-Tuning (SFT), Reinforcement Learning (RLHF), or Knowledge Distillation. Your proprietary code, business logic, and sensitive queries remain mathematically excluded from the model's weight updates and future iterations.",
+            "sec2_subtitle2": "Operational Telemetry:",
+            "sec2_p2": "While content is never accessed, Nexus employs aggregated, anonymized telemetry strictly to enhance <strong>System Reliability and Performance</strong>. This includes monitoring latency curves, throughput volume, and error rate distribution. This data is utilized solely for engineering purposes—such as auto-scaling infrastructure, optimizing routing logic, and preventing DDoS attacks—ensuring the stability of the API for all enterprise tenants.",
+
+            "sec3_title": "Intellectual Property & Rights Assignment",
+            "sec3_p1": "In accordance with international digital asset laws, the User retains full, irrevocable ownership and Intellectual Property (IP) rights over all inputs provided and all outputs generated via the Nexus API.",
+            "sec3_p2": "Nexus claims no copyright, license, or residual rights over the generated code, text, or data. The User acts as the sole controller of the data, while Nexus acts exclusively as the processor. This assignment of rights applies regardless of the subscription tier, ensuring that generated assets are legally safe for use in commercial, closed-source, and proprietary applications.",
+
+            "sec4_title": "Compliance & Prohibited Utilization",
+            "sec4_p1": "Access to the API is governed by strict adherence to ethical computing standards. Users are prohibited from utilizing the inference engine for: (a) generation of malicious code or malware payloads; (b) automated social engineering or harassment campaigns; (c) bypass of regulatory censorship or safety guardrails.",
+            "sec4_p2": "We reserve the right to perform heuristic analysis on traffic metadata (packet size, frequency) to identify and mitigate abusive behavior. Violation of these protocols will result in the immediate termination of the API access credentials to preserve the integrity of the ecosystem.",
+
+            "legal_footer": "This document constitutes a binding technical agreement between Nexus and the API Consumer."
+        },
+        ar: {
+            "policy_title": "اتفاقية الاستخدام التقني وسيادة البيانات",
+            "policy_ref": "المرجع: NX-LEGAL-2026-V1 | تاريخ السريان: 10 فبراير 2026",
+
+            "sec1_title": "المبادئ المعمارية والمعالجة العابرة",
+            "sec1_p1": "تعمل البنية التحتية لـ Nexus API وفق نموذج صارم يُعرف بـ <strong>نموذج التنفيذ عديم الحالة (Stateless Execution Model)</strong>. نحن نميز بشكل جوهري بين 'حمولات المحتوى' (مدخلات المستخدم والردود المولدة) وبين 'بيانات المعاملات الوصفية' (عدادات الفوترة والطوابع الزمنية).",
+            "sec1_p2": "تتم معالجة حمولات المحتوى في الذاكرة المتطايرة (RAM) حصرياً خلال فترة طلب الاستدلال. بمجرد إرسال الرد بنجاح للعميل أو إنهاء الاتصال، يتم تطهير هذه البيانات بشكل منهجي وفوري من مخازن الذاكرة. لا يتم استخدام أي تخزين دائم (SSD/HDD) لأرشفة مدخلات المستخدم أو مخرجات النموذج. نحن نعمل كنفق مشفر وآمن لتنفيذ الاستدلال، مما يضمن العزل التام للبيانات.",
+
+            "sec2_title": "تدريب النماذج وتحسين النظام",
+            "sec2_subtitle": "ضمان عدم التدريب:",
+            "sec2_p1": "تتعهد Nexus بشكل صريح بأن محتوى المستخدم المرسل عبر API <strong>لا يُستخدم لتدريب الذكاء الاصطناعي التوليدي</strong>، أو الضبط الدقيق (Fine-Tuning)، أو التعلم المعزز (RLHF). يظل الكود الخاص بك، ومنطق عملك، واستفساراتك الحساسة مستبعدة رياضياً وتقنياً من تحديثات أوزان النماذج وإصداراتها المستقبلية.",
+            "sec2_subtitle2": "القياس عن بُعد للأغراض التشغيلية:",
+            "sec2_p2": "بينما لا يتم الوصول إلى المحتوى أبداً، تستخدم Nexus بيانات القياس عن بُعد (Telemetry) المجمعة والمجهولة الهوية حصرياً لغرض <strong>تحسين موثوقية النظام والأداء</strong>. يشمل ذلك مراقبة منحنيات التأخير (Latency)، وحجم التدفق، وتوزيع معدلات الخطأ. تُستخدم هذه البيانات لأغراض هندسية بحتة—مثل التوسع التلقائي للبنية التحتية، وتحسين منطق التوجيه، ومنع هجمات الحرمان من الخدمة—مما يضمن استقرار API لجميع المشتركين من المؤسسات.",
+
+            "sec3_title": "الملكية الفكرية وتعيين الحقوق",
+            "sec3_p1": "وفقاً لقوانين الأصول الرقمية الدولية، يحتفظ المستخدم بملكية كاملة وغير قابلة للإلغاء وحقوق الملكية الفكرية (IP) على جميع المدخلات المقدمة وجميع المخرجات التي يتم إنشاؤها عبر Nexus API.",
+            "sec3_p2": "لا تطالب Nexus بأي حقوق نشر أو ترخيص أو حقوق متبقية على الكود أو النصوص أو البيانات المولدة. يعمل المستخدم كمتحكم وحيد في البيانات، بينما تعمل Nexus كمعالج حصري فقط. ينطبق هذا التعيين للحقوق بغض النظر عن فئة الاشتراك، مما يضمن أن الأصول المولدة آمنة قانونياً للاستخدام في التطبيقات التجارية والمغلقة الملكية.",
+
+            "sec4_title": "الامتثال والاستخدام المحظور",
+            "sec4_p1": "يخضع الوصول إلى API للالتزام الصارم بمعايير الحوسبة الأخلاقية. يُحظر على المستخدمين استخدام محرك الاستدلال من أجل: (أ) توليد أكواد برمجية خبيثة أو برمجيات ضارة؛ (ب) حملات الهندسة الاجتماعية الآلية أو المضايقات؛ (ج) تجاوز الرقابة التنظيمية أو حواجز السلامة.",
+            "sec4_p2": "نحتفظ بالحق في إجراء تحليل إرشادي (Heuristic Analysis) على البيانات الوصفية لحركة المرور (حجم الحزمة، التكرار) لتحديد السلوك المسيء وتخفيفه. سيؤدي انتهاك هذه البروتوكولات إلى الإنهاء الفوري لبيانات اعتماد الوصول إلى API للحفاظ على نزاهة النظام البيئي.",
+
+            "legal_footer": "تُشكل هذه الوثيقة اتفاقية تقنية ملزمة بين Nexus ومستهلك الـ API."
+        }
+    };
+
+    function applyPolicyTranslations() {
+        const lang = localStorage.getItem('lang') || 'ar';
+        const t = policyTranslations[lang];
+        if (!t) return;
+
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (t[key]) el.innerHTML = t[key];
+        });
+
+        // Adjust text direction for Arabic specifically
+        const contentDiv = document.querySelector('.max-w-5xl');
+        if (lang === 'ar') {
+            contentDiv.setAttribute('dir', 'rtl');
+            contentDiv.classList.remove('text-justify'); // Sometimes justify looks weird in AR web
+        } else {
+            contentDiv.setAttribute('dir', 'ltr');
+            contentDiv.classList.add('text-justify');
+        }
+    }
+
+    // Hook into the global translation event or run immediately
+    window.addEventListener('langChange', applyPolicyTranslations);
+    window.addEventListener('DOMContentLoaded', applyPolicyTranslations);
+</script>
+{% endblock %}

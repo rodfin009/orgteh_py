@@ -4,7 +4,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
-<script>const NEXUS_MODE = "{{ mode }}";</script>
+<script>const NEXUS_MODE = "standard";</script>
 
 {% include "code_hub/styles.html" %}
 
@@ -25,37 +25,7 @@
 
     <div class="bottom-controls-layer">
 
-        <div class="input-row {% if mode == 'advanced' %}v2-glow{% endif %}" id="main-input-row">
-
-            <div class="mode-toggle-wrapper">
-                <div class="mode-btn" onclick="toggleModeDropdown()">
-                    {% if mode == 'advanced' %}
-                        <i class="fa-solid fa-brain text-purple-500"></i>
-                        <span class="hidden md:block">V2 Advanced</span>
-                    {% else %}
-                        <i class="fa-solid fa-bolt text-indigo-500"></i>
-                        <span class="hidden md:block">V1 Standard</span>
-                    {% endif %}
-                    <i class="fa-solid fa-chevron-down text-xs opacity-50 ml-1"></i>
-                </div>
-
-                <div class="mode-dropdown" id="modeDropdown">
-                    <div class="mode-option {% if mode != 'advanced' %}active{% endif %}" onclick="selectMode('v1')">
-                        <div class="mode-icon-box"><i class="fa-solid fa-bolt"></i></div>
-                        <div class="mode-info">
-                            <h4 data-i18n-ide="mode_v1_title">Standard (V1)</h4>
-                            <p data-i18n-ide="mode_v1_desc">Fast generation for snippets.</p>
-                        </div>
-                    </div>
-                    <div class="mode-option v2 {% if mode == 'advanced' %}active{% endif %}" onclick="selectMode('v2')">
-                        <div class="mode-icon-box"><i class="fa-solid fa-brain"></i></div>
-                        <div class="mode-info">
-                            <h4 data-i18n-ide="mode_v2_title">Advanced (V2)</h4>
-                            <p data-i18n-ide="mode_v2_desc">Agentic workflow for projects.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="input-row" id="main-input-row">
 
             <div class="relative">
                 <button onclick="document.getElementById('file-input').click()" class="action-btn">

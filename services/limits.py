@@ -95,15 +95,20 @@ def get_user_limits_and_usage(email):
     today_str = str(datetime.utcnow().date())
 
     if usage.get("date") != today_str:
+        print(f"[DEBUG] New day detected for {email}, resetting daily counters")  # DEBUG
         preserved_extra_usage = usage.get("unified_extra", 0)
         usage = {
             "date": today_str,
             "deepseek": 0, "kimi": 0, "mistral": 0, "llama": 0, "gemma": 0,
             "unified_extra": preserved_extra_usage, # الرصيد الإضافي تراكمي لا يصفر يومياً
-            "trial_count": 0, # تصفير عداد التجربة اليومي
-            "total_requests": usage.get("total_requests", 0),
-            "total_tokens": usage.get("total_tokens", 0),
-            "latency_sum": 0, "errors": 0, "internal_ops": 0
+            # FIX: تصفير عداد التجربة اليومي لكل نموذج
+            "trial_counts": {},  # {"deepseek": 0, "kimi": 0, ...}
+            # FIX: تصفير العدادات اليومية بشكل صحيح
+            "total_requests": 0,
+            "total_tokens": 0,
+            "latency_sum": 0, 
+            "errors": 0, 
+            "internal_ops": 0
         }
         update_user_usage_struct(email, usage)
 
@@ -152,19 +157,33 @@ async def check_request_allowance(email, model_id):
     # --- C. Rejection ---
     return False, False
 
-async def check_trial_allowance(email):
+async def check_trial_allowance(email, model_id):
     """
     تحقق خاص للتجربة الحية (Live Demo) في الموقع.
-    لا يخصم من الباقة، بحد أقصى 10 محاولات يومياً.
+    لا يخصم من الباقة، بحد أقصى 10 محاولات يومياً لكل نموذج.
     """
     _, usage = get_user_limits_and_usage(email)
-    trial_count = usage.get("trial_count", 0)
 
-    if trial_count < 10:
-        usage["trial_count"] = trial_count + 1
+    # Get model short key
+    internal_key = MODEL_MAPPING.get(model_id, "unknown")
+
+    # Get trial counts object
+    trial_counts = usage.get("trial_counts", {})
+
+    # Get count for this specific model
+    model_trial_count = trial_counts.get(internal_key, 0)
+
+    print(f"[DEBUG] Trial count for {email} / {internal_key}: {model_trial_count}/10")  # DEBUG
+
+    if model_trial_count < 10:
+        # Increment count for this model
+        trial_counts[internal_key] = model_trial_count + 1
+        usage["trial_counts"] = trial_counts
         update_user_usage_struct(email, usage)
+        print(f"[DEBUG] Trial allowed, new count: {model_trial_count + 1}")  # DEBUG
         return True
 
+    print(f"[DEBUG] Trial limit reached for {email} / {internal_key}")  # DEBUG
     return False
 
 def get_limits_for_new_subscription(plan_key, period="monthly"):

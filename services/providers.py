@@ -7,7 +7,7 @@ from itertools import cycle
 from datetime import datetime
 
 # استيراد تتبع المقاييس
-from database import track_request_metrics
+from database import track_request_metrics, update_global_stats
 
 # --- 1. CONFIGURATION & KEY MANAGEMENT ---
 
@@ -108,7 +108,14 @@ def estimate_tokens(text):
 
 # --- 4. STREAMING LOGIC (With TTFT) ---
 
-async def smart_chat_stream(original_body, user_email):
+async def smart_chat_stream(original_body, user_email, is_trial=False):
+    """
+    إضافة معامل is_trial:
+    - إذا كان True: لا يتم خصم من رصيد المستخدم ولا يُحتسب في لوحة التحكم الخاصة به
+    - إذا كان False: يتم التتبع العادي
+    """
+    print(f"[DEBUG] smart_chat_stream called with is_trial={is_trial}, user={user_email}")  # DEBUG
+
     current_body = original_body.copy()
     target_model_id = current_body.get("model")
     internal_key = MODEL_MAPPING.get(target_model_id, "unknown")
@@ -174,11 +181,23 @@ async def smart_chat_stream(original_body, user_email):
             # في حالة الخطأ، الزمن هو الوقت المستغرق حتى ظهور الخطأ
             final_latency = int((time.time() - start_time) * 1000)
             if user_email:
-                track_request_metrics(user_email, final_latency, tokens_est, model_key=internal_key, is_error=True)
+                if is_trial:
+                    print(f"[DEBUG] Trial mode - Error tracked in global stats only")  # DEBUG
+                    update_global_stats(final_latency, tokens_est, model_key=internal_key, is_error=True, is_internal=False, is_blocked=False)
+                else:
+                    print(f"[DEBUG] Normal mode - Error tracked in user stats")  # DEBUG
+                    track_request_metrics(user_email, final_latency, tokens_est, model_key=internal_key, is_error=True)
             return
 
     # Use TTFT for metrics if available, else total time
     final_metric_latency = ttft_latency if ttft_latency > 0 else int((time.time() - start_time) * 1000)
 
     if response_tokens > 0 and user_email:
-        track_request_metrics(user_email, final_metric_latency, tokens_est + response_tokens, model_key=internal_key, is_error=False)
+        if is_trial:
+            # FIX: في حالة التجربة، نحدث الإحصائيات العامة فقط ولا نخصم من المستخدم
+            print(f"[DEBUG] Trial mode - Success tracked in global stats only (NOT user dashboard)")  # DEBUG
+            update_global_stats(final_metric_latency, tokens_est + response_tokens, model_key=internal_key, is_error=False, is_internal=False, is_blocked=False)
+        else:
+            # الحالة العادية: تحديث إحصائيات المستخدم
+            print(f"[DEBUG] Normal mode - Success tracked in user stats (DEDUCTED from quota)")  # DEBUG
+            track_request_metrics(user_email, final_metric_latency, tokens_est + response_tokens, model_key=internal_key, is_error=False)

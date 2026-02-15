@@ -1,124 +1,162 @@
 import json
+import logging
 import asyncio
 import traceback
-import sys
-from datetime import datetime
-from .schemas import AgentState, PlanSchema, TaskSchema, Observation
+from typing import List, Dict, Any, AsyncGenerator
 
-try:
-    from .agents.planner import PlannerAgent
-    from .agents.executor import ExecutorAgent
-except ImportError:
-    from .planner import PlannerAgent
-    from .executor import ExecutorAgent
+from .agents import (
+    ClarificationAgent, 
+    PlannerAgent, 
+    ExecutorAgent, 
+    VerifierAgent, 
+    ProjectContext 
+)
+from .schemas import PlanSchema, TaskSchema
 
-class AdvancedOrchestrator:
-    def __init__(self, session_id: str, user_instruction: str, files_context: dict, chat_history: list = None, config: dict = None):
-        self.state = AgentState(
-            session_id=session_id,
-            files_context=files_context,
-            memory=chat_history if chat_history else [],
-            config=config if config else {} # [NEW] حفظ الإعدادات
+# Initialize Agents
+clarifier = ClarificationAgent()
+planner = PlannerAgent()
+executor = ExecutorAgent()
+verifier = VerifierAgent()
+
+async def run_advanced_orchestration(
+    user_instruction: str, 
+    files_context: Dict[str, str], 
+    session_id: str,
+    chat_history: List[Dict],
+    config: Dict[str, Any]
+) -> AsyncGenerator[str, None]:
+
+    yield json.dumps({"type": "status", "data": "initializing"}).encode() + b"\n"
+
+    try:
+        # --- PHASE 1: CLARIFICATION ---
+        existing_answers = config.get('clarifications', {})
+
+        if not existing_answers:
+            clarification_result = await clarifier.generate_questions(user_instruction, config)
+            if clarification_result.get("needs_clarification"):
+                yield json.dumps({
+                    "type": "clarification_request", 
+                    "data": clarification_result
+                }).encode() + b"\n"
+                return
+
+        # --- PHASE 2: MEMORY SETUP ---
+        ctx = ProjectContext(
+            goal=user_instruction,
+            clarifications=existing_answers,
+            client=clarifier.client 
         )
-        self.instruction = user_instruction
-        self.is_running = False
-        self.planner = PlannerAgent()
-        self.executor = ExecutorAgent()
-        print(f"--- [ORCHESTRATOR] Initialized Session {session_id} (Model: {self.state.config.get('target_model')}) ---", flush=True)
+        for fname, fcontent in files_context.items():
+            await ctx.add_file_artifact(fname, fcontent)
 
-    async def run(self):
-        self.is_running = True
+        # --- PHASE 3: PLANNING ---
+        yield json.dumps({"type": "status", "data": "planning"}).encode() + b"\n"
 
-        # [FIX 2] إرسال إشارة للواجهة لإخفاء شريط الإدخال
-        yield self._emit("ui_control", {"action": "hide_input", "state": True})
-        yield self._emit("init", {"msg": "Initializing Nexus V2 Agents..."})
+        plan: PlanSchema = await planner.create_plan(
+            user_instruction, 
+            existing_answers, 
+            files_context, 
+            chat_history, 
+            config
+        )
 
-        try:
-            print("--- [ORCHESTRATOR] STEP 1: Planning ---", flush=True)
-            yield self._emit("thought", {
-                "agent": "Planner", 
-                "content": f"Analyzing user request: '{self.instruction}'..."
-            })
+        ctx.update_plan_info(json.dumps(plan.model_dump()), "Planning Complete")
 
-            # CALLING PLANNER
-            print("--- [ORCHESTRATOR] Calling PlannerAgent.create_plan()...", flush=True)
-            plan_result = await self.planner.create_plan(self.instruction, self.state.files_context)
-            print(f"--- [ORCHESTRATOR] Plan Created with {len(plan_result.steps)} steps ---", flush=True)
+        yield json.dumps({
+            "type": "plan_created", 
+            "data": plan.model_dump()
+        }).encode() + b"\n"
 
-            self.state.plan = plan_result
-            yield self._emit("plan_created", self.state.plan.dict())
+        # --- PHASE 4: EXECUTION ---
+        for task in plan.steps:
+            yield json.dumps({
+                "type": "step_update", 
+                "data": {"task_id": task.id, "status": "in_progress"}
+            }).encode() + b"\n"
 
-            print("--- [ORCHESTRATOR] STEP 2: Execution Loop ---", flush=True)
-            for i, task in enumerate(self.state.plan.steps):
-                if not self.is_running: break
+            ctx.current_step_info = f"Executing: {task.description}"
 
-                print(f"--- [ORCHESTRATOR] Executing Task {i+1}/{len(self.state.plan.steps)}: {task.description} ---", flush=True)
+            observation = await executor.execute_task(
+                task, 
+                files_context, 
+                ctx,           
+                config
+            )
 
-                self.state.plan.current_step_index = i
-                task.status = "in_progress"
-                yield self._emit("step_update", {"task_id": task.id, "status": "in_progress"})
+            if observation.success:
+                output_payload = observation.output_data
 
-                yield self._emit("thought", {
-                    "agent": "Executor", 
-                    "content": f"Processing: {task.description}..."
-                })
-
-                # CALLING EXECUTOR with CONFIG
-                # [FIX 3] تمرير الإعدادات للمنفذ ليستخدمها في الكود
-                observation = await self.executor.execute_task(task, self.state.files_context, self.state.config)
-
-                print(f"--- [ORCHESTRATOR] Task Result: Success={observation.success} ---", flush=True)
-
-                self.state.observations[task.id] = observation
-
-                if observation.success:
-                    task.status = "completed"
-                    yield self._emit("step_update", {"task_id": task.id, "status": "completed"})
-
-                    if observation.artifacts and observation.output:
-                        filename = observation.artifacts[0]
-                        print(f"--- [ORCHESTRATOR] New Artifact Generated: {filename} ---", flush=True)
-
-                        self.state.files_context[filename] = observation.output
-                        yield self._emit("artifact", {
-                            "filename": filename,
-                            "content": observation.output
-                        })
+                # [CORE FIX]: Check if multiple files were returned
+                files_to_send = []
+                if "files" in output_payload:
+                    files_to_send = output_payload["files"]
                 else:
-                    print(f"--- [ORCHESTRATOR] Task Failed: {observation.error} ---", flush=True)
-                    task.status = "failed"
-                    task.failure_reason = observation.error
-                    yield self._emit("step_update", {"task_id": task.id, "status": "failed"})
-                    yield self._emit("error", {"msg": f"Task failed: {observation.error}"})
-                    # يمكن هنا إضافة منطق Retry بسيط مستقبلاً
+                    # Fallback for legacy format
+                    files_to_send = [output_payload]
 
-            yield self._emit("finish", {"msg": "All tasks executed successfully."})
-            print("--- [ORCHESTRATOR] Process Finished Successfully ---", flush=True)
+                # Process all files
+                for file_obj in files_to_send:
+                    # Update Memory Context
+                    files_context[file_obj['filename']] = file_obj['content']
 
-        except Exception as e:
-            err_msg = f"System Error: {str(e)}"
-            print(f"!!! [ORCHESTRATOR CRASH] {err_msg} !!!", flush=True)
-            traceback.print_exc()
-            yield self._emit("error", {"msg": err_msg})
-        finally:
-            self.is_running = False
-            # إعادة إظهار الشريط عند الانتهاء (اختياري)
-            # yield self._emit("ui_control", {"action": "hide_input", "state": False})
+                    # Send Artifact Event to Frontend
+                    yield json.dumps({
+                        "type": "artifact", 
+                        "data": file_obj
+                    }).encode() + b"\n"
 
-    def _emit(self, event_type: str, data: dict):
-        payload = {
-            "type": event_type,
-            "timestamp": datetime.utcnow().isoformat(),
-            "data": data
-        }
-        return json.dumps(payload) + "\n"
+                yield json.dumps({
+                    "type": "step_update", 
+                    "data": {"task_id": task.id, "status": "completed"}
+                }).encode() + b"\n"
+            else:
+                yield json.dumps({
+                    "type": "step_update", 
+                    "data": {"task_id": task.id, "status": "failed"}
+                }).encode() + b"\n"
+                yield json.dumps({
+                    "type": "error", 
+                    "data": {"msg": f"Task Failed: {observation.error}"}
+                }).encode() + b"\n"
+                return
 
-# API Entry Point
-# [FIX 1] تحديث التوقيع لاستقبال config
-async def run_advanced_orchestration(instruction: str, files_context: dict, session_id: str, chat_history: list = None, config: dict = None, *args, **kwargs):
+        # --- PHASE 5: VERIFICATION & REPAIR ---
+        yield json.dumps({"type": "status", "data": "verifying"}).encode() + b"\n"
 
-    if not chat_history and args: chat_history = args[0]
+        missing_files = await verifier.verify_project(plan, files_context)
 
-    orchestrator = AdvancedOrchestrator(session_id, instruction, files_context, chat_history, config)
-    async for event in orchestrator.run():
-        yield event
+        if missing_files:
+            print(f">>> [ORCHESTRATOR] Auto-Repairing files: {missing_files}")
+            yield json.dumps({"type": "status", "data": "retry_msg"}).encode() + b"\n"
+
+            for missing_file in missing_files:
+                repair_task = TaskSchema(
+                    type="edit_file",
+                    description=f"Create missing file: {missing_file}",
+                    target_resource=missing_file
+                )
+
+                yield json.dumps({"type": "step_update", "data": {"task_id": repair_task.id, "status": "in_progress"}}).encode() + b"\n"
+
+                obs = await executor.execute_task(repair_task, files_context, ctx, config)
+
+                if obs.success:
+                    # Handle multiple files in repair too
+                    files_to_send = obs.output_data.get("files", [obs.output_data])
+                    for f_obj in files_to_send:
+                        files_context[f_obj['filename']] = f_obj['content']
+                        yield json.dumps({"type": "artifact", "data": f_obj}).encode() + b"\n"
+
+                    yield json.dumps({"type": "step_update", "data": {"task_id": repair_task.id, "status": "completed"}}).encode() + b"\n"
+
+        yield json.dumps({"type": "finish", "data": {}}).encode() + b"\n"
+
+    except Exception as e:
+        print(f">>> [ORCHESTRATOR ERROR]: {e}")
+        traceback.print_exc()
+        yield json.dumps({
+            "type": "error", 
+            "data": {"msg": str(e)}
+        }).encode() + b"\n"

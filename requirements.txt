@@ -13,3 +13,4 @@ starlette
 bcrypt
 requests
 pandas
+pydantic

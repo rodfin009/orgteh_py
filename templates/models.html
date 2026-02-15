@@ -27,10 +27,10 @@
         background: #4f46e5; margin-top: -6px; cursor: pointer; transition: transform 0.1s;
     }
     input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
-    input[type=range]::-webkit-slider-runnable-track {
+    input[type=range]::-webkit-runnable-track {
         width: 100%; height: 4px; cursor: pointer; background: #e2e8f0; border-radius: 2px;
     }
-    html.dark input[type=range]::-webkit-slider-runnable-track { background: #475569; }
+    html.dark input[type=range]::-webkit-runnable-track { background: #475569; }
 
     /* Code Window Styling */
     .code-window {
@@ -58,55 +58,80 @@
     html:not(.dark) .code-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
 
     /* Chat UI */
-    .chat-bubble { max-width: 85%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.6; }
-    .chat-bubble.user { background-color: #4f46e5; color: white; border-bottom-right-radius: 2px; margin-left: auto; }
+    .chat-bubble { max-width: 85%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.6; word-wrap: break-word; }
+    .chat-bubble.user { background-color: #4f46e5; color: white; border-bottom-right-radius: 2px; margin-left: auto; text-align: right; }
     html[dir="rtl"] .chat-bubble.user { border-bottom-right-radius: 16px; border-bottom-left-radius: 2px; margin-right: auto; margin-left: 0; }
-    .chat-bubble.bot { background-color: #f1f5f9; color: #1f2937; border-bottom-left-radius: 2px; margin-right: auto; border: 1px solid #e2e8f0; }
+    .chat-bubble.bot { background-color: #f1f5f9; color: #1f2937; border-bottom-left-radius: 2px; margin-right: auto; border: 1px solid #e2e8f0; white-space: pre-wrap; }
     html.dark .chat-bubble.bot { background-color: #1e293b; color: #e2e8f0; border-color: #334155; }
     html[dir="rtl"] .chat-bubble.bot { border-bottom-left-radius: 16px; border-bottom-right-radius: 2px; margin-left: auto; margin-right: 0; }
 
-    /* 🔥 THINKING UI STYLES 🔥 */
-    .think-box {
-        margin-bottom: 12px;
-        border-left: 3px solid #e5e7eb;
-        padding-left: 12px;
+    /* THINKING UI STYLES */
+    .thinking-box {
+        margin: 8px 0;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #f9fafb;
+        width: 100%;
     }
-    html.dark .think-box { border-color: #374151; }
-
-    .think-header {
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #6b7280;
+    html.dark .thinking-box {
+        border-color: #374151;
+        background: #111827;
+    }
+    .thinking-header {
+        padding: 8px 12px;
+        background: #f3f4f6;
         cursor: pointer;
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #6b7280;
         user-select: none;
     }
-    html.dark .think-header { color: #9ca3af; }
-
-    .think-content {
-        font-family: monospace;
-        font-size: 0.8rem;
+    html.dark .thinking-header {
+        background: #1f2937;
+        color: #9ca3af;
+    }
+    .thinking-header:hover {
+        background: #e5e7eb;
+    }
+    html.dark .thinking-header:hover {
+        background: #374151;
+    }
+    .thinking-content {
+        padding: 12px;
+        font-family: 'Fira Code', monospace;
+        font-size: 13px;
         color: #4b5563;
-        background: #f9fafb;
-        padding: 8px;
-        border-radius: 6px;
-        margin-top: 6px;
         white-space: pre-wrap;
+        max-height: 300px;
+        overflow-y: auto;
+        display: none;
     }
-    html.dark .think-content {
+    html.dark .thinking-content {
         color: #d1d5db;
-        background: #111827;
     }
-
-    .think-spinner {
-        animation: spin 1.5s linear infinite;
-        font-size: 10px;
+    .thinking-content.show {
+        display: block;
+    }
+    .thinking-icon {
+        transition: transform 0.2s;
+    }
+    .thinking-icon.rotate {
+        transform: rotate(90deg);
+    }
+    .thinking-spinner {
+        animation: spin 1s linear infinite;
+        color: #f59e0b;
+        margin-right: auto;
+    }
+    html[dir="rtl"] .thinking-spinner {
+        margin-right: 0;
+        margin-left: auto;
     }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-    .hidden-content { display: none; }
 </style>
 
 <script>
@@ -118,12 +143,14 @@
             "tab_live_chat_desc": "Test Model Response", "lbl_parameters": "Parameters", "btn_view_code": "Integration Code",
             "code_modal_title": "API Integration", "btn_copy": "Copy",
             "trial_limit_msg": "Daily trial limit reached (10 msgs). Please upgrade or use API.",
+            "trial_remaining": "Free trials remaining today",
+            "thinking": "Thinking Process",
             "models": {
-                "deepseek": { name: "DeepSeek 3.2", desc: "Top-tier open source model." },
-                "mistral": { name: "Mistral Large 3", desc: "High precision enterprise model." },
-                "kimi": { name: "Kimi 2 Thinking", desc: "Advanced reasoning capabilities." },
-                "llama": { name: "Llama 3.2", desc: "Fast and lightweight." },
-                "gemma": { name: "Gemma 3", desc: "Multimodal and efficient." }
+                "deepseek": { name: "DeepSeek 3.2", desc: "Top-tier open source model.", hasThinking: true },
+                "mistral": { name: "Mistral Large 3", desc: "High precision enterprise model.", hasThinking: false },
+                "kimi": { name: "Kimi 2 Thinking", desc: "Advanced reasoning capabilities.", hasThinking: true },
+                "llama": { name: "Llama 3.2", desc: "Fast and lightweight.", hasThinking: false },
+                "gemma": { name: "Gemma 3", desc: "Multimodal and efficient.", hasThinking: false }
             }
         },
         ar: {
@@ -133,12 +160,14 @@
             "tab_live_chat_desc": "تجربة حية", "lbl_parameters": "المعلمات", "btn_view_code": "كود الربط",
             "code_modal_title": "كود التكامل (Integration)", "btn_copy": "نسخ",
             "trial_limit_msg": "تم الوصول لحد التجربة اليومي (10 رسائل). يرجى الترقية أو استخدام الـ API.",
+            "trial_remaining": "تجارب مجانية متبقية اليوم",
+            "thinking": "عملية التفكير",
             "models": {
-                "deepseek": { name: "DeepSeek 3.2", desc: "الأقوى حالياً في البرمجة والمنطق." },
-                "mistral": { name: "Mistral Large 3", desc: "دقة عالية للأعمال والشركات." },
-                "kimi": { name: "Kimi 2 Thinking", desc: "نموذج تفكير استراتيجي متقدم." },
-                "llama": { name: "Llama 3.2", desc: "سريع جداً وخفيف." },
-                "gemma": { name: "Gemma 3", desc: "فعال ومتعدد الوسائط." }
+                "deepseek": { name: "DeepSeek 3.2", desc: "الأقوى حالياً في البرمجة والمنطق.", hasThinking: true },
+                "mistral": { name: "Mistral Large 3", desc: "دقة عالية للأعمال والشركات.", hasThinking: false },
+                "kimi": { name: "Kimi 2 Thinking", desc: "نموذج تفكير استراتيجي متقدم.", hasThinking: true },
+                "llama": { name: "Llama 3.2", desc: "سريع جداً وخفيف.", hasThinking: false },
+                "gemma": { name: "Gemma 3", desc: "فعال ومتعدد الوسائط.", hasThinking: false }
             }
         }
     };
@@ -150,7 +179,11 @@
 
     function toggleThinkBox(id) {
         const content = document.getElementById(`think-content-${id}`);
-        if(content) content.classList.toggle('hidden-content');
+        const icon = document.getElementById(`think-icon-${id}`);
+        if(content) {
+            content.classList.toggle('show');
+            if(icon) icon.classList.toggle('rotate');
+        }
     }
 </script>
 
@@ -301,9 +334,14 @@
     let currentParamsConfig = DEFAULT_PARAMS; 
     let currentParamsValues = {}; 
     let currentTab = 'py';
-    window.modelSpecificChatHandler = null;
 
-    // 🔥 NEW: Abort Controller for Cancellation 🔥
+    // Separate context for each model
+    let modelContexts = {}; // { modelId: [messages] }
+    let currentModelId = null;
+    let currentModelShortName = null;
+    let currentModelHasThinking = false;
+
+    // Abort Controller for Cancellation
     let activeController = null;
     let isGenerating = false;
 
@@ -336,11 +374,17 @@
     }
 
     async function openModelDetails(modelId, shortKey) {
-        window.modelSpecificChatHandler = null;
-        // Reset Controller state on model change
         if(activeController) activeController.abort();
         isGenerating = false;
         updateSendButtonState();
+
+        currentModelId = modelId;
+        currentModelShortName = shortKey;
+
+        // Check if model has thinking capability
+        const lang = document.documentElement.getAttribute('lang') || 'ar';
+        const modelInfo = window.translations[lang].models[shortKey];
+        currentModelHasThinking = modelInfo && modelInfo.hasThinking;
 
         const modelBasic = ALL_MODELS.find(m => m.id === modelId);
         if (!modelBasic) return;
@@ -349,6 +393,25 @@
         document.getElementById('detail-image').src = modelBasic.image;
         const contentArea = document.getElementById('detail-content-area');
         contentArea.innerHTML = '<span class="animate-pulse text-gray-400">Loading description...</span>';
+
+        if (!modelContexts[modelId]) {
+            modelContexts[modelId] = [];
+        }
+
+        const chatBox = document.getElementById('chat-box');
+        chatBox.innerHTML = `
+            <div class="flex justify-center my-4">
+                <span class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">Session Started - ${modelBasic.name}</span>
+            </div>
+        `;
+
+        modelContexts[modelId].forEach(msg => {
+            if (msg.role === 'thinking') {
+                addThinkingToChat(msg.content, false);
+            } else {
+                addMessageToChat(msg.content, msg.role === 'user', false);
+            }
+        });
 
         try {
             const response = await fetch(`/static/models_translation/${shortKey}.html`);
@@ -364,14 +427,26 @@
                 });
                 const configScript = contentArea.querySelector('#model-specific-config');
                 if(configScript) {
-                    try { currentParamsConfig = JSON.parse(configScript.textContent); } 
-                    catch(e) { console.error("Error parsing params", e); currentParamsConfig = DEFAULT_PARAMS; }
-                } else { currentParamsConfig = DEFAULT_PARAMS; }
+                    try { 
+                        currentParamsConfig = JSON.parse(configScript.textContent); 
+                    } 
+                    catch(e) { 
+                        console.error("Error parsing params", e); 
+                        currentParamsConfig = DEFAULT_PARAMS; 
+                    }
+                } else { 
+                    currentParamsConfig = DEFAULT_PARAMS; 
+                }
                 renderParamsUI();
                 const currentLang = document.documentElement.getAttribute('lang') || 'ar';
                 updateDetailLanguage(currentLang);
-            } else { contentArea.innerHTML = '<p class="text-red-500">Could not load description.</p>'; }
-        } catch (e) { console.error(e); contentArea.innerHTML = '<p class="text-red-500">Connection error.</p>'; }
+            } else { 
+                contentArea.innerHTML = '<p class="text-red-500">Could not load description.</p>'; 
+            }
+        } catch (e) { 
+            console.error(e); 
+            contentArea.innerHTML = '<p class="text-red-500">Connection error.</p>'; 
+        }
 
         document.getElementById('models-grid-view').classList.add('hidden');
         document.getElementById('model-details-view').classList.remove('hidden');
@@ -379,11 +454,78 @@
         window.scrollTo(0, 0);
     }
 
+    function addMessageToChat(content, isUser = false, saveToContext = true) {
+        const box = document.getElementById('chat-box');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = "flex w-full mt-2 space-x-3 max-w-full";
+
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble ${isUser ? 'user' : 'bot'}`;
+        bubble.textContent = content;
+
+        messageDiv.appendChild(bubble);
+        box.appendChild(messageDiv);
+        box.scrollTop = box.scrollHeight;
+
+        if (saveToContext && currentModelId) {
+            modelContexts[currentModelId].push({
+                role: isUser ? 'user' : 'assistant',
+                content: content
+            });
+        }
+    }
+
+    function addThinkingToChat(thinkingContent, isStreaming = false) {
+        if (!currentModelHasThinking) return null;
+
+        const box = document.getElementById('chat-box');
+        const lang = document.documentElement.getAttribute('lang') || 'ar';
+        const thinkingText = window.translations[lang].thinking || "Thinking Process";
+
+        const thinkingId = 'thinking-' + Date.now();
+
+        const thinkingDiv = document.createElement('div');
+        thinkingDiv.className = "flex w-full mt-2 space-x-3 max-w-full";
+        thinkingDiv.innerHTML = `
+            <div class="thinking-box w-full">
+                <div class="thinking-header" onclick="toggleThinkBox('${thinkingId}')">
+                    <i id="think-icon-${thinkingId}" class="fa-solid fa-chevron-right thinking-icon"></i>
+                    <i class="fa-solid fa-brain text-yellow-500"></i>
+                    <span>${thinkingText}</span>
+                    ${isStreaming ? '<i class="fa-solid fa-circle-notch thinking-spinner"></i>' : ''}
+                </div>
+                <div id="think-content-${thinkingId}" class="thinking-content ${isStreaming ? 'show' : ''}">${thinkingContent}</div>
+            </div>
+        `;
+
+        box.appendChild(thinkingDiv);
+        box.scrollTop = box.scrollHeight;
+
+        if (!isStreaming && currentModelId) {
+            modelContexts[currentModelId].push({
+                role: 'thinking',
+                content: thinkingContent
+            });
+        }
+
+        return thinkingId;
+    }
+
+    function updateThinkingContent(thinkingId, content) {
+        const contentDiv = document.getElementById(`think-content-${thinkingId}`);
+        if (contentDiv) {
+            contentDiv.textContent = content;
+            const box = document.getElementById('chat-box');
+            box.scrollTop = box.scrollHeight;
+        }
+    }
+
     function renderParamsUI() {
         const container = document.getElementById('params-container');
         container.innerHTML = '';
         currentParamsValues = {}; 
         const lang = document.documentElement.getAttribute('lang') || 'ar';
+
         currentParamsConfig.forEach(p => {
             currentParamsValues[p.id] = p.val; 
             const label = lang === 'ar' ? (p.label_ar || p.label_en) : (p.label_en || p.label_ar);
@@ -428,18 +570,20 @@
              const label = document.getElementById(`val-${id}`);
              if(label) label.textContent = val;
         }
+        console.log('Param updated:', id, currentParamsValues[id]); // Debug log
     }
 
     function closeModelDetails() {
         if(activeController) activeController.abort();
         isGenerating = false;
         updateSendButtonState();
-        window.modelSpecificChatHandler = null;
+        currentModelId = null;
+        currentModelShortName = null;
+        currentModelHasThinking = false;
         document.getElementById('models-grid-view').classList.remove('hidden');
         document.getElementById('model-details-view').classList.add('hidden');
     }
 
-    // (Code Modal Logic - Keep existing functions)
     function openCodeModal() {
         document.body.style.overflow = 'hidden';
         const modelId = document.getElementById('detail-id').textContent;
@@ -447,13 +591,13 @@
         const pyParams = Object.entries(currentParamsValues).map(([k,v]) => `"${k}": ${formatPyVal(v)}`).join(',\n    ');
         const pyCode = `import requests, json\n\nurl = "${API_ENDPOINT}"\n\nheaders = {\n    "Authorization": "Bearer ${USER_KEY}",\n    "Content-Type": "application/json"\n}\n\npayload = {\n    "model": "${modelId}",\n    "messages": [\n        {"role": "user", "content": "Hello world!"}\n    ],\n    # Parameters\n    ${pyParams}\n}\n\nresponse = requests.post(url, headers=headers, json=payload, stream=True)\n\nfor line in response.iter_lines():\n    if line:\n        print(line.decode('utf-8'))`;
         document.getElementById('code-block-py').textContent = pyCode;
-        // ... (rest of code modal gen)
         const el = document.getElementById('codeModal');
         el.classList.remove('opacity-0', 'pointer-events-none');
         el.querySelector('div.relative').classList.remove('scale-95');
         el.querySelector('div.relative').classList.add('scale-100');
         switchTab('py');
     }
+
     function switchTab(lang) {
         currentTab = lang;
         ['py', 'java', 'http'].forEach(t => {
@@ -465,6 +609,7 @@
         document.getElementById(`code-block-${lang}`).classList.add('block');
         document.getElementById(`tab-${lang}`).classList.add('active');
     }
+
     function closeCodeModal() {
         document.body.style.overflow = '';
         const el = document.getElementById('codeModal');
@@ -472,6 +617,7 @@
         el.querySelector('div.relative').classList.add('scale-95');
         el.querySelector('div.relative').classList.remove('scale-100');
     }
+
     function copyCode() {
         const code = document.getElementById(`code-block-${currentTab}`).textContent;
         navigator.clipboard.writeText(code);
@@ -480,6 +626,7 @@
         btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
         setTimeout(() => btn.innerHTML = originalText, 2000);
     }
+
     function openParamsModal() {
         document.body.style.overflow = 'hidden';
         const el = document.getElementById('paramsModal');
@@ -487,6 +634,7 @@
         el.querySelector('div.relative').classList.remove('scale-95');
         el.querySelector('div.relative').classList.add('scale-100');
     }
+
     function closeParamsModal() {
         document.body.style.overflow = '';
         const el = document.getElementById('paramsModal');
@@ -511,7 +659,9 @@
         }
     }
 
-    // 🔥 UPDATED SEND MESSAGE LOGIC WITH TRANSLATED ERROR 🔥
+    // ============================================================================
+    // Handle Streaming with Thinking Support - FINAL FIXED VERSION
+    // ============================================================================
     async function sendMessage() {
         if (isGenerating) {
             if (activeController) {
@@ -520,64 +670,100 @@
             }
             isGenerating = false;
             updateSendButtonState();
-            const box = document.getElementById('chat-box');
-            const lastBotMsg = box.querySelector('.chat-bubble.bot:last-child');
-            if(lastBotMsg) {
-                const cancelBadge = document.createElement('div');
-                cancelBadge.className = "mt-2 text-xs text-red-500 font-bold flex items-center gap-1";
-                cancelBadge.innerHTML = `<i class="fa-solid fa-ban"></i> تم الغاء الإرسال`;
-                lastBotMsg.parentElement.appendChild(cancelBadge);
-            }
             return;
         }
 
         const input = document.getElementById('chat-input');
         const msg = input.value.trim();
-        if(!msg) return;
+        if(!msg || !currentModelId) return;
 
         isGenerating = true;
         updateSendButtonState();
         activeController = new AbortController(); 
         const signal = activeController.signal;
 
-        const box = document.getElementById('chat-box');
-        const modelId = document.getElementById('detail-id').textContent;
-
-        const userDiv = document.createElement('div');
-        userDiv.className = "flex w-full mt-2 space-x-3 max-w-full";
-        userDiv.innerHTML = `<div class="chat-bubble user">${msg}</div>`;
-        box.appendChild(userDiv);
-
+        addMessageToChat(msg, true);
         input.value = '';
-        box.scrollTop = box.scrollHeight;
 
+        const box = document.getElementById('chat-box');
         const loadingDiv = document.createElement('div');
         loadingDiv.id = "chat-loading";
         loadingDiv.className = "flex w-full mt-4 space-x-3 max-w-full";
-        loadingDiv.innerHTML = `<div class="chat-bubble bot"><div class="flex gap-1"><span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span><span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.2s"></span></div></div>`;
+        loadingDiv.innerHTML = `<div class="chat-bubble bot"><div class="flex gap-1"><span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span><span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.2s"></span><span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.4s"></span></div></div>`;
         box.appendChild(loadingDiv);
         box.scrollTop = box.scrollHeight;
 
+        let thinkingId = null;
+        let thinkingContent = '';
+        let isInThinking = false;
+        let hasShownThinking = false;
+        let responseDiv = null;
+        let aiResponse = '';
+
         try {
-            if (window.modelSpecificChatHandler) {
-                console.log("Using model-specific logic...");
-                await window.modelSpecificChatHandler(msg, modelId, currentParamsValues, box, loadingDiv, signal);
-            } else {
-                const body = { message: msg, model_id: modelId, ...currentParamsValues };
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(body),
-                    signal: signal 
-                });
+            // Build messages from context
+            const messages = modelContexts[currentModelId]
+                .filter(m => m.role !== 'thinking')
+                .map(m => ({
+                    role: m.role,
+                    content: m.content
+                }));
 
-                document.getElementById('chat-loading').remove();
+            // Prepare request body with ALL current parameters from the modal
+            const body = { 
+                message: msg, 
+                model_id: currentModelId, 
+                messages: messages
+            };
 
-                // --- NEW ERROR HANDLING FOR TRIAL LIMIT ---
+            // Add all parameters from currentParamsValues
+            Object.keys(currentParamsValues).forEach(key => {
+                const value = currentParamsValues[key];
+
+                if (key === 'stream') {
+                    body.stream = value === true;
+                } else if (key === 'temperature') {
+                    body.temperature = parseFloat(value) || 1.0;
+                } else if (key === 'max_tokens') {
+                    body.max_tokens = parseInt(value) || 1024;
+                } else if (key === 'top_p') {
+                    body.top_p = parseFloat(value);
+                } else if (key === 'thinking_mode') {
+                    // Handle thinking mode based on model type
+                    if (currentModelId.includes('deepseek')) {
+                        // DeepSeek uses chat_template_kwargs
+                        if (value === true) {
+                            body.extra_params = body.extra_params || {};
+                            body.extra_params.chat_template_kwargs = { thinking: true };
+                        }
+                    } else if (currentModelId.includes('kimi')) {
+                        // Kimi always has thinking enabled, ignore the toggle
+                        body.thinking_mode = true;
+                    } else {
+                        body.thinking_mode = value === true;
+                    }
+                } else {
+                    // Any other params
+                    body[key] = value;
+                }
+            });
+
+            console.log('Sending request with params:', body); // Debug log
+
+            const res = await fetch('/api/chat/trial', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body),
+                signal: signal 
+            });
+
+            if (loadingDiv) loadingDiv.remove();
+
+            if (!res.ok) {
                 if (res.status === 429) {
                      const lang = document.documentElement.getAttribute('lang') || 'ar';
-                     const errorMsg = (window.translations[lang] && window.translations[lang].models.trial_limit_msg) 
-                                      ? window.translations[lang].models.trial_limit_msg 
+                     const errorMsg = (window.translations[lang] && window.translations[lang].trial_limit_msg) 
+                                      ? window.translations[lang].trial_limit_msg 
                                       : "Daily trial limit reached";
 
                      const errDiv = document.createElement('div');
@@ -588,20 +774,170 @@
                             <span class="text-sm font-bold text-red-600 dark:text-red-400">${errorMsg}</span>
                         </div>`;
                      box.appendChild(errDiv);
-                     return;
+                     modelContexts[currentModelId].pop(); // Remove user message on error
+                } else {
+                    const errorData = await res.json().catch(() => ({error: 'Unknown error'}));
+                    addMessageToChat("Error: " + (errorData.error || `HTTP ${res.status}`), false);
+                    modelContexts[currentModelId].pop();
                 }
-
-                const data = await res.json();
-                const reply = data.choices ? data.choices[0].message.content : (data.error || "Error");
-                const botDiv = document.createElement('div');
-                botDiv.className = "flex w-full mt-2 space-x-3 max-w-full";
-                botDiv.innerHTML = `<div class="chat-bubble bot">${reply}</div>`;
-                box.appendChild(botDiv);
+                isGenerating = false;
+                updateSendButtonState();
+                return;
             }
+
+            // Handle non-streaming response
+            if (body.stream === false) {
+                const data = await res.json();
+
+                if (data.error) {
+                    addMessageToChat("Error: " + data.error, false);
+                    modelContexts[currentModelId].pop();
+                } else {
+                    const content = data.choices[0].message.content;
+
+                    // Handle thinking content in non-streaming response if present
+                    if (data.choices[0].message.reasoning_content && currentModelHasThinking) {
+                        addThinkingToChat(data.choices[0].message.reasoning_content, false);
+                    }
+
+                    addMessageToChat(content, false);
+                }
+                isGenerating = false;
+                updateSendButtonState();
+                return;
+            }
+
+            // Handle streaming response
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // Keep incomplete line in buffer
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        if (data === '[DONE]') continue;
+
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.error) {
+                                throw new Error(parsed.error);
+                            }
+
+                            if (parsed.choices && parsed.choices[0]) {
+                                const delta = parsed.choices[0].delta || {};
+                                const content = delta.content || '';
+
+                                // Handle reasoning_content (for Kimi and similar models)
+                                if (delta.reasoning_content && currentModelHasThinking) {
+                                    if (!hasShownThinking) {
+                                        thinkingId = addThinkingToChat('', true);
+                                        hasShownThinking = true;
+                                    }
+                                    thinkingContent += delta.reasoning_content;
+                                    if (thinkingId) {
+                                        updateThinkingContent(thinkingId, thinkingContent);
+                                    }
+                                    continue;
+                                }
+
+                                // Handle <think> tags (for DeepSeek and similar models)
+                                if (currentModelHasThinking) {
+                                    if (content.includes('<think>')) {
+                                        isInThinking = true;
+                                        const parts = content.split('<think>');
+                                        if (parts[0]) {
+                                            aiResponse += parts[0];
+                                            if (!responseDiv) createResponseDiv();
+                                            responseDiv.textContent = aiResponse;
+                                        }
+                                        if (!hasShownThinking) {
+                                            thinkingId = addThinkingToChat('', true);
+                                            hasShownThinking = true;
+                                        }
+                                        thinkingContent += parts[1] || '';
+                                        if (thinkingId) updateThinkingContent(thinkingId, thinkingContent);
+                                        continue;
+                                    } else if (content.includes('</think>')) {
+                                        isInThinking = false;
+                                        const parts = content.split('</think>');
+                                        thinkingContent += parts[0] || '';
+                                        if (thinkingId) {
+                                            updateThinkingContent(thinkingId, thinkingContent);
+                                            // Remove spinner and mark as complete
+                                            const spinner = document.querySelector(`#think-icon-${thinkingId} + i.thinking-spinner`);
+                                            if (spinner) spinner.remove();
+                                        }
+                                        if (parts[1]) {
+                                            aiResponse += parts[1];
+                                            if (!responseDiv) createResponseDiv();
+                                            responseDiv.textContent = aiResponse;
+                                        }
+                                        continue;
+                                    } else if (isInThinking) {
+                                        thinkingContent += content;
+                                        if (thinkingId) updateThinkingContent(thinkingId, thinkingContent);
+                                        continue;
+                                    }
+                                }
+
+                                // Regular content
+                                if (content) {
+                                    aiResponse += content;
+                                    if (!responseDiv) createResponseDiv();
+                                    responseDiv.textContent = aiResponse;
+                                    box.scrollTop = box.scrollHeight;
+                                }
+                            }
+                        } catch (e) {
+                            console.error("Parse error:", e, "Line:", line);
+                        }
+                    }
+                }
+            }
+
+            // Process any remaining buffer
+            if (buffer.trim() && buffer.startsWith('data: ')) {
+                try {
+                    const data = buffer.slice(6);
+                    const parsed = JSON.parse(data);
+                    if (parsed.choices && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                        aiResponse += parsed.choices[0].delta.content;
+                        if (responseDiv) responseDiv.textContent = aiResponse;
+                    }
+                } catch (e) {}
+            }
+
+            if (aiResponse || thinkingContent) {
+                if (aiResponse) {
+                    modelContexts[currentModelId].push({
+                        role: 'assistant',
+                        content: aiResponse
+                    });
+                }
+                if (thinkingContent && thinkingId) {
+                    // Store thinking in context
+                    modelContexts[currentModelId].push({
+                        role: 'thinking',
+                        content: thinkingContent
+                    });
+                }
+            }
+
         } catch (err) {
-            if(document.getElementById('chat-loading')) document.getElementById('chat-loading').remove();
+            if(loadingDiv && loadingDiv.parentNode) loadingDiv.remove();
 
             if (err.name !== 'AbortError') {
+                 console.error("Chat error:", err);
                  const errDiv = document.createElement('div');
                  errDiv.className = "flex w-full mt-2";
                  errDiv.innerHTML = `<div class="mx-auto bg-red-100 text-red-800 text-xs px-3 py-1 rounded-full">Error: ${err.message || 'Unknown'}</div>`;
@@ -613,6 +949,24 @@
             updateSendButtonState();
             box.scrollTop = box.scrollHeight;
         }
+
+        function createResponseDiv() {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = "flex w-full mt-2 space-x-3 max-w-full";
+            responseDiv = document.createElement('div');
+            responseDiv.className = "chat-bubble bot";
+            msgDiv.appendChild(responseDiv);
+            box.appendChild(msgDiv);
+            return responseDiv;
+        }
     }
+
+    // Enter key to send
+    document.getElementById('chat-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
 </script>
 {% endblock %}

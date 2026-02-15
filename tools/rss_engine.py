@@ -2,13 +2,50 @@ import feedparser
 import asyncio
 import random
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from datetime import datetime, timedelta
 from dateutil import parser
 from gnews import GNews
 import trafilatura
 from concurrent.futures import ThreadPoolExecutor
 
-# --- 1. قاعدة بيانات المصادر (تم توسيعها لضمان الدقة وعدم الانقطاع) ---
+# ==============================================================================
+# 🔴 FIX: CONNECTION POOL CONFIGURATION
+# حل مشكلة "Connection pool is full" عبر توسيع حدود الاتصالات المتزامنة
+# ==============================================================================
+def configure_global_session():
+    """
+    يقوم بإنشاء جلسة شبكة قوية تستوعب الطلبات المتزامنة وتتجاوز الأخطاء العابرة
+    """
+    retry_strategy = Retry(
+        total=3,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["HEAD", "GET", "OPTIONS"]
+    )
+
+    # زيادة pool_maxsize ليتناسب مع عدد الـ Threads
+    adapter = HTTPAdapter(
+        pool_connections=20, 
+        pool_maxsize=20, 
+        max_retries=retry_strategy
+    )
+
+    http = requests.Session()
+    http.mount("https://", adapter)
+    http.mount("http://", adapter)
+
+    return http
+
+# تطبيق الإعدادات على مكتبة requests بالكامل (بما في ذلك مكتبة GNews)
+_GLOBAL_SESSION = configure_global_session()
+requests.get = _GLOBAL_SESSION.get
+requests.post = _GLOBAL_SESSION.post
+
+# ==============================================================================
+# 1. قاعدة بيانات المصادر RSS
+# ==============================================================================
 RSS_DB = {
     "finance": {
         "en": [
@@ -87,7 +124,6 @@ def is_date_valid(date_obj, time_filter):
     """
     if not date_obj: return True 
 
-    # توحيد التوقيت (إزالة Timezone للمقارنة)
     now = datetime.utcnow()
     if date_obj.tzinfo is not None:
         date_obj = date_obj.replace(tzinfo=None)
@@ -121,18 +157,20 @@ async def fetch_full_content_trafilatura(url):
 
         def run_sync_scrape():
             # استخدام Download مع Headers لتجنب الحظر
-            downloaded = trafilatura.fetch_url(url)
-            if not downloaded:
-                return None
+            try:
+                downloaded = trafilatura.fetch_url(url)
+                if not downloaded:
+                    return None
 
-            # استخراج النص
-            result = trafilatura.extract(
-                downloaded, 
-                include_comments=False, 
-                include_tables=False, 
-                no_fallback=False
-            )
-            return result
+                result = trafilatura.extract(
+                    downloaded, 
+                    include_comments=False, 
+                    include_tables=False, 
+                    no_fallback=False
+                )
+                return result
+            except Exception:
+                return None
 
         content = await loop.run_in_executor(None, run_sync_scrape)
 
@@ -147,23 +185,32 @@ async def fetch_full_content_trafilatura(url):
 # --- 4. دوال الجلب المتزامن (تتم إدارتها داخل ThreadPool) ---
 def fetch_gnews_sync(category, limit, lang, time_filter, period_map):
     """
-    دالة متزامنة لجلب أخبار جوجل، سيتم تشغيلها في خيط منفصل لتجنب تعليق السيرفر
+    دالة متزامنة لجلب أخبار جوجل
     """
     results = []
     try:
         gnews_period = period_map.get(time_filter)
-        # تخصيص الدولة لتحسين النتائج العربية
         country = 'EG' if lang == 'ar' else 'US' 
-        if lang == 'ar': country = 'SA' # السعودية للأخبار المالية أفضل
+        if lang == 'ar': country = 'SA' 
 
+        # GNews سيستخدم الآن requests.get المعدلة بالأعلى
         google_news = GNews(language=lang, country=country, period=gnews_period, max_results=limit)
 
         topic = 'BUSINESS' if category == 'finance' else 'WORLD'
-        g_results = google_news.get_news_by_topic(topic)
+        try:
+            g_results = google_news.get_news_by_topic(topic)
+        except Exception as e:
+            print(f"GNews Topic Fetch Error: {e}")
+            g_results = []
 
-        # التأكد من أن النتائج ليست فارغة
         if not g_results:
-            g_results = google_news.get_top_news()
+            try:
+                g_results = google_news.get_top_news()
+            except:
+                g_results = []
+
+        if not g_results: 
+            return []
 
         for item in g_results:
             pub_date_str = item.get('published date')
@@ -194,14 +241,14 @@ def fetch_rss_fallback_sync(category, lang, limit, time_filter, existing_count):
     fallback_items = []
     try:
         sources = RSS_DB.get(category, {}).get(lang, [])
-        random.shuffle(sources) # خلط المصادر للتنويع
+        random.shuffle(sources)
 
         for url in sources:
             if len(fallback_items) + existing_count >= limit: break
 
             try:
-                # استخدام requests مع timeout وسياق آمن
-                resp = requests.get(url, headers=get_safe_headers(), timeout=4)
+                # استخدام _GLOBAL_SESSION بدلاً من requests المباشر لضمان استخدام المسبح
+                resp = _GLOBAL_SESSION.get(url, headers=get_safe_headers(), timeout=4)
                 if resp.status_code != 200: continue
 
                 feed = feedparser.parse(resp.content)
@@ -224,26 +271,25 @@ def fetch_rss_fallback_sync(category, lang, limit, time_filter, existing_count):
                         "is_scraped": False
                     })
             except Exception as e:
-                continue # تخطي المصدر المعطوب والانتقال للتالي
+                continue
 
     except Exception as e:
         print(f"RSS Fallback Error: {e}")
 
     return fallback_items
 
-# --- 5. المنفذ الرئيسي (المعدل) ---
+# --- 5. المنفذ الرئيسي ---
 async def execute_hybrid_news(category, limit, lang, time_filter, scrape_content):
     period_map = {"1h": "1h", "1d": "1d", "1m": "1m", "1y": "1y", "all": None}
 
     collected_items = []
     loop = asyncio.get_running_loop()
 
-    # استخدام ThreadPoolExecutor لتشغيل العمليات الثقيلة دون إيقاف السيرفر
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    # خفضنا عدد العمال قليلاً لتقليل الضغط مع الحفاظ على السرعة
+    with ThreadPoolExecutor(max_workers=3) as executor:
 
-        # --- PHASE 1: GNews (Async Wrapper) ---
+        # --- PHASE 1: GNews ---
         try:
-            # تشغيل GNews في خيط منفصل
             gnews_items = await loop.run_in_executor(
                 executor, 
                 fetch_gnews_sync, 
@@ -253,7 +299,7 @@ async def execute_hybrid_news(category, limit, lang, time_filter, scrape_content
         except Exception as e:
             print(f"Critical GNews Executor Error: {e}")
 
-        # --- PHASE 2: RSS Fallback (إذا لم نصل للحد المطلوب) ---
+        # --- PHASE 2: RSS Fallback ---
         if len(collected_items) < limit:
             try:
                 rss_items = await loop.run_in_executor(
@@ -265,8 +311,7 @@ async def execute_hybrid_news(category, limit, lang, time_filter, scrape_content
             except Exception as e:
                  print(f"Critical RSS Executor Error: {e}")
 
-    # --- PHASE 3: Content Scraping (With Trafilatura) ---
-    # هذه المرحلة أصلاً Async لذا لا تحتاج لتعديل كبير، فقط التحقق
+    # --- PHASE 3: Content Scraping ---
     if scrape_content == "true" and collected_items:
         tasks = []
         for item in collected_items:
@@ -282,7 +327,6 @@ async def execute_hybrid_news(category, limit, lang, time_filter, scrape_content
                 collected_items[i]['full_content'] = collected_items[i]['summary'] + "\n\n(Click link to read full coverage)"
                 collected_items[i]['is_scraped'] = False
 
-    # التأكد من إرجاع مصفوفة فارغة بدلاً من الفشل الكامل
     return {
         "status": "success",
         "count": len(collected_items),
