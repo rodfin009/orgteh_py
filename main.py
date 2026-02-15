@@ -6,8 +6,6 @@ import subprocess
 import traceback
 import time
 from datetime import datetime
-
-from fastapi import FastAPI, Request, UploadFile, File, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
