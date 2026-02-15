@@ -15,3 +15,6 @@ requests
 pandas
 pydantic[email]
 email-validator
+feedparser
+PyGithub
+python-jose[cryptography]
