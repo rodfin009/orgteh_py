@@ -6,11 +6,6 @@ import subprocess
 import traceback
 import time
 from datetime import datetime
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
 
 # Import authentication service
 from services.auth import (
