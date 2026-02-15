@@ -5,12 +5,12 @@ jinja2
 httpx
 openai
 upstash-redis
-passlib[bcrypt]
 python-multipart
 python-dotenv
 itsdangerous
 starlette
-bcrypt
+bcrypt==4.0.1
+passlib[bcrypt]
 requests
 pandas
 pydantic
