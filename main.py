@@ -1,5 +1,4 @@
 import os
-import uvicorn
 import json
 import sys
 import signal
@@ -552,5 +551,6 @@ def force_kill_port(port: int):
         print(f">>> [SYSTEM] Warning: Could not clean up port {port}: {e}", flush=True)
 
 if __name__ == "__main__":
+    import uvicorn # استيراد محلي فقط عند التشغيل اليدوي
     force_kill_port(8000)
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
