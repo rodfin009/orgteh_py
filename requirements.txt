@@ -4,6 +4,7 @@ sqlalchemy
 jinja2
 httpx
 openai
+gnews
 upstash-redis
 python-multipart
 python-dotenv
