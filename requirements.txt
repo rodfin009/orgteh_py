@@ -4,7 +4,6 @@ sqlalchemy
 jinja2
 httpx
 openai
-gnews
 upstash-redis
 python-multipart
 python-dotenv
@@ -19,3 +18,5 @@ email-validator
 feedparser
 PyGithub
 python-jose[cryptography]
+gnews
+trafilatura
