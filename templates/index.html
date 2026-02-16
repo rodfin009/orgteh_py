@@ -1,0 +1,567 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script>
+    // ترجمات خاصة بالصفحة الرئيسية فقط
+    const indexTranslations = {
+        en: {
+            "home_title_prefix": "ORGTEH",
+            "home_title_suffix": "INFRA",
+            "home_subtitle": "Infrastructure providing instant access to AI models through a single, secure, low-latency API gateway designed for growth.",
+            "btn_explore": "Explore Models",
+            "btn_trial": "Start Free Trial",
+            "txt_instant_access": "Instant access, no credit card required",
+            "stat_uptime": "Uptime SLA",
+            "stat_latency": "Response Time",
+            "stat_models": "Active Models",
+            "stat_support": "Support Status",
+            "why_title": "Why Orgteh?",
+            "why_heading": "Enterprise Solutions for<br>AI Model Management.",
+            "sec_security_title": "Strict Security Protocol",
+            "sec_security_desc": "Acting as a firewall; your data is never stored or used for model training.",
+            "sec_latency_title": "Low Latency Infrastructure",
+            "sec_latency_desc": "Distributed servers ensuring the lowest possible latency for your applications.",
+            "sec_unified_title": "Unified API Gateway",
+            "sec_unified_desc": "Single endpoint for all AI models. No need to manage multiple integrations.",
+            "lbl_source_code": "Source Code",
+            "lbl_python_example": "Python Integration Example",
+            "btn_view_details": "View Details",
+            "features_title": "Platform Features",
+            "features_subtitle": "Everything you need to integrate AI into your applications",
+            "feat_multi_title": "Multi-Model Support",
+            "feat_multi_desc": "Access diverse AI models from leading providers through one unified interface.",
+            "feat_realtime_title": "Real-time Performance",
+            "feat_realtime_desc": "Monitor system metrics and model latency in real-time through our analytics dashboard.",
+            "feat_scale_title": "Built for Scale",
+            "feat_scale_desc": "From startup to enterprise, our infrastructure scales seamlessly with your growth.",
+            "feat_compatible_title": "OpenAI Compatible",
+            "feat_compatible_desc": "Drop-in replacement for OpenAI SDK. Migrate your existing applications instantly.",
+            "performance_title": "System Performance",
+            "performance_subtitle": "Real-time metrics from our global infrastructure",
+            "perf_uptime_label": "System Uptime",
+            "perf_latency_label": "Avg Response Time",
+            "perf_models_label": "Available Models",
+            "perf_status_label": "System Status",
+            "perf_status_active": "Active",
+            "models_preview_title": "Available AI Models",
+            "models_preview_subtitle": "Choose from our curated collection of state-of-the-art models",
+            "view_all_models": "View All Models",
+            "cta_title": "Ready to Get Started?",
+            "cta_subtitle": "Join thousands of developers building the future with Orgteh",
+            "cta_btn_primary": "Create Free Account",
+            "cta_btn_secondary": "View Documentation"
+        },
+        ar: {
+            "home_title_prefix": "بنية",
+            "home_title_suffix": "نكساس",
+            "home_subtitle": "بنية تحتية توفر الوصول الفوري لنماذج الذكاء الإصطناعي عبر بوابة برمجية واحدة آمنة ومنخفضة الكمون مصممة للنمو",
+            "btn_explore": "استكشف النماذج",
+            "btn_trial": "ابدأ التجربة المجانية",
+            "txt_instant_access": "تفعيل فوري بدون بطاقة ائتمان",
+            "stat_uptime": "ضمان التشغيل",
+            "stat_latency": "زمن الاستجابة",
+            "stat_models": "النماذج النشطة",
+            "stat_support": "حالة الدعم",
+            "why_title": "لماذا Orgteh؟",
+            "why_heading": "حلول مؤسسية لإدارة<br>نماذج الذكاء الاصطناعي.",
+            "sec_security_title": "بروتوكول أمان صارم",
+            "sec_security_desc": "نعمل كجدار حماية (Firewall)؛ بياناتك لا تُخزن ولا تُستخدم لتدريب النماذج.",
+            "sec_latency_title": "بنية تحتية منخفضة الكمون",
+            "sec_latency_desc": "خوادم موزعة لضمان أقل زمن استجابة (Latency) ممكن لتطبيقاتك.",
+            "sec_unified_title": "بوابة برمجية موحدة",
+            "sec_unified_desc": "نقطة نهاية واحدة لجميع نماذج الذكاء الاصطناعي. لا حاجة لإدارة تكاملات متعددة.",
+            "lbl_source_code": "الكود المصدري",
+            "lbl_python_example": "مثال دمج بايثون",
+            "btn_view_details": "عرض التفاصيل",
+            "features_title": "مميزات المنصة",
+            "features_subtitle": "كل ما تحتاجه لدمج الذكاء الاصطناعي في تطبيقاتك",
+            "feat_multi_title": "دعم متعدد النماذج",
+            "feat_multi_desc": "الوصول إلى نماذج ذكاء اصطناعي متنوعة من مزودين رائدين عبر واجهة موحدة واحدة.",
+            "feat_realtime_title": "أداء فوري",
+            "feat_realtime_desc": "مراقبة مقاييس النظام وزمن استجابة النماذج في الوقت الفعلي عبر لوحة التحليلات.",
+            "feat_scale_title": "مصمم للتوسع",
+            "feat_scale_desc": "من الشركات الناشئة إلى المؤسسات، بنيتنا التحتية تتوسع بسلاسة مع نموك.",
+            "feat_compatible_title": "متوافق مع OpenAI",
+            "feat_compatible_desc": "بديل مباشر لـ OpenAI SDK. انقل تطبيقاتك الحالية فوراً دون تعديلات.",
+            "performance_title": "أداء النظام",
+            "performance_subtitle": "مقاييس فورية من بنيتنا التحتية العالمية",
+            "perf_uptime_label": "وقت تشغيل النظام",
+            "perf_latency_label": "متوسط زمن الاستجابة",
+            "perf_models_label": "النماذج المتاحة",
+            "perf_status_label": "حالة النظام",
+            "perf_status_active": "نشط",
+            "models_preview_title": "نماذج الذكاء الاصطناعي المتاحة",
+            "models_preview_subtitle": "اختر من مجموعتنا المختارة من النماذج المتطورة",
+            "view_all_models": "عرض جميع النماذج",
+            "cta_title": "مستعد للبدء؟",
+            "cta_subtitle": "انضم إلى آلاف المطورين الذين يبنون المستقبل مع Orgteh",
+            "cta_btn_primary": "إنشاء حساب مجاني",
+            "cta_btn_secondary": "عرض التوثيق"
+        }
+    };
+
+    if(window.translations) {
+        Object.assign(window.translations.en, indexTranslations.en);
+        Object.assign(window.translations.ar, indexTranslations.ar);
+    }
+</script>
+
+<style>
+    @keyframes orbit-cw {
+        0% { transform: translate(-50%, -50%) rotate(0deg); }
+        100% { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    @keyframes orbit-ccw {
+        0% { transform: translate(-50%, -50%) rotate(0deg); }
+        100% { transform: translate(-50%, -50%) rotate(-360deg); }
+    }
+
+    .orbit-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        border-radius: 50%;
+        pointer-events: none;
+        border: 1.5px solid transparent;
+        will-change: transform;
+        z-index: 0;
+    }
+
+    .glowing-dot {
+        position: absolute;
+        border-radius: 50%;
+        box-shadow: 0 0 12px currentColor;
+    }
+
+    html:not(.dark) .glowing-dot {
+        box-shadow: 0 0 6px currentColor;
+        opacity: 1;
+    }
+
+    .dashed-ring {
+        border-style: dashed !important;
+    }
+
+    html:not(.dark) .dashed-ring {
+        opacity: 0.5;
+    }
+
+    .stat-card {
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .feature-card {
+        transition: all 0.3s ease;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+
+    html.dark .feature-card:hover {
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .model-card {
+        transition: all 0.3s ease;
+    }
+
+    .model-card:hover {
+        transform: translateY(-5px);
+        border-color: #4f46e5;
+    }
+</style>
+
+<!-- Hero Section -->
+<section class="relative min-h-screen flex flex-col justify-center overflow-hidden pt-32 pb-20">
+    <div class="absolute inset-0 w-full h-full pointer-events-none z-0">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-3xl opacity-40"></div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 text-center relative z-20">
+        <div class="relative inline-block mb-10 p-4">
+            <div class="orbit-ring w-[105%] h-[140%] border-blue-600/30 dark:border-blue-500/20" 
+                 style="animation: orbit-cw 14s linear infinite;">
+                <div class="glowing-dot w-4 h-4 bg-blue-600 dark:bg-blue-400 top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-500 dark:text-blue-400"></div>
+            </div>
+
+            <div class="orbit-ring w-[110%] h-[130%] border-violet-600/30 dark:border-violet-500/20" 
+                 style="animation: orbit-ccw 18s linear infinite;">
+                <div class="glowing-dot w-3.5 h-3.5 bg-violet-600 dark:bg-violet-400 bottom-0 right-1/4 text-violet-500 dark:text-violet-400"></div>
+            </div>
+
+            <div class="orbit-ring w-[102%] h-[150%] border-cyan-600/40 dark:border-cyan-500/20 dashed-ring" 
+                 style="animation: orbit-cw 10s linear infinite;">
+                <div class="glowing-dot w-3 h-3 bg-cyan-500 top-1/2 left-0 -translate-x-1/2 text-cyan-400"></div>
+            </div>
+
+            <div class="orbit-ring w-[120%] h-[110%] border-none" 
+                 style="animation: orbit-ccw 22s linear infinite;">
+                <div class="glowing-dot w-3.5 h-3.5 bg-pink-500 bottom-1/4 left-0 text-pink-400"></div>
+            </div>
+
+            <div class="orbit-ring w-[95%] h-[160%] border-green-600/30 dark:border-green-500/10 dashed-ring" 
+                 style="animation: orbit-cw 25s linear infinite reverse;">
+                <div class="glowing-dot w-3 h-3 bg-green-500 top-1/4 right-0 text-green-400"></div>
+            </div>
+
+            <div class="orbit-ring w-[115%] h-[115%] border-none" 
+                 style="animation: orbit-cw 8s linear infinite;">
+                <div class="glowing-dot w-3 h-3 bg-yellow-500 top-3/4 left-0 text-yellow-400"></div>
+            </div>
+
+            <div class="orbit-ring w-[130%] h-[100%] border-indigo-600/30 dark:border-indigo-500/10" 
+                 style="animation: orbit-ccw 30s linear infinite;">
+                <div class="glowing-dot w-3.5 h-3.5 bg-indigo-600 dark:bg-indigo-500 top-0 right-1/2 text-indigo-500 dark:text-indigo-400"></div>
+            </div>
+
+            <div class="orbit-ring w-[100%] h-[120%] border-none" 
+                 style="animation: orbit-cw 16s linear infinite;">
+                <div class="glowing-dot w-3 h-3 bg-orange-500 bottom-0 left-1/2 text-orange-400"></div>
+            </div>
+
+            <div class="orbit-ring w-[140%] h-[90%] border-teal-600/40 dark:border-teal-500/20 dashed-ring" 
+                 style="animation: orbit-ccw 20s linear infinite;">
+                <div class="glowing-dot w-3.5 h-3.5 bg-teal-500 top-1/2 right-0 text-teal-400"></div>
+            </div>
+
+            <div class="orbit-ring w-[125%] h-[170%] border-gray-400/30 dark:border-gray-500/10" 
+                 style="animation: orbit-cw 45s linear infinite;">
+                <div class="glowing-dot w-2.5 h-2.5 bg-gray-500 dark:bg-gray-400 bottom-1/3 left-0 text-gray-400"></div>
+            </div>
+
+            <h1 class="text-6xl md:text-8xl font-black tracking-tighter text-gray-900 dark:text-white relative z-50">
+                <span data-i18n="home_title_prefix"></span> 
+                <span class="relative inline-block">
+                    <span class="absolute inset-0 bg-white/70 dark:bg-darkbg/70 blur-xl -z-10 rounded-full"></span>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600 relative z-20" data-i18n="home_title_suffix"></span>
+                </span>
+            </h1>
+        </div>
+
+        <p class="text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-10 font-light leading-relaxed" data-i18n="home_subtitle">
+        </p>
+
+        <div class="flex flex-col sm:flex-row justify-center gap-6 relative z-50">
+            <a href="/models" class="inline-flex items-center justify-center px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg font-bold shadow-2xl transition-all hover:scale-105 active:scale-95 cursor-pointer">
+                <span data-i18n="btn_explore"></span>
+            </a>
+
+            <a href="/pricing" class="inline-flex items-center justify-center px-8 py-4 border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg font-bold hover:bg-gray-100 dark:hover:bg-gray-800 shadow-xl transition-all hover:scale-105 active:scale-95 cursor-pointer">
+                <span data-i18n="btn_trial"></span>
+            </a>
+        </div>
+
+        <p class="mt-12 text-sm text-green-600 dark:text-green-400 font-bold flex justify-center items-center gap-2 animate-pulse relative z-20">
+            <i class="fa-solid fa-bolt"></i> 
+            <span data-i18n="txt_instant_access"></span>
+        </p>
+    </div>
+</section>
+
+<!-- Stats Section - Linked to Performance Data -->
+<section class="py-10 border-y border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-darkbg/50 relative z-10">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div class="stat-card text-center p-4 rounded-xl bg-white dark:bg-[#1e293b] shadow-sm">
+                <div class="text-3xl md:text-4xl font-black text-green-600 mb-1">99.99%</div>
+                <div class="text-xs text-gray-500 font-bold uppercase" data-i18n="stat_uptime"></div>
+            </div>
+            <div class="stat-card text-center p-4 rounded-xl bg-white dark:bg-[#1e293b] shadow-sm">
+                <div class="text-3xl md:text-4xl font-black text-blue-600 mb-1">&lt;45ms</div>
+                <div class="text-xs text-gray-500 font-bold uppercase" data-i18n="stat_latency"></div>
+            </div>
+            <div class="stat-card text-center p-4 rounded-xl bg-white dark:bg-[#1e293b] shadow-sm">
+                <div class="text-3xl md:text-4xl font-black text-violet-600 mb-1">{{ models_metadata | length }}+</div>
+                <div class="text-xs text-gray-500 font-bold uppercase" data-i18n="stat_models"></div>
+            </div>
+            <div class="stat-card text-center p-4 rounded-xl bg-white dark:bg-[#1e293b] shadow-sm">
+                <div class="flex items-center justify-center gap-2 mb-1">
+                    <span class="relative flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    </span>
+                    <span class="text-2xl md:text-3xl font-black text-green-600" data-i18n="perf_status_active">Active</span>
+                </div>
+                <div class="text-xs text-gray-500 font-bold uppercase" data-i18n="stat_support"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Why Orgteh Section -->
+<section class="py-24 bg-white dark:bg-darkbg relative z-10">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="why_title"></h2>
+            <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto" data-i18n="why_heading"></p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <div class="p-8 rounded-2xl bg-gray-50 dark:bg-[#1e293b] hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-300">
+                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-6">
+                    <i class="fa-solid fa-shield-halved text-xl text-blue-600 dark:text-blue-400"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-3" data-i18n="sec_security_title"></h3>
+                <p class="text-gray-500 dark:text-gray-400" data-i18n="sec_security_desc"></p>
+            </div>
+
+            <div class="p-8 rounded-2xl bg-gray-50 dark:bg-[#1e293b] hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-300">
+                <div class="w-12 h-12 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center mb-6">
+                    <i class="fa-solid fa-bolt text-xl text-violet-600 dark:text-violet-400"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-3" data-i18n="sec_latency_title"></h3>
+                <p class="text-gray-500 dark:text-gray-400" data-i18n="sec_latency_desc"></p>
+            </div>
+
+            <div class="p-8 rounded-2xl bg-gray-50 dark:bg-[#1e293b] hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-300">
+                <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center mb-6">
+                    <i class="fa-solid fa-network-wired text-xl text-indigo-600 dark:text-indigo-400"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-3" data-i18n="sec_unified_title"></h3>
+                <p class="text-gray-500 dark:text-gray-400" data-i18n="sec_unified_desc"></p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-24 bg-gray-50 dark:bg-[#0f172a] relative z-10">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="features_title"></h2>
+            <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto" data-i18n="features_subtitle"></p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div class="feature-card p-6 rounded-2xl bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700">
+                <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-5">
+                    <i class="fa-solid fa-layer-group text-2xl text-white"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3" data-i18n="feat_multi_title"></h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm leading-relaxed" data-i18n="feat_multi_desc"></p>
+            </div>
+
+            <div class="feature-card p-6 rounded-2xl bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700">
+                <div class="w-14 h-14 bg-gradient-to-br from-violet-500 to-violet-600 rounded-xl flex items-center justify-center mb-5">
+                    <i class="fa-solid fa-chart-line text-2xl text-white"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3" data-i18n="feat_realtime_title"></h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm leading-relaxed" data-i18n="feat_realtime_desc"></p>
+            </div>
+
+            <div class="feature-card p-6 rounded-2xl bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700">
+                <div class="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-5">
+                    <i class="fa-solid fa-rocket text-2xl text-white"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3" data-i18n="feat_scale_title"></h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm leading-relaxed" data-i18n="feat_scale_desc"></p>
+            </div>
+
+            <div class="feature-card p-6 rounded-2xl bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700">
+                <div class="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mb-5">
+                    <i class="fa-brands fa-openai text-2xl text-white"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3" data-i18n="feat_compatible_title"></h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm leading-relaxed" data-i18n="feat_compatible_desc"></p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Performance Metrics Section -->
+<section class="py-24 bg-white dark:bg-darkbg relative z-10">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="performance_title"></h2>
+            <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto" data-i18n="performance_subtitle"></p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/10 p-6 rounded-2xl border border-green-200 dark:border-green-800">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-server text-white"></i>
+                    </div>
+                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300" data-i18n="perf_uptime_label"></span>
+                </div>
+                <div class="text-4xl font-black text-green-600">99.99%</div>
+                <p class="text-xs text-gray-500 mt-2">Last 30 days</p>
+            </div>
+
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/10 p-6 rounded-2xl border border-blue-200 dark:border-blue-800">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-bolt text-white"></i>
+                    </div>
+                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300" data-i18n="perf_latency_label"></span>
+                </div>
+                <div class="text-4xl font-black text-blue-600">&lt;45ms</div>
+                <p class="text-xs text-gray-500 mt-2">Average across all models</p>
+            </div>
+
+            <div class="bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/20 dark:to-violet-800/10 p-6 rounded-2xl border border-violet-200 dark:border-violet-800">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-violet-500 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-brain text-white"></i>
+                    </div>
+                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300" data-i18n="perf_models_label"></span>
+                </div>
+                <div class="text-4xl font-black text-violet-600">{{ models_metadata | length }}+</div>
+                <p class="text-xs text-gray-500 mt-2">Active AI models</p>
+            </div>
+
+            <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/10 p-6 rounded-2xl border border-green-200 dark:border-green-800">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-check-circle text-white"></i>
+                    </div>
+                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300" data-i18n="perf_status_label"></span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="relative flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    </span>
+                    <span class="text-2xl font-black text-green-600" data-i18n="perf_status_active"></span>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">All systems operational</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Models Preview Section -->
+<section class="py-24 bg-gray-50 dark:bg-[#0f172a] relative z-10">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="models_preview_title"></h2>
+            <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto" data-i18n="models_preview_subtitle"></p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+            {% for model in models_metadata %}
+            <div class="model-card bg-white dark:bg-[#1e293b] rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="w-14 h-14 rounded-xl bg-gray-50 dark:bg-gray-800 p-2 flex items-center justify-center border border-gray-100 dark:border-gray-700">
+                        <img src="{{ model.image }}" alt="{{ model.name }}" class="w-full h-full object-contain">
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg text-gray-900 dark:text-white">{{ model.name }}</h3>
+                        <span class="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{{ model.provider }}</span>
+                    </div>
+                </div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm mb-4">
+                    {% if 'deepseek' in model.id %}
+                        Leading model for programming and logical reasoning tasks.
+                    {% elif 'mistral' in model.id %}
+                        High-precision enterprise-grade language model.
+                    {% elif 'kimi' in model.id %}
+                        Advanced strategic thinking and reasoning capabilities.
+                    {% elif 'llama' in model.id %}
+                        Fast and lightweight model for efficient processing.
+                    {% elif 'gemma' in model.id %}
+                        Efficient multimodal model for diverse applications.
+                    {% else %}
+                        State-of-the-art AI model for various applications.
+                    {% endif %}
+                </p>
+                <a href="/models" class="text-primary font-bold text-sm hover:underline flex items-center gap-2">
+                    <span data-i18n="btn_view_details"></span> <i class="fa-solid fa-arrow-left rtl:rotate-0 ltr:rotate-180 transform"></i>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="text-center">
+            <a href="/models" class="inline-flex items-center justify-center px-8 py-4 bg-primary text-white rounded-lg font-bold shadow-lg hover:opacity-90 transition-all hover:scale-105">
+                <span data-i18n="view_all_models"></span>
+                <i class="fa-solid fa-arrow-left rtl:rotate-0 ltr:rotate-180 transform mr-2"></i>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Code Example Section -->
+<section class="py-20 bg-white dark:bg-darkbg border-t border-gray-200 dark:border-gray-800 relative z-10">
+    <div class="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center gap-12">
+        <div class="flex-1">
+            <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">
+                <span data-i18n="lbl_python_example"></span>
+            </h2>
+            <p class="text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+                Integrate AI capabilities into your applications with just a few lines of code. Our OpenAI-compatible SDK makes migration seamless and straightforward.
+            </p>
+            <div class="flex gap-4">
+                <a href="/models" class="text-primary font-bold hover:underline flex items-center gap-2">
+                    <span data-i18n="btn_view_details"></span> <i class="fa-solid fa-arrow-left rtl:rotate-0 ltr:rotate-180 transform"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="flex-1 w-full max-w-xl" dir="ltr">
+            <div class="bg-[#1e293b] rounded-xl overflow-hidden shadow-2xl border border-gray-700">
+                <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-700 bg-[#0f172a]">
+                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span class="ml-2 text-xs text-gray-400 font-mono">main.py</span>
+                </div>
+                <div class="p-6 overflow-x-auto">
+<pre class="font-mono text-sm text-blue-300">
+import <span class="text-white">openai</span>
+
+client = openai.OpenAI(
+    base_url=<span class="text-green-400">"https://api.orgteh.com/v1"</span>,
+    api_key=<span class="text-green-400">"nx-..."</span>
+)
+
+response = client.chat.completions.create(
+    model=<span class="text-green-400">"deepseek-ai/deepseek-v3.2"</span>,
+    messages=[
+        {<span class="text-green-400">"role"</span>: <span class="text-green-400">"user"</span>, <span class="text-green-400">"content"</span>: <span class="text-green-400">"Hello!"</span>}
+    ]
+)
+print(response.choices[0].message.content)
+</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="py-24 bg-gradient-to-br from-blue-600 to-violet-600 relative z-10 overflow-hidden">
+    <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+        <div class="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+    </div>
+
+    <div class="max-w-4xl mx-auto px-4 text-center relative z-10">
+        <h2 class="text-3xl md:text-5xl font-black text-white mb-6" data-i18n="cta_title"></h2>
+        <p class="text-xl text-blue-100 mb-10" data-i18n="cta_subtitle"></p>
+
+        <div class="flex flex-col sm:flex-row justify-center gap-4">
+            <a href="/pricing" class="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-600 rounded-lg font-bold shadow-xl transition-all hover:scale-105 active:scale-95">
+                <span data-i18n="cta_btn_primary"></span>
+            </a>
+            <a href="/docs" class="inline-flex items-center justify-center px-8 py-4 border-2 border-white text-white rounded-lg font-bold hover:bg-white/10 transition-all hover:scale-105 active:scale-95">
+                <span data-i18n="cta_btn_secondary"></span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<script>
+    window.addEventListener('DOMContentLoaded', () => {
+        if(typeof applyGlobalTranslations === 'function') {
+            applyGlobalTranslations();
+        }
+    });
+</script>
+{% endblock %}
