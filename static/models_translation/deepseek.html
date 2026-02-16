@@ -157,7 +157,7 @@
                 extra_params: useThinking ? { chat_template_kwargs: { "thinking": true } } : {} 
             };
 
-            const response = await fetch('/api/chat', {
+            const response = await fetch('/api/chat/trial', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(currentBody),
