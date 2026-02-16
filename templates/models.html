@@ -1,0 +1,763 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script>
+    // Server-side injected language (from main.py)
+    window.SERVER_LANG = "{{ lang }}";
+    // Apply lang immediately
+    document.documentElement.lang = window.SERVER_LANG;
+    document.documentElement.dir = (window.SERVER_LANG === 'ar') ? 'rtl' : 'ltr';
+    if(window.SERVER_LANG === 'ar') {
+        document.documentElement.classList.add('rtl');
+        document.body.classList.add('rtl');
+    } else {
+        document.documentElement.classList.remove('rtl');
+        document.body.classList.remove('rtl');
+    }
+    console.log("Current Language Mode:", window.SERVER_LANG);
+</script>
+
+<style>
+    /* Styling */
+    :root { --terminal-bg: #ffffff; --terminal-header: #f1f5f9; --terminal-border: #475569; }
+    html.dark { --terminal-bg: #0f172a; --terminal-header: #1e293b; --terminal-border: #334155; }
+    .animate-fade-in-up { animation: fadeInUp 0.5s ease-out forwards; }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #4f46e5; margin-top: -6px; cursor: pointer; transition: transform 0.1s; }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+    input[type=range]::-webkit-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e2e8f0; border-radius: 2px; }
+    html.dark input[type=range]::-webkit-runnable-track { background: #475569; }
+    .code-window { background-color: #1e1e1e; color: #d4d4d4; font-family: 'Fira Code', 'Consolas', monospace; }
+    .tab-btn { @apply px-4 py-2 text-sm font-bold transition-colors duration-200 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200; }
+    .tab-btn.active { @apply text-primary border-primary dark:text-primary dark:border-primary; }
+    .code-scroll { overscroll-behavior: contain; }
+    .code-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+    .code-scroll::-webkit-scrollbar-thumb { background: #404040; border-radius: 4px; }
+    .code-scroll::-webkit-scrollbar-track { background: #1e1e1e; }
+    html:not(.dark) .code-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; }
+    html:not(.dark) .code-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+    .chat-bubble { max-width: 85%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.6; word-wrap: break-word; }
+    .chat-bubble.user { background-color: #4f46e5; color: white; border-bottom-right-radius: 2px; margin-left: auto; text-align: right; }
+    html[dir="rtl"] .chat-bubble.user { border-bottom-right-radius: 16px; border-bottom-left-radius: 2px; margin-right: auto; margin-left: 0; }
+    .chat-bubble.bot { background-color: #f1f5f9; color: #1f2937; border-bottom-left-radius: 2px; margin-right: auto; border: 1px solid #e2e8f0; white-space: pre-wrap; }
+    html.dark .chat-bubble.bot { background-color: #1e293b; color: #e2e8f0; border-color: #334155; }
+    html[dir="rtl"] .chat-bubble.bot { border-bottom-left-radius: 16px; border-bottom-right-radius: 2px; margin-left: auto; margin-right: 0; }
+    .thinking-box { margin: 8px 0; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; background: #f9fafb; width: 100%; }
+    html.dark .thinking-box { border-color: #374151; background: #111827; }
+    .thinking-header { padding: 8px 12px; background: #f3f4f6; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #6b7280; user-select: none; }
+    html.dark .thinking-header { background: #1f2937; color: #9ca3af; }
+    .thinking-header:hover { background: #e5e7eb; }
+    html.dark .thinking-header:hover { background: #374151; }
+    .thinking-content { padding: 12px; font-family: 'Fira Code', monospace; font-size: 13px; color: #4b5563; white-space: pre-wrap; max-height: 300px; overflow-y: auto; display: none; }
+    html.dark .thinking-content { color: #d1d5db; }
+    .thinking-content.show { display: block; }
+    .thinking-icon { transition: transform 0.2s; }
+    .thinking-icon.rotate { transform: rotate(90deg); }
+    .thinking-spinner { animation: spin 1s linear infinite; color: #f59e0b; margin-right: auto; }
+    html[dir="rtl"] .thinking-spinner { margin-right: 0; margin-left: auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+
+<script>
+    const modelsTranslations = {
+        en: {
+            "catalog_title_prefix": "AI Models", "catalog_title_suffix": "Catalog",
+            "catalog_subtitle": "Choose the right engine for your data.",
+            "btn_view_details": "Details & Key", "btn_back_catalog": "Back",
+            "tab_live_chat_desc": "Test Model Response", "lbl_parameters": "Parameters", "btn_view_code": "Integration Code",
+            "code_modal_title": "API Integration", "btn_copy": "Copy",
+            "trial_limit_msg": "Daily trial limit reached (10 msgs). Please upgrade or use API.",
+            "thinking": "Thinking Process",
+            "models": {
+                "deepseek": { name: "DeepSeek 3.2", desc: "Top-tier open source model.", hasThinking: true },
+                "mistral": { name: "Mistral Large 3", desc: "High precision enterprise model.", hasThinking: false },
+                "kimi": { name: "Kimi 2 Thinking", desc: "Advanced reasoning capabilities.", hasThinking: true },
+                "llama": { name: "Llama 3.2", desc: "Fast and lightweight.", hasThinking: false },
+                "gemma": { name: "Gemma 3", desc: "Multimodal and efficient.", hasThinking: false }
+            }
+        },
+        ar: {
+            "catalog_title_prefix": "كتالوج", "catalog_title_suffix": "النماذج",
+            "catalog_subtitle": "اختر المحرك المناسب لبياناتك.",
+            "btn_view_details": "التفاصيل والمفتاح", "btn_back_catalog": "عودة",
+            "tab_live_chat_desc": "تجربة حية", "lbl_parameters": "المعلمات", "btn_view_code": "كود الربط",
+            "code_modal_title": "كود التكامل (Integration)", "btn_copy": "نسخ",
+            "trial_limit_msg": "تم الوصول لحد التجربة اليومي (10 رسائل). يرجى الترقية أو استخدام الـ API.",
+            "thinking": "عملية التفكير",
+            "models": {
+                "deepseek": { name: "DeepSeek 3.2", desc: "الأقوى حالياً في البرمجة والمنطق.", hasThinking: true },
+                "mistral": { name: "Mistral Large 3", desc: "دقة عالية للأعمال والشركات.", hasThinking: false },
+                "kimi": { name: "Kimi 2 Thinking", desc: "نموذج تفكير استراتيجي متقدم.", hasThinking: true },
+                "llama": { name: "Llama 3.2", desc: "سريع جداً وخفيف.", hasThinking: false },
+                "gemma": { name: "Gemma 3", desc: "فعال ومتعدد الوسائط.", hasThinking: false }
+            }
+        }
+    };
+
+    if(window.translations) {
+        Object.assign(window.translations.en, modelsTranslations.en);
+        Object.assign(window.translations.ar, modelsTranslations.ar);
+    }
+
+    function toggleThinkBox(id) {
+        const content = document.getElementById(`think-content-${id}`);
+        const icon = document.getElementById(`think-icon-${id}`);
+        if(content) {
+            content.classList.toggle('show');
+            if(icon) icon.classList.toggle('rotate');
+        }
+    }
+</script>
+
+<div class="min-h-screen bg-gray-50 dark:bg-darkbg py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-[95rem] mx-auto"> 
+
+        <div id="models-grid-view" class="transition-opacity duration-300">
+            <div class="mb-10 text-center sm:text-right border-b border-gray-200 dark:border-gray-700 pb-6">
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+                    <span class="text-primary" data-i18n="catalog_title_prefix"></span> <span data-i18n="catalog_title_suffix"></span>
+                </h1>
+                <p class="mt-2 text-gray-600 dark:text-gray-400" data-i18n="catalog_subtitle"></p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for model in models %}
+                {% set short_name = "deepseek" if "deepseek" in model.id else "mistral" if "mistral" in model.id else "kimi" if "kimi" in model.id else "llama" if "llama" in model.id else "gemma" %}
+                <div onclick="openModelDetails('{{ model.id }}', '{{ short_name }}')" class="group bg-white dark:bg-[#1e293b] rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col cursor-pointer">
+                    <div class="p-6 flex items-start justify-between border-b border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/30">
+                        <div class="flex items-center gap-4">
+                            <img src="{{ model.image }}" alt="{{ model.provider }}" class="w-14 h-14 rounded-lg shadow-md bg-white p-1 object-contain">
+                            <div>
+                                <h3 class="font-bold text-lg text-gray-900 dark:text-white leading-tight group-hover:text-primary transition model-name-target" data-key="{{ short_name }}"></h3>
+                                <span class="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{{ model.provider }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 flex-1 flex flex-col">
+                        <p class="text-gray-600 dark:text-gray-300 text-sm leading-relaxed mb-4 flex-1 model-desc-target" data-key="{{ short_name }}">Loading...</p>
+                        <div class="w-full py-2.5 rounded-lg bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold text-sm hover:opacity-90 transition flex items-center justify-center gap-2">
+                            <span data-i18n="btn_view_details"></span> <i class="fa-solid fa-arrow-left rtl:rotate-0 ltr:rotate-180 transform"></i>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div id="model-details-view" class="hidden transition-opacity duration-300">
+            <button onclick="closeModelDetails()" class="mb-6 flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary transition">
+                <i class="fa-solid fa-arrow-right rtl:rotate-0 ltr:rotate-180 transform"></i> <span class="font-bold" data-i18n="btn_back_catalog"></span>
+            </button>
+
+            <div class="bg-white dark:bg-[#1e293b] rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 mb-6 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-600"></div>
+                <div class="flex flex-col md:flex-row gap-8">
+                    <div class="flex-shrink-0"><img id="detail-image" src="" class="w-24 h-24 rounded-2xl shadow-md bg-white p-2 object-contain border border-gray-100 dark:border-gray-600"></div>
+                    <div class="flex-1">
+                        <div id="detail-content-area" class="prose dark:prose-invert max-w-none flex items-center justify-center min-h-[200px]">
+                            <span class="animate-pulse text-gray-400">Loading description...</span>
+                        </div>
+                        <span id="detail-id" class="hidden"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="interactionSection" class="hidden animate-fade-in-up">
+                <div class="bg-white dark:bg-[#1e293b] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden h-[600px] flex flex-col max-w-4xl mx-auto">
+                    <div class="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                         <div class="flex items-center gap-3">
+                             <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                             <span class="text-sm font-bold text-gray-600 dark:text-gray-300" data-i18n="tab_live_chat_desc"></span>
+                         </div>
+                         <div class="flex items-center gap-2">
+                             <button onclick="openParamsModal()" class="text-xs bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white px-3 py-1.5 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition flex items-center gap-2">
+                                <i class="fa-solid fa-sliders"></i> <span data-i18n="lbl_parameters"></span>
+                            </button>
+                            <button onclick="openCodeModal()" class="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-lg hover:bg-gray-700 transition flex items-center gap-2">
+                                <i class="fa-solid fa-code"></i> <span data-i18n="btn_view_code"></span>
+                            </button>
+                         </div>
+                    </div>
+                    <div id="chat-box" class="flex-1 overflow-y-auto p-6 space-y-4 bg-white dark:bg-[#0f172a]">
+                        <div class="flex justify-center my-4">
+                            <span class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">Session Started</span>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex gap-3">
+                        <input type="text" id="chat-input" class="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:text-white" placeholder="..." autocomplete="off">
+                        <button id="send-btn" onclick="sendMessage()" class="bg-primary text-white w-12 h-12 rounded-xl hover:bg-indigo-600 transition shadow-lg flex items-center justify-center">
+                            <i id="send-icon" class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="paramsModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition duration-300">
+    <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeParamsModal()"></div>
+    <div class="bg-white dark:bg-[#1e293b] w-full max-w-md rounded-2xl shadow-2xl relative z-10 transform scale-95 transition-transform duration-300 flex flex-col p-6" dir="ltr">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="font-bold text-xl text-gray-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-primary"></i> <span data-i18n="lbl_parameters">Parameters</span>
+            </h3>
+            <button onclick="closeParamsModal()" class="text-gray-500 hover:text-red-500"><i class="fa-solid fa-times text-xl"></i></button>
+        </div>
+        <div id="params-container" class="space-y-4 overflow-y-auto max-h-[60vh] pr-2"></div>
+        <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 text-right">
+            <button onclick="closeParamsModal()" class="px-4 py-2 bg-primary text-white rounded-lg font-bold hover:opacity-90">Done</button>
+        </div>
+    </div>
+</div>
+
+<div id="codeModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition duration-300">
+    <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeCodeModal()"></div>
+    <div class="bg-white dark:bg-[#1e293b] w-[90%] md:w-[650px] max-h-[85vh] rounded-2xl shadow-2xl relative z-10 transform scale-95 transition-transform duration-300 flex flex-col border-2 border-gray-200 dark:border-gray-600" dir="ltr">
+        <div class="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shrink-0">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white" data-i18n="code_modal_title">API Integration Code</h3>
+            <button onclick="closeCodeModal()" class="text-gray-500 hover:text-red-500 bg-gray-100 dark:bg-gray-800 w-8 h-8 rounded-full flex items-center justify-center transition">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        </div>
+        <div class="flex border-b border-gray-200 dark:border-gray-700 px-5 pt-2 gap-4 shrink-0">
+            <button onclick="switchTab('py')" id="tab-py" class="tab-btn active"><i class="fa-brands fa-python mr-1"></i> Python</button>
+            <button onclick="switchTab('java')" id="tab-java" class="tab-btn"><i class="fa-brands fa-java mr-1"></i> Java</button>
+            <button onclick="switchTab('http')" id="tab-http" class="tab-btn"><i class="fa-solid fa-globe mr-1"></i> cURL / HTTP</button>
+        </div>
+        <div class="p-0 overflow-hidden flex-1 relative bg-gray-50 dark:bg-[#1e1e1e] rounded-b-xl border-t border-gray-200 dark:border-gray-700 min-h-0">
+            <div class="absolute top-3 right-4 z-20">
+                 <button onclick="copyCode()" class="text-xs bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white border border-gray-300 dark:border-white/10 px-3 py-1.5 rounded hover:bg-gray-300 dark:hover:bg-white/20 transition flex items-center gap-2 backdrop-blur-sm">
+                    <i class="fa-regular fa-copy"></i> <span data-i18n="btn_copy">Copy</span>
+                </button>
+            </div>
+            <div class="w-full h-full overflow-y-auto code-scroll p-5 text-gray-800 dark:text-gray-300 font-mono text-sm" dir="ltr">
+                <pre><code id="code-block-py" class="language-python text-sm leading-relaxed block"></code></pre>
+                <pre><code id="code-block-java" class="language-java text-sm leading-relaxed hidden"></code></pre>
+                <pre><code id="code-block-http" class="language-bash text-sm leading-relaxed hidden"></code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const ALL_MODELS = {{ models | tojson }};
+    const API_ENDPOINT = "https://orgteh.com/v1/chat/completions"; 
+    const USER_KEY = "{{ user_api_key if user_api_key else 'YOUR_API_KEY' }}";
+
+    const DEFAULT_PARAMS = [
+        { id: "stream", type: "toggle", label_en: "Stream", label_ar: "البث الحي (Stream)", val: true, desc_en: "Stream response.", desc_ar: "عرض الإجابة فوراً" },
+        { id: "temperature", type: "slider", label_en: "Temperature", label_ar: "درجة الحرارة", min: 0, max: 2, step: 0.1, val: 1.0, desc_en: "Randomness", desc_ar: "التحكم في الإبداع" },
+        { id: "max_tokens", type: "slider", label_en: "Max Tokens", label_ar: "أقصى طول", min: 1, max: 2048, step: 1, val: 1024, desc_en: "Length", desc_ar: "طول النص المولد" }
+    ];
+
+    let currentParamsConfig = DEFAULT_PARAMS; 
+    let currentParamsValues = {}; 
+    let currentTab = 'py';
+    let modelContexts = {}; 
+    let currentModelId = null;
+    let currentModelShortName = null;
+    let currentModelHasThinking = false;
+    let activeController = null;
+    let isGenerating = false;
+
+    window.addEventListener('DOMContentLoaded', () => {
+        updateModelsText();
+    });
+
+    function updateModelsText() {
+        // ALWAYS use the server lang
+        const lang = window.SERVER_LANG || 'en'; 
+        
+        if(window.translations && window.translations[lang]) {
+            const t = window.translations[lang].models;
+            document.querySelectorAll('.model-name-target').forEach(el => {
+                const key = el.getAttribute('data-key');
+                if(t && t[key]) el.textContent = t[key].name;
+            });
+            document.querySelectorAll('.model-desc-target').forEach(el => {
+                const key = el.getAttribute('data-key');
+                if(t && t[key]) el.textContent = t[key].desc;
+            });
+            const detailsView = document.getElementById('model-details-view');
+            if (!detailsView.classList.contains('hidden')) {
+                updateDetailLanguage(lang);
+                renderParamsUI();
+            }
+        }
+    }
+
+    function updateDetailLanguage(lang) {
+        document.querySelectorAll('.model-lang-content').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll(`.model-lang-content.lang-${lang}`).forEach(el => el.classList.remove('hidden'));
+    }
+
+    async function openModelDetails(modelId, shortKey) {
+        if(activeController) activeController.abort();
+        isGenerating = false;
+        updateSendButtonState();
+        currentModelId = modelId;
+        currentModelShortName = shortKey;
+
+        const lang = window.SERVER_LANG || 'en';
+        const modelInfo = window.translations[lang].models[shortKey];
+        currentModelHasThinking = modelInfo && modelInfo.hasThinking;
+
+        const modelBasic = ALL_MODELS.find(m => m.id === modelId);
+        if (!modelBasic) return;
+
+        document.getElementById('detail-id').textContent = modelId;
+        document.getElementById('detail-image').src = modelBasic.image;
+        const contentArea = document.getElementById('detail-content-area');
+        contentArea.innerHTML = '<span class="animate-pulse text-gray-400">Loading description...</span>';
+
+        if (!modelContexts[modelId]) modelContexts[modelId] = [];
+
+        const chatBox = document.getElementById('chat-box');
+        chatBox.innerHTML = `<div class="flex justify-center my-4"><span class="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">Session Started - ${modelBasic.name}</span></div>`;
+
+        modelContexts[modelId].forEach(msg => {
+            if (msg.role === 'thinking') addThinkingToChat(msg.content, false);
+            else addMessageToChat(msg.content, msg.role === 'user', false);
+        });
+
+        // -------------------------------------------------------------
+        // STRICT PATH DEBUGGING
+        // -------------------------------------------------------------
+        const targetUrl = `/static/models_translation/${shortKey}.html`;
+        console.log("ATTEMPTING TO FETCH:", targetUrl);
+
+        try {
+            const response = await fetch(targetUrl);
+            if (response.ok) {
+                const html = await response.text();
+                contentArea.innerHTML = html;
+                const scripts = contentArea.querySelectorAll('script');
+                scripts.forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                    newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
+                const configScript = contentArea.querySelector('#model-specific-config');
+                if(configScript) {
+                    try { currentParamsConfig = JSON.parse(configScript.textContent); } 
+                    catch(e) { currentParamsConfig = DEFAULT_PARAMS; }
+                } else { currentParamsConfig = DEFAULT_PARAMS; }
+                
+                renderParamsUI();
+                updateDetailLanguage(lang);
+            } else { 
+                // PRINT STRICT ERROR TO UI
+                console.error("Failed fetch:", response.status, response.statusText);
+                contentArea.innerHTML = `
+                <div class="text-center p-4 bg-red-900/20 rounded-lg border border-red-500/30">
+                    <p class="text-red-500 font-bold mb-2">FILE NOT FOUND (404)</p>
+                    <p class="text-gray-400 text-xs font-mono">Tried to load: ${targetUrl}</p>
+                    <p class="text-gray-400 text-xs mt-2">Check /debug/static-files to see where it really is.</p>
+                </div>`; 
+            }
+        } catch (e) { 
+            console.error(e); 
+            contentArea.innerHTML = '<p class="text-red-500 text-center">Connection error.</p>'; 
+        }
+
+        document.getElementById('models-grid-view').classList.add('hidden');
+        document.getElementById('model-details-view').classList.remove('hidden');
+        document.getElementById('interactionSection').classList.remove('hidden');
+        window.scrollTo(0, 0);
+    }
+
+    // (Remaining functions: addMessageToChat, addThinkingToChat, etc. are identical to previous correct version)
+    function addMessageToChat(content, isUser = false, saveToContext = true) {
+        const box = document.getElementById('chat-box');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = "flex w-full mt-2 space-x-3 max-w-full";
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble ${isUser ? 'user' : 'bot'}`;
+        bubble.textContent = content;
+        messageDiv.appendChild(bubble);
+        box.appendChild(messageDiv);
+        box.scrollTop = box.scrollHeight;
+        if (saveToContext && currentModelId) {
+            modelContexts[currentModelId].push({ role: isUser ? 'user' : 'assistant', content: content });
+        }
+    }
+
+    function addThinkingToChat(thinkingContent, isStreaming = false) {
+        if (!currentModelHasThinking) return null;
+        const box = document.getElementById('chat-box');
+        const lang = window.SERVER_LANG || 'en';
+        const thinkingText = window.translations[lang].thinking || "Thinking Process";
+        const thinkingId = 'thinking-' + Date.now();
+        const thinkingDiv = document.createElement('div');
+        thinkingDiv.className = "flex w-full mt-2 space-x-3 max-w-full";
+        thinkingDiv.innerHTML = `
+            <div class="thinking-box w-full">
+                <div class="thinking-header" onclick="toggleThinkBox('${thinkingId}')">
+                    <i id="think-icon-${thinkingId}" class="fa-solid fa-chevron-right thinking-icon"></i>
+                    <i class="fa-solid fa-brain text-yellow-500"></i>
+                    <span>${thinkingText}</span>
+                    ${isStreaming ? '<i class="fa-solid fa-circle-notch thinking-spinner"></i>' : ''}
+                </div>
+                <div id="think-content-${thinkingId}" class="thinking-content ${isStreaming ? 'show' : ''}">${thinkingContent}</div>
+            </div>`;
+        box.appendChild(thinkingDiv);
+        box.scrollTop = box.scrollHeight;
+        if (!isStreaming && currentModelId) {
+            modelContexts[currentModelId].push({ role: 'thinking', content: thinkingContent });
+        }
+        return thinkingId;
+    }
+
+    function updateThinkingContent(thinkingId, content) {
+        const contentDiv = document.getElementById(`think-content-${thinkingId}`);
+        if (contentDiv) {
+            contentDiv.textContent = content;
+            const box = document.getElementById('chat-box');
+            box.scrollTop = box.scrollHeight;
+        }
+    }
+
+    function renderParamsUI() {
+        const container = document.getElementById('params-container');
+        container.innerHTML = '';
+        currentParamsValues = {}; 
+        const lang = window.SERVER_LANG || 'en';
+        currentParamsConfig.forEach(p => {
+            currentParamsValues[p.id] = p.val; 
+            const label = lang === 'ar' ? (p.label_ar || p.label_en) : (p.label_en || p.label_ar);
+            const desc = lang === 'ar' ? (p.desc_ar || p.desc_en) : (p.desc_en || p.desc_ar);
+            const wrapper = document.createElement('div');
+            wrapper.className = "mb-5 pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0 last:mb-0 last:pb-0";
+            if (p.type === 'toggle') {
+                wrapper.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div class="flex-1 pr-4">
+                            <label class="text-sm font-bold text-gray-800 dark:text-gray-200 block">${label}</label>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-tight">${desc || ''}</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="input-${p.id}" class="sr-only peer" ${p.val ? 'checked' : ''} onchange="updateParamValue('${p.id}', this.checked)">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                    </div>`;
+            } else {
+                wrapper.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-sm font-bold text-gray-700 dark:text-gray-300">${label}</label>
+                        <span id="val-${p.id}" class="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded font-bold">${p.val}</span>
+                    </div>
+                    <input type="range" id="input-${p.id}" min="${p.min}" max="${p.max}" step="${p.step}" value="${p.val}"
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-primary"
+                        oninput="updateParamValue('${p.id}', this.value)">
+                    <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1.5 leading-tight opacity-90">${desc || ''}</p>`;
+            }
+            container.appendChild(wrapper);
+        });
+    }
+
+    function updateParamValue(id, val) {
+        if (val === true || val === false || val === 'true' || val === 'false') currentParamsValues[id] = (val === true || val === 'true');
+        else {
+             currentParamsValues[id] = parseFloat(val);
+             const label = document.getElementById(`val-${id}`);
+             if(label) label.textContent = val;
+        }
+    }
+
+    function closeModelDetails() {
+        if(activeController) activeController.abort();
+        isGenerating = false;
+        updateSendButtonState();
+        currentModelId = null;
+        currentModelShortName = null;
+        currentModelHasThinking = false;
+        document.getElementById('models-grid-view').classList.remove('hidden');
+        document.getElementById('model-details-view').classList.add('hidden');
+    }
+
+    function openCodeModal() {
+        document.body.style.overflow = 'hidden';
+        const modelId = document.getElementById('detail-id').textContent;
+        const formatPyVal = (v) => (v === true) ? "True" : (v === false ? "False" : v);
+        const pyParams = Object.entries(currentParamsValues).map(([k,v]) => `"${k}": ${formatPyVal(v)}`).join(',\n    ');
+        const pyCode = `import requests, json\n\nurl = "${API_ENDPOINT}"\n\nheaders = {\n    "Authorization": "Bearer ${USER_KEY}",\n    "Content-Type": "application/json"\n}\n\npayload = {\n    "model": "${modelId}",\n    "messages": [\n        {"role": "user", "content": "Hello world!"}\n    ],\n    # Parameters\n    ${pyParams}\n}\n\nresponse = requests.post(url, headers=headers, json=payload, stream=True)\n\nfor line in response.iter_lines():\n    if line:\n        print(line.decode('utf-8'))`;
+        document.getElementById('code-block-py').textContent = pyCode;
+        const el = document.getElementById('codeModal');
+        el.classList.remove('opacity-0', 'pointer-events-none');
+        el.querySelector('div.relative').classList.remove('scale-95');
+        el.querySelector('div.relative').classList.add('scale-100');
+        switchTab('py');
+    }
+
+    function switchTab(lang) {
+        currentTab = lang;
+        ['py', 'java', 'http'].forEach(t => {
+            document.getElementById(`code-block-${t}`).classList.add('hidden');
+            document.getElementById(`code-block-${t}`).classList.remove('block');
+            document.getElementById(`tab-${t}`).classList.remove('active');
+        });
+        document.getElementById(`code-block-${lang}`).classList.remove('hidden');
+        document.getElementById(`code-block-${lang}`).classList.add('block');
+        document.getElementById(`tab-${lang}`).classList.add('active');
+    }
+
+    function closeCodeModal() {
+        document.body.style.overflow = '';
+        const el = document.getElementById('codeModal');
+        el.classList.add('opacity-0', 'pointer-events-none');
+        el.querySelector('div.relative').classList.add('scale-95');
+        el.querySelector('div.relative').classList.remove('scale-100');
+    }
+
+    function copyCode() {
+        const code = document.getElementById(`code-block-${currentTab}`).textContent;
+        navigator.clipboard.writeText(code);
+        const btn = document.querySelector('#codeModal button i.fa-copy').parentElement;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+        setTimeout(() => btn.innerHTML = originalText, 2000);
+    }
+
+    function openParamsModal() {
+        document.body.style.overflow = 'hidden';
+        const el = document.getElementById('paramsModal');
+        el.classList.remove('opacity-0', 'pointer-events-none');
+        el.querySelector('div.relative').classList.remove('scale-95');
+        el.querySelector('div.relative').classList.add('scale-100');
+    }
+
+    function closeParamsModal() {
+        document.body.style.overflow = '';
+        const el = document.getElementById('paramsModal');
+        el.classList.add('opacity-0', 'pointer-events-none');
+        el.querySelector('div.relative').classList.add('scale-95');
+        el.querySelector('div.relative').classList.remove('scale-100');
+    }
+
+    function updateSendButtonState() {
+        const btn = document.getElementById('send-btn');
+        const icon = document.getElementById('send-icon');
+        if (isGenerating) {
+            btn.classList.remove('bg-primary', 'hover:bg-indigo-600');
+            btn.classList.add('bg-red-500', 'hover:bg-red-600');
+            icon.classList.remove('fa-paper-plane');
+            icon.classList.add('fa-stop');
+        } else {
+            btn.classList.remove('bg-red-500', 'hover:bg-red-600');
+            btn.classList.add('bg-primary', 'hover:bg-indigo-600');
+            icon.classList.remove('fa-stop');
+            icon.classList.add('fa-paper-plane');
+        }
+    }
+
+    async function sendMessage() {
+        if (isGenerating) {
+            if (activeController) { activeController.abort(); activeController = null; }
+            isGenerating = false;
+            updateSendButtonState();
+            return;
+        }
+
+        const input = document.getElementById('chat-input');
+        const msg = input.value.trim();
+        if(!msg || !currentModelId) return;
+
+        isGenerating = true;
+        updateSendButtonState();
+        activeController = new AbortController(); 
+        const signal = activeController.signal;
+
+        addMessageToChat(msg, true);
+        input.value = '';
+
+        const box = document.getElementById('chat-box');
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = "chat-loading";
+        loadingDiv.className = "flex w-full mt-4 space-x-3 max-w-full";
+        loadingDiv.innerHTML = `<div class="chat-bubble bot"><div class="flex gap-1"><span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span><span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.2s"></span><span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.4s"></span></div></div>`;
+        box.appendChild(loadingDiv);
+        box.scrollTop = box.scrollHeight;
+
+        let thinkingId = null;
+        let thinkingContent = '';
+        let isInThinking = false;
+        let hasShownThinking = false;
+        let responseDiv = null;
+        let aiResponse = '';
+
+        try {
+            const messages = modelContexts[currentModelId].filter(m => m.role !== 'thinking').map(m => ({ role: m.role, content: m.content }));
+            const body = { 
+                message: msg, 
+                model_id: currentModelId, 
+                messages: messages,
+                is_trial: true // Trial flag enabled for UI
+            };
+
+            Object.keys(currentParamsValues).forEach(key => {
+                const value = currentParamsValues[key];
+                if (key === 'stream') body.stream = value === true;
+                else if (key === 'temperature') body.temperature = parseFloat(value) || 1.0;
+                else if (key === 'max_tokens') body.max_tokens = parseInt(value) || 1024;
+                else if (key === 'top_p') body.top_p = parseFloat(value);
+                else if (key === 'thinking_mode') {
+                    if (currentModelId.includes('deepseek') && value === true) {
+                        body.extra_params = body.extra_params || {};
+                        body.extra_params.chat_template_kwargs = { thinking: true };
+                    } else body.thinking_mode = value === true;
+                } else body[key] = value;
+            });
+
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body),
+                signal: signal 
+            });
+
+            if (loadingDiv) loadingDiv.remove();
+
+            if (!res.ok) {
+                if (res.status === 429) {
+                     const lang = window.SERVER_LANG || 'en';
+                     const errorMsg = (window.translations[lang] && window.translations[lang].trial_limit_msg) ? window.translations[lang].trial_limit_msg : "Daily trial limit reached";
+                     const errDiv = document.createElement('div');
+                     errDiv.className = "flex w-full mt-4 justify-center";
+                     errDiv.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl p-3 flex items-center gap-3 animate-fade-in-up"><i class="fa-solid fa-triangle-exclamation text-red-500 text-xl"></i><span class="text-sm font-bold text-red-600 dark:text-red-400">${errorMsg}</span></div>`;
+                     box.appendChild(errDiv);
+                     modelContexts[currentModelId].pop();
+                } else {
+                    const errorData = await res.json().catch(() => ({error: 'Unknown error'}));
+                    addMessageToChat("Error: " + (errorData.error || `HTTP ${res.status}`), false);
+                    modelContexts[currentModelId].pop();
+                }
+                isGenerating = false;
+                updateSendButtonState();
+                return;
+            }
+
+            if (body.stream === false) {
+                const data = await res.json();
+                if (data.error) {
+                    addMessageToChat("Error: " + data.error, false);
+                    modelContexts[currentModelId].pop();
+                } else {
+                    const content = data.choices[0].message.content;
+                    if (data.choices[0].message.reasoning_content && currentModelHasThinking) {
+                        addThinkingToChat(data.choices[0].message.reasoning_content, false);
+                    }
+                    addMessageToChat(content, false);
+                }
+                isGenerating = false;
+                updateSendButtonState();
+                return;
+            }
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); 
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        if (data === '[DONE]') continue;
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.error) throw new Error(parsed.error);
+                            if (parsed.choices && parsed.choices[0]) {
+                                const delta = parsed.choices[0].delta || {};
+                                const content = delta.content || '';
+                                if (delta.reasoning_content && currentModelHasThinking) {
+                                    if (!hasShownThinking) { thinkingId = addThinkingToChat('', true); hasShownThinking = true; }
+                                    thinkingContent += delta.reasoning_content;
+                                    if (thinkingId) updateThinkingContent(thinkingId, thinkingContent);
+                                    continue;
+                                }
+                                if (currentModelHasThinking) {
+                                    if (content.includes('<think>')) {
+                                        isInThinking = true;
+                                        const parts = content.split('<think>');
+                                        if (parts[0]) { aiResponse += parts[0]; if (!responseDiv) createResponseDiv(); responseDiv.textContent = aiResponse; }
+                                        if (!hasShownThinking) { thinkingId = addThinkingToChat('', true); hasShownThinking = true; }
+                                        thinkingContent += parts[1] || '';
+                                        if (thinkingId) updateThinkingContent(thinkingId, thinkingContent);
+                                        continue;
+                                    } else if (content.includes('</think>')) {
+                                        isInThinking = false;
+                                        const parts = content.split('</think>');
+                                        thinkingContent += parts[0] || '';
+                                        if (thinkingId) { updateThinkingContent(thinkingId, thinkingContent); const spinner = document.querySelector(`#think-icon-${thinkingId} + i.thinking-spinner`); if (spinner) spinner.remove(); }
+                                        if (parts[1]) { aiResponse += parts[1]; if (!responseDiv) createResponseDiv(); responseDiv.textContent = aiResponse; }
+                                        continue;
+                                    } else if (isInThinking) {
+                                        thinkingContent += content;
+                                        if (thinkingId) updateThinkingContent(thinkingId, thinkingContent);
+                                        continue;
+                                    }
+                                }
+                                if (content) {
+                                    aiResponse += content;
+                                    if (!responseDiv) createResponseDiv();
+                                    responseDiv.textContent = aiResponse;
+                                    box.scrollTop = box.scrollHeight;
+                                }
+                            }
+                        } catch (e) { console.error("Parse error:", e, "Line:", line); }
+                    }
+                }
+            }
+            if (buffer.trim() && buffer.startsWith('data: ')) {
+                try {
+                    const data = buffer.slice(6);
+                    const parsed = JSON.parse(data);
+                    if (parsed.choices && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                        aiResponse += parsed.choices[0].delta.content;
+                        if (responseDiv) responseDiv.textContent = aiResponse;
+                    }
+                } catch (e) {}
+            }
+            if (aiResponse) modelContexts[currentModelId].push({ role: 'assistant', content: aiResponse });
+            if (thinkingContent && thinkingId) modelContexts[currentModelId].push({ role: 'thinking', content: thinkingContent });
+
+        } catch (err) {
+            if(loadingDiv && loadingDiv.parentNode) loadingDiv.remove();
+            if (err.name !== 'AbortError') {
+                 console.error("Chat error:", err);
+                 const errDiv = document.createElement('div');
+                 errDiv.className = "flex w-full mt-2";
+                 errDiv.innerHTML = `<div class="mx-auto bg-red-100 text-red-800 text-xs px-3 py-1 rounded-full">Error: ${err.message || 'Unknown'}</div>`;
+                 box.appendChild(errDiv);
+            }
+        } finally {
+            isGenerating = false;
+            activeController = null;
+            updateSendButtonState();
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function createResponseDiv() {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = "flex w-full mt-2 space-x-3 max-w-full";
+            responseDiv = document.createElement('div');
+            responseDiv.className = "chat-bubble bot";
+            msgDiv.appendChild(responseDiv);
+            box.appendChild(msgDiv);
+            return responseDiv;
+        }
+    }
+
+    document.getElementById('chat-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+</script>
+{% endblock %}
