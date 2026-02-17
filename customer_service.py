@@ -11,12 +11,13 @@ router = APIRouter()
 
 # --- Configuration ---
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY")
+NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "")
 
 if not NVIDIA_API_KEY:
-    raise ValueError("NVIDIA_API_KEY environment variable is not set")
-
-client = AsyncOpenAI(base_url=NVIDIA_BASE_URL, api_key=NVIDIA_API_KEY)
+    print("WARNING: NVIDIA_API_KEY environment variable is not set. Customer service chat will be unavailable.")
+    client = None
+else:
+    client = AsyncOpenAI(base_url=NVIDIA_BASE_URL, api_key=NVIDIA_API_KEY)
 
 # --- Prompts ---
 SYSTEM_PROMPT_AR = """/no_think
@@ -61,6 +62,9 @@ async def support_chat(request: Request):
 
     if not user_message:
         raise HTTPException(status_code=400, detail="Message is empty")
+
+    if not client:
+        raise HTTPException(status_code=503, detail="Customer service is currently unavailable")
 
     # 3. Get User (For Metrics Only)
     # نأخذ الايميل لتسجيل الاحصائيات فقط، لكن لا نتحقق من الرصيد
