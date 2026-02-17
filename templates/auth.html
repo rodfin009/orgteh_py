@@ -1,828 +1,639 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl" class="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الدخول | Nexus API</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% extends "base.html" %}
 
-    <script>
+{% block head_extra %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script>
+    if (typeof tailwind !== 'undefined') {
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
-                        primary: '#6366f1',
-                        'primary-hover': '#4f46e5',
-                        'primary-light': '#818cf8',
-                        darkbg: '#0f172a',
-                        cardbg: '#1e293b',
-                        surface: '#334155',
+                        primary: '#7c3aed',
+                        'primary-hover': '#6d28d9',
+                        'primary-light': '#a78bfa',
+                        surface: '#1a1a2e',
                         'text-primary': '#f8fafc',
                         'text-secondary': '#94a3b8',
                         'text-muted': '#64748b',
                         success: '#10b981',
                         warning: '#f59e0b',
                         error: '#ef4444',
-                        info: '#3b82f6'
-                    },
-                    fontFamily: {
-                        cairo: ['Cairo', 'sans-serif']
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.5s ease-out',
-                        'slide-up': 'slideUp 0.5s ease-out',
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                        'float': 'float 6s ease-in-out infinite',
-                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
-                    },
-                    keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0' },
-                            '100%': { opacity: '1' }
-                        },
-                        slideUp: {
-                            '0%': { transform: 'translateY(20px)', opacity: '0' },
-                            '100%': { transform: 'translateY(0)', opacity: '1' }
-                        },
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-20px)' }
-                        },
-                        shake: {
-                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
-                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
-                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
-                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
-                        }
                     }
                 }
             }
         }
-    </script>
+    }
+</script>
+<style>
+    /* Auth page styles */
+    .glass-card {
+        background: rgba(255,255,255,0.07);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255,255,255,0.1);
+        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+    }
+    html:not(.dark) .glass-card {
+        background: rgba(255,255,255,0.92);
+        border: 1px solid rgba(124,58,237,0.12);
+        box-shadow: 0 25px 50px -12px rgba(124,58,237,0.1);
+    }
+    .input-field {
+        background: rgba(15,23,42,0.6);
+        border: 2px solid rgba(124,58,237,0.2);
+        transition: all 0.3s ease;
+        color: white;
+    }
+    html:not(.dark) .input-field {
+        background: rgba(249,250,251,0.9);
+        border: 2px solid rgba(124,58,237,0.2);
+        color: #1a1a2e;
+    }
+    .input-field:focus {
+        border-color: #7c3aed;
+        box-shadow: 0 0 0 4px rgba(124,58,237,0.12);
+        outline: none;
+    }
+    .input-field.error { border-color: #ef4444; animation: shake 0.5s; }
+    .input-field.success { border-color: #10b981; }
 
-    <style>
-        * { font-family: 'Cairo', sans-serif; }
-        body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-        .glass-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        }
-        .input-field {
-            background: rgba(15, 23, 42, 0.6);
-            border: 2px solid rgba(99, 102, 241, 0.2);
-            transition: all 0.3s ease;
-        }
-        .input-field:focus {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
-            background: rgba(15, 23, 42, 0.8);
-        }
-        .input-field.error {
-            border-color: #ef4444;
-            animation: shake 0.5s;
-        }
-        .input-field.success {
-            border-color: #10b981;
-        }
-        .gradient-text {
-            background: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #f472b6 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        .btn-primary::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
-        }
-        .btn-primary:hover::before {
-            left: 100%;
-        }
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.5);
-        }
-        .btn-primary:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .step-indicator {
-            transition: all 0.3s ease;
-        }
-        .step-indicator.active {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            transform: scale(1.1);
-        }
-        .step-indicator.completed {
-            background: #10b981;
-        }
-        .floating-shape {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(80px);
-            opacity: 0.4;
-            animation: float 8s ease-in-out infinite;
-        }
-        .password-strength {
-            height: 4px;
-            border-radius: 2px;
-            transition: all 0.3s;
-        }
-        .strength-weak { background: #ef4444; width: 33%; }
-        .strength-medium { background: #f59e0b; width: 66%; }
-        .strength-strong { background: #10b981; width: 100%; }
-        .toast {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-100px);
-            z-index: 1000;
-            transition: transform 0.3s ease;
-        }
-        .toast.show {
-            transform: translateX(-50%) translateY(0);
-        }
-        .loading-spinner {
-            border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top: 3px solid white;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .tab-btn {
-            position: relative;
-            transition: all 0.3s;
-        }
-        .tab-btn.active {
-            color: #6366f1;
-        }
-        .tab-btn.active::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, #6366f1, #8b5cf6);
-        }
-        .checkbox-custom {
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(99, 102, 241, 0.3);
-            border-radius: 6px;
-            cursor: pointer;
-            position: relative;
-            transition: all 0.2s;
-        }
-        .checkbox-custom:checked {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            border-color: transparent;
-        }
-        .checkbox-custom:checked::after {
-            content: '✓';
-            position: absolute;
-            color: white;
-            font-size: 12px;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-    </style>
-</head>
-<body class="text-text-primary">
-    <!-- Background Effects -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none">
-        <div class="floating-shape w-96 h-96 bg-primary/30 top-0 right-0" style="animation-delay: 0s;"></div>
-        <div class="floating-shape w-80 h-80 bg-purple-500/20 bottom-0 left-0" style="animation-delay: 2s;"></div>
-        <div class="floating-shape w-64 h-64 bg-pink-500/20 top-1/2 left-1/2" style="animation-delay: 4s;"></div>
-    </div>
+    .gradient-text {
+        background: linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #f472b6 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+        position: relative; overflow: hidden; transition: all 0.3s ease;
+    }
+    .btn-primary::before {
+        content: ''; position: absolute; top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+    .btn-primary:hover::before { left: 100%; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px -10px rgba(124,58,237,0.5); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
-    <!-- Toast Notification -->
-    <div id="toast" class="toast glass-card px-6 py-4 rounded-xl flex items-center gap-3">
-        <i id="toast-icon" class="fas fa-info-circle text-info text-xl"></i>
-        <span id="toast-message" class="font-medium"></span>
-    </div>
+    .step-indicator { transition: all 0.3s ease; background: rgba(255,255,255,0.08); color: #94a3b8; }
+    html:not(.dark) .step-indicator { background: #e9d5ff; color: #7c3aed; }
+    .step-indicator.active { background: linear-gradient(135deg, #7c3aed, #a855f7); color: white; transform: scale(1.1); }
+    .step-indicator.completed { background: #10b981; color: white; }
 
-    <!-- Main Container -->
-    <div class="min-h-screen flex items-center justify-center p-4 relative z-10">
-        <div class="w-full max-w-md">
-            <!-- Logo Section -->
-            <div class="text-center mb-8 animate-fade-in">
-                <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-purple-600 mb-4 shadow-2xl shadow-primary/30">
-                    <span class="text-4xl font-black text-white">N</span>
-                </div>
-                <h1 class="text-3xl font-black mb-2">
-                    <span class="gradient-text">Nexus API</span>
-                </h1>
-                <p class="text-text-secondary">منصة الذكاء الاصطناعي المتكاملة</p>
+    .floating-shape {
+        position: absolute; border-radius: 50%;
+        filter: blur(80px); opacity: 0.25; animation: float 8s ease-in-out infinite;
+    }
+
+    .password-strength { height: 4px; border-radius: 2px; transition: all 0.3s; }
+    .strength-weak { background: #ef4444; width: 33%; }
+    .strength-medium { background: #f59e0b; width: 66%; }
+    .strength-strong { background: #10b981; width: 100%; }
+
+    .toast {
+        position: fixed; top: 5.5rem; left: 50%;
+        transform: translateX(-50%) translateY(-120px);
+        z-index: 9999; min-width: 280px; max-width: 90vw;
+        transition: transform 0.3s ease;
+        border-radius: 12px; padding: 14px 20px;
+        display: flex; align-items: center; gap: 10px;
+        background: rgba(10,10,20,0.92); border: 1px solid rgba(124,58,237,0.3);
+        backdrop-filter: blur(12px);
+    }
+    html:not(.dark) .toast { background: rgba(255,255,255,0.95); border-color: rgba(124,58,237,0.2); }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    .loading-spinner {
+        border: 3px solid rgba(255,255,255,0.3); border-radius: 50%;
+        border-top: 3px solid white; width: 20px; height: 20px;
+        animation: spin 1s linear infinite; display: inline-block;
+    }
+
+    .tab-btn { position: relative; transition: all 0.3s; color: #64748b; }
+    html:not(.dark) .tab-btn { color: #6b7280; }
+    .tab-btn.active { color: #7c3aed; }
+    .tab-btn.active::after {
+        content: ''; position: absolute; bottom: -2px;
+        left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, #7c3aed, #a855f7);
+    }
+
+    .checkbox-custom {
+        appearance: none; width: 20px; height: 20px;
+        border: 2px solid rgba(124,58,237,0.3); border-radius: 6px;
+        cursor: pointer; position: relative; transition: all 0.2s;
+        background: transparent;
+    }
+    .checkbox-custom:checked { background: linear-gradient(135deg, #7c3aed, #a855f7); border-color: transparent; }
+    .checkbox-custom:checked::after {
+        content: '✓'; position: absolute; color: white; font-size: 12px;
+        top: 50%; left: 50%; transform: translate(-50%, -50%);
+    }
+
+    .social-btn {
+        display: flex; align-items: center; justify-content: center;
+        width: 48px; height: 48px; border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.05);
+        transition: all 0.2s; cursor: pointer;
+    }
+    html:not(.dark) .social-btn {
+        background: rgba(124,58,237,0.05);
+        border-color: rgba(124,58,237,0.2);
+    }
+    .social-btn:hover { transform: translateY(-2px); border-color: rgba(124,58,237,0.5); background: rgba(124,58,237,0.1); }
+
+    .verification-input {
+        background: rgba(15,23,42,0.6); border: 2px solid rgba(124,58,237,0.2);
+        border-radius: 12px; color: white; text-align: center;
+        font-size: 1.5rem; font-weight: 700; outline: none; transition: all 0.2s;
+    }
+    html:not(.dark) .verification-input { background: rgba(249,250,251,0.9); color: #1a1a2e; }
+    .verification-input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.15); }
+
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @keyframes shake {
+        10%,90% { transform: translate3d(-1px,0,0); }
+        20%,80% { transform: translate3d(2px,0,0); }
+        30%,50%,70% { transform: translate3d(-4px,0,0); }
+        40%,60% { transform: translate3d(4px,0,0); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Toast Notification -->
+<div id="toast">
+    <i id="toast-icon" class="fas fa-info-circle text-blue-400 text-lg"></i>
+    <span id="toast-message" class="font-semibold text-sm text-gray-900 dark:text-white"></span>
+</div>
+
+<!-- Background Floating Shapes -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+    <div class="floating-shape w-96 h-96 bg-purple-600 top-0 right-0" style="animation-delay:0s;"></div>
+    <div class="floating-shape w-80 h-80 bg-purple-500 bottom-0 left-0" style="animation-delay:2s;"></div>
+    <div class="floating-shape w-64 h-64 bg-pink-500 top-1/2 left-1/2" style="animation-delay:4s;"></div>
+</div>
+
+<div class="min-h-screen flex items-center justify-center p-4 pt-24 pb-8 relative z-10">
+    <div class="w-full max-w-md">
+
+        <!-- Logo / Title -->
+        <div class="text-center mb-8 animate-fade-in">
+            <h1 class="text-3xl font-black mb-1">
+                <span class="gradient-text">Orgteh Infra</span>
+            </h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">منصة الذكاء الاصطناعي المتكاملة</p>
+        </div>
+
+        <!-- Auth Card -->
+        <div class="glass-card rounded-3xl p-8">
+
+            <!-- Tabs -->
+            <div class="flex mb-8 border-b border-black/10 dark:border-white/10">
+                <button onclick="switchTab('login')" id="tab-login" class="tab-btn active flex-1 pb-4 text-lg font-bold text-center">
+                    تسجيل الدخول
+                </button>
+                <button onclick="switchTab('register')" id="tab-register" class="tab-btn flex-1 pb-4 text-lg font-bold text-center">
+                    إنشاء حساب
+                </button>
             </div>
 
-            <!-- Auth Card -->
-            <div class="glass-card rounded-3xl p-8 animate-slide-up">
-                <!-- Tabs -->
-                <div class="flex mb-8 border-b border-white/10">
-                    <button onclick="switchTab('login')" id="tab-login" class="tab-btn active flex-1 pb-4 text-lg font-bold text-center">
-                        تسجيل الدخول
-                    </button>
-                    <button onclick="switchTab('register')" id="tab-register" class="tab-btn flex-1 pb-4 text-lg font-bold text-center text-text-muted">
-                        إنشاء حساب
-                    </button>
+            <!-- ====== LOGIN FORM ====== -->
+            <form id="loginForm" class="space-y-6">
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-500 dark:text-gray-400">البريد الإلكتروني</label>
+                    <div class="relative">
+                        <i class="fas fa-envelope absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="email" id="loginEmail" class="input-field w-full pr-12 pl-4 py-4 rounded-xl placeholder-gray-500" placeholder="example@email.com" required>
+                    </div>
                 </div>
 
-                <!-- Login Form -->
-                <form id="loginForm" class="space-y-6">
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-500 dark:text-gray-400">كلمة المرور</label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="password" id="loginPassword" class="input-field w-full pr-12 pl-12 py-4 rounded-xl placeholder-gray-500" placeholder="••••••••" required>
+                        <button type="button" onclick="togglePassword('loginPassword', this)" class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-purple-500 transition">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-sm">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="checkbox-custom">
+                        <span class="text-gray-500 dark:text-gray-400">تذكرني</span>
+                    </label>
+                    <a href="#" class="text-purple-500 hover:text-purple-400 transition font-medium">نسيت كلمة المرور؟</a>
+                </div>
+
+                <button type="submit" id="loginBtn" class="btn-primary w-full py-4 rounded-xl font-bold text-lg text-white flex items-center justify-center gap-2">
+                    <span>تسجيل الدخول</span>
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+            </form>
+
+            <!-- ====== REGISTER FORM ====== -->
+            <form id="registerForm" class="space-y-6 hidden">
+                <!-- Step Indicators -->
+                <div class="flex items-center justify-between mb-6">
+                    <div class="step-indicator active w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold" data-step="1">1</div>
+                    <div class="flex-1 h-1 mx-2 bg-gray-800 dark:bg-gray-800 rounded-full overflow-hidden">
+                        <div id="progressBar" class="h-full bg-gradient-to-r from-purple-600 to-purple-400 transition-all duration-500" style="width:0%"></div>
+                    </div>
+                    <div class="step-indicator w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold" data-step="2">2</div>
+                    <div class="flex-1 h-1 mx-2 bg-gray-800 dark:bg-gray-800 rounded-full overflow-hidden">
+                        <div id="progressBar2" class="h-full bg-gradient-to-r from-purple-600 to-purple-400 transition-all duration-500" style="width:0%"></div>
+                    </div>
+                    <div class="step-indicator w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold" data-step="3">3</div>
+                </div>
+
+                <!-- Step 1: Basic Info -->
+                <div id="step1" class="space-y-4">
                     <div class="space-y-2">
-                        <label class="block text-sm font-semibold text-text-secondary">البريد الإلكتروني</label>
+                        <label class="block text-sm font-semibold text-gray-500 dark:text-gray-400">البريد الإلكتروني</label>
                         <div class="relative">
-                            <i class="fas fa-envelope absolute right-4 top-1/2 -translate-y-1/2 text-text-muted"></i>
-                            <input type="email" id="loginEmail" class="input-field w-full pr-12 pl-4 py-4 rounded-xl text-white placeholder-text-muted" placeholder="example@email.com" required>
+                            <i class="fas fa-envelope absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="email" id="regEmail" class="input-field w-full pr-12 pl-4 py-4 rounded-xl placeholder-gray-500" placeholder="example@email.com" required>
                         </div>
                     </div>
 
                     <div class="space-y-2">
-                        <label class="block text-sm font-semibold text-text-secondary">كلمة المرور</label>
+                        <label class="block text-sm font-semibold text-gray-500 dark:text-gray-400">كلمة المرور</label>
                         <div class="relative">
-                            <i class="fas fa-lock absolute right-4 top-1/2 -translate-y-1/2 text-text-muted"></i>
-                            <input type="password" id="loginPassword" class="input-field w-full pr-12 pl-12 py-4 rounded-xl text-white placeholder-text-muted" placeholder="••••••••" required>
-                            <button type="button" onclick="togglePassword('loginPassword', this)" class="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition">
+                            <i class="fas fa-lock absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="password" id="regPassword" class="input-field w-full pr-12 pl-12 py-4 rounded-xl placeholder-gray-500" placeholder="••••••••" required oninput="checkPasswordStrength(this.value)">
+                            <button type="button" onclick="togglePassword('regPassword', this)" class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-purple-500 transition">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
+                        <div class="mt-2 bg-gray-800 dark:bg-gray-800 rounded-full overflow-hidden">
+                            <div id="passwordStrength" class="password-strength"></div>
+                        </div>
+                        <ul class="text-xs space-y-1 mt-2 text-gray-500">
+                            <li id="req-length" class="flex items-center gap-2 transition-colors"><i class="fas fa-circle text-[6px]"></i> 6 أحرف على الأقل</li>
+                            <li id="req-upper" class="flex items-center gap-2 transition-colors"><i class="fas fa-circle text-[6px]"></i> حرف كبير (A-Z)</li>
+                            <li id="req-number" class="flex items-center gap-2 transition-colors"><i class="fas fa-circle text-[6px]"></i> رقم (0-9)</li>
+                        </ul>
                     </div>
 
-                    <div class="flex items-center justify-between text-sm">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" class="checkbox-custom">
-                            <span class="text-text-secondary">تذكرني</span>
-                        </label>
-                        <a href="#" class="text-primary hover:text-primary-light transition">نسيت كلمة المرور؟</a>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-500 dark:text-gray-400">تأكيد كلمة المرور</label>
+                        <div class="relative">
+                            <i class="fas fa-lock absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="password" id="regPasswordConfirm" class="input-field w-full pr-12 pl-12 py-4 rounded-xl placeholder-gray-500" placeholder="••••••••" required oninput="checkPasswordMatch()">
+                            <button type="button" onclick="togglePassword('regPasswordConfirm', this)" class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-purple-500 transition">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <p id="matchError" class="text-red-500 text-xs hidden">كلمتا المرور غير متطابقتين</p>
                     </div>
 
-                    <button type="submit" id="loginBtn" class="btn-primary w-full py-4 rounded-xl font-bold text-lg text-white flex items-center justify-center gap-2">
-                        <span>تسجيل الدخول</span>
-                        <i class="fas fa-arrow-left"></i>
+                    <button type="button" onclick="goToStep(2)" class="btn-primary w-full py-4 rounded-xl font-bold text-lg text-white">
+                        التالي <i class="fas fa-arrow-left mr-2"></i>
                     </button>
-                </form>
+                </div>
 
-                <!-- Register Form -->
-                <form id="registerForm" class="space-y-6 hidden">
-                    <!-- Step Indicators -->
-                    <div class="flex items-center justify-between mb-6">
-                        <div class="step-indicator active w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold" data-step="1">1</div>
-                        <div class="flex-1 h-1 mx-2 bg-surface rounded-full overflow-hidden">
-                            <div id="progressBar" class="h-full bg-gradient-to-r from-primary to-purple-500 transition-all duration-500" style="width: 0%"></div>
-                        </div>
-                        <div class="step-indicator w-10 h-10 rounded-full bg-surface flex items-center justify-center text-sm font-bold" data-step="2">2</div>
-                        <div class="flex-1 h-1 mx-2 bg-surface rounded-full overflow-hidden">
-                            <div id="progressBar2" class="h-full bg-gradient-to-r from-primary to-purple-500 transition-all duration-500" style="width: 0%"></div>
-                        </div>
-                        <div class="step-indicator w-10 h-10 rounded-full bg-surface flex items-center justify-center text-sm font-bold" data-step="3">3</div>
+                <!-- Step 2: Captcha -->
+                <div id="step2" class="space-y-6 hidden">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-shield-alt text-4xl text-purple-500 mb-2"></i>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">التحقق من الأمان</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">يرجى إكمال التحقق أدناه للمتابعة</p>
                     </div>
 
-                    <!-- Step 1: Basic Info -->
-                    <div id="step1" class="space-y-4">
-                        <div class="space-y-2">
-                            <label class="block text-sm font-semibold text-text-secondary">البريد الإلكتروني</label>
-                            <div class="relative">
-                                <i class="fas fa-envelope absolute right-4 top-1/2 -translate-y-1/2 text-text-muted"></i>
-                                <input type="email" id="regEmail" class="input-field w-full pr-12 pl-4 py-4 rounded-xl text-white placeholder-text-muted" placeholder="example@email.com" required>
-                            </div>
+                    <div class="flex justify-center">
+                        <div class="cf-turnstile"
+                             data-sitekey="{{ turnstile_site_key }}"
+                             data-callback="onTurnstileSuccess"
+                             data-theme="dark"
+                             data-language="ar">
                         </div>
+                    </div>
 
-                        <div class="space-y-2">
-                            <label class="block text-sm font-semibold text-text-secondary">كلمة المرور</label>
-                            <div class="relative">
-                                <i class="fas fa-lock absolute right-4 top-1/2 -translate-y-1/2 text-text-muted"></i>
-                                <input type="password" id="regPassword" class="input-field w-full pr-12 pl-12 py-4 rounded-xl text-white placeholder-text-muted" placeholder="••••••••" required oninput="checkPasswordStrength(this.value)">
-                                <button type="button" onclick="togglePassword('regPassword', this)" class="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                            <div class="mt-2 bg-surface rounded-full overflow-hidden">
-                                <div id="passwordStrength" class="password-strength"></div>
-                            </div>
-                            <ul class="text-xs space-y-1 mt-2 text-text-muted">
-                                <li id="req-length" class="flex items-center gap-2 transition-colors"><i class="fas fa-circle text-[6px]"></i> 6 أحرف على الأقل</li>
-                                <li id="req-upper" class="flex items-center gap-2 transition-colors"><i class="fas fa-circle text-[6px]"></i> حرف كبير (A-Z)</li>
-                                <li id="req-number" class="flex items-center gap-2 transition-colors"><i class="fas fa-circle text-[6px]"></i> رقم (0-9)</li>
-                            </ul>
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="block text-sm font-semibold text-text-secondary">تأكيد كلمة المرور</label>
-                            <div class="relative">
-                                <i class="fas fa-lock absolute right-4 top-1/2 -translate-y-1/2 text-text-muted"></i>
-                                <input type="password" id="regPasswordConfirm" class="input-field w-full pr-12 pl-12 py-4 rounded-xl text-white placeholder-text-muted" placeholder="••••••••" required oninput="checkPasswordMatch()">
-                                <button type="button" onclick="togglePassword('regPasswordConfirm', this)" class="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                            </div>
-                            <p id="matchError" class="text-error text-xs hidden">كلمتا المرور غير متطابقتين</p>
-                        </div>
-
-                        <button type="button" onclick="goToStep(2)" class="btn-primary w-full py-4 rounded-xl font-bold text-lg text-white">
-                            التالي <i class="fas fa-arrow-left mr-2"></i>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="goToStep(1)" class="flex-1 py-4 rounded-xl font-bold border border-gray-700 dark:border-gray-700 hover:bg-gray-800 dark:hover:bg-gray-800 transition text-gray-900 dark:text-white">
+                            رجوع
                         </button>
-                    </div>
-
-                    <!-- Step 2: Captcha -->
-                    <div id="step2" class="space-y-6 hidden">
-                        <div class="text-center mb-4">
-                            <i class="fas fa-shield-alt text-4xl text-primary mb-2"></i>
-                            <h3 class="text-lg font-bold">التحقق من الأمان</h3>
-                            <p class="text-sm text-text-secondary">يرجى إكمال التحقق أدناه للمتابعة</p>
-                        </div>
-
-                        <div class="flex justify-center">
-                            <div class="cf-turnstile" 
-                                 data-sitekey="{{ turnstile_site_key }}"
-                                 data-callback="onTurnstileSuccess"
-                                 data-theme="dark"
-                                 data-language="ar">
-                            </div>
-                        </div>
-
-                        <div class="flex gap-3">
-                            <button type="button" onclick="goToStep(1)" class="flex-1 py-4 rounded-xl font-bold border border-white/20 hover:bg-white/5 transition">
-                                رجوع
-                            </button>
-                            <button type="button" id="captchaBtn" onclick="goToStep(3)" class="btn-primary flex-1 py-4 rounded-xl font-bold text-lg text-white opacity-50 cursor-not-allowed" disabled>
-                                التالي
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Step 3: Email Verification -->
-                    <div id="step3" class="space-y-6 hidden">
-                        <div class="text-center mb-4">
-                            <i class="fas fa-envelope-open-text text-4xl text-primary mb-2"></i>
-                            <h3 class="text-lg font-bold">التحقق من البريد</h3>
-                            <p class="text-sm text-text-secondary">أدخل الرمز المكون من 6 أرقام المرسل إلى</p>
-                            <p id="verifyEmail" class="text-primary font-semibold mt-1 break-all px-4"></p>
-                        </div>
-
-                        <div class="flex justify-center gap-2 mb-4" dir="ltr">
-                            <input type="text" maxlength="1" class="verification-input w-12 h-14 text-center text-2xl font-bold rounded-xl input-field" data-index="0">
-                            <input type="text" maxlength="1" class="verification-input w-12 h-14 text-center text-2xl font-bold rounded-xl input-field" data-index="1">
-                            <input type="text" maxlength="1" class="verification-input w-12 h-14 text-center text-2xl font-bold rounded-xl input-field" data-index="2">
-                            <input type="text" maxlength="1" class="verification-input w-12 h-14 text-center text-2xl font-bold rounded-xl input-field" data-index="3">
-                            <input type="text" maxlength="1" class="verification-input w-12 h-14 text-center text-2xl font-bold rounded-xl input-field" data-index="4">
-                            <input type="text" maxlength="1" class="verification-input w-12 h-14 text-center text-2xl font-bold rounded-xl input-field" data-index="5">
-                        </div>
-
-                        <div class="text-center mb-4">
-                            <p class="text-sm text-text-secondary">
-                                لم تستلم الرمز؟ 
-                                <button type="button" onclick="resendCode()" id="resendBtn" class="text-primary hover:underline font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
-                                    إعادة الإرسال <span id="countdown"></span>
-                                </button>
-                            </p>
-                        </div>
-
-                        <div class="flex gap-3">
-                            <button type="button" onclick="goToStep(2)" class="flex-1 py-4 rounded-xl font-bold border border-white/20 hover:bg-white/5 transition">
-                                رجوع
-                            </button>
-                            <button type="submit" id="registerBtn" class="btn-primary flex-1 py-4 rounded-xl font-bold text-lg text-white flex items-center justify-center gap-2">
-                                <span>إنشاء الحساب</span>
-                                <i class="fas fa-check"></i>
-                            </button>
-                        </div>
-                    </div>
-                </form>
-
-                <!-- Social Login - تم تعديلها: أيقونة GitHub الآن تعمل وتم إزالة المكررة -->
-                <div class="mt-8 pt-6 border-t border-white/10">
-                    <p class="text-center text-sm text-text-secondary mb-4">أو سجل الدخول باستخدام</p>
-                    <div class="flex gap-3 justify-center">
-                        <!-- Google (placeholder) -->
-                        <button class="w-12 h-12 rounded-xl bg-surface hover:bg-surface/80 flex items-center justify-center transition border border-white/10 hover:border-primary/50 group" title="Google (قريباً)">
-                            <i class="fab fa-google text-xl text-red-500 group-hover:scale-110 transition-transform"></i>
-                        </button>
-
-                        <!-- GitHub - NOW WORKING -->
-                        <button onclick="loginWithGitHub()" class="w-12 h-12 rounded-xl bg-surface hover:bg-surface/80 flex items-center justify-center transition border border-white/10 hover:border-primary/50 group" title="GitHub">
-                            <i class="fab fa-github text-xl text-white group-hover:scale-110 transition-transform"></i>
-                        </button>
-
-                        <!-- Microsoft (placeholder) -->
-                        <button class="w-12 h-12 rounded-xl bg-surface hover:bg-surface/80 flex items-center justify-center transition border border-white/10 hover:border-primary/50 group" title="Microsoft (قريباً)">
-                            <i class="fab fa-microsoft text-xl text-blue-500 group-hover:scale-110 transition-transform"></i>
+                        <button type="button" id="captchaBtn" onclick="goToStep(3)" class="btn-primary flex-1 py-4 rounded-xl font-bold text-lg text-white opacity-50 cursor-not-allowed" disabled>
+                            التالي
                         </button>
                     </div>
                 </div>
-            </div>
 
-            <!-- Footer -->
-            <div class="text-center mt-8 text-sm text-text-muted">
-                <p>بالتسجيل، أنت توافق على <a href="/policy" class="text-primary hover:underline">شروط الاستخدام</a></p>
+                <!-- Step 3: Email Verification -->
+                <div id="step3" class="space-y-6 hidden">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-envelope-open-text text-4xl text-purple-500 mb-2"></i>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">التحقق من البريد</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">أدخل الرمز المكون من 6 أرقام المرسل إلى</p>
+                        <p id="verifyEmail" class="text-purple-500 font-semibold mt-1 break-all px-4"></p>
+                    </div>
+
+                    <div class="flex justify-center gap-2 mb-4" dir="ltr">
+                        <input type="text" maxlength="1" class="verification-input w-12 h-14" data-index="0">
+                        <input type="text" maxlength="1" class="verification-input w-12 h-14" data-index="1">
+                        <input type="text" maxlength="1" class="verification-input w-12 h-14" data-index="2">
+                        <input type="text" maxlength="1" class="verification-input w-12 h-14" data-index="3">
+                        <input type="text" maxlength="1" class="verification-input w-12 h-14" data-index="4">
+                        <input type="text" maxlength="1" class="verification-input w-12 h-14" data-index="5">
+                    </div>
+
+                    <div class="text-center mb-4">
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            لم تستلم الرمز؟
+                            <button type="button" onclick="resendCode()" id="resendBtn" class="text-purple-500 hover:text-purple-400 font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                إعادة الإرسال <span id="countdown"></span>
+                            </button>
+                        </p>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button type="button" onclick="goToStep(2)" class="flex-1 py-4 rounded-xl font-bold border border-gray-700 dark:border-gray-700 hover:bg-gray-800 dark:hover:bg-gray-800 transition text-gray-900 dark:text-white">
+                            رجوع
+                        </button>
+                        <button type="submit" id="registerBtn" class="btn-primary flex-1 py-4 rounded-xl font-bold text-lg text-white flex items-center justify-center gap-2">
+                            <span>إنشاء الحساب</span>
+                            <i class="fas fa-check"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Social Login -->
+            <div class="mt-8 pt-6 border-t border-black/10 dark:border-white/10">
+                <p class="text-center text-sm text-gray-500 dark:text-gray-400 mb-4">أو سجل الدخول باستخدام</p>
+                <div class="flex gap-3 justify-center">
+                    <!-- Google -->
+                    <button class="social-btn" title="Google (قريباً)">
+                        <i class="fab fa-google text-xl text-red-500"></i>
+                    </button>
+                    <!-- GitHub -->
+                    <button onclick="loginWithGitHub()" class="social-btn" title="GitHub">
+                        <i class="fab fa-github text-xl text-gray-900 dark:text-white"></i>
+                    </button>
+                    <!-- Microsoft -->
+                    <button class="social-btn" title="Microsoft (قريباً)">
+                        <i class="fab fa-microsoft text-xl text-blue-500"></i>
+                    </button>
+                </div>
             </div>
         </div>
+
+        <!-- Footer note -->
+        <div class="text-center mt-6 text-sm text-gray-500 dark:text-gray-400">
+            <p>بالتسجيل، أنت توافق على <a href="/policy" class="text-purple-500 hover:text-purple-400 transition">شروط الاستخدام</a></p>
+        </div>
     </div>
+</div>
 
-    <script>
-        // Global Variables
-        let currentStep = 1;
-        let turnstileToken = null;
-        let verificationCode = '';
-        let countdownInterval;
+<script>
+    let currentStep = 1;
+    let turnstileToken = null;
+    let verificationCode = '';
+    let countdownInterval;
 
-        // Tab Switching
-        function switchTab(tab) {
-            const loginForm = document.getElementById('loginForm');
-            const registerForm = document.getElementById('registerForm');
-            const loginTab = document.getElementById('tab-login');
-            const registerTab = document.getElementById('tab-register');
+    function switchTab(tab) {
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const loginTab = document.getElementById('tab-login');
+        const registerTab = document.getElementById('tab-register');
 
-            if (tab === 'login') {
-                loginForm.classList.remove('hidden');
-                registerForm.classList.add('hidden');
-                loginTab.classList.add('active');
-                registerTab.classList.remove('active');
-                loginTab.classList.remove('text-text-muted');
-                registerTab.classList.add('text-text-muted');
-            } else {
-                loginForm.classList.add('hidden');
-                registerForm.classList.remove('hidden');
-                loginTab.classList.remove('active');
-                registerTab.classList.add('active');
-                loginTab.classList.add('text-text-muted');
-                registerTab.classList.remove('text-text-muted');
-            }
+        if (tab === 'login') {
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+            loginTab.classList.add('active');
+            registerTab.classList.remove('active');
+        } else {
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+            loginTab.classList.remove('active');
+            registerTab.classList.add('active');
         }
+    }
 
-        // Password Visibility Toggle
-        function togglePassword(inputId, btn) {
-            const input = document.getElementById(inputId);
-            const icon = btn.querySelector('i');
-
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            } else {
-                input.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
-            }
+    function togglePassword(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
         }
+    }
 
-        // Password Strength Checker
-        function checkPasswordStrength(password) {
-            const hasLength = password.length >= 6;
-            const hasUpper = /[A-Z]/.test(password);
-            const hasNumber = /[0-9]/.test(password);
+    function checkPasswordStrength(password) {
+        const hasLength = password.length >= 6;
+        const hasUpper = /[A-Z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        updateRequirement('req-length', hasLength);
+        updateRequirement('req-upper', hasUpper);
+        updateRequirement('req-number', hasNumber);
+        const bar = document.getElementById('passwordStrength');
+        bar.className = 'password-strength';
+        const s = [hasLength, hasUpper, hasNumber].filter(Boolean).length;
+        if (s === 0) bar.style.width = '0%';
+        else if (s === 1) bar.classList.add('strength-weak');
+        else if (s === 2) bar.classList.add('strength-medium');
+        else bar.classList.add('strength-strong');
+        return s === 3;
+    }
 
-            updateRequirement('req-length', hasLength);
-            updateRequirement('req-upper', hasUpper);
-            updateRequirement('req-number', hasNumber);
-
-            const strengthBar = document.getElementById('passwordStrength');
-            const strength = [hasLength, hasUpper, hasNumber].filter(Boolean).length;
-
-            strengthBar.className = 'password-strength';
-            if (strength === 0) strengthBar.style.width = '0%';
-            else if (strength === 1) strengthBar.classList.add('strength-weak');
-            else if (strength === 2) strengthBar.classList.add('strength-medium');
-            else if (strength === 3) strengthBar.classList.add('strength-strong');
-
-            return strength === 3;
+    function updateRequirement(id, met) {
+        const el = document.getElementById(id);
+        const icon = el.querySelector('i');
+        if (met) {
+            el.classList.add('text-green-500'); el.classList.remove('text-gray-500');
+            icon.classList.replace('fa-circle', 'fa-check');
+        } else {
+            el.classList.remove('text-green-500'); el.classList.add('text-gray-500');
+            icon.classList.replace('fa-check', 'fa-circle');
         }
+    }
 
-        function updateRequirement(id, met) {
-            const el = document.getElementById(id);
-            const icon = el.querySelector('i');
-            if (met) {
-                el.classList.add('text-success');
-                el.classList.remove('text-text-muted');
-                icon.classList.remove('fa-circle');
-                icon.classList.add('fa-check');
-            } else {
-                el.classList.remove('text-success');
-                el.classList.add('text-text-muted');
-                icon.classList.remove('fa-check');
-                icon.classList.add('fa-circle');
-            }
-        }
+    function checkPasswordMatch() {
+        const pw = document.getElementById('regPassword').value;
+        const conf = document.getElementById('regPasswordConfirm').value;
+        const err = document.getElementById('matchError');
+        if (conf && pw !== conf) { err.classList.remove('hidden'); return false; }
+        err.classList.add('hidden'); return true;
+    }
 
-        // Password Match Check
-        function checkPasswordMatch() {
-            const password = document.getElementById('regPassword').value;
-            const confirm = document.getElementById('regPasswordConfirm').value;
-            const errorEl = document.getElementById('matchError');
-
-            if (confirm && password !== confirm) {
-                errorEl.classList.remove('hidden');
-                return false;
-            } else {
-                errorEl.classList.add('hidden');
-                return true;
-            }
-        }
-
-        // Step Navigation
-        function goToStep(step) {
-            if (step === 2) {
-                const email = document.getElementById('regEmail').value;
-                const password = document.getElementById('regPassword').value;
-                const confirm = document.getElementById('regPasswordConfirm').value;
-
-                if (!email || !password || !confirm) {
-                    showToast('يرجى ملء جميع الحقول', 'error');
-                    return;
-                }
-
-                if (!email.includes('@')) {
-                    showToast('يرجى إدخال بريد إلكتروني صحيح', 'error');
-                    return;
-                }
-
-                if (password !== confirm) {
-                    showToast('كلمتا المرور غير متطابقتين', 'error');
-                    return;
-                }
-
-                if (!checkPasswordStrength(password)) {
-                    showToast('كلمة المرور لا تلبي المتطلبات', 'error');
-                    return;
-                }
-            }
-
-            if (step === 3) {
-                if (!turnstileToken) {
-                    showToast('يرجى إكمال التحقق من الكابتشا', 'error');
-                    return;
-                }
-                sendVerificationCode();
-            }
-
-            // Hide all steps
-            document.getElementById('step1').classList.add('hidden');
-            document.getElementById('step2').classList.add('hidden');
-            document.getElementById('step3').classList.add('hidden');
-
-            // Show target step
-            document.getElementById(`step${step}`).classList.remove('hidden');
-
-            // Update indicators
-            document.querySelectorAll('.step-indicator').forEach((el, idx) => {
-                const stepNum = idx + 1;
-                el.classList.remove('active', 'completed');
-                if (stepNum === step) el.classList.add('active');
-                else if (stepNum < step) el.classList.add('completed');
-            });
-
-            // Update progress bars
-            document.getElementById('progressBar').style.width = step > 1 ? '100%' : '0%';
-            document.getElementById('progressBar2').style.width = step > 2 ? '100%' : '0%';
-
-            currentStep = step;
-
-            if (step === 3) {
-                setTimeout(() => {
-                    document.querySelector('.verification-input[data-index="0"]').focus();
-                }, 100);
-            }
-        }
-
-        // Turnstile Callback
-        function onTurnstileSuccess(token) {
-            turnstileToken = token;
-            const btn = document.getElementById('captchaBtn');
-            btn.disabled = false;
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
-        }
-
-        // Send Verification Code
-        async function sendVerificationCode() {
+    function goToStep(step) {
+        if (step === 2) {
             const email = document.getElementById('regEmail').value;
-            document.getElementById('verifyEmail').textContent = email;
-
-            try {
-                const response = await fetch('/auth/send-verification', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, turnstile_token: turnstileToken })
-                });
-
-                const data = await response.json();
-                if (response.ok) {
-                    showToast('تم إرسال رمز التحقق إلى بريدك', 'success');
-                    startCountdown();
-                } else {
-                    showToast(data.detail || 'فشل إرسال الرمز', 'error');
-                }
-            } catch (err) {
-                showToast('خطأ في الاتصال', 'error');
-            }
+            const pw = document.getElementById('regPassword').value;
+            const conf = document.getElementById('regPasswordConfirm').value;
+            if (!email || !pw || !conf) { showToast('يرجى ملء جميع الحقول', 'error'); return; }
+            if (!email.includes('@')) { showToast('يرجى إدخال بريد إلكتروني صحيح', 'error'); return; }
+            if (pw !== conf) { showToast('كلمتا المرور غير متطابقتين', 'error'); return; }
+            if (!checkPasswordStrength(pw)) { showToast('كلمة المرور لا تلبي المتطلبات', 'error'); return; }
         }
-
-        // Resend Code
-        function resendCode() {
-            const btn = document.getElementById('resendBtn');
-            if (btn.disabled) return;
+        if (step === 3) {
+            if (!turnstileToken) { showToast('يرجى إكمال التحقق من الكابتشا', 'error'); return; }
             sendVerificationCode();
         }
-
-        // Countdown Timer
-        function startCountdown() {
-            let seconds = 60;
-            const btn = document.getElementById('resendBtn');
-            const countdownEl = document.getElementById('countdown');
-
-            btn.disabled = true;
-            countdownEl.textContent = `(${seconds})`;
-
-            clearInterval(countdownInterval);
-            countdownInterval = setInterval(() => {
-                seconds--;
-                if (seconds > 0) {
-                    countdownEl.textContent = `(${seconds})`;
-                } else {
-                    clearInterval(countdownInterval);
-                    btn.disabled = false;
-                    countdownEl.textContent = '';
-                }
-            }, 1000);
-        }
-
-        // Verification Code Input Handling
-        document.querySelectorAll('.verification-input').forEach((input, index) => {
-            input.addEventListener('input', function(e) {
-                this.value = this.value.replace(/[^0-9]/g, '');
-                if (this.value.length === 1) {
-                    if (index < 5) {
-                        document.querySelector(`.verification-input[data-index="${index + 1}"]`).focus();
-                    }
-                }
-                updateVerificationCode();
-            });
-
-            input.addEventListener('keydown', function(e) {
-                if (e.key === 'Backspace' && this.value === '' && index > 0) {
-                    document.querySelector(`.verification-input[data-index="${index - 1}"]`).focus();
-                }
-            });
-
-            input.addEventListener('paste', function(e) {
-                e.preventDefault();
-                const pasted = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
-                document.querySelectorAll('.verification-input').forEach((inp, idx) => {
-                    if (pasted[idx]) inp.value = pasted[idx];
-                });
-                updateVerificationCode();
-            });
+        ['step1','step2','step3'].forEach(id => document.getElementById(id).classList.add('hidden'));
+        document.getElementById(`step${step}`).classList.remove('hidden');
+        document.querySelectorAll('.step-indicator').forEach((el, idx) => {
+            const n = idx + 1;
+            el.classList.remove('active','completed');
+            if (n === step) el.classList.add('active');
+            else if (n < step) el.classList.add('completed');
         });
+        document.getElementById('progressBar').style.width = step > 1 ? '100%' : '0%';
+        document.getElementById('progressBar2').style.width = step > 2 ? '100%' : '0%';
+        currentStep = step;
+        if (step === 3) setTimeout(() => document.querySelector('.verification-input[data-index="0"]').focus(), 100);
+    }
 
-        function updateVerificationCode() {
-            verificationCode = '';
-            document.querySelectorAll('.verification-input').forEach(input => {
-                verificationCode += input.value;
+    function onTurnstileSuccess(token) {
+        turnstileToken = token;
+        const btn = document.getElementById('captchaBtn');
+        btn.disabled = false;
+        btn.classList.remove('opacity-50','cursor-not-allowed');
+    }
+
+    async function sendVerificationCode() {
+        const email = document.getElementById('regEmail').value;
+        document.getElementById('verifyEmail').textContent = email;
+        try {
+            const response = await fetch('/auth/send-verification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, turnstile_token: turnstileToken })
             });
-        }
+            const data = await response.json();
+            if (response.ok) { showToast('تم إرسال رمز التحقق إلى بريدك', 'success'); startCountdown(); }
+            else showToast(data.detail || 'فشل إرسال الرمز', 'error');
+        } catch { showToast('خطأ في الاتصال', 'error'); }
+    }
 
-        // Toast Notification
-        function showToast(message, type = 'info') {
-            const toast = document.getElementById('toast');
-            const icon = document.getElementById('toast-icon');
-            const msg = document.getElementById('toast-message');
+    function resendCode() {
+        if (document.getElementById('resendBtn').disabled) return;
+        sendVerificationCode();
+    }
 
-            msg.textContent = message;
+    function startCountdown() {
+        let seconds = 60;
+        const btn = document.getElementById('resendBtn');
+        const el = document.getElementById('countdown');
+        btn.disabled = true; el.textContent = `(${seconds})`;
+        clearInterval(countdownInterval);
+        countdownInterval = setInterval(() => {
+            seconds--;
+            if (seconds > 0) el.textContent = `(${seconds})`;
+            else { clearInterval(countdownInterval); btn.disabled = false; el.textContent = ''; }
+        }, 1000);
+    }
 
-            icon.className = 'fas text-xl ';
-            if (type === 'success') icon.classList.add('fa-check-circle', 'text-success');
-            else if (type === 'error') icon.classList.add('fa-exclamation-circle', 'text-error');
-            else if (type === 'warning') icon.classList.add('fa-exclamation-triangle', 'text-warning');
-            else icon.classList.add('fa-info-circle', 'text-info');
-
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }
-
-        // GitHub Login Function
-        function loginWithGitHub() {
-            window.location.href = '/auth/github/login';
-        }
-
-        // Form Submissions
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    document.querySelectorAll('.verification-input').forEach((input, index) => {
+        input.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value.length === 1 && index < 5)
+                document.querySelector(`.verification-input[data-index="${index+1}"]`).focus();
+            updateVerificationCode();
+        });
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' && this.value === '' && index > 0)
+                document.querySelector(`.verification-input[data-index="${index-1}"]`).focus();
+        });
+        input.addEventListener('paste', function(e) {
             e.preventDefault();
-            const btn = document.getElementById('loginBtn');
-            const originalContent = btn.innerHTML;
-
-            btn.disabled = true;
-            btn.innerHTML = '<div class="loading-spinner"></div>';
-
-            try {
-                const response = await fetch('/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: document.getElementById('loginEmail').value,
-                        password: document.getElementById('loginPassword').value
-                    })
-                });
-
-                if (response.ok) {
-                    showToast('تم تسجيل الدخول بنجاح!', 'success');
-                    setTimeout(() => window.location.href = '/dashboard', 1000);
-                } else {
-                    const data = await response.json();
-                    showToast(data.detail || 'بيانات الدخول غير صحيحة', 'error');
-                    btn.disabled = false;
-                    btn.innerHTML = originalContent;
-                }
-            } catch (err) {
-                showToast('خطأ في الاتصال بالخادم', 'error');
-                btn.disabled = false;
-                btn.innerHTML = originalContent;
-            }
+            const pasted = e.clipboardData.getData('text').replace(/[^0-9]/g,'').slice(0,6);
+            document.querySelectorAll('.verification-input').forEach((inp, idx) => { if (pasted[idx]) inp.value = pasted[idx]; });
+            updateVerificationCode();
         });
+    });
 
-        document.getElementById('registerForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
+    function updateVerificationCode() {
+        verificationCode = '';
+        document.querySelectorAll('.verification-input').forEach(i => verificationCode += i.value);
+    }
 
-            if (verificationCode.length !== 6) {
-                showToast('يرجى إدخال رمز التحقق كاملاً', 'error');
-                return;
+    function showToast(message, type = 'info') {
+        const toast = document.getElementById('toast');
+        const icon = document.getElementById('toast-icon');
+        const msg = document.getElementById('toast-message');
+        msg.textContent = message;
+        icon.className = 'fas text-lg ';
+        if (type === 'success') icon.classList.add('fa-check-circle','text-green-500');
+        else if (type === 'error') icon.classList.add('fa-exclamation-circle','text-red-500');
+        else if (type === 'warning') icon.classList.add('fa-exclamation-triangle','text-yellow-500');
+        else icon.classList.add('fa-info-circle','text-blue-400');
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function loginWithGitHub() { window.location.href = '/auth/github/login'; }
+
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('loginBtn');
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const response = await fetch('/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: document.getElementById('loginEmail').value,
+                    password: document.getElementById('loginPassword').value
+                })
+            });
+            if (response.ok) {
+                showToast('تم تسجيل الدخول بنجاح!', 'success');
+                setTimeout(() => window.location.href = '/profile', 1000);
+            } else {
+                const data = await response.json();
+                showToast(data.detail || 'بيانات الدخول غير صحيحة', 'error');
+                btn.disabled = false; btn.innerHTML = orig;
             }
+        } catch { showToast('خطأ في الاتصال بالخادم', 'error'); btn.disabled = false; btn.innerHTML = orig; }
+    });
 
-            const btn = document.getElementById('registerBtn');
-            const originalContent = btn.innerHTML;
-
-            btn.disabled = true;
-            btn.innerHTML = '<div class="loading-spinner"></div>';
-
-            try {
-                const response = await fetch('/auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: document.getElementById('regEmail').value,
-                        password: document.getElementById('regPassword').value,
-                        verification_code: verificationCode,
-                        turnstile_token: turnstileToken
-                    })
-                });
-
-                if (response.ok) {
-                    showToast('تم إنشاء الحساب بنجاح!', 'success');
-                    setTimeout(() => window.location.href = '/dashboard', 1000);
-                } else {
-                    const data = await response.json();
-                    showToast(data.detail || 'فشل إنشاء الحساب', 'error');
-                    btn.disabled = false;
-                    btn.innerHTML = originalContent;
-                }
-            } catch (err) {
-                showToast('خطأ في الاتصال بالخادم', 'error');
-                btn.disabled = false;
-                btn.innerHTML = originalContent;
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        if (verificationCode.length !== 6) { showToast('يرجى إدخال رمز التحقق كاملاً', 'error'); return; }
+        const btn = document.getElementById('registerBtn');
+        const orig = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const response = await fetch('/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: document.getElementById('regEmail').value,
+                    password: document.getElementById('regPassword').value,
+                    verification_code: verificationCode,
+                    turnstile_token: turnstileToken
+                })
+            });
+            if (response.ok) {
+                showToast('تم إنشاء الحساب بنجاح!', 'success');
+                setTimeout(() => window.location.href = '/profile', 1000);
+            } else {
+                const data = await response.json();
+                showToast(data.detail || 'فشل إنشاء الحساب', 'error');
+                btn.disabled = false; btn.innerHTML = orig;
             }
-        });
+        } catch { showToast('خطأ في الاتصال بالخادم', 'error'); btn.disabled = false; btn.innerHTML = orig; }
+    });
 
-        // Check for URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('tab') === 'register') {
-            switchTab('register');
-        }
-
-        // Handle errors from GitHub OAuth
-        if (urlParams.get('error')) {
-            const error = urlParams.get('error');
-            const message = urlParams.get('message') || 'حدث خطأ في تسجيل الدخول';
-            showToast(message, 'error');
-            // Clean URL
-            window.history.replaceState({}, document.title, '/auth');
-        }
-    </script>
-</body>
-</html>
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('tab') === 'register') switchTab('register');
+    if (urlParams.get('error')) {
+        const message = urlParams.get('message') || 'حدث خطأ في تسجيل الدخول';
+        showToast(message, 'error');
+        window.history.replaceState({}, document.title, '/auth');
+    }
+</script>
+{% endblock %}
