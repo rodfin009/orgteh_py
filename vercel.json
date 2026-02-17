@@ -8,11 +8,15 @@
         "maxLambdaSize": "50mb",
         "runtime": "python3.9"
       }
+    },
+    {
+      "src": "static/**/*.{png,jpg,jpeg,webp,ico,css,js,svg}", 
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/static/(.*)",
+      "src": "/static/(.*\\.(png|jpg|jpeg|webp|ico|css|js|svg))",
       "dest": "/static/$1"
     },
     {
