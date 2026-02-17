@@ -62,7 +62,7 @@ async def check_static_files():
     Access this via browser: /debug/static-files
     """
     file_structure = []
-    
+
     # Walk through the static directory
     if STATIC_DIR.exists():
         for root, dirs, files in os.walk(str(STATIC_DIR)):
@@ -131,7 +131,7 @@ async def profile_redirect(): return RedirectResponse("/en/profile")
 async def profile_page(request: Request, lang: str):
     email = get_current_user_email(request)
     if not email: return RedirectResponse(f"/{lang}/login")
-    
+
     sub_status = get_user_subscription_status(email)
     limits, usage = get_user_limits_and_usage(email)
     context = get_template_context(request, lang)
@@ -452,7 +452,7 @@ async def trial_chat_endpoint(request: Request):
             "stream": data.get("stream", True)
         }
         if "extra_params" in data: payload.update(data["extra_params"])
-        
+
         if "deepseek" in payload["model"]:
              if "chat_template_kwargs" not in payload: 
                  payload["chat_template_kwargs"] = {"thinking": True}
@@ -477,7 +477,7 @@ async def internal_chat_ui(request: Request):
             allowed = await check_trial_allowance(email, model_id)
             if not allowed:
                 return JSONResponse({"error": "Daily trial limit reached."}, 429)
-            
+
             payload = {
                 "model": data.get("model_id"),
                 "messages": data.get("messages", [{"role": "user", "content": data.get("message")}]),
@@ -553,3 +553,30 @@ async def get_my_key(request: Request):
     if not email: return JSONResponse({"error": "Unauthorized"}, 401)
     user = get_user_by_email(email)
     return {"key": user.get("api_key")} if user else JSONResponse({"error": "Not found"}, 404)
+
+# =============================================================================
+# SERVER STARTER (للتطوير المحلي و Replit فقط - يتجاهل تلقائياً في Vercel)
+# =============================================================================
+
+if __name__ == "__main__":
+    import os
+
+    # Vercel يضع متغيرات بيئة خاصة، إذا وجدناها نتخطى تشغيل Uvicorn
+    if os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"):
+        print("☁️ Vercel detected - Skipping local server (using Vercel Serverless)")
+    else:
+        # هذا يعمل فقط في Replit/Local
+        try:
+            import uvicorn
+            port = int(os.environ.get("PORT", 8080))
+
+            print(f"🚀 Starting Orgteh Dev Server on port {port}")
+            uvicorn.run(
+                "main:app",  # <--- هنا التغيير: نمرر اسم الملف:اسم المتغير كنص
+                host="0.0.0.0",
+                port=port,
+                reload=True,
+                log_level="info"
+            )
+        except ImportError:
+            print("⚠️ Install uvicorn: pip install uvicorn")

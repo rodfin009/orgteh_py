@@ -1,39 +1,18 @@
-modules = ["web", "python-3.11"]
-[agent]
-expertMode = true
+run = "python main.py"
+entrypoint = "main.py"
+modules = ["python-3.10"]
 
 [nix]
-channel = "stable-25_05"
+channel = "stable-22_11"
 packages = ["cargo", "glibcLocales", "libiconv", "libxcrypt", "rustc"]
 
-[workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow]]
-name = "Start application"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python -m uvicorn main:app --host 0.0.0.0 --port 5000"
-waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
+[deployment]
+run = ["python", "main.py"]
+build = ["pip", "install", "-r", "requirements.txt"]
 
 [[ports]]
-localPort = 5000
+localPort = 8080
 externalPort = 80
 
-[deployment]
-deploymentTarget = "autoscale"
-run = ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000"]
+[agent]
+expertMode = true

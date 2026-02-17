@@ -11,7 +11,7 @@ from services.providers import NVIDIA_API_KEY, NVIDIA_BASE_URL
 from tools.registry import TOOLS_DB
 
 # Configuration
-PROJECT_HOST_URL = "https://dbb6c587-f1e9-40cc-92c9-473f4e530773-00-88b1dcic7jcs.riker.replit.dev"
+PROJECT_HOST_URL = "https://orgteh.com/v1/chat/completions"
 
 # 櫨 CODE HUB SPECIFIC CONFIGURATION 櫨
 CODE_HUB_MODELS_INFO = {

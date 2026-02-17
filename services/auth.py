@@ -25,9 +25,9 @@ from database import (
 TURNSTILE_SECRET_KEY = os.environ.get("TURNSTILE_SECRET_KEY", "")
 TURNSTILE_SITE_KEY = os.environ.get("TURNSTILE_SITE_KEY", "")
 
-SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+SMTP_HOST = os.environ.get("SMTP_HOST", "mail.privateemail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
-SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "")
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "noreply@orgteh.com")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 
 # ============================================================================
