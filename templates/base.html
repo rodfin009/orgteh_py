@@ -347,6 +347,13 @@
             const currentPath = window.location.pathname;
             const pathParts = currentPath.split('/').filter(p => p);
 
+            // Save preferred language in cookie
+            fetch('/api/set-language', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lang: newLang })
+            });
+
             // Check if we're on a specific model page
             if (pathParts.length >= 2 && pathParts[1] === 'models' && pathParts.length === 3) {
                 // We're on /{lang}/models/{model_key}

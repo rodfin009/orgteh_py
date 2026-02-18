@@ -37,6 +37,7 @@ SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    turnstile_token: str = ""
 
 class SendVerificationRequest(BaseModel):
     email: EmailStr
@@ -382,6 +383,9 @@ async def handle_send_verification(request: Request, data: SendVerificationReque
     if existing_user:
         raise HTTPException(status_code=400, detail="البريد الإلكتروني مستخدم بالفعل")
 
+    # Mark turnstile as verified for this email in session
+    request.session["turnstile_verified_email"] = data.email
+
     # Generate verification code
     code = generate_verification_code()
 
@@ -400,12 +404,12 @@ async def handle_register(request: Request, data: RegisterRequest) -> dict:
     Handle user registration
     Returns success message with API key or raises HTTPException
     """
-    # Verify Turnstile token again for security
-    client_ip = request.headers.get("X-Forwarded-For", request.client.host)
-    is_valid = await verify_turnstile_token(data.turnstile_token, client_ip)
-
-    if not is_valid:
-        raise HTTPException(status_code=400, detail="فشل التحقق من الكابتشا")
+    # NOTE: Turnstile token was already verified in send_verification step.
+    # Re-verifying the same token will always fail because Cloudflare tokens
+    # are single-use. We validate the session flag instead.
+    verified_email = request.session.get("turnstile_verified_email")
+    if verified_email != data.email:
+        raise HTTPException(status_code=400, detail="لم يتم إكمال التحقق من الكابتشا. يرجى المحاولة مرة أخرى.")
 
     # Check if email exists
     if get_user_by_email(data.email):
@@ -436,6 +440,9 @@ async def handle_register(request: Request, data: RegisterRequest) -> dict:
         # Delete verification code
         delete_verification_code(data.email)
 
+        # Clear turnstile session flag
+        request.session.pop("turnstile_verified_email", None)
+
         # Set session
         request.session["user_email"] = data.email
 
@@ -452,6 +459,12 @@ async def handle_login(request: Request, data: LoginRequest) -> dict:
     Handle user login
     Returns success message or raises HTTPException
     """
+    # Verify Turnstile token
+    client_ip = request.headers.get("X-Forwarded-For", request.client.host)
+    is_valid = await verify_turnstile_token(data.turnstile_token, client_ip)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="فشل التحقق من الكابتشا. يرجى المحاولة مرة أخرى.")
+
     user = get_user_by_email(data.email)
 
     if not user:

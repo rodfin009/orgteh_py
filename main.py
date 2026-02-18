@@ -107,7 +107,12 @@ async def home(request: Request, lang: str):
 
 # Redirects for new URL structure
 @app.get("/login", response_class=HTMLResponse)
-async def login_redirect(): return RedirectResponse("/en/auth")
+async def login_redirect(request: Request): 
+    # Detect preferred language from cookie or browser header
+    lang_cookie = request.cookies.get("preferred_lang")
+    if lang_cookie in ["ar", "en"]:
+        return RedirectResponse(f"/{lang_cookie}/auth")
+    return RedirectResponse("/en/auth")
 
 @app.get("/{lang}/login", response_class=HTMLResponse)
 async def login_page(request: Request, lang: str):
@@ -116,7 +121,10 @@ async def login_page(request: Request, lang: str):
     return templates.TemplateResponse("auth.html", get_template_context(request, lang))
 
 @app.get("/register", response_class=HTMLResponse)
-async def register_redirect(): return RedirectResponse("/en/auth?tab=register")
+async def register_redirect(request: Request):
+    lang_cookie = request.cookies.get("preferred_lang")
+    lang = lang_cookie if lang_cookie in ["ar", "en"] else "en"
+    return RedirectResponse(f"/{lang}/auth?tab=register")
 
 @app.get("/{lang}/register", response_class=HTMLResponse)
 async def register_page(request: Request, lang: str):
@@ -423,6 +431,18 @@ async def login(request: Request, data: LoginRequest):
 @app.post("/auth/logout")
 async def logout(request: Request):
     return await handle_logout(request)
+
+@app.post("/api/set-language")
+async def set_language(request: Request):
+    """Save user's preferred language in a cookie"""
+    from fastapi.responses import JSONResponse
+    body = await request.json()
+    lang = body.get("lang", "en")
+    if lang not in ["ar", "en"]:
+        lang = "en"
+    response = JSONResponse({"ok": True, "lang": lang})
+    response.set_cookie("preferred_lang", lang, max_age=60*60*24*365, path="/", samesite="lax")
+    return response
 
 # ============================================================================
 # CHAT API ENDPOINTS

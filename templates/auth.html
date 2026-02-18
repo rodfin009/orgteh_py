@@ -232,6 +232,17 @@
                     <a href="#" class="text-purple-500 hover:text-purple-400 transition font-medium">نسيت كلمة المرور؟</a>
                 </div>
 
+                <!-- Turnstile Captcha for Login -->
+                <div class="flex justify-center">
+                    <div class="cf-turnstile"
+                         id="loginTurnstile"
+                         data-sitekey="{{ turnstile_site_key }}"
+                         data-callback="onLoginTurnstileSuccess"
+                         data-theme="dark"
+                         data-language="ar">
+                    </div>
+                </div>
+
                 <button type="submit" id="loginBtn" class="btn-primary w-full py-4 rounded-xl font-bold text-lg text-white flex items-center justify-center gap-2">
                     <span>تسجيل الدخول</span>
                     <i class="fas fa-arrow-left"></i>
@@ -336,12 +347,12 @@
                     </div>
 
                     <div class="flex justify-center gap-2 mb-4" dir="ltr">
-                        <input type="text" maxlength="1" class="verification-input w-12 h-14" data-index="0">
-                        <input type="text" maxlength="1" class="verification-input w-12 h-14" data-index="1">
-                        <input type="text" maxlength="1" class="verification-input w-12 h-14" data-index="2">
-                        <input type="text" maxlength="1" class="verification-input w-12 h-14" data-index="3">
-                        <input type="text" maxlength="1" class="verification-input w-12 h-14" data-index="4">
-                        <input type="text" maxlength="1" class="verification-input w-12 h-14" data-index="5">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="verification-input w-12 h-14" data-index="0" autocomplete="one-time-code">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="verification-input w-12 h-14" data-index="1">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="verification-input w-12 h-14" data-index="2">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="verification-input w-12 h-14" data-index="3">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="verification-input w-12 h-14" data-index="4">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="verification-input w-12 h-14" data-index="5">
                     </div>
 
                     <div class="text-center mb-4">
@@ -395,8 +406,28 @@
 <script>
     let currentStep = 1;
     let turnstileToken = null;
+    let loginTurnstileToken = null;
     let verificationCode = '';
     let countdownInterval;
+
+    // ── Auto Language Detection (Problem 3) ──────────────────────────────────
+    (function detectAndRedirectLang() {
+        const currentLang = window.SERVER_LANG || '{{ lang }}';
+        // Only redirect if user hasn't manually chosen (no lang cookie)
+        const langCookie = document.cookie.split(';').find(c => c.trim().startsWith('preferred_lang='));
+        if (!langCookie) {
+            const browserLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+            const preferredLang = browserLang.startsWith('ar') ? 'ar' : 'en';
+            if (preferredLang !== currentLang) {
+                const newUrl = window.location.pathname.replace('/' + currentLang + '/', '/' + preferredLang + '/') + window.location.search;
+                window.location.replace(newUrl);
+            }
+        }
+    })();
+
+    function onLoginTurnstileSuccess(token) {
+        loginTurnstileToken = token;
+    }
 
     function switchTab(tab) {
         const loginForm = document.getElementById('loginForm');
@@ -535,10 +566,26 @@
     }
 
     document.querySelectorAll('.verification-input').forEach((input, index) => {
+        // Focus first input when step 3 loads - already handled in goToStep
+        input.addEventListener('focus', function() {
+            this.select();
+        });
         input.addEventListener('input', function() {
-            this.value = this.value.replace(/[^0-9]/g, '');
-            if (this.value.length === 1 && index < 5)
-                document.querySelector(`.verification-input[data-index="${index+1}"]`).focus();
+            // Handle if user types multiple chars (e.g. paste via keyboard shortcut caught here)
+            const val = this.value.replace(/[^0-9]/g, '');
+            if (val.length > 1) {
+                // Distribute across boxes
+                const inputs = document.querySelectorAll('.verification-input');
+                for (let i = 0; i < val.length && index + i < 6; i++) {
+                    inputs[index + i].value = val[i];
+                }
+                const nextIndex = Math.min(index + val.length, 5);
+                inputs[nextIndex].focus();
+            } else {
+                this.value = val;
+                if (val.length === 1 && index < 5)
+                    document.querySelector(`.verification-input[data-index="${index+1}"]`).focus();
+            }
             updateVerificationCode();
         });
         input.addEventListener('keydown', function(e) {
@@ -547,9 +594,21 @@
         });
         input.addEventListener('paste', function(e) {
             e.preventDefault();
-            const pasted = e.clipboardData.getData('text').replace(/[^0-9]/g,'').slice(0,6);
-            document.querySelectorAll('.verification-input').forEach((inp, idx) => { if (pasted[idx]) inp.value = pasted[idx]; });
+            const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g,'').slice(0,6);
+            if (!pasted) return;
+            const inputs = document.querySelectorAll('.verification-input');
+            inputs.forEach((inp, idx) => { inp.value = pasted[idx] || ''; });
+            // Focus last filled or last box
+            const focusIdx = Math.min(pasted.length, 5);
+            inputs[focusIdx].focus();
             updateVerificationCode();
+            // Auto-submit if all 6 digits filled
+            if (pasted.length === 6) {
+                setTimeout(() => {
+                    const submitBtn = document.getElementById('registerBtn');
+                    if (submitBtn && !submitBtn.disabled) submitBtn.click();
+                }, 100);
+            }
         });
     });
 
@@ -576,6 +635,10 @@
 
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
+        if (!loginTurnstileToken) {
+            showToast('يرجى إكمال التحقق من الكابتشا', 'error');
+            return;
+        }
         const btn = document.getElementById('loginBtn');
         const orig = btn.innerHTML;
         btn.disabled = true;
@@ -586,7 +649,8 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     email: document.getElementById('loginEmail').value,
-                    password: document.getElementById('loginPassword').value
+                    password: document.getElementById('loginPassword').value,
+                    turnstile_token: loginTurnstileToken
                 })
             });
             if (response.ok) {
@@ -595,6 +659,9 @@
             } else {
                 const data = await response.json();
                 showToast(data.detail || 'بيانات الدخول غير صحيحة', 'error');
+                // Reset turnstile on failure
+                loginTurnstileToken = null;
+                if (window.turnstile) window.turnstile.reset();
                 btn.disabled = false; btn.innerHTML = orig;
             }
         } catch { showToast('خطأ في الاتصال بالخادم', 'error'); btn.disabled = false; btn.innerHTML = orig; }
