@@ -14,7 +14,6 @@ PLAN_DETAILS = {
 }
 
 def calculate_days_duration(period: str) -> int:
-    if period == "weekly": return 7
     if period == "monthly": return 30
     if period == "yearly": return 365
     return 0

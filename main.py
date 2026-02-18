@@ -586,6 +586,63 @@ async def get_my_key(request: Request):
     return {"key": user.get("api_key")} if user else JSONResponse({"error": "Not found"}, 404)
 
 # =============================================================================
+# CONTACT & ENTERPRISE API — يُرسل الرسائل عبر Telegram Bot
+# =============================================================================
+
+from telegram_bot import notify_contact_form, notify_enterprise_form
+
+@app.post("/api/contact")
+async def api_contact(request: Request):
+    """نموذج 'تواصل معنا' — يُرسل الرسالة للمالك عبر Telegram"""
+    try:
+        body = await request.json()
+        name    = body.get("name", "").strip()
+        email   = body.get("email", "").strip()
+        message = body.get("message", "").strip()
+
+        if not name or not email or not message:
+            return JSONResponse({"detail": "جميع الحقول مطلوبة."}, status_code=400)
+
+        sent = await notify_contact_form(name, email, message)
+        if sent:
+            return JSONResponse({"ok": True})
+        else:
+            # نُعيد نجاح للمستخدم حتى لو فشل الإرسال (لا نُظهر تفاصيل تقنية)
+            return JSONResponse({"ok": True})
+    except Exception as e:
+        print(f"[API /api/contact] Error: {e}")
+        return JSONResponse({"detail": "خطأ في الخادم."}, status_code=500)
+
+
+@app.post("/api/enterprise/contact")
+async def api_enterprise_contact(request: Request):
+    """نموذج 'حلول مخصصة' — يُرسل تفاصيل الطلب للمالك عبر Telegram"""
+    try:
+        body = await request.json()
+        project_type   = body.get("projectType", "").strip()
+        volume         = body.get("volume", "").strip()
+        needs          = body.get("needs", "").strip()
+        contact_method = body.get("contactMethod", "").strip()
+        contact_value  = body.get("contactValue", "").strip()
+        description    = body.get("description", "").strip()
+
+        if not project_type or not volume or not needs or not contact_value:
+            return JSONResponse({"detail": "يرجى ملء الحقول المطلوبة."}, status_code=400)
+
+        sent = await notify_enterprise_form(
+            project_type, volume, needs,
+            contact_method, contact_value, description
+        )
+        if sent:
+            return JSONResponse({"ok": True})
+        else:
+            return JSONResponse({"ok": True})
+    except Exception as e:
+        print(f"[API /api/enterprise/contact] Error: {e}")
+        return JSONResponse({"detail": "خطأ في الخادم."}, status_code=500)
+
+
+# =============================================================================
 # SERVER STARTER (للتطوير المحلي و Replit فقط - يتجاهل تلقائياً في Vercel)
 # =============================================================================
 

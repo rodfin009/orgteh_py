@@ -385,7 +385,16 @@ async def handle_send_verification(request: Request, data: SendVerificationReque
     # Check if email already exists
     existing_user = get_user_by_email(data.email)
     if existing_user:
-        raise HTTPException(status_code=400, detail="البريد الإلكتروني مستخدم بالفعل")
+        # Check if this account was created via GitHub OAuth
+        if redis and redis.exists(f"github:{data.email}"):
+            raise HTTPException(
+                status_code=400,
+                detail="لديك حساب GitHub مرتبط بهذا البريد الإلكتروني. يرجى تسجيل الدخول باستخدام زر GitHub أدناه."
+            )
+        raise HTTPException(
+            status_code=400,
+            detail="البريد الإلكتروني مستخدم بالفعل. يمكنك تسجيل الدخول مباشرةً."
+        )
 
     # Mark turnstile as verified for this email in session
     request.session["turnstile_verified_email"] = data.email

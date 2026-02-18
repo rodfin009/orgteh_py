@@ -21,33 +21,33 @@ PLAN_CONFIGS = {
     # --- Bundles ---
     "chat_agents": {
         "daily_limits": {"gemma": 270, "llama": 200, "kimi": 30, "deepseek": 0, "mistral": 0},
-        "overdraft": {"weekly": 250, "monthly": 750, "yearly": 2000}
+        "overdraft": {"monthly": 750, "yearly": 2000}
     },
     "nexus_global": {
         "daily_limits": {"deepseek": 150, "kimi": 100, "mistral": 50, "llama": 0, "gemma": 0},
-        "overdraft": {"weekly": 50, "monthly": 200, "yearly": 500}
+        "overdraft": {"monthly": 200, "yearly": 500}
     },
 
     # --- Individual Plans ---
     "deepseek": {
         "daily_limits": {"deepseek": 300, "kimi": 0, "mistral": 0, "llama": 0, "gemma": 0},
-        "overdraft": {"weekly": 100, "monthly": 600, "yearly": 1500}
+        "overdraft": {"monthly": 600, "yearly": 1500}
     },
     "kimi": {
         "daily_limits": {"kimi": 200, "deepseek": 0, "mistral": 0, "llama": 0, "gemma": 0},
-        "overdraft": {"weekly": 75, "monthly": 300, "yearly": 1000}
+        "overdraft": {"monthly": 300, "yearly": 1000}
     },
     "mistral": {
         "daily_limits": {"mistral": 100, "deepseek": 0, "kimi": 0, "llama": 0, "gemma": 0},
-        "overdraft": {"weekly": 50, "monthly": 200, "yearly": 500}
+        "overdraft": {"monthly": 200, "yearly": 500}
     },
     "gemma": {
         "daily_limits": {"gemma": 500, "deepseek": 0, "kimi": 0, "mistral": 0, "llama": 0},
-        "overdraft": {"weekly": 200, "monthly": 1000, "yearly": 3000}
+        "overdraft": {"monthly": 1000, "yearly": 3000}
     },
     "llama": {
         "daily_limits": {"llama": 400, "deepseek": 0, "kimi": 0, "mistral": 0, "gemma": 0},
-        "overdraft": {"weekly": 150, "monthly": 800, "yearly": 2500}
+        "overdraft": {"monthly": 800, "yearly": 2500}
     }
 }
 

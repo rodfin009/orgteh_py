@@ -268,7 +268,7 @@
     function updateModelsText() {
         // ALWAYS use the server lang
         const lang = window.SERVER_LANG || 'en'; 
-        
+
         if(window.translations && window.translations[lang]) {
             const t = window.translations[lang].models;
             document.querySelectorAll('.model-name-target').forEach(el => {
@@ -300,7 +300,7 @@
         currentModelShortName = shortKey;
 
         const lang = window.SERVER_LANG || 'en';
-        
+
         // Update URL without reloading page
         const newUrl = `/${lang}/models/${shortKey}`;
         window.history.pushState({modelKey: shortKey}, '', newUrl);
@@ -344,7 +344,7 @@
                     try { currentParamsConfig = JSON.parse(configScript.textContent); } 
                     catch(e) { currentParamsConfig = DEFAULT_PARAMS; }
                 } else { currentParamsConfig = DEFAULT_PARAMS; }
-                
+
                 renderParamsUI();
                 updateDetailLanguage(lang);
             } else { 
@@ -366,7 +366,6 @@
         window.scrollTo(0, 0);
     }
 
-    // (Remaining functions: addMessageToChat, addThinkingToChat, etc. are identical to previous correct version)
     function addMessageToChat(content, isUser = false, saveToContext = true) {
         const box = document.getElementById('chat-box');
         const messageDiv = document.createElement('div');
@@ -471,23 +470,160 @@
         currentModelId = null;
         currentModelShortName = null;
         currentModelHasThinking = false;
-        
+
         const lang = window.SERVER_LANG || 'en';
         // Update URL back to models list
         const newUrl = `/${lang}/models`;
         window.history.pushState({}, '', newUrl);
-        
+
         document.getElementById('models-grid-view').classList.remove('hidden');
         document.getElementById('model-details-view').classList.add('hidden');
+    }
+
+    function generatePythonCode(modelId) {
+        const formatPyVal = (v) => (v === true) ? "True" : (v === false ? "False" : v);
+        const pyParams = Object.entries(currentParamsValues).map(([k,v]) => `    "${k}": ${formatPyVal(v)}`).join(',\n');
+
+        return `import requests
+import json
+
+url = "${API_ENDPOINT}"
+
+headers = {
+    "Authorization": "Bearer ${USER_KEY}",
+    "Content-Type": "application/json"
+}
+
+payload = {
+    "model": "${modelId}",
+    "messages": [
+        {"role": "user", "content": "Hello, how are you?"}
+    ],
+${pyParams}
+}
+
+response = requests.post(url, headers=headers, json=payload, stream=payload.get("stream", False))
+
+if payload.get("stream"):
+    for line in response.iter_lines():
+        if line:
+            decoded_line = line.decode('utf-8')
+            if decoded_line.startswith('data: '):
+                try:
+                    data = json.loads(decoded_line[6:])
+                    if data.get('choices') and data['choices'][0].get('delta'):
+                        content = data['choices'][0]['delta'].get('content', '')
+                        if content:
+                            print(content, end='', flush=True)
+                except:
+                    pass
+else:
+    result = response.json()
+    print(result['choices'][0]['message']['content'])`;
+    }
+
+    function generateJavaCode(modelId) {
+        const streamVal = currentParamsValues['stream'] === true;
+        const tempVal = currentParamsValues['temperature'] || 1.0;
+        const maxTokensVal = currentParamsValues['max_tokens'] || 1024;
+
+        return `import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+
+public class OrgtehAIClient {
+    private static final String API_URL = "${API_ENDPOINT}";
+    private static final String API_KEY = "${USER_KEY}";
+
+    public static void main(String[] args) throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+
+        String jsonBody = "{\\n" +
+            "  \\\\\"model\\\\\": \\\\\"${modelId}\\\\\",\\n" +
+            "  \\\\\"messages\\\\\": [{\\\\\"role\\\\\": \\\\\"user\\\\\", \\\\\"content\\\\\": \\\\\"Hello, how are you?\\\\\"}],\\n" +
+            "  \\\\\"temperature\\\\\": ${tempVal},\\n" +
+            "  \\\\\"max_tokens\\\\\": ${maxTokensVal},\\n" +
+            "  \\\\\"stream\\\\\": ${streamVal ? 'true' : 'false'}\\n" +
+            "}";
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(API_URL))
+            .header("Authorization", "Bearer " + API_KEY)
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
+            .build();
+
+        HttpResponse<String> response = client.send(request, 
+            HttpResponse.BodyHandlers.ofString());
+
+        System.out.println("Response: " + response.body());
+    }
+}`;
+    }
+
+    function generateHttpCode(modelId) {
+        const streamVal = currentParamsValues['stream'] === true;
+        const tempVal = currentParamsValues['temperature'] || 1.0;
+        const maxTokensVal = currentParamsValues['max_tokens'] || 1024;
+
+        const jsonBody = JSON.stringify({
+            model: modelId,
+            messages: [{role: "user", content: "Hello, how are you?"}],
+            temperature: parseFloat(tempVal),
+            max_tokens: parseInt(maxTokensVal),
+            stream: streamVal
+        }, null, 2);
+
+        return `# cURL example
+curl -X POST ${API_ENDPOINT} \\
+  -H "Authorization: Bearer ${USER_KEY}" \\
+  -H "Content-Type: application/json" \\
+  -d '${jsonBody}'
+
+# Or using HTTPie
+http POST ${API_ENDPOINT} \\
+  Authorization:"Bearer ${USER_KEY}" \\
+  model="${modelId}" \\
+  messages:='[{"role": "user", "content": "Hello"}]' \\
+  temperature:=${tempVal} \\
+  max_tokens:=${maxTokensVal} \\
+  stream:=${streamVal}
+
+# JavaScript/Node.js (fetch)
+const response = await fetch('${API_ENDPOINT}', {
+    method: 'POST',
+    headers: {
+        'Authorization': 'Bearer ${USER_KEY}',
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        model: '${modelId}',
+        messages: [{role: 'user', content: 'Hello'}],
+        temperature: ${tempVal},
+        max_tokens: ${maxTokensVal},
+        stream: ${streamVal}
+    })
+});
+
+const data = await response.json();
+console.log(data);`;
     }
 
     function openCodeModal() {
         document.body.style.overflow = 'hidden';
         const modelId = document.getElementById('detail-id').textContent;
-        const formatPyVal = (v) => (v === true) ? "True" : (v === false ? "False" : v);
-        const pyParams = Object.entries(currentParamsValues).map(([k,v]) => `"${k}": ${formatPyVal(v)}`).join(',\n    ');
-        const pyCode = `import requests, json\n\nurl = "${API_ENDPOINT}"\n\nheaders = {\n    "Authorization": "Bearer ${USER_KEY}",\n    "Content-Type": "application/json"\n}\n\npayload = {\n    "model": "${modelId}",\n    "messages": [\n        {"role": "user", "content": "Hello world!"}\n    ],\n    # Parameters\n    ${pyParams}\n}\n\nresponse = requests.post(url, headers=headers, json=payload, stream=True)\n\nfor line in response.iter_lines():\n    if line:\n        print(line.decode('utf-8'))`;
+
+        // Generate all three code variants
+        const pyCode = generatePythonCode(modelId);
+        const javaCode = generateJavaCode(modelId);
+        const httpCode = generateHttpCode(modelId);
+
         document.getElementById('code-block-py').textContent = pyCode;
+        document.getElementById('code-block-java').textContent = javaCode;
+        document.getElementById('code-block-http').textContent = httpCode;
+
         const el = document.getElementById('codeModal');
         el.classList.remove('opacity-0', 'pointer-events-none');
         el.querySelector('div.relative').classList.remove('scale-95');
@@ -774,7 +910,7 @@
                                 m.id.includes('gemma') ? 'gemma' : null;
                 return shortKey === modelKey;
             });
-            
+
             if (model) {
                 // Open the model details automatically
                 const shortKey = model.id.includes('deepseek') ? 'deepseek' :

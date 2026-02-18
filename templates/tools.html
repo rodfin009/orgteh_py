@@ -2,52 +2,79 @@
 
 {% block content %}
 <style>
-    /* 1. STRICT LANGUAGE CONTROL */
     html[lang="ar"] .lang-en { display: none !important; }
     html[lang="en"] .lang-ar { display: none !important; }
 
-    /* 2. Code Block Styling */
     .code-block {
         font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
-        font-size: 0.8rem;
-        line-height: 1.6;
+        font-size: 0.75rem;
+        line-height: 1.5;
         direction: ltr !important;
         text-align: left !important;
         white-space: pre;
         overflow-x: auto;
+        padding-top: 2.5rem !important;
+        margin: 0;
+        color: #e5e7eb;
     }
 
-    /* 3. Custom Scrollbar */
-    .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+    .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
 
-    /* 4. Tab Buttons Active State */
     .tab-btn.active {
         background-color: #374151;
         color: white;
         border-bottom: 2px solid #4f46e5;
     }
 
-    /* 5. Content Visibility */
     .code-content { display: none; }
     .code-content.active { display: block; }
+
+    .copy-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 10;
+        padding: 6px 12px;
+        background: rgba(124, 58, 237, 0.9);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: 'Cairo', sans-serif;
+        font-weight: 600;
+    }
+    .copy-btn:hover {
+        background: rgba(109, 40, 217, 1);
+        transform: scale(1.05);
+    }
+    .copy-btn.copied {
+        background: #22c55e;
+    }
+    .code-wrapper {
+        position: relative;
+        background: #1e1e1e;
+        border-radius: 8px;
+        overflow: hidden;
+    }
 </style>
 
 <div class="min-h-screen bg-gray-50 dark:bg-darkbg py-12 px-4 sm:px-6 lg:px-8">
 
-    {# ================================================================= #}
-    {# ================== VIEW 1: TOOL DETAILS & PLAYGROUND ============ #}
-    {# ================================================================= #}
     {% if active_tool %}
 
     <div class="max-w-6xl mx-auto">
         <div class="mb-6">
             <a href="/{{ lang }}/accesory" class="inline-flex items-center gap-2 text-gray-500 hover:text-primary transition font-bold">
                 <i class="fa-solid fa-arrow-right rtl:rotate-180"></i>
-                <span class="lang-ar">العودة لمتجر الأدوات</span>
-                <span class="lang-en">Back to Tools Marketplace</span>
+                <span class="lang-ar">العودة لتكاملات Orgteh</span>
+                <span class="lang-en">Back to Orgteh Integrations</span>
             </a>
         </div>
 
@@ -173,12 +200,13 @@
                     </div>
                 </div>
 
+                {# ================== USAGE EXAMPLES ================== #}
                 <div class="bg-white dark:bg-cardbg rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
                     <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
                         <h4 class="font-bold flex items-center gap-2 text-gray-900 dark:text-white">
                             <span class="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs">1</span>
-                            <span class="lang-ar">كيفية استخدام الأداة</span>
-                            <span class="lang-en">How to use the Tool</span>
+                            <span class="lang-ar">كيفية استخدام التكامل</span>
+                            <span class="lang-en">How to use Integration</span>
                         </h4>
                     </div>
 
@@ -188,29 +216,98 @@
                         <button onclick="switchTab('usage', 'http')" class="tab-btn flex-1 py-2 text-xs font-bold text-gray-500 transition">HTTP (cURL)</button>
                     </div>
 
-                    <div class="bg-[#1e1e1e] p-4 overflow-x-auto custom-scrollbar relative">
+                    <div class="bg-[#1e1e1e] overflow-hidden relative">
+                        {# Python Usage #}
                         <div id="usage-python" class="code-content active">
-                            <pre class="code-block text-blue-300">{{ active_tool.usage_python }}</pre>
+                            <div class="code-wrapper">
+                                <button class="copy-btn" onclick="copyToClipboard('usage-python-code', this)">
+                                    <i class="fa-regular fa-copy"></i> <span>نسخ</span>
+                                </button>
+                                <pre class="code-block text-blue-300" id="usage-python-code">import requests
+
+url = "https://orgteh.com/api/tools/execute/{{ active_tool.id | replace('nexus-', 'orgteh-') }}"
+headers = {
+    "Authorization": "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json"
+}
+payload = {
+{% for param in active_tool.params %}    "{{ param.name }}": "{{ param.default or 'value' }}"{% if not loop.last %},{% endif %}
+{% endfor %}}
+
+response = requests.post(url, headers=headers, json=payload)
+print(response.json())</pre>
+                            </div>
                         </div>
+
+                        {# Java Usage #}
                         <div id="usage-java" class="code-content">
-                            <pre class="code-block text-orange-300">{{ active_tool.usage_java }}</pre>
+                            <div class="code-wrapper">
+                                <button class="copy-btn" onclick="copyToClipboard('usage-java-code', this)">
+                                    <i class="fa-regular fa-copy"></i> <span>نسخ</span>
+                                </button>
+                                <pre class="code-block text-orange-300" id="usage-java-code">import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
+public class OrgtehToolClient {
+    public static void main(String[] args) throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+
+        String jsonBody = "{"
+{% for param in active_tool.params %}            + "\"{{ param.name }}\": \"{{ param.default or 'value' }}\"{% if not loop.last %} + ","{% else %};{% endif %}
+{% endfor %}
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create("https://orgteh.com/api/tools/execute/{{ active_tool.id | replace('nexus-', 'orgteh-') }}"))
+            .header("Authorization", "Bearer YOUR_API_KEY")
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+            .build();
+
+        HttpResponse&lt;String&gt; response = client.send(request, 
+            HttpResponse.BodyHandlers.ofString());
+
+        System.out.println(response.body());
+    }
+}</pre>
+                            </div>
                         </div>
+
+                        {# HTTP Usage #}
                         <div id="usage-http" class="code-content">
-                            <pre class="code-block text-green-300">{{ active_tool.usage_http }}</pre>
+                            <div class="code-wrapper">
+                                <button class="copy-btn" onclick="copyToClipboard('usage-http-code', this)">
+                                    <i class="fa-regular fa-copy"></i> <span>نسخ</span>
+                                </button>
+                                <pre class="code-block text-green-300" id="usage-http-code">curl -X POST https://orgteh.com/api/tools/execute/{{ active_tool.id | replace('nexus-', 'orgteh-') }} \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+{% for param in active_tool.params %}    "{{ param.name }}": "{{ param.default or 'value' }}"{% if not loop.last %},{% endif %}
+{% endfor %}  }'
+
+# أو باستخدام HTTPie
+http POST https://orgteh.com/api/tools/execute/{{ active_tool.id | replace('nexus-', 'orgteh-') }} \
+  Authorization:"Bearer YOUR_API_KEY" \
+{% for param in active_tool.params %}  {{ param.name }}="{{ param.default or 'value' }}"{% if not loop.last %} \{% endif %}
+{% endfor %}</pre>
+                            </div>
                         </div>
                     </div>
                 </div>
 
+                {# ================== INTEGRATION EXAMPLES ================== #}
                 <div class="bg-white dark:bg-cardbg rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
                     <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
                         <h4 class="font-bold flex items-center gap-2 text-gray-900 dark:text-white">
                             <span class="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs">2</span>
                             <span class="lang-ar">التكامل مع الذكاء الاصطناعي</span>
-                            <span class="lang-en">LLM Integration</span>
+                            <span class="lang-en">AI Integration</span>
                         </h4>
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            <span class="lang-ar">{{ active_tool.integ_desc_ar }}</span>
-                            <span class="lang-en">{{ active_tool.integ_desc_en }}</span>
+                            <span class="lang-ar">استخدم هذا الكود لربط الأداة بنماذج Orgteh مباشرة</span>
+                            <span class="lang-en">Use this code to connect the tool with Orgteh models directly</span>
                         </p>
                     </div>
 
@@ -220,15 +317,120 @@
                         <button onclick="switchTab('integ', 'http')" class="tab-btn flex-1 py-2 text-xs font-bold text-gray-500 transition">HTTP</button>
                     </div>
 
-                    <div class="bg-[#1e1e1e] p-4 overflow-x-auto custom-scrollbar relative">
+                    <div class="bg-[#1e1e1e] overflow-hidden relative">
+                        {# Python Integration #}
                         <div id="integ-python" class="code-content active">
-                            <pre class="code-block text-purple-300">{{ active_tool.integ_python }}</pre>
+                            <div class="code-wrapper">
+                                <button class="copy-btn" onclick="copyToClipboard('integ-python-code', this)">
+                                    <i class="fa-regular fa-copy"></i> <span>نسخ</span>
+                                </button>
+                                <pre class="code-block text-purple-300" id="integ-python-code">import requests
+
+# Step 1: Execute Orgteh Tool
+tool_url = "https://orgteh.com/api/tools/execute/{{ active_tool.id | replace('nexus-', 'orgteh-') }}"
+headers = {
+    "Authorization": "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json"
+}
+tool_payload = {
+{% for param in active_tool.params %}    "{{ param.name }}": "{{ param.default or 'value' }}",
+{% endfor %}}
+
+tool_response = requests.post(tool_url, headers=headers, json=tool_payload)
+tool_result = tool_response.json()
+
+# Step 2: Send result to Orgteh AI Model
+chat_url = "https://orgteh.com/v1/chat/completions"
+chat_payload = {
+    "model": "deepseek-ai/deepseek-v3.2",
+    "messages": [
+        {"role": "system", "content": "You have access to tool results."},
+        {"role": "user", "content": f"Tool result: {tool_result}"}
+    ]
+}
+
+ai_response = requests.post(chat_url, headers=headers, json=chat_payload)
+result = ai_response.json()
+print(result['choices'][0]['message']['content'])</pre>
+                            </div>
                         </div>
+
+                        {# Java Integration #}
                         <div id="integ-java" class="code-content">
-                            <pre class="code-block text-orange-300">{{ active_tool.integ_java }}</pre>
+                            <div class="code-wrapper">
+                                <button class="copy-btn" onclick="copyToClipboard('integ-java-code', this)">
+                                    <i class="fa-regular fa-copy"></i> <span>نسخ</span>
+                                </button>
+                                <pre class="code-block text-orange-300" id="integ-java-code">import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
+public class OrgtehAIIntegration {
+    public static void main(String[] args) throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+
+        // Step 1: Call Orgteh Tool
+        String toolBody = "{"
+{% for param in active_tool.params %}            + "\"{{ param.name }}\": \"{{ param.default or 'value' }}\"{% if not loop.last %} + ","{% else %};{% endif %}
+{% endfor %}
+
+        HttpRequest toolRequest = HttpRequest.newBuilder()
+            .uri(URI.create("https://orgteh.com/api/tools/execute/{{ active_tool.id | replace('nexus-', 'orgteh-') }}"))
+            .header("Authorization", "Bearer YOUR_API_KEY")
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(toolBody))
+            .build();
+
+        HttpResponse&lt;String&gt; toolResponse = client.send(toolRequest, 
+            HttpResponse.BodyHandlers.ofString());
+
+        // Step 2: Send to Orgteh AI Model
+        String aiBody = "{"
+            + "\"model\": \"deepseek-ai/deepseek-v3.2\","
+            + "\"messages\": [{\"role\": \"user\", \"content\": \"Process: " 
+            + toolResponse.body() + "\"}]"
+            + "}";
+
+        HttpRequest aiRequest = HttpRequest.newBuilder()
+            .uri(URI.create("https://orgteh.com/v1/chat/completions"))
+            .header("Authorization", "Bearer YOUR_API_KEY")
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(aiBody))
+            .build();
+
+        HttpResponse&lt;String&gt; aiResponse = client.send(aiRequest, 
+            HttpResponse.BodyHandlers.ofString());
+
+        System.out.println(aiResponse.body());
+    }
+}</pre>
+                            </div>
                         </div>
+
+                        {# HTTP Integration #}
                         <div id="integ-http" class="code-content">
-                            <pre class="code-block text-green-300">{{ active_tool.integ_http }}</pre>
+                            <div class="code-wrapper">
+                                <button class="copy-btn" onclick="copyToClipboard('integ-http-code', this)">
+                                    <i class="fa-regular fa-copy"></i> <span>نسخ</span>
+                                </button>
+                                <pre class="code-block text-green-300" id="integ-http-code"># Step 1: Execute Orgteh Tool
+curl -X POST https://orgteh.com/api/tools/execute/{{ active_tool.id | replace('nexus-', 'orgteh-') }} \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+{% for param in active_tool.params %}    "{{ param.name }}": "{{ param.default or 'value' }}"{% if not loop.last %},{% endif %}
+{% endfor %}  }'
+
+# Step 2: Send result to Orgteh AI Model
+curl -X POST https://orgteh.com/v1/chat/completions \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "deepseek-ai/deepseek-v3.2",
+    "messages": [{"role": "user", "content": "Analyze this tool output"}]
+  }'</pre>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -237,26 +439,23 @@
         </div>
     </div>
 
-    {# ================================================================= #}
-    {# ================== VIEW 2: TOOLS MARKETPLACE GRID =============== #}
-    {# ================================================================= #}
     {% else %}
 
     <div class="text-center mb-16 max-w-3xl mx-auto">
         <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-4 tracking-tight">
-            <span class="text-primary">Nexus</span>
-            <span class="lang-ar">متجر الأدوات</span>
-            <span class="lang-en">Tools Hub</span>
+            <span class="text-primary">Orgteh</span>
+            <span class="lang-ar">تكاملات</span>
+            <span class="lang-en">Integrations</span>
         </h1>
         <p class="text-lg text-gray-600 dark:text-gray-400">
-            <span class="lang-ar">مكتبة من الأدوات البرمجية الجاهزة (APIs) لتعزيز تطبيقاتك.</span>
-            <span class="lang-en">Production-ready APIs and add-ons to supercharge your AI apps.</span>
+            <span class="lang-ar">مكتبة من التكاملات والأدوات البرمجية الجاهزة (APIs) لتعزيز تطبيقاتك.</span>
+            <span class="lang-en">Production-ready APIs and integrations to supercharge your AI apps.</span>
         </p>
     </div>
 
     <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {% for tool in tools %}
-        <a href="/{{ lang }}/accesory/{{ tool.id }}" class="block group h-full">
+        <a href="/{{ lang }}/accesory/{{ tool.id | replace('nexus-', 'orgteh-') }}" class="block group h-full">
             <div class="bg-white dark:bg-cardbg rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:-translate-y-1 transition duration-300 overflow-hidden flex flex-col h-full relative">
 
                 <div class="p-6 pb-4 relative z-10">
@@ -270,8 +469,8 @@
                     </div>
 
                     <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-primary transition">
-                        <span class="lang-ar">{{ tool.name_ar }}</span>
-                        <span class="lang-en">{{ tool.name_en }}</span>
+                        <span class="lang-ar">{{ tool.name_ar | replace('Nexus', 'Orgteh') }}</span>
+                        <span class="lang-en">{{ tool.name_en | replace('Nexus', 'Orgteh') }}</span>
                     </h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2">
                         <span class="lang-ar">{{ tool.desc_ar }}</span>
@@ -327,7 +526,69 @@
         event.target.classList.remove('text-gray-500');
     }
 
-    // 3. Playground Form Logic
+    // 3. ULTIMATE Copy Function - Guaranteed to work
+    async function copyToClipboard(elementId, btn) {
+        try {
+            // Find the element
+            const element = document.getElementById(elementId);
+            if (!element) {
+                console.error('Element not found:', elementId);
+                alert('خطأ: العنصر غير موجود');
+                return;
+            }
+
+            // Get text content - using innerText for better compatibility
+            let text = element.innerText;
+
+            // Fallback if innerText is empty
+            if (!text || text.trim() === '') {
+                text = element.textContent;
+            }
+
+            // Final fallback
+            if (!text) {
+                text = element.innerHTML;
+            }
+
+            // Copy using modern API
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+            } else {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-9999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+
+                try {
+                    document.execCommand('copy');
+                } catch (err) {
+                    console.error('execCommand failed:', err);
+                    throw err;
+                } finally {
+                    document.body.removeChild(textArea);
+                }
+            }
+
+            // Success feedback
+            const originalHTML = btn.innerHTML;
+            btn.classList.add('copied');
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>تم النسخ!</span>';
+
+            setTimeout(() => {
+                btn.classList.remove('copied');
+                btn.innerHTML = originalHTML;
+            }, 2000);
+
+        } catch (err) {
+            console.error('Copy failed:', err);
+            alert('فشل النسخ: ' + err.message);
+        }
+    }
+
+    // 4. Playground Form Logic
     const form = document.getElementById('playgroundForm');
     if (form) {
         form.addEventListener('submit', async (e) => {
@@ -336,11 +597,11 @@
             const resContainer = document.getElementById('resultContainer');
             const output = document.getElementById('jsonOutput');
 
-            // UI Loading State
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...';
+            const lang = document.documentElement.getAttribute('lang');
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> ' + (lang === 'ar' ? 'جاري التنفيذ...' : 'Processing...');
             resContainer.classList.remove('hidden');
-            output.textContent = "Connecting to server...";
+            output.textContent = "Connecting to Orgteh API...";
 
             const formData = new FormData(e.target);
 
@@ -358,7 +619,6 @@
             } catch (error) {
                 output.textContent = "Error: " + error.message;
             } finally {
-                // Reset Button
                 btn.disabled = false;
                 btn.innerHTML = '<span class="lang-ar">تشغيل الأداة</span><span class="lang-en">Execute Tool</span> <i class="fa-solid fa-bolt"></i>';
             }
@@ -367,8 +627,9 @@
 
     function copyOutput() {
         const text = document.getElementById('jsonOutput').textContent;
-        navigator.clipboard.writeText(text);
-        alert('Copied to clipboard!');
+        navigator.clipboard.writeText(text).then(() => {
+            alert('Copied to clipboard!');
+        });
     }
 </script>
 

@@ -1,0 +1,897 @@
+{# customer.html - خدمة العملاء المنفصلة #}
+
+<!-- ===== Customer Service Chat Styles ===== -->
+<style>
+    /* ===== Support Chat Styles ===== */
+    .support-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        background: #f9fafb;
+    }
+    html.dark .support-messages {
+        background: #0a0a0a;
+    }
+
+    /* Message Bubbles */
+    .msg-user {
+        align-self: flex-end;
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+        color: white;
+        padding: 0.75rem 1rem;
+        border-radius: 18px;
+        border-bottom-right-radius: 4px;
+        max-width: 85%;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        word-wrap: break-word;
+        box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+    }
+
+    .msg-bot {
+        align-self: flex-start;
+        background: white;
+        color: #1f2937;
+        padding: 0.75rem 1rem;
+        border-radius: 18px;
+        border-bottom-left-radius: 4px;
+        max-width: 95%;
+        font-size: 0.9rem;
+        line-height: 1.7;
+        word-wrap: break-word;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e5e7eb;
+    }
+    html.dark .msg-bot {
+        background: #1a1a1a;
+        color: #e5e7eb;
+        border-color: #2a2a2a;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Formatted Content Styles */
+    .msg-bot h1, .msg-bot h2, .msg-bot h3, .msg-bot h4 {
+        font-weight: 700;
+        margin: 0.75rem 0 0.5rem 0;
+        color: #7c3aed;
+    }
+    html.dark .msg-bot h1, html.dark .msg-bot h2, 
+    html.dark .msg-bot h3, html.dark .msg-bot h4 {
+        color: #a78bfa;
+    }
+
+    .msg-bot h1 { font-size: 1.1rem; }
+    .msg-bot h2 { font-size: 1rem; }
+    .msg-bot h3 { font-size: 0.95rem; }
+
+    .msg-bot p {
+        margin: 0.4rem 0;
+    }
+
+    .msg-bot ul, .msg-bot ol {
+        margin: 0.5rem 0;
+        padding-right: 1.25rem;
+        padding-left: 0;
+    }
+
+    .msg-bot li {
+        margin: 0.25rem 0;
+    }
+
+    .msg-bot strong, .msg-bot b {
+        font-weight: 700;
+        color: #7c3aed;
+    }
+    html.dark .msg-bot strong, html.dark .msg-bot b {
+        color: #c4b5fd;
+    }
+
+    .msg-bot code {
+        background: #f3f4f6;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-family: 'Fira Code', 'Consolas', monospace;
+        font-size: 0.85em;
+        color: #7c3aed;
+    }
+    html.dark .msg-bot code {
+        background: #2a2a2a;
+        color: #a78bfa;
+    }
+
+    /* Code Block with Copy Button */
+    .code-block-wrapper {
+        position: relative;
+        margin: 0.75rem 0;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #1e1e2e;
+    }
+
+    .code-block-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        background: #2d2d44;
+        border-bottom: 1px solid #3d3d5c;
+    }
+
+    .code-block-lang {
+        font-size: 0.75rem;
+        color: #a0a0b0;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .code-block-copy {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.7rem;
+        background: #7c3aed;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .code-block-copy:hover {
+        background: #6d28d9;
+    }
+
+    .code-block-copy.copied {
+        background: #22c55e;
+    }
+
+    .code-block-wrapper pre {
+        margin: 0;
+        padding: 0.75rem;
+        overflow-x: auto;
+        background: #1e1e2e;
+    }
+
+    .code-block-wrapper pre code {
+        background: transparent;
+        color: #e5e7eb;
+        padding: 0;
+        font-family: 'Fira Code', 'Consolas', monospace;
+        font-size: 0.85rem;
+        line-height: 1.6;
+    }
+
+    /* Inline code in paragraphs */
+    .msg-bot pre {
+        background: #1e1e2e;
+        padding: 0.75rem;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 0.5rem 0;
+    }
+    html.dark .msg-bot pre {
+        background: #111111;
+    }
+
+    .msg-bot pre code {
+        background: transparent;
+        color: #e5e7eb;
+        padding: 0;
+    }
+
+    .msg-bot a {
+        color: #7c3aed;
+        text-decoration: none;
+        font-weight: 600;
+        border-bottom: 1px solid #7c3aed;
+        transition: all 0.2s;
+    }
+    .msg-bot a:hover {
+        background: rgba(124, 58, 237, 0.1);
+    }
+    html.dark .msg-bot a {
+        color: #a78bfa;
+        border-color: #a78bfa;
+    }
+    html.dark .msg-bot a:hover {
+        background: rgba(167, 139, 250, 0.1);
+    }
+
+    .msg-bot blockquote {
+        border-right: 3px solid #7c3aed;
+        padding-right: 0.75rem;
+        margin: 0.5rem 0;
+        color: #6b7280;
+    }
+    html.dark .msg-bot blockquote {
+        border-color: #a78bfa;
+        color: #9ca3af;
+    }
+
+    .msg-bot hr {
+        border: none;
+        border-top: 1px solid #e5e7eb;
+        margin: 0.75rem 0;
+    }
+    html.dark .msg-bot hr {
+        border-color: #2a2a2a;
+    }
+
+    /* ===== Tables ===== */
+    .msg-bot table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.75rem 0;
+        font-size: 0.85rem;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .msg-bot th {
+        background: #7c3aed;
+        color: white;
+        padding: 0.6rem 0.5rem;
+        text-align: right;
+        font-weight: 600;
+    }
+    html.dark .msg-bot th {
+        background: #6d28d9;
+    }
+
+    .msg-bot td {
+        padding: 0.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+    }
+    html.dark .msg-bot td {
+        border-color: #2a2a2a;
+        background: #1a1a1a;
+    }
+
+    .msg-bot tr:last-child td {
+        border-bottom: none;
+    }
+
+    .msg-bot tr:nth-child(even) td {
+        background: #f3f4f6;
+    }
+    html.dark .msg-bot tr:nth-child(even) td {
+        background: #222222;
+    }
+
+    /* ===== Lists - Enhanced ===== */
+    .msg-bot ul {
+        list-style: none;
+        padding: 0;
+        margin: 0.5rem 0;
+    }
+
+    .msg-bot ul li {
+        position: relative;
+        padding-right: 1.25rem;
+        margin: 0.4rem 0;
+        line-height: 1.6;
+    }
+
+    .msg-bot ul li::before {
+        content: "●";
+        position: absolute;
+        right: 0;
+        color: #7c3aed;
+        font-size: 0.6rem;
+        top: 0.35rem;
+    }
+    html.dark .msg-bot ul li::before {
+        color: #a78bfa;
+    }
+
+    .msg-bot ol {
+        list-style: none;
+        counter-reset: item;
+        padding: 0;
+        margin: 0.5rem 0;
+    }
+
+    .msg-bot ol li {
+        position: relative;
+        padding-right: 1.5rem;
+        margin: 0.4rem 0;
+        line-height: 1.6;
+    }
+
+    .msg-bot ol li::before {
+        counter-increment: item;
+        content: counter(item) ".";
+        position: absolute;
+        right: 0;
+        color: #7c3aed;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+    html.dark .msg-bot ol li::before {
+        color: #a78bfa;
+    }
+
+    /* Nested lists */
+    .msg-bot li ul, .msg-bot li ol {
+        margin-top: 0.3rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .msg-bot li ul li::before {
+        content: "○";
+        font-size: 0.5rem;
+        top: 0.4rem;
+    }
+
+    /* Typing Indicator */
+    .typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.5rem 0;
+    }
+    .typing-indicator span {
+        width: 8px;
+        height: 8px;
+        background: #9ca3af;
+        border-radius: 50%;
+        animation: typingBounce 1.4s infinite ease-in-out both;
+    }
+    .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes typingBounce {
+        0%, 80%, 100% { transform: scale(0); }
+        40% { transform: scale(1); }
+    }
+
+    /* Quick Questions - Floating Style */
+    .quick-questions-float {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        padding: 0 0.5rem;
+    }
+
+    .quick-question-chip {
+        padding: 0.5rem 1rem;
+        background: rgba(124, 58, 237, 0.1);
+        border: 1px solid rgba(124, 58, 237, 0.3);
+        border-radius: 20px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: #7c3aed;
+        font-weight: 600;
+    }
+    .quick-question-chip:hover {
+        background: #7c3aed;
+        color: white;
+        border-color: #7c3aed;
+    }
+    html.dark .quick-question-chip {
+        background: rgba(124, 58, 237, 0.15);
+        border-color: rgba(124, 58, 237, 0.4);
+        color: #a78bfa;
+    }
+    html.dark .quick-question-chip:hover {
+        background: #7c3aed;
+        color: white;
+        border-color: #7c3aed;
+    }
+
+    /* Welcome Message with Quick Questions */
+    .welcome-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+</style>
+
+<!-- ===== Support Modal with Floating Quick Questions ===== -->
+<div id="supportModal" class="fixed inset-0 z-[100] flex items-end sm:items-center justify-center opacity-0 pointer-events-none transition duration-300">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('supportModal')"></div>
+    <div class="bg-gray-50 dark:bg-[#0d0d0d] w-full sm:w-[450px] h-[80vh] sm:h-[600px] sm:rounded-2xl shadow-2xl relative z-10 transform translate-y-full sm:translate-y-0 sm:scale-95 transition-all duration-300 flex flex-col overflow-hidden border border-gray-200 dark:border-gray-800" dir="ltr">
+        <div class="bg-primary p-4 flex items-center justify-between text-gray-900 dark:text-white shadow-md z-20">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gray-50 dark:bg-[#0d0d0d]/20 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-headset text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-lg" data-i18n="support_title">Orgteh Assistant</h3>
+                    <div class="flex items-center gap-1.5 text-xs text-blue-100">
+                        <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                        <span data-i18n="support_online">Online</span>
+                    </div>
+                </div>
+            </div>
+            <button onclick="closeModal('supportModal')" class="w-8 h-8 rounded-full bg-gray-50 dark:bg-[#0d0d0d]/10 hover:bg-gray-50 dark:bg-[#0d0d0d]/20 flex items-center justify-center transition">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        </div>
+
+        <div id="supportMessages" class="support-messages">
+            <!-- Welcome message with floating quick questions -->
+            <div class="welcome-container">
+                <div class="msg-bot">
+                    <span data-i18n="support_welcome">Hello! I am Orgteh Assistant. How can I help you?</span>
+                </div>
+                <div class="quick-questions-float">
+                    <button class="quick-question-chip" onclick="sendQuickQuestion('pricing')" data-i18n="quick_pricing">💰 الأسعار؟</button>
+                    <button class="quick-question-chip" onclick="sendQuickQuestion('models')" data-i18n="quick_models">🤖 النماذج؟</button>
+                    <button class="quick-question-chip" onclick="sendQuickQuestion('api_key')" data-i18n="quick_api_key">🔑 المفتاح؟</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 bg-white dark:bg-[#0d0d0d] border-t border-gray-200 dark:border-gray-800 z-20">
+            <div class="relative">
+                <textarea id="supportInput" rows="1" class="w-full bg-gray-100 dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 pr-12 text-sm focus:ring-2 focus:ring-primary focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 resize-none overflow-hidden" data-i18n="[placeholder]support_placeholder" placeholder="Type your message..." autocomplete="off" oninput="autoResizeTextarea(this)" onkeydown="handleTextareaKeydown(event)"></textarea>
+                <button onclick="sendSupportMessage()" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center hover:bg-indigo-600 transition shadow-sm">
+                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Floating Chat Button ===== -->
+<button onclick="openModal('supportModal')" class="fab-chat w-14 h-14 bg-gradient-to-r from-blue-600 to-violet-600 rounded-full shadow-2xl flex items-center justify-center text-gray-900 dark:text-white text-2xl hover:scale-110 transition cursor-pointer border-2 border-white dark:border-gray-200 dark:border-gray-800" title="Orgteh Assistant">
+    <i class="fa-solid fa-headset"></i>
+</button>
+
+<!-- ===== Customer Service JavaScript ===== -->
+<script>
+    // ===== Quick Questions Data =====
+    const quickQuestionQueries = {
+        ar: {
+            pricing: "ما هي أسعار الخطط والباقات؟",
+            models: "ما هي النماذج المتاحة وأيها الأفضل لي؟",
+            api_key: "كيف يمكنني استخدام مفتاح API الخاص بي؟"
+        },
+        en: {
+            pricing: "What are the pricing plans and bundles?",
+            models: "What models are available and which is best for me?",
+            api_key: "How can I use my API key?"
+        }
+    };
+
+    // ===== Quick Questions Functionality =====
+    function sendQuickQuestion(questionId) {
+        const lang = document.documentElement.getAttribute('lang') || 'ar';
+        const query = quickQuestionQueries[lang][questionId];
+        if (query) {
+            addUserMessage(query);
+            sendToBot(query);
+        }
+    }
+
+    function addUserMessage(text) {
+        const box = document.getElementById('supportMessages');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'msg-user';
+        msgDiv.textContent = text;
+        box.appendChild(msgDiv);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function addBotMessage(html) {
+        const box = document.getElementById('supportMessages');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'msg-bot';
+        msgDiv.innerHTML = html;
+        box.appendChild(msgDiv);
+        box.scrollTop = box.scrollHeight;
+        return msgDiv;
+    }
+
+    function showTyping() {
+        const box = document.getElementById('supportMessages');
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'msg-bot';
+        typingDiv.id = 'typingIndicator';
+        typingDiv.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+        box.appendChild(typingDiv);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function hideTyping() {
+        const typing = document.getElementById('typingIndicator');
+        if (typing) typing.remove();
+    }
+
+    // ===== Copy Code Function =====
+    function copyCode(button) {
+        // Get the code from the pre > code element next to the button
+        const wrapper = button.closest('.code-block-wrapper');
+        const codeElement = wrapper.querySelector('pre code');
+        const codeText = codeElement ? codeElement.textContent : '';
+
+        if (!codeText) {
+            console.error('No code found to copy');
+            return;
+        }
+
+        navigator.clipboard.writeText(codeText).then(() => {
+            const originalHTML = button.innerHTML;
+            const lang = document.documentElement.getAttribute('lang') || 'ar';
+            const copiedText = lang === 'ar' ? 'تم النسخ!' : 'Copied!';
+
+            button.classList.add('copied');
+            button.innerHTML = `<i class="fa-solid fa-check"></i> ${copiedText}`;
+
+            setTimeout(() => {
+                button.classList.remove('copied');
+                button.innerHTML = originalHTML;
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = codeText;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                const lang = document.documentElement.getAttribute('lang') || 'ar';
+                const copiedText = lang === 'ar' ? 'تم النسخ!' : 'Copied!';
+                button.classList.add('copied');
+                button.innerHTML = `<i class="fa-solid fa-check"></i> ${copiedText}`;
+                setTimeout(() => {
+                    button.classList.remove('copied');
+                    button.innerHTML = `<i class="fa-regular fa-copy"></i> ${lang === 'ar' ? 'نسخ' : 'Copy'}`;
+                }, 2000);
+            } catch (e) {
+                console.error('Fallback copy failed:', e);
+            }
+            document.body.removeChild(textArea);
+        });
+    }
+
+    // ===== Helper: Escape HTML =====
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ===== Helper: Convert simple pipe table =====
+    function convertSimpleTable(tableText) {
+        const lines = tableText.split('\n').filter(l => l.trim());
+        if (lines.length < 2) return null;
+
+        // Check if second line is a separator (contains ---)
+        const isSeparator = (line) => /^\|\s*[-:]+\s*(\|\s*[-:]+\s*)*\|?$/.test(line);
+
+        let headerLine, dataLines;
+        if (isSeparator(lines[1])) {
+            headerLine = lines[0];
+            dataLines = lines.slice(2);
+        } else {
+            // No separator, treat first line as header
+            headerLine = lines[0];
+            dataLines = lines.slice(1);
+        }
+
+        const headers = headerLine.split('|').map(c => c.trim()).filter(c => c);
+        if (headers.length === 0) return null;
+
+        let tableHtml = '<table><thead><tr>';
+        headers.forEach(h => {
+            tableHtml += `<th>${escapeHtml(h)}</th>`;
+        });
+        tableHtml += '</tr></thead><tbody>';
+
+        dataLines.forEach(line => {
+            const cells = line.split('|').map(c => c.trim()).filter(c => c);
+            if (cells.length > 0) {
+                tableHtml += '<tr>';
+                cells.forEach(cell => {
+                    tableHtml += `<td>${escapeHtml(cell)}</td>`;
+                });
+                tableHtml += '</tr>';
+            }
+        });
+        tableHtml += '</tbody></table>';
+
+        return tableHtml;
+    }
+
+    // ===== Smart Markdown Formatter =====
+    function formatMessage(text) {
+        // First, protect code blocks from escaping
+        const codeBlocks = [];
+        let codeBlockIndex = 0;
+
+        // Extract and save code blocks
+        text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+            const blockId = `__CODE_BLOCK_${codeBlockIndex}__`;
+            codeBlocks.push({ id: blockId, lang: lang || 'code', code: code.trim() });
+            codeBlockIndex++;
+            return blockId;
+        });
+
+        // Also handle inline code
+        const inlineCodes = [];
+        let inlineIndex = 0;
+        text = text.replace(/`([^`]+)`/g, (match, code) => {
+            const inlineId = `__INLINE_CODE_${inlineIndex}__`;
+            inlineCodes.push({ id: inlineId, code: code });
+            inlineIndex++;
+            return inlineId;
+        });
+
+        // Handle tables FIRST (before other processing)
+        // More flexible table regex - handles tables with or without spaces
+        const tableRegex = /(\|\s*[^\n|]+\s*\|[^\n]*\n\|\s*[-:]+\s*\|[^\n]*\n)(\|\s*[^\n|]+\s*\|[^\n]*\n?)+/g;
+
+        text = text.replace(tableRegex, (match) => {
+            const lines = match.trim().split('\n').filter(l => l.trim());
+            if (lines.length < 3) return match; // Need header, separator, and at least one data row
+
+            // Extract header row
+            const headerLine = lines[0];
+            const headers = headerLine.split('|').map(c => c.trim()).filter(c => c);
+
+            // Skip separator line (lines[1])
+
+            // Extract data rows
+            const dataRows = [];
+            for (let i = 2; i < lines.length; i++) {
+                const cells = lines[i].split('|').map(c => c.trim()).filter(c => c);
+                if (cells.length > 0) {
+                    dataRows.push(cells);
+                }
+            }
+
+            if (headers.length === 0 || dataRows.length === 0) return match;
+
+            // Build HTML table
+            let tableHtml = '<table><thead><tr>';
+            headers.forEach(h => {
+                tableHtml += `<th>${escapeHtml(h)}</th>`;
+            });
+            tableHtml += '</tr></thead><tbody>';
+
+            dataRows.forEach(row => {
+                tableHtml += '<tr>';
+                row.forEach(cell => {
+                    tableHtml += `<td>${escapeHtml(cell)}</td>`;
+                });
+                tableHtml += '</tr>';
+            });
+            tableHtml += '</tbody></table>';
+
+            return tableHtml;
+        });
+
+        // Also handle simple pipe-separated lines that might be tables
+        // If we see multiple lines starting with |, try to convert them
+        const pipeLines = text.match(/(\|\s*[^\n]+\s*\|)/g);
+        if (pipeLines && pipeLines.length >= 3) {
+            // Check if there's a pattern that looks like a table
+            const allLines = text.split('\n');
+            let inTable = false;
+            let tableStart = -1;
+            let tableLines = [];
+
+            for (let i = 0; i < allLines.length; i++) {
+                const line = allLines[i].trim();
+                if (line.startsWith('|') && line.endsWith('|')) {
+                    if (!inTable) {
+                        inTable = true;
+                        tableStart = i;
+                    }
+                    tableLines.push(line);
+                } else if (inTable && line === '') {
+                    // End of table
+                    if (tableLines.length >= 2) {
+                        // Try to convert this table
+                        const tableText = tableLines.join('\n');
+                        const converted = convertSimpleTable(tableText);
+                        if (converted) {
+                            text = text.replace(tableText, converted);
+                        }
+                    }
+                    inTable = false;
+                    tableLines = [];
+                }
+            }
+
+            // Handle table at end of text
+            if (inTable && tableLines.length >= 2) {
+                const tableText = tableLines.join('\n');
+                const converted = convertSimpleTable(tableText);
+                if (converted) {
+                    text = text.replace(tableText, converted);
+                }
+            }
+        }
+
+        // Now process the rest of the text
+        // Convert **bold**
+        text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+        // Convert *italic*
+        text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+        // Convert # headings
+        text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+        text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+        text = text.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+        // Convert numbered lists FIRST (before bullet lists)
+        // Match numbered list items
+        const numberedListRegex = /(^|\n)\d+\.\s+(.+)(?=\n|$)/g;
+        const numberedMatches = [];
+        let numMatch;
+        while ((numMatch = numberedListRegex.exec(text)) !== null) {
+            numberedMatches.push({ index: numMatch.index, text: numMatch[2] });
+        }
+
+        // Replace numbered items and wrap in ol
+        if (numberedMatches.length > 0) {
+            let olContent = '';
+            numberedMatches.forEach(m => {
+                olContent += `<li>${m.text}</li>`;
+            });
+            // Remove original numbered items and add ol
+            text = text.replace(/\d+\.\s+.+\n?/g, '');
+            text = text.replace(/(<li>[^<]+<\/li>)+/g, ''); // Remove any previously created li
+            text += `<ol>${olContent}</ol>`;
+        }
+
+        // Convert bullet list items
+        text = text.replace(/^[\-\*]\s+(.+)$/gm, '<li>$1</li>');
+
+        // Wrap consecutive bullet li in ul
+        text = text.replace(/(<li>[^<]+<\/li>\n?)+/g, (match) => {
+            // Check if it's already part of an ol
+            if (match.includes('</ol>') || match.includes('<ol>')) return match;
+            return '<ul>' + match + '</ul>';
+        });
+
+        // Convert [text](url) to clickable links
+        text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+
+        // Convert raw URLs to links (but not inside tags)
+        text = text.replace(/(?<!["'=])https?:\/\/[^\s<>]+/g, '<a href="$&" target="_blank">$&</a>');
+
+        // Handle broken HTML tags from the model (like <a href=...> showing as text)
+        text = text.replace(/&lt;a\s+href=&quot;([^&]+)&quot;[^&]*&gt;([^&]*)&lt;\/a&gt;/g, '<a href="$1">$2</a>');
+        text = text.replace(/<a\s+href="([^"]+)"[^>]*class="[^"]*"[^>]*>([^<]*)<\/a>/g, '<a href="$1">$2</a>');
+
+        // Convert newlines to <br> (but preserve structure in lists and tables)
+        text = text.replace(/\n/g, '<br>');
+
+        // Clean up extra <br> inside lists and tables
+        text = text.replace(/<ul><br>/g, '<ul>');
+        text = text.replace(/<\/li><br>/g, '</li>');
+        text = text.replace(/<\/ul><br>/g, '</ul>');
+        text = text.replace(/<ol><br>/g, '<ol>');
+        text = text.replace(/<\/ol><br>/g, '</ol>');
+        text = text.replace(/<table><br>/g, '<table>');
+        text = text.replace(/<\/table><br>/g, '</table>');
+
+        // Restore inline codes
+        inlineCodes.forEach(({ id, code }) => {
+            text = text.replace(id, `<code>${escapeHtml(code)}</code>`);
+        });
+
+        // Restore code blocks with copy button
+        const currentLang = document.documentElement.getAttribute('lang') || 'ar';
+        const copyText = currentLang === 'ar' ? 'نسخ' : 'Copy';
+
+        codeBlocks.forEach(({ id, lang, code }) => {
+            const escapedCode = escapeHtml(code);
+            const blockHtml = `
+                <div class="code-block-wrapper">
+                    <div class="code-block-header">
+                        <span class="code-block-lang">${lang}</span>
+                        <button class="code-block-copy" onclick="copyCode(this)">
+                            <i class="fa-regular fa-copy"></i> ${copyText}
+                        </button>
+                    </div>
+                    <pre><code>${escapedCode}</code></pre>
+                </div>
+            `;
+            text = text.replace(id, blockHtml);
+        });
+
+        return text;
+    }
+
+    async function sendToBot(message) {
+        showTyping();
+
+        const currentLang = localStorage.getItem('lang') || 'ar';
+
+        try {
+            const response = await fetch('/api/support/chat', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ message: message, lang: currentLang }) 
+            });
+
+            hideTyping();
+
+            if (!response.ok) throw new Error('Network error');
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullResponse = '';
+
+            const botMsgEl = addBotMessage('');
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                fullResponse += chunk;
+                botMsgEl.innerHTML = formatMessage(fullResponse);
+
+                const box = document.getElementById('supportMessages');
+                box.scrollTop = box.scrollHeight;
+            }
+
+        } catch (err) { 
+            hideTyping();
+            const lang = document.documentElement.getAttribute('lang') || 'ar';
+            const errorMsg = lang === 'ar' ? 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.' : 'Sorry, an error occurred. Please try again.';
+            addBotMessage('<span class="text-red-500">' + errorMsg + '</span>'); 
+        }
+    }
+
+    // ===== Textarea Auto Resize =====
+    function autoResizeTextarea(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+    }
+
+    // ===== Textarea Keydown Handler =====
+    function handleTextareaKeydown(e) {
+        // Enter alone = new line
+        // Shift+Enter = send message
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            // Just insert a newline
+            const textarea = e.target;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const value = textarea.value;
+            textarea.value = value.substring(0, start) + '\n' + value.substring(end);
+            textarea.selectionStart = textarea.selectionEnd = start + 1;
+            autoResizeTextarea(textarea);
+        } else if (e.key === 'Enter' && e.shiftKey) {
+            e.preventDefault();
+            sendSupportMessage();
+        }
+    }
+
+    // ===== Send Support Message =====
+    function sendSupportMessage() {
+        const input = document.getElementById('supportInput');
+        const msg = input.value.trim();
+        if (!msg) return;
+
+        addUserMessage(msg);
+        input.value = '';
+        input.style.height = 'auto';
+
+        sendToBot(msg);
+    }
+
+    // ===== Legacy handler (kept for compatibility) =====
+    async function handleSupportSubmit(e) {
+        e.preventDefault();
+        sendSupportMessage();
+    }
+</script>

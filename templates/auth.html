@@ -162,6 +162,16 @@
         30%,50%,70% { transform: translate3d(-4px,0,0); }
         40%,60% { transform: translate3d(4px,0,0); }
     }
+    @keyframes reqShake {
+        0%,100% { transform: translateX(0); }
+        15%      { transform: translateX(-5px); }
+        30%      { transform: translateX(5px); }
+        45%      { transform: translateX(-5px); }
+        60%      { transform: translateX(5px); }
+        75%      { transform: translateX(-3px); }
+        90%      { transform: translateX(3px); }
+    }
+    .req-shake { animation: reqShake 0.5s cubic-bezier(0.36,0.07,0.19,0.97) both; }
 </style>
 {% endblock %}
 
@@ -286,10 +296,10 @@
                         <div class="mt-2 bg-gray-800 dark:bg-gray-800 rounded-full overflow-hidden">
                             <div id="passwordStrength" class="password-strength"></div>
                         </div>
-                        <ul class="text-xs space-y-1 mt-2 text-gray-500">
-                            <li id="req-length" class="flex items-center gap-2 transition-colors"><i class="fas fa-circle text-[6px]"></i> 6 أحرف على الأقل</li>
-                            <li id="req-upper" class="flex items-center gap-2 transition-colors"><i class="fas fa-circle text-[6px]"></i> حرف كبير (A-Z)</li>
-                            <li id="req-number" class="flex items-center gap-2 transition-colors"><i class="fas fa-circle text-[6px]"></i> رقم (0-9)</li>
+                        <ul class="text-xs space-y-1 mt-2">
+                            <li id="req-length" class="flex items-center gap-2 text-gray-400 transition-colors duration-300"><i class="fas fa-circle text-[6px]"></i> 6 أحرف على الأقل</li>
+                            <li id="req-upper" class="flex items-center gap-2 text-gray-400 transition-colors duration-300"><i class="fas fa-circle text-[6px]"></i> حرف كبير (A-Z)</li>
+                            <li id="req-number" class="flex items-center gap-2 text-gray-400 transition-colors duration-300"><i class="fas fa-circle text-[6px]"></i> رقم (0-9)</li>
                         </ul>
                     </div>
 
@@ -494,11 +504,14 @@
         const el = document.getElementById(id);
         const icon = el.querySelector('i');
         if (met) {
-            el.classList.add('text-green-500'); el.classList.remove('text-gray-500');
-            icon.classList.replace('fa-circle', 'fa-check');
+            el.classList.add('text-green-500');
+            el.classList.remove('text-gray-400', 'text-red-500', 'req-shake');
+            if (icon) { icon.classList.remove('fa-circle', 'fa-times'); icon.classList.add('fa-check'); }
         } else {
-            el.classList.remove('text-green-500'); el.classList.add('text-gray-500');
-            icon.classList.replace('fa-check', 'fa-circle');
+            // On typing: stay gray (not red — red only triggered by Next button)
+            el.classList.remove('text-green-500', 'text-red-500', 'req-shake');
+            el.classList.add('text-gray-400');
+            if (icon) { icon.classList.remove('fa-check', 'fa-times'); icon.classList.add('fa-circle'); }
         }
     }
 
@@ -510,20 +523,51 @@
         err.classList.add('hidden'); return true;
     }
 
-    function goToStep(step) {
+    async function goToStep(step) {
         if (step === 2) {
             const email = document.getElementById('regEmail').value.trim();
             const pw = document.getElementById('regPassword').value;
             const conf = document.getElementById('regPasswordConfirm').value;
+
             if (!email || !pw || !conf) { showToast('يرجى ملء جميع الحقول', 'error'); return; }
             if (!email.includes('@')) { showToast('يرجى إدخال بريد إلكتروني صحيح', 'error'); return; }
-            // Gmail only validation
-            if (!email.toLowerCase().endsWith('@gmail.com')) { 
-                showToast('يُقبل فقط البريد الإلكتروني من Gmail (@gmail.com)', 'error'); 
-                return; 
+            if (!email.toLowerCase().endsWith('@gmail.com')) {
+                showToast('يُقبل فقط البريد الإلكتروني من Gmail (@gmail.com)', 'error');
+                return;
             }
             if (pw !== conf) { showToast('كلمتا المرور غير متطابقتين', 'error'); return; }
-            if (!checkPasswordStrength(pw)) { showToast('كلمة المرور لا تلبي المتطلبات', 'error'); return; }
+
+            // Validate password requirements — show red + shake if not met
+            const hasLength = pw.length >= 6;
+            const hasUpper = /[A-Z]/.test(pw);
+            const hasNumber = /[0-9]/.test(pw);
+            if (!hasLength || !hasUpper || !hasNumber) {
+                markRequirementErrors(hasLength, hasUpper, hasNumber);
+                showToast('كلمة المرور لا تلبي المتطلبات', 'error');
+                // Haptic feedback on mobile
+                if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+                return;
+            }
+
+            // ── Real-time email duplicate check ─────────────────────────
+            const checkBtn = document.querySelector('#step1 button[type="button"]');
+            if (checkBtn) { checkBtn.disabled = true; checkBtn.innerHTML = '<div class="loading-spinner" style="margin:auto"></div>'; }
+            try {
+                const resp = await fetch('/auth/check-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await resp.json();
+                if (!resp.ok || data.available === false) {
+                    showToast(data.error || 'البريد الإلكتروني مستخدم بالفعل', 'error');
+                    if (checkBtn) { checkBtn.disabled = false; checkBtn.innerHTML = 'التالي <i class="fas fa-arrow-left mr-2"></i>'; }
+                    return;
+                }
+            } catch (e) {
+                // Network error — continue; server will catch it later
+            }
+            if (checkBtn) { checkBtn.disabled = false; checkBtn.innerHTML = 'التالي <i class="fas fa-arrow-left mr-2"></i>'; }
         }
         if (step === 3) {
             if (!turnstileToken) { showToast('يرجى إكمال التحقق من الكابتشا', 'error'); return; }
@@ -541,6 +585,29 @@
         document.getElementById('progressBar2').style.width = step > 2 ? '100%' : '0%';
         currentStep = step;
         if (step === 3) setTimeout(() => document.querySelector('.verification-input[data-index="0"]').focus(), 100);
+    }
+
+    function markRequirementErrors(hasLength, hasUpper, hasNumber) {
+        const map = { 'req-length': hasLength, 'req-upper': hasUpper, 'req-number': hasNumber };
+        Object.entries(map).forEach(([id, met]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const icon = el.querySelector('i');
+            if (met) {
+                el.classList.remove('text-red-500', 'req-shake');
+                el.classList.add('text-green-500');
+                el.classList.remove('text-gray-500');
+                if (icon) icon.className = 'fas fa-check text-[6px]';
+            } else {
+                el.classList.remove('text-green-500', 'text-gray-500');
+                el.classList.add('text-red-500');
+                if (icon) icon.className = 'fas fa-times text-[6px]';
+                // Trigger shake animation
+                el.classList.remove('req-shake');
+                void el.offsetWidth; // reflow
+                el.classList.add('req-shake');
+            }
+        });
     }
 
     function onTurnstileSuccess(token) {

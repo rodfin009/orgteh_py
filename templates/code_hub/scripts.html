@@ -104,27 +104,30 @@
 
     // --- [3] INITIALIZATION & LOCALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
+        // ── Sync JS lang with server/URL lang ────────────────────────────
+        // The server renders pages at /ar/... or /en/... — use that as source of truth.
+        const serverLang = (window.SERVER_LANG
+            || document.documentElement.getAttribute('lang')
+            || (location.pathname.startsWith('/ar/') ? 'ar' : location.pathname.startsWith('/en/') ? 'en' : null)
+            || localStorage.getItem('lang')
+            || 'ar');
+        localStorage.setItem('lang', serverLang);
+        document.documentElement.dir = serverLang === 'ar' ? 'rtl' : 'ltr';
+        document.documentElement.lang = serverLang;
+
         applyIdeTranslations();
 
         // DEFAULT MODEL SELECTION LOGIC
-        // If no model selected, select the first one available in the HTML (usually DeepSeek)
         const firstModelCard = document.querySelector('#model-list-container .option-card');
         if (firstModelCard) {
             const onclickAttr = firstModelCard.getAttribute('onclick');
-            const match = onclickAttr.match(/'([^']+)'/g); // Extract IDs
+            const match = onclickAttr.match(/'([^']+)'/g);
             if (match && match[1]) {
-                // Remove quotes
                 const modelId = match[1].replace(/'/g, "");
                 selectedItems.models = [modelId];
                 firstModelCard.classList.add('selected');
                 firstModelCard.querySelector('.check-icon').classList.remove('hidden');
             }
-        }
-
-        const lang = localStorage.getItem('lang') || 'ar';
-        if (lang === 'ar') {
-            document.documentElement.dir = 'rtl';
-            document.documentElement.lang = 'ar';
         }
     });
 
@@ -480,24 +483,34 @@
     }
 
     function switchView(view) {
-        document.querySelectorAll('.view-section, .tab-item').forEach(el => el.classList.remove('active'));
+        // Update main view sections
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById(`view-${view}`).classList.add('active');
-        document.getElementById(`tab-${view}`).classList.add('active');
+
+        // Update main bottom-bar tabs (chat page)
+        const mainTabChat = document.getElementById('tab-chat');
+        const mainTabPreview = document.getElementById('tab-preview');
+        if (mainTabChat) mainTabChat.classList.toggle('active', view === 'chat');
+        if (mainTabPreview) mainTabPreview.classList.toggle('active', view === 'preview');
+
         const inputRow = document.getElementById('main-input-row');
         const bottomControls = document.querySelector('.bottom-controls-layer');
 
-        if (view === 'preview') { 
+        if (view === 'preview') {
             inputRow.classList.add('hidden');
-            // Hide site navbar for full-screen preview
             document.body.classList.add('preview-active');
-            // Hide bottom controls too for cleaner preview
             if (bottomControls) bottomControls.style.display = 'none';
-            // Re-show only the nav-container (tabs) at bottom of preview
             showPreviewNav();
+
+            // Set correct active tab in preview nav
+            const pTabChat = document.getElementById('preview-tab-chat');
+            const pTabPreview = document.getElementById('preview-tab-preview');
+            if (pTabChat) pTabChat.classList.remove('active');
+            if (pTabPreview) pTabPreview.classList.add('active');
 
             if (isPreviewDirty || Object.keys(currentFiles).length > 0) {
                 renderPreview(currentPreviewFile);
-                isPreviewDirty = false; 
+                isPreviewDirty = false;
             }
         } else {
             inputRow.classList.remove('hidden');
@@ -512,32 +525,70 @@
         if (!pNav) {
             pNav = document.createElement('div');
             pNav.id = 'preview-nav-bar';
-            pNav.style.cssText = `
+            pNav.style.cssText = `direction: ltr;
                 position: fixed; bottom: 0; left: 0; right: 0;
                 z-index: 9999; display: flex; justify-content: center;
                 padding: 10px 16px 16px;
                 background: linear-gradient(to top, var(--bg-body) 70%, transparent);
+                transition: opacity 0.3s ease;
             `;
+            // ترتيب الـ tabs يطابق الشريط الرئيسي بصرياً:
+            // الشريط الرئيسي في HTML: [المحادثة | المعاينة]
+            // في RTL: المحادثة تظهر يميناً، المعاينة يساراً.
+            // نحافظ على نفس الترتيب هنا.
             pNav.innerHTML = `
                 <div class="nav-container" style="pointer-events:auto;">
-                    <div onclick="toggleNavVisibility()" class="visibility-btn">
+                    <div onclick="togglePreviewNavVisibility()" class="visibility-btn" id="preview-visibility-btn" title="إخفاء/إظهار الشريط">
                         <i id="eye-icon-preview" class="fa-solid fa-eye-slash"></i>
                     </div>
-                    <div class="tab-pill">
-                        <div onclick="switchView('chat')" class="tab-item">
-                            <span data-i18n-ide="tab_chat">${getTrans().tab_chat}</span>
+                    <div class="tab-pill" id="preview-tab-pill">
+                        <div onclick="switchView('chat')" id="preview-tab-chat" class="tab-item">
+                            <span>${getTrans().tab_chat}</span>
                         </div>
-                        <div class="tab-item active">
-                            <span data-i18n-ide="tab_preview">${getTrans().tab_preview}</span>
+                        <div onclick="switchView('preview')" id="preview-tab-preview" class="tab-item active">
+                            <span>${getTrans().tab_preview}</span>
                         </div>
                     </div>
-                    <button onclick="openSpecificModal('main-menu-modal')" class="action-btn model-trigger">
+                    <button onclick="openSpecificModal('main-menu-modal')" class="action-btn model-trigger" id="preview-menu-btn">
                         <i class="fa-solid fa-ellipsis"></i>
                     </button>
                 </div>`;
             document.body.appendChild(pNav);
+        } else {
+            // Nav already exists — just make sure active state is correct
+            const pTabChat = document.getElementById('preview-tab-chat');
+            const pTabPreview = document.getElementById('preview-tab-preview');
+            if (pTabChat) pTabChat.classList.remove('active');
+            if (pTabPreview) pTabPreview.classList.add('active');
         }
+        // Reset visibility state on show
+        const pill = pNav.querySelector('#preview-tab-pill');
+        const menuBtn = pNav.querySelector('#preview-menu-btn');
+        const eyeIcon = pNav.querySelector('#eye-icon-preview');
+        if (pill) pill.style.display = '';
+        if (menuBtn) menuBtn.style.display = '';
+        if (eyeIcon) { eyeIcon.className = 'fa-solid fa-eye-slash'; }
         pNav.style.display = 'flex';
+    }
+
+    function togglePreviewNavVisibility() {
+        const pNav = document.getElementById('preview-nav-bar');
+        if (!pNav) return;
+        const pill = document.getElementById('preview-tab-pill');
+        const menuBtn = document.getElementById('preview-menu-btn');
+        const eyeIcon = document.getElementById('eye-icon-preview');
+        const isHidden = pill && pill.style.display === 'none';
+        if (isHidden) {
+            // Show content
+            if (pill) pill.style.display = '';
+            if (menuBtn) menuBtn.style.display = '';
+            if (eyeIcon) eyeIcon.className = 'fa-solid fa-eye-slash';
+        } else {
+            // Hide content, keep only eye icon
+            if (pill) pill.style.display = 'none';
+            if (menuBtn) menuBtn.style.display = 'none';
+            if (eyeIcon) eyeIcon.className = 'fa-solid fa-eye';
+        }
     }
 
     function hidePreviewNav() {

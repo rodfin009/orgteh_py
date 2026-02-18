@@ -185,8 +185,19 @@
     const lastUpdate = new Date("{{ last_update }}");
     const updateText = document.getElementById('last-update-text');
 
+    function getCurrentLang() {
+        // Priority: SERVER_LANG (from base template) → URL path → localStorage → default ar
+        return (window.SERVER_LANG
+            || (location.pathname.startsWith('/en/') ? 'en' : location.pathname.startsWith('/ar/') ? 'ar' : null)
+            || document.documentElement.getAttribute('lang')
+            || localStorage.getItem('lang')
+            || 'ar');
+    }
+
     function updatePerfLanguage() {
-        const lang = localStorage.getItem('lang') || 'ar';
+        const lang = getCurrentLang();
+        // Keep localStorage in sync for other scripts
+        localStorage.setItem('lang', lang);
         const t = perfTranslations[lang];
         document.querySelectorAll('[data-perf-i18n]').forEach(el => {
             const key = el.getAttribute('data-perf-i18n');
@@ -196,7 +207,7 @@
     }
 
     function updateTimeAgo() {
-        const lang = localStorage.getItem('lang') || 'ar';
+        const lang = getCurrentLang();
         const t = perfTranslations[lang];
         const seconds = Math.floor((new Date() - lastUpdate) / 1000);
         let text = "";

@@ -2,7 +2,6 @@
 
 {% block content %}
 <style>
-    /* Standard Text Gradient (Blue/Cyan/Indigo) */
     .hero-text-gradient {
         background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #4f46e5 100%);
         -webkit-background-clip: text;
@@ -17,30 +16,65 @@
         border-color: #6366f1;
     }
 
-    /* Form Styling */
-    select, input, textarea {
-        background-color: #f9fafb;
-        color: #111827;
-        transition: all 0.2s;
+    /* ── Custom Dropdown ── */
+    .custom-select-wrapper { position: relative; user-select: none; }
+    .custom-select-trigger {
+        display: flex; align-items: center; justify-content: space-between;
+        width: 100%; padding: 14px 16px; border-radius: 12px; cursor: pointer;
+        border: 1px solid #d1d5db; background: #f9fafb; color: #111827;
+        font-size: 0.9rem; font-weight: 500; transition: all 0.2s;
     }
-    .dark select, .dark input, .dark textarea {
-        background-color: #1e293b; 
-        color: white;
-        border-color: #334155;
+    .dark .custom-select-trigger {
+        background: #1e293b; border-color: #334155; color: #f1f5f9;
     }
-    .dark select:focus, .dark input:focus, .dark textarea:focus {
-        border-color: #6366f1;
-        ring: 2px solid #6366f1;
+    .custom-select-trigger:hover { border-color: #6366f1; }
+    .custom-select-trigger.open { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+    .custom-select-trigger .chevron {
+        transition: transform 0.25s ease;
+        color: #9ca3af; font-size: 0.75rem; flex-shrink: 0;
     }
+    .custom-select-trigger.open .chevron { transform: rotate(180deg); }
+    .custom-select-trigger .selected-text { flex: 1; text-align: start; }
+    .custom-select-trigger .selected-text.placeholder { color: #9ca3af; }
 
-    /* Success Checkmark */
+    /* Dropdown panel — appears BELOW the trigger */
+    .custom-select-options {
+        position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+        z-index: 9999;
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
+        box-shadow: 0 20px 40px -8px rgba(0,0,0,0.18), 0 4px 12px -2px rgba(0,0,0,0.08);
+        overflow: hidden; max-height: 0; opacity: 0; pointer-events: none;
+        transition: max-height 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease, transform 0.22s cubic-bezier(0.4,0,0.2,1);
+        transform: translateY(-8px);
+    }
+    .dark .custom-select-options {
+        background: #1e293b; border-color: #334155;
+    }
+    .custom-select-options.open {
+        max-height: 260px; opacity: 1; pointer-events: auto; transform: translateY(0);
+    }
+    .custom-select-option {
+        padding: 13px 16px; cursor: pointer; font-size: 0.88rem; font-weight: 500;
+        color: #374151; transition: background 0.15s, color 0.15s;
+        display: flex; align-items: center; gap: 10px;
+    }
+    .dark .custom-select-option { color: #cbd5e1; }
+    .custom-select-option:hover { background: #eef2ff; color: #4f46e5; }
+    .dark .custom-select-option:hover { background: #312e81/20; background: rgba(49,46,129,0.25); color: #a5b4fc; }
+    .custom-select-option.selected { background: #eef2ff; color: #4f46e5; font-weight: 700; }
+    .dark .custom-select-option.selected { background: rgba(49,46,129,0.3); color: #a5b4fc; }
+    .custom-select-option:not(:last-child) { border-bottom: 1px solid #f3f4f6; }
+    .dark .custom-select-option:not(:last-child) { border-bottom-color: #1e293b; }
+    .custom-select-option .opt-icon { font-size: 1rem; width: 20px; text-align: center; }
+
+    /* inputs */
+    .dark input, .dark textarea { background: #1e293b; color: #f1f5f9; border-color: #334155; }
+    .dark input:focus, .dark textarea:focus { border-color: #6366f1; }
+
     .success-check {
-        width: 80px; height: 80px;
-        border-radius: 50%;
-        display: block;
+        width: 80px; height: 80px; border-radius: 50%; display: block;
         stroke-width: 2; stroke: #22c55e; stroke-miterlimit: 10;
-        margin: 10% auto;
-        box-shadow: inset 0px 0px 0px #22c55e;
+        margin: 10% auto; box-shadow: inset 0px 0px 0px #22c55e;
         animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
     }
     @keyframes fill { 100% { box-shadow: inset 0px 0px 0px 30px #22c55e; } }
@@ -67,7 +101,6 @@
                 <h3 class="font-bold text-xl text-gray-900 dark:text-white mb-2" data-i18n="ent.card_clinic_title">Clinics & Centers</h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400 font-medium" data-i18n="ent.card_clinic_desc">Smart booking systems & patient data analysis.</p>
             </div>
-
             <div class="bg-white dark:bg-[#1e293b] p-8 rounded-2xl border border-gray-200 dark:border-gray-700 card-hover text-center cursor-default">
                 <div class="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-2xl flex items-center justify-center mx-auto mb-5 text-green-600 dark:text-green-400">
                     <i class="fa-solid fa-store text-3xl"></i>
@@ -75,7 +108,6 @@
                 <h3 class="font-bold text-xl text-gray-900 dark:text-white mb-2" data-i18n="ent.card_store_title">E-commerce & Support</h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400 font-medium" data-i18n="ent.card_store_desc">Automated CS bots & product recommendations.</p>
             </div>
-
             <div class="bg-white dark:bg-[#1e293b] p-8 rounded-2xl border border-gray-200 dark:border-gray-700 card-hover text-center cursor-default">
                 <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mx-auto mb-5 text-blue-600 dark:text-blue-400">
                     <i class="fa-solid fa-server text-3xl"></i>
@@ -90,6 +122,8 @@
 
             <div class="p-8 md:p-12">
                 <form id="enterpriseForm" onsubmit="submitForm(event)" class="space-y-8">
+
+                    <!-- Section 1 -->
                     <div>
                         <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-3">
                             <span class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-black">1</span>
@@ -97,41 +131,86 @@
                         </h3>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Project Type -->
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2" data-i18n="ent.label_type">Project Type</label>
-                                <select id="projectType" required class="w-full rounded-xl border-gray-300 dark:border-gray-600 py-3.5 px-4 shadow-sm focus:border-primary focus:ring focus:ring-primary/20 cursor-pointer">
-                                    <option value="" disabled selected data-i18n="ent.opt_select">Select...</option>
-                                    <option value="cs" data-i18n="ent.opt_type_cs">Customer Service / Bot</option>
-                                    <option value="api" data-i18n="ent.opt_type_api">Dedicated API</option>
-                                    <option value="web" data-i18n="ent.opt_type_web">Website / App Integration</option>
-                                    <option value="other" data-i18n="ent.opt_type_other">Other</option>
-                                </select>
+                                <div class="custom-select-wrapper" id="wrap-projectType">
+                                    <div class="custom-select-trigger" onclick="toggleDropdown('projectType')" id="trigger-projectType">
+                                        <span class="selected-text placeholder" id="text-projectType" data-i18n="ent.opt_select">Select...</span>
+                                        <i class="fa-solid fa-chevron-down chevron"></i>
+                                    </div>
+                                    <div class="custom-select-options" id="opts-projectType">
+                                        <div class="custom-select-option" onclick="selectOption('projectType','cs','ent.opt_type_cs')">
+                                            <span class="opt-icon">🤖</span><span data-i18n="ent.opt_type_cs">Customer Service / Bot</span>
+                                        </div>
+                                        <div class="custom-select-option" onclick="selectOption('projectType','api','ent.opt_type_api')">
+                                            <span class="opt-icon">⚡</span><span data-i18n="ent.opt_type_api">Dedicated API</span>
+                                        </div>
+                                        <div class="custom-select-option" onclick="selectOption('projectType','web','ent.opt_type_web')">
+                                            <span class="opt-icon">🌐</span><span data-i18n="ent.opt_type_web">Website / App Integration</span>
+                                        </div>
+                                        <div class="custom-select-option" onclick="selectOption('projectType','other','ent.opt_type_other')">
+                                            <span class="opt-icon">✨</span><span data-i18n="ent.opt_type_other">Other</span>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="projectType" required>
+                                </div>
                             </div>
+
+                            <!-- Volume -->
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2" data-i18n="ent.label_volume">Expected Volume</label>
-                                <select id="volume" required class="w-full rounded-xl border-gray-300 dark:border-gray-600 py-3.5 px-4 shadow-sm focus:border-primary focus:ring focus:ring-primary/20 cursor-pointer">
-                                    <option value="" disabled selected data-i18n="ent.opt_select">Select...</option>
-                                    <option value="low" data-i18n="ent.opt_vol_low">Standard (Startups)</option>
-                                    <option value="medium" data-i18n="ent.opt_vol_med">Medium (Growing Business)</option>
-                                    <option value="high" data-i18n="ent.opt_vol_high">High (Enterprise / Heavy Load)</option>
-                                </select>
+                                <div class="custom-select-wrapper" id="wrap-volume">
+                                    <div class="custom-select-trigger" onclick="toggleDropdown('volume')" id="trigger-volume">
+                                        <span class="selected-text placeholder" id="text-volume" data-i18n="ent.opt_select">Select...</span>
+                                        <i class="fa-solid fa-chevron-down chevron"></i>
+                                    </div>
+                                    <div class="custom-select-options" id="opts-volume">
+                                        <div class="custom-select-option" onclick="selectOption('volume','low','ent.opt_vol_low')">
+                                            <span class="opt-icon">🌱</span><span data-i18n="ent.opt_vol_low">Standard (Startups)</span>
+                                        </div>
+                                        <div class="custom-select-option" onclick="selectOption('volume','medium','ent.opt_vol_med')">
+                                            <span class="opt-icon">📈</span><span data-i18n="ent.opt_vol_med">Medium (Growing Business)</span>
+                                        </div>
+                                        <div class="custom-select-option" onclick="selectOption('volume','high','ent.opt_vol_high')">
+                                            <span class="opt-icon">🏢</span><span data-i18n="ent.opt_vol_high">High (Enterprise / Heavy Load)</span>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="volume" required>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- Needs -->
                         <div class="mt-6">
                             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2" data-i18n="ent.label_needs">Primary Requirement</label>
-                            <select id="needs" required class="w-full rounded-xl border-gray-300 dark:border-gray-600 py-3.5 px-4 shadow-sm focus:border-primary focus:ring focus:ring-primary/20 cursor-pointer">
-                                <option value="" disabled selected data-i18n="ent.opt_select">Select...</option>
-                                <option value="price" data-i18n="ent.opt_need_price">Special Pricing (Bulk Discount)</option>
-                                <option value="setup" data-i18n="ent.opt_need_setup">Full Setup & Development</option>
-                                <option value="vps" data-i18n="ent.opt_need_vps">Dedicated VPS / Private Instance</option>
-                                <option value="unsure" data-i18n="ent.opt_need_unsure">Not sure, need consultation</option>
-                            </select>
+                            <div class="custom-select-wrapper" id="wrap-needs">
+                                <div class="custom-select-trigger" onclick="toggleDropdown('needs')" id="trigger-needs">
+                                    <span class="selected-text placeholder" id="text-needs" data-i18n="ent.opt_select">Select...</span>
+                                    <i class="fa-solid fa-chevron-down chevron"></i>
+                                </div>
+                                <div class="custom-select-options" id="opts-needs">
+                                    <div class="custom-select-option" onclick="selectOption('needs','price','ent.opt_need_price')">
+                                        <span class="opt-icon">💰</span><span data-i18n="ent.opt_need_price">Special Pricing (Bulk Discount)</span>
+                                    </div>
+                                    <div class="custom-select-option" onclick="selectOption('needs','setup','ent.opt_need_setup')">
+                                        <span class="opt-icon">🔧</span><span data-i18n="ent.opt_need_setup">Full Setup & Development</span>
+                                    </div>
+                                    <div class="custom-select-option" onclick="selectOption('needs','vps','ent.opt_need_vps')">
+                                        <span class="opt-icon">🖥️</span><span data-i18n="ent.opt_need_vps">Dedicated VPS / Private Instance</span>
+                                    </div>
+                                    <div class="custom-select-option" onclick="selectOption('needs','unsure','ent.opt_need_unsure')">
+                                        <span class="opt-icon">💬</span><span data-i18n="ent.opt_need_unsure">Not sure, need consultation</span>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="needs" required>
+                            </div>
                         </div>
                     </div>
 
                     <div class="border-t border-gray-100 dark:border-gray-700/50"></div>
 
+                    <!-- Section 2 -->
                     <div>
                         <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-3">
                             <span class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-black">2</span>
@@ -139,23 +218,44 @@
                         </h3>
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <!-- Contact Method -->
                             <div class="md:col-span-1">
                                 <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2" data-i18n="ent.label_method">Method</label>
-                                <select id="contactMethod" class="w-full rounded-xl border-gray-300 dark:border-gray-600 py-3.5 px-4 bg-gray-50 dark:bg-gray-800">
-                                    <option value="telegram">Telegram</option>
-                                    <option value="whatsapp">WhatsApp</option>
-                                    <option value="email">Email</option>
-                                </select>
+                                <div class="custom-select-wrapper" id="wrap-contactMethod">
+                                    <div class="custom-select-trigger" onclick="toggleDropdown('contactMethod')" id="trigger-contactMethod">
+                                        <span class="selected-text" id="text-contactMethod">
+                                            <span class="opt-icon">✈️</span> Telegram
+                                        </span>
+                                        <i class="fa-solid fa-chevron-down chevron"></i>
+                                    </div>
+                                    <div class="custom-select-options" id="opts-contactMethod">
+                                        <div class="custom-select-option selected" onclick="selectOption('contactMethod','telegram',null,'✈️ Telegram')">
+                                            <span class="opt-icon">✈️</span>Telegram
+                                        </div>
+                                        <div class="custom-select-option" onclick="selectOption('contactMethod','whatsapp',null,'📱 WhatsApp')">
+                                            <span class="opt-icon">📱</span>WhatsApp
+                                        </div>
+                                        <div class="custom-select-option" onclick="selectOption('contactMethod','email',null,'📧 Email')">
+                                            <span class="opt-icon">📧</span>Email
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="contactMethod" value="telegram">
+                                </div>
                             </div>
+
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2" data-i18n="ent.label_handle">Username / Number / Email</label>
-                                <input type="text" id="contactValue" required class="w-full rounded-xl border-gray-300 dark:border-gray-600 py-3.5 px-4 shadow-sm focus:border-primary focus:ring focus:ring-primary/20" placeholder="...">
+                                <input type="text" id="contactValue" required
+                                    class="w-full rounded-xl border border-gray-300 dark:border-gray-600 py-3.5 px-4 shadow-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                    placeholder="...">
                             </div>
                         </div>
 
                         <div class="mt-6">
                             <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2" data-i18n="ent.label_desc">Brief Description (Optional)</label>
-                            <textarea id="description" rows="2" class="w-full rounded-xl border-gray-300 dark:border-gray-600 py-3 px-4 shadow-sm focus:border-primary focus:ring focus:ring-primary/20" placeholder="..."></textarea>
+                            <textarea id="description" rows="2"
+                                class="w-full rounded-xl border border-gray-300 dark:border-gray-600 py-3 px-4 shadow-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                placeholder="..."></textarea>
                         </div>
                     </div>
 
@@ -166,7 +266,8 @@
                         </p>
                     </div>
 
-                    <button type="submit" id="submitBtn" class="w-full py-4 bg-gradient-to-r from-blue-600 to-primary text-white font-black text-lg rounded-xl shadow-lg shadow-blue-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-3 mt-6">
+                    <button type="submit" id="submitBtn"
+                        class="w-full py-4 bg-gradient-to-r from-blue-600 to-primary text-white font-black text-lg rounded-xl shadow-lg shadow-blue-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-3 mt-6">
                         <span data-i18n="ent.btn_submit">Request Custom Quote</span>
                         <i class="fa-solid fa-arrow-right rtl:rotate-180"></i>
                     </button>
@@ -186,6 +287,62 @@
 </div>
 
 <script>
+    // ── Custom Dropdown Logic ─────────────────────────────────────────────────
+    let openDropdown = null;
+
+    function toggleDropdown(id) {
+        const opts = document.getElementById('opts-' + id);
+        const trigger = document.getElementById('trigger-' + id);
+        const isOpen = opts.classList.contains('open');
+
+        // Close all first
+        closeAllDropdowns();
+
+        if (!isOpen) {
+            opts.classList.add('open');
+            trigger.classList.add('open');
+            openDropdown = id;
+        }
+    }
+
+    function closeAllDropdowns() {
+        document.querySelectorAll('.custom-select-options.open').forEach(el => el.classList.remove('open'));
+        document.querySelectorAll('.custom-select-trigger.open').forEach(el => el.classList.remove('open'));
+        openDropdown = null;
+    }
+
+    // Close when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.custom-select-wrapper')) closeAllDropdowns();
+    });
+
+    // selectOption(fieldId, value, i18nKey, customLabel)
+    function selectOption(fieldId, value, i18nKey, customLabel) {
+        const hidden = document.getElementById(fieldId);
+        const textEl = document.getElementById('text-' + fieldId);
+
+        hidden.value = value;
+
+        // Update label
+        if (customLabel) {
+            textEl.innerHTML = customLabel;
+        } else {
+            // Use i18n text from the clicked option
+            const clickedOpt = event.currentTarget;
+            const span = clickedOpt.querySelector('[data-i18n]') || clickedOpt.querySelector('span:last-child');
+            const icon = clickedOpt.querySelector('.opt-icon');
+            textEl.innerHTML = (icon ? icon.outerHTML + ' ' : '') + (span ? span.textContent : value);
+        }
+        textEl.classList.remove('placeholder');
+
+        // Mark selected
+        document.querySelectorAll('#opts-' + fieldId + ' .custom-select-option').forEach(o => o.classList.remove('selected'));
+        if (event.currentTarget) event.currentTarget.classList.add('selected');
+
+        closeAllDropdowns();
+    }
+
+    // ── Translations ──────────────────────────────────────────────────────────
     const entTranslations = {
         en: {
             "ent.title_main": "Custom AI Solutions",
@@ -269,20 +426,40 @@
         }
     }
 
+    // ── Form Submit ───────────────────────────────────────────────────────────
     async function submitForm(e) {
         e.preventDefault();
+
+        // Validate custom selects
+        const requiredFields = ['projectType', 'volume', 'needs'];
+        let valid = true;
+        requiredFields.forEach(id => {
+            const val = document.getElementById(id).value;
+            const trigger = document.getElementById('trigger-' + id);
+            if (!val) {
+                trigger.style.borderColor = '#ef4444';
+                trigger.style.boxShadow = '0 0 0 3px rgba(239,68,68,0.15)';
+                valid = false;
+                setTimeout(() => {
+                    trigger.style.borderColor = '';
+                    trigger.style.boxShadow = '';
+                }, 2500);
+            }
+        });
+        if (!valid) return;
+
         const btn = document.getElementById('submitBtn');
-        const originalText = btn.innerHTML;
+        const originalHTML = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...';
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
 
         const data = {
-            projectType: document.getElementById('projectType').value,
-            volume: document.getElementById('volume').value,
-            needs: document.getElementById('needs').value,
+            projectType:   document.getElementById('projectType').value,
+            volume:        document.getElementById('volume').value,
+            needs:         document.getElementById('needs').value,
             contactMethod: document.getElementById('contactMethod').value,
-            contactValue: document.getElementById('contactValue').value,
-            description: document.getElementById('description').value
+            contactValue:  document.getElementById('contactValue').value,
+            description:   document.getElementById('description').value
         };
 
         try {
@@ -295,19 +472,17 @@
             if (res.ok) {
                 document.getElementById('enterpriseForm').style.display = 'none';
                 document.getElementById('successMessage').classList.remove('hidden');
-                document.querySelectorAll('h3').forEach(el => { 
-                    if(el.innerText.includes('1') || el.innerText.includes('2')) el.style.display = 'none'; 
-                });
-                window.scrollTo(0, 0);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
-                alert("Something went wrong. Please try again.");
+                const d = await res.json().catch(() => ({}));
+                alert(d.detail || 'Something went wrong. Please try again.');
                 btn.disabled = false;
-                btn.innerHTML = originalText;
+                btn.innerHTML = originalHTML;
             }
-        } catch(err) {
-            alert("Connection Error");
+        } catch {
+            alert('Connection Error. Please try again.');
             btn.disabled = false;
-            btn.innerHTML = originalText;
+            btn.innerHTML = originalHTML;
         }
     }
 </script>
