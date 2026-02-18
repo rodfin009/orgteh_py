@@ -12,9 +12,9 @@
     // ==========================================
     const ideTranslations = {
         en: {
-            welcome_title: "👋 Welcome to Nexus",
+            welcome_title: "👋 Welcome to Orgteh Code",
             welcome_desc: "Generate code snippets & applications instantly.",
-            input_placeholder: "Ask Nexus to build something...",
+            input_placeholder: "Ask Orgteh to build something...",
             tab_chat: "Chat",
             tab_preview: "Preview",
             no_preview: "Start building a project to be showcased here.",
@@ -25,13 +25,18 @@
             thinking_process: "Thinking...",
             thinking_finished: "Reasoning Completed",
             verifying: "Verifying...",
-            menu_title: "Nexus Options",
+            menu_title: "Orgteh Options",
             menu_models: "AI Models",
             menu_tools: "Tools Library",
+            menu_github: "Deploy to GitHub",
+            menu_github_desc: "Publish your project to GitHub Pages",
             select_model_desc: "Select the AI model for this project",
             select_tool_desc: "Enable extra capabilities",
             select_model_title: "Choose AI Model",
             select_tool_title: "Select Tools",
+            edit_file: "Edit File",
+            ask_about_file: "Ask about this file",
+            download_file: "Download",
             models: {
                 "deepseek-ai/deepseek-v3.2": { name: "DeepSeek V3.2", desc: "Best Architect. Excellent logic.", badge: "Recommended" },
                 "mistralai/mistral-large-3-675b-instruct-2512": { name: "Mistral Large 3", desc: "High precision & Documentation.", badge: "Stable" },
@@ -47,9 +52,9 @@
             }
         },
         ar: {
-            welcome_title: "👋 مرحباً بك في Nexus",
+            welcome_title: "👋 مرحباً بك في Orgteh Code",
             welcome_desc: "توليد سريع للأكواد والنصوص للمهام اليومية.",
-            input_placeholder: "اطلب من Nexus بناء مشروع...",
+            input_placeholder: "اطلب من Orgteh بناء مشروع...",
             tab_chat: "المحادثة",
             tab_preview: "المعاينة",
             no_preview: ".ابدأ بناء مشروع ليتم عرضه هنا",
@@ -60,13 +65,18 @@
             thinking_process: "جاري التفكير...",
             thinking_finished: "تم الانتهاء من التفكير",
             verifying: "جاري التحقق...",
-            menu_title: "خيارات Nexus",
+            menu_title: "خيارات Orgteh",
             menu_models: "نماذج الذكاء",
             menu_tools: "مكتبة الأدوات",
+            menu_github: "نشر في GitHub",
+            menu_github_desc: "انشر مشروعك على GitHub Pages",
             select_model_desc: "اختر النموذج المناسب لمشروعك",
             select_tool_desc: "قم بتفعيل الأدوات الإضافية",
             select_model_title: "اختيار نموذج الذكاء",
             select_tool_title: "اختيار الأدوات",
+            edit_file: "تعديل الملف",
+            ask_about_file: "استفسار عن الملف",
+            download_file: "تحميل",
             models: {
                 "deepseek-ai/deepseek-v3.2": { name: "DeepSeek V3.2", desc: "المهندس الأفضل. ممتاز في المنطق.", badge: "موصى به" },
                 "mistralai/mistral-large-3-675b-instruct-2512": { name: "Mistral Large 3", desc: "دقة عالية وتوثيق ممتاز.", badge: "مستقر" },
@@ -178,13 +188,21 @@
     async function sendMessage() {
         const input = document.getElementById('prompt-input');
         const fileInput = document.getElementById('file-input');
-        const text = input.value.trim();
+        let text = input.value.trim();
         if(!text && fileInput.files.length === 0) return;
 
         if(window.event) window.event.preventDefault();
 
         const t = getTrans();
-        let displayMsg = text.replace(/\n/g, '<br>');
+
+        // Inject pending file context if user clicked "ask about file"
+        if (window._pendingFileContext) {
+            const fc = window._pendingFileContext;
+            text = text + `\n\n[File context: ${fc.name}]\n${fc.content}`;
+            window._pendingFileContext = null;
+        }
+
+        let displayMsg = input.value.trim().replace(/\n/g, '<br>');
         if(fileInput.files.length > 0) displayMsg += `<div class="text-xs opacity-70 mt-1"><i class="fa-solid fa-paperclip"></i> ${fileInput.files.length} ${t.file_attached}</div>`;
 
         addMessageUI('user', displayMsg);
@@ -343,12 +361,100 @@
 
     function renderArtifactBadge(container, filename) {
         const artDiv = container.querySelector('.file-artifacts');
-        if(artDiv && ![...artDiv.children].some(c => c.textContent.includes(filename))) {
+        if(artDiv && ![...artDiv.children].some(c => c.dataset.file === filename)) {
+            const t = getTrans();
             const badge = document.createElement('div');
             badge.className = "artifact-badge animate-fadeIn";
-            badge.innerHTML = `<span>${filename}</span><i class="fa-solid fa-file-code text-indigo-500 ml-2"></i>`;
-            badge.onclick = () => downloadSingle(filename);
+            badge.dataset.file = filename;
+
+            const ext = filename.split('.').pop().toLowerCase();
+            const iconMap = { html: 'fa-html5 text-orange-500', css: 'fa-css3-alt text-blue-500', js: 'fa-js text-yellow-500', py: 'fa-python text-green-500' };
+            const iconClass = iconMap[ext] || 'fa-file-code text-indigo-500';
+
+            badge.innerHTML = `
+                <i class="fab ${iconClass} ml-2"></i>
+                <span class="font-medium">${filename}</span>
+                <div class="artifact-actions" style="display:flex;gap:4px;margin-right:4px;">
+                    <button title="${t.edit_file}" onclick="event.stopPropagation();openFileEditor('${filename}')" 
+                            style="background:rgba(99,102,241,0.15);border:none;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:0.75rem;color:#818cf8;">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button title="${t.ask_about_file}" onclick="event.stopPropagation();askAboutFile('${filename}')" 
+                            style="background:rgba(16,185,129,0.15);border:none;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:0.75rem;color:#34d399;">
+                        <i class="fa-solid fa-message"></i>
+                    </button>
+                    <button title="${t.download_file}" onclick="event.stopPropagation();downloadSingle('${filename}')" 
+                            style="background:rgba(107,114,128,0.15);border:none;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:0.75rem;color:#9ca3af;">
+                        <i class="fa-solid fa-download"></i>
+                    </button>
+                </div>`;
             artDiv.appendChild(badge);
+        }
+    }
+
+    // --- File Editor Modal ---
+    function openFileEditor(filename) {
+        const content = currentFiles[filename] || '';
+        let modal = document.getElementById('file-editor-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'file-editor-modal';
+            modal.style.cssText = `
+                position:fixed;inset:0;z-index:20000;display:flex;align-items:flex-end;justify-content:center;
+                background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);
+            `;
+            modal.innerHTML = `
+                <div style="background:var(--bg-card);width:100%;max-width:700px;border-radius:24px 24px 0 0;
+                            padding:20px;border:1px solid var(--border-color);max-height:85vh;display:flex;flex-direction:column;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <i class="fa-solid fa-file-code text-indigo-500"></i>
+                            <span id="editor-filename" style="font-weight:bold;font-size:0.95rem;color:var(--text-primary);"></span>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button id="editor-save-btn" style="background:#4f46e5;color:white;border:none;border-radius:10px;padding:8px 18px;font-weight:bold;cursor:pointer;font-size:0.85rem;">
+                                <i class="fa-solid fa-floppy-disk mr-1"></i> حفظ
+                            </button>
+                            <button onclick="document.getElementById('file-editor-modal').style.display='none'" 
+                                    style="background:var(--bg-body);border:1px solid var(--border-color);color:var(--text-secondary);border-radius:10px;padding:8px 14px;cursor:pointer;">
+                                <i class="fa-solid fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="editor-textarea" style="flex:1;background:var(--bg-input);border:1px solid var(--border-color);
+                        border-radius:12px;padding:14px;color:var(--text-primary);font-family:'Courier New',monospace;
+                        font-size:0.85rem;resize:none;outline:none;min-height:300px;line-height:1.6;"></textarea>
+                </div>`;
+            document.body.appendChild(modal);
+        }
+        modal.style.display = 'flex';
+        document.getElementById('editor-filename').textContent = filename;
+        const ta = document.getElementById('editor-textarea');
+        ta.value = content;
+        // Save handler
+        document.getElementById('editor-save-btn').onclick = () => {
+            currentFiles[filename] = ta.value;
+            isPreviewDirty = true;
+            modal.style.display = 'none';
+            // If preview is active, refresh it
+            if (document.getElementById('tab-preview')?.classList.contains('active')) {
+                renderPreview(currentPreviewFile);
+            }
+        };
+    }
+
+    function askAboutFile(filename) {
+        const content = currentFiles[filename] || '';
+        const input = document.getElementById('prompt-input');
+        if (input) {
+            const lang = localStorage.getItem('lang') || 'ar';
+            input.value = lang === 'ar'
+                ? `بالنسبة لملف ${filename}، `
+                : `Regarding file ${filename}, `;
+            // Also inject file content into next message context
+            window._pendingFileContext = { name: filename, content: content.slice(0, 2000) };
+            input.focus();
+            autoResize(input);
         }
     }
 
@@ -378,15 +484,65 @@
         document.getElementById(`view-${view}`).classList.add('active');
         document.getElementById(`tab-${view}`).classList.add('active');
         const inputRow = document.getElementById('main-input-row');
+        const bottomControls = document.querySelector('.bottom-controls-layer');
+
         if (view === 'preview') { 
-            inputRow.classList.add('hidden'); 
+            inputRow.classList.add('hidden');
+            // Hide site navbar for full-screen preview
+            document.body.classList.add('preview-active');
+            // Hide bottom controls too for cleaner preview
+            if (bottomControls) bottomControls.style.display = 'none';
+            // Re-show only the nav-container (tabs) at bottom of preview
+            showPreviewNav();
+
             if (isPreviewDirty || Object.keys(currentFiles).length > 0) {
                 renderPreview(currentPreviewFile);
                 isPreviewDirty = false; 
             }
         } else {
-            inputRow.classList.remove('hidden'); 
+            inputRow.classList.remove('hidden');
+            document.body.classList.remove('preview-active');
+            if (bottomControls) bottomControls.style.display = '';
+            hidePreviewNav();
         }
+    }
+
+    function showPreviewNav() {
+        let pNav = document.getElementById('preview-nav-bar');
+        if (!pNav) {
+            pNav = document.createElement('div');
+            pNav.id = 'preview-nav-bar';
+            pNav.style.cssText = `
+                position: fixed; bottom: 0; left: 0; right: 0;
+                z-index: 9999; display: flex; justify-content: center;
+                padding: 10px 16px 16px;
+                background: linear-gradient(to top, var(--bg-body) 70%, transparent);
+            `;
+            pNav.innerHTML = `
+                <div class="nav-container" style="pointer-events:auto;">
+                    <div onclick="toggleNavVisibility()" class="visibility-btn">
+                        <i id="eye-icon-preview" class="fa-solid fa-eye-slash"></i>
+                    </div>
+                    <div class="tab-pill">
+                        <div onclick="switchView('chat')" class="tab-item">
+                            <span data-i18n-ide="tab_chat">${getTrans().tab_chat}</span>
+                        </div>
+                        <div class="tab-item active">
+                            <span data-i18n-ide="tab_preview">${getTrans().tab_preview}</span>
+                        </div>
+                    </div>
+                    <button onclick="openSpecificModal('main-menu-modal')" class="action-btn model-trigger">
+                        <i class="fa-solid fa-ellipsis"></i>
+                    </button>
+                </div>`;
+            document.body.appendChild(pNav);
+        }
+        pNav.style.display = 'flex';
+    }
+
+    function hidePreviewNav() {
+        const pNav = document.getElementById('preview-nav-bar');
+        if (pNav) pNav.style.display = 'none';
     }
 
     function cleanCodeFence(content) {
@@ -536,6 +692,189 @@
             list.push(itemId); 
             elem.classList.add('selected'); 
             elem.querySelector('.check-icon').classList.remove('hidden'); 
+        }
+    }
+
+    // --- [7] AUTO RESIZE TEXTAREA ---
+    function autoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    }
+
+    // --- [8] GITHUB DEPLOY ---
+    function openGitHubDeployModal() {
+        const modal = document.getElementById('github-deploy-modal');
+        if (!modal) return;
+
+        // Reset all states
+        ['gh-not-connected','gh-no-files','gh-deploy-form','gh-import-form','gh-loading','gh-success'].forEach(id => {
+            document.getElementById(id)?.classList.add('hidden');
+        });
+
+        switchGhTab('deploy');
+
+        const files = Object.keys(currentFiles);
+
+        // Auto generate repo name
+        const repoInput = document.getElementById('gh-repo-name');
+        if (repoInput && !repoInput.value) {
+            repoInput.value = 'orgteh-project-' + Date.now().toString(36);
+        }
+
+        fetch('/api/github/status')
+            .then(r => r.json())
+            .then(data => {
+                if (data.connected) {
+                    if (files.length === 0) {
+                        document.getElementById('gh-no-files').classList.remove('hidden');
+                    } else {
+                        const list = document.getElementById('gh-files-list');
+                        if (list) list.innerHTML = files.map(f => 
+                            `<li class="flex items-center gap-2"><i class="fas fa-file-code text-indigo-500"></i> ${f}</li>`
+                        ).join('');
+                        document.getElementById('gh-deploy-form').classList.remove('hidden');
+                    }
+                } else {
+                    document.getElementById('gh-not-connected').classList.remove('hidden');
+                }
+            })
+            .catch(() => {
+                document.getElementById('gh-not-connected').classList.remove('hidden');
+            });
+
+        openSpecificModal('github-deploy-modal');
+    }
+
+    function switchGhTab(tab) {
+        const deployBtn = document.getElementById('gh-tab-deploy');
+        const importBtn = document.getElementById('gh-tab-import');
+        const deployForm = document.getElementById('gh-deploy-form');
+        const importForm = document.getElementById('gh-import-form');
+        const noFiles = document.getElementById('gh-no-files');
+
+        if (tab === 'deploy') {
+            if (deployBtn) { deployBtn.style.background = 'var(--bg-card)'; deployBtn.style.color = 'var(--text-primary)'; deployBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'; }
+            if (importBtn) { importBtn.style.background = 'transparent'; importBtn.style.color = 'var(--text-secondary)'; importBtn.style.boxShadow = 'none'; }
+            // Show deploy form if files exist, else no-files notice
+            if (importForm) importForm.classList.add('hidden');
+            const files = Object.keys(currentFiles);
+            if (files.length > 0) {
+                if (deployForm) deployForm.classList.remove('hidden');
+                if (noFiles) noFiles.classList.add('hidden');
+            } else {
+                if (deployForm) deployForm.classList.add('hidden');
+                if (noFiles) noFiles.classList.remove('hidden');
+            }
+        } else {
+            if (importBtn) { importBtn.style.background = 'var(--bg-card)'; importBtn.style.color = 'var(--text-primary)'; importBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'; }
+            if (deployBtn) { deployBtn.style.background = 'transparent'; deployBtn.style.color = 'var(--text-secondary)'; deployBtn.style.boxShadow = 'none'; }
+            if (deployForm) deployForm.classList.add('hidden');
+            if (noFiles) noFiles.classList.add('hidden');
+            if (importForm) importForm.classList.remove('hidden');
+        }
+    }
+
+    async function executeGitHubImport() {
+        const urlInput = document.getElementById('gh-import-url');
+        const branchInput = document.getElementById('gh-import-branch');
+        const repoUrl = urlInput?.value.trim();
+        if (!repoUrl) { alert('يرجى إدخال رابط المستودع'); return; }
+
+        document.getElementById('gh-import-form')?.classList.add('hidden');
+        const loading = document.getElementById('gh-loading');
+        if (loading) loading.classList.remove('hidden');
+        const loadingTitle = document.getElementById('gh-loading-title');
+        if (loadingTitle) loadingTitle.textContent = 'جاري الاستيراد...';
+        const statusEl = document.getElementById('gh-status-text');
+        if (statusEl) statusEl.textContent = 'جلب الملفات من GitHub';
+
+        try {
+            const response = await fetch('/api/import/github', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    repo_url: repoUrl,
+                    branch: branchInput?.value.trim() || 'main'
+                })
+            });
+            const result = await response.json();
+            loading?.classList.add('hidden');
+
+            if (result.success && result.files) {
+                // Load imported files into editor
+                Object.assign(currentFiles, result.files);
+                isPreviewDirty = true;
+                closeSpecificModal('github-deploy-modal');
+
+                // Show success in chat
+                addMessageUI('ai', `<div style="padding:12px 16px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;">
+                    <div style="font-weight:bold;margin-bottom:6px;color:#22c55e;"><i class="fab fa-github mr-2"></i> تم الاستيراد بنجاح!</div>
+                    <div style="font-size:0.85rem;color:var(--text-secondary);">تم تحميل ${Object.keys(result.files).length} ملف من <code>${repoUrl}</code>. يمكنك الآن تعديلها أو طلب تحسينات.</div>
+                </div>`);
+
+                // Render preview if html files exist
+                if (Object.keys(result.files).some(f => f.endsWith('.html'))) {
+                    renderPreview('index.html');
+                }
+            } else {
+                throw new Error(result.error || 'فشل الاستيراد');
+            }
+        } catch (error) {
+            loading?.classList.add('hidden');
+            document.getElementById('gh-import-form')?.classList.remove('hidden');
+            alert('خطأ في الاستيراد: ' + error.message);
+        }
+    }
+
+    async function executeGitHubDeploy() {
+        const repoName = document.getElementById('gh-repo-name').value.trim();
+        if (!repoName) { 
+            alert('يرجى إدخال اسم المستودع'); 
+            return; 
+        }
+
+        // Build files array
+        const filesArr = Object.entries(currentFiles).map(([path, content]) => ({ path, content }));
+
+        ['gh-deploy-form'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+        document.getElementById('gh-loading').classList.remove('hidden');
+
+        const statusEl = document.getElementById('gh-status-text');
+
+        try {
+            statusEl.textContent = 'إنشاء المستودع...';
+            const response = await fetch('/api/deploy/github', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    repo_name: repoName,
+                    description: document.getElementById('gh-repo-desc').value || 'Generated by Orgteh Infra',
+                    is_private: document.getElementById('gh-private').checked,
+                    enable_pages: document.getElementById('gh-pages').checked,
+                    files: filesArr
+                })
+            });
+
+            const result = await response.json();
+
+            document.getElementById('gh-loading').classList.add('hidden');
+
+            if (result.success) {
+                document.getElementById('gh-success').classList.remove('hidden');
+                if (result.repo_url) document.getElementById('gh-repo-link').href = result.repo_url;
+                if (result.pages_url) {
+                    document.getElementById('gh-pages-link').href = result.pages_url;
+                    document.getElementById('gh-pages-link').classList.remove('hidden');
+                } else {
+                    document.getElementById('gh-pages-link').classList.add('hidden');
+                }
+            } else {
+                throw new Error(result.error || 'فشل النشر');
+            }
+        } catch (error) {
+            document.getElementById('gh-loading').classList.add('hidden');
+            document.getElementById('gh-deploy-form').classList.remove('hidden');
+            alert('خطأ: ' + error.message);
         }
     }
 </script>

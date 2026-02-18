@@ -1,66 +1,239 @@
+<!-- ==========================================
+     CODE HUB MODALS
+     ========================================== -->
+
+<!-- Main Menu Modal -->
 <div id="main-menu-modal" class="modal-overlay" onclick="if(event.target === this) closeSpecificModal('main-menu-modal')">
-  <div class="modal-sheet">
-      <div class="flex justify-between items-center mb-6">
-          <h3 class="text-lg font-bold" data-i18n-ide="menu_title">Nexus Options</h3>
-          <button onclick="closeSpecificModal('main-menu-modal')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><i class="fa-solid fa-times text-xl"></i></button>
-      </div>
-      <div class="flex flex-col gap-2">
-          <div class="option-card" onclick="switchModal('main-menu-modal', 'model-modal')">
-              <div class="flex-1 text-start p-1">
-                  <div class="font-bold text-lg mb-1" data-i18n-ide="menu_models">Embedding Models</div>
-                  <div class="text-sm text-gray-500" data-i18n-ide="select_model_desc">Select one or more models to use</div>
-              </div>
-              <i class="fa-solid fa-chevron-right text-gray-300"></i>
-          </div>
-          <div class="option-card" onclick="switchModal('main-menu-modal', 'tool-modal')">
-              <div class="flex-1 text-start p-1">
-                  <div class="font-bold text-lg mb-1" data-i18n-ide="menu_tools">Tools Library</div>
-                  <div class="text-sm text-gray-500" data-i18n-ide="select_tool_desc">Enable tools for the AI to use</div>
-              </div>
-              <i class="fa-solid fa-chevron-right text-gray-300"></i>
-          </div>
-      </div>
-  </div>
+    <div class="modal-sheet">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-bold" data-i18n-ide="menu_title">Orgteh Options</h3>
+            <button onclick="closeSpecificModal('main-menu-modal')" class="text-gray-400 hover:text-gray-200">
+                <i class="fa-solid fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="flex flex-col gap-2">
+            <!-- AI Models -->
+            <div class="option-card" onclick="switchModal('main-menu-modal', 'model-modal')">
+                <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fa-solid fa-brain text-white text-lg"></i>
+                </div>
+                <div class="flex-1 text-start p-1">
+                    <div class="font-bold text-base mb-0.5" data-i18n-ide="menu_models">AI Models</div>
+                    <div class="text-sm text-gray-500" data-i18n-ide="select_model_desc">Select the AI model for this project</div>
+                </div>
+                <i class="fa-solid fa-chevron-right text-gray-500"></i>
+            </div>
+            <!-- Tools Library -->
+            <div class="option-card" onclick="switchModal('main-menu-modal', 'tool-modal')">
+                <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#0ea5e9,#06b6d4);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fa-solid fa-screwdriver-wrench text-white text-lg"></i>
+                </div>
+                <div class="flex-1 text-start p-1">
+                    <div class="font-bold text-base mb-0.5" data-i18n-ide="menu_tools">Tools Library</div>
+                    <div class="text-sm text-gray-500" data-i18n-ide="select_tool_desc">Enable extra capabilities</div>
+                </div>
+                <i class="fa-solid fa-chevron-right text-gray-500"></i>
+            </div>
+            <!-- GitHub Deploy + Import -->
+            <div class="option-card" onclick="closeSpecificModal('main-menu-modal'); openGitHubDeployModal();" id="github-deploy-menu-item">
+                <div style="width:44px;height:44px;border-radius:12px;background:#111827;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="fab fa-github text-white text-xl"></i>
+                </div>
+                <div class="flex-1 text-start p-1">
+                    <div class="font-bold text-base mb-0.5" data-i18n-ide="menu_github">Deploy / Import GitHub</div>
+                    <div class="text-sm text-gray-500" data-i18n-ide="menu_github_desc">Publish or import GitHub projects</div>
+                </div>
+                <i class="fa-solid fa-chevron-right text-gray-500"></i>
+            </div>
+        </div>
+    </div>
 </div>
 
+<!-- Model Selection Modal -->
 <div id="model-modal" class="modal-overlay" onclick="if(event.target === this) closeSpecificModal('model-modal')">
-  <div class="modal-sheet">
-      <div class="flex justify-between items-center mb-6">
-          <h3 class="text-lg font-bold" data-i18n-ide="select_model_title">Choose Embedding Model</h3>
-      </div>
-      <div id="model-list-container">
-          {% for model in models %}
-          <div class="option-card {% if loop.first %}selected{% endif %}" id="model-{{ model.short_key }}" onclick="selectItem('models', '{{ model.id }}', 'model-{{ model.short_key }}')">
-              <img src="{{ model.image }}" class="option-icon">
-              <div class="flex-1 text-start">
-                  <div class="font-bold text-sm">{{ model.name }}</div>
-                  <div class="text-xs text-gray-400" data-lang-en="{{ model.desc_en }}" data-lang-ar="{{ model.desc_ar }}">{{ model.desc_en }}</div>
-              </div>
-              <div class="text-indigo-500 check-icon {% if not loop.first %}hidden{% endif %}"><i class="fa-solid fa-circle-check"></i></div>
-          </div>
-          {% endfor %}
-      </div>
-      <button onclick="closeSpecificModal('model-modal')" class="w-full mt-4 py-3 bg-indigo-600 text-white rounded-xl font-bold">Done</button>
-  </div>
+    <div class="modal-sheet">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-bold" data-i18n-ide="select_model_title">Choose Embedding Model</h3>
+        </div>
+        <div id="model-list-container">
+            {% for model in models %}
+            <div class="option-card {% if loop.first %}selected{% endif %}" id="model-{{ model.short_key }}" onclick="selectItem('models', '{{ model.id }}', 'model-{{ model.short_key }}')">
+                <img src="{{ model.image }}" class="option-icon" alt="{{ model.name }}">
+                <div class="flex-1 text-start">
+                    <div class="font-bold text-sm">{{ model.name }}</div>
+                    <div class="text-xs text-gray-400" data-lang-en="{{ model.desc_en }}" data-lang-ar="{{ model.desc_ar }}">{{ model.desc_en }}</div>
+                </div>
+                <div class="text-indigo-500 check-icon {% if not loop.first %}hidden{% endif %}">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <button onclick="closeSpecificModal('model-modal')" class="w-full mt-4 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition">
+            Done
+        </button>
+    </div>
 </div>
 
+<!-- Tools Selection Modal -->
 <div id="tool-modal" class="modal-overlay" onclick="if(event.target === this) closeSpecificModal('tool-modal')">
-  <div class="modal-sheet">
-      <div class="flex justify-between items-center mb-6">
-          <h3 class="text-lg font-bold" data-i18n-ide="select_tool_title">Select Tools</h3>
-      </div>
-      <div id="tool-list-container">
-          {% for tool in tools %}
-          <div class="option-card" id="tool-{{ tool.id }}" onclick="selectItem('tools', '{{ tool.id }}', 'tool-{{ tool.id }}')">
-              <div class="option-icon {{ tool.color }}"><i class="{{ tool.icon }}"></i></div>
-              <div class="flex-1 text-start">
-                  <div class="font-bold text-sm" data-lang-en="{{ tool.name_en }}" data-lang-ar="{{ tool.name_ar }}">{{ tool.name_en }}</div>
-                  <div class="text-xs text-gray-400" data-lang-en="{{ tool.desc_en }}" data-lang-ar="{{ tool.desc_ar }}">{{ tool.desc_en }}</div>
-              </div>
-              <div class="text-indigo-500 check-icon hidden"><i class="fa-solid fa-circle-check"></i></div>
-          </div>
-          {% endfor %}
-      </div>
-      <button onclick="closeSpecificModal('tool-modal')" class="w-full mt-4 py-3 bg-indigo-600 text-white rounded-xl font-bold">Done</button>
-  </div>
+    <div class="modal-sheet">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-lg font-bold" data-i18n-ide="select_tool_title">Select Tools</h3>
+        </div>
+        <div id="tool-list-container">
+            {% for tool in tools %}
+            <div class="option-card" id="tool-{{ tool.id }}" onclick="selectItem('tools', '{{ tool.id }}', 'tool-{{ tool.id }}')">
+                <div class="option-icon {{ tool.color }}">
+                    <i class="{{ tool.icon }}"></i>
+                </div>
+                <div class="flex-1 text-start">
+                    <div class="font-bold text-sm" data-lang-en="{{ tool.name_en }}" data-lang-ar="{{ tool.name_ar }}">{{ tool.name_en }}</div>
+                    <div class="text-xs text-gray-400" data-lang-en="{{ tool.desc_en }}" data-lang-ar="{{ tool.desc_ar }}">{{ tool.desc_en }}</div>
+                </div>
+                <div class="text-indigo-500 check-icon hidden">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <button onclick="closeSpecificModal('tool-modal')" class="w-full mt-4 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition">
+            Done
+        </button>
+    </div>
+</div>
+
+<!-- GitHub Deploy Modal -->
+<div id="github-deploy-modal" class="modal-overlay" onclick="if(event.target === this) closeSpecificModal('github-deploy-modal')">
+    <div class="modal-sheet">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-4">
+            <div class="flex items-center gap-3">
+                <div style="width:40px;height:40px;border-radius:12px;background:#111827;display:flex;align-items:center;justify-content:center;">
+                    <i class="fab fa-github text-white text-lg"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold">GitHub</h3>
+                    <p class="text-xs text-gray-500">Deploy & Import</p>
+                </div>
+            </div>
+            <button onclick="closeSpecificModal('github-deploy-modal')" class="text-gray-400 hover:text-gray-200">
+                <i class="fa-solid fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Tabs: Deploy / Import -->
+        <div id="gh-tabs" style="display:flex;gap:8px;margin-bottom:16px;background:var(--bg-input);border-radius:12px;padding:4px;">
+            <button id="gh-tab-deploy" onclick="switchGhTab('deploy')"
+                style="flex:1;padding:8px;border-radius:8px;font-weight:bold;font-size:0.85rem;border:none;cursor:pointer;background:var(--bg-card);color:var(--text-primary);box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                <i class="fas fa-rocket mr-1"></i> نشر
+            </button>
+            <button id="gh-tab-import" onclick="switchGhTab('import')"
+                style="flex:1;padding:8px;border-radius:8px;font-weight:bold;font-size:0.85rem;border:none;cursor:pointer;background:transparent;color:var(--text-secondary);">
+                <i class="fas fa-file-import mr-1"></i> استيراد
+            </button>
+        </div>
+
+        <!-- Not Connected State -->
+        <div id="gh-not-connected" class="text-center py-8 hidden">
+            <div class="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fab fa-github text-3xl text-gray-400"></i>
+            </div>
+            <h4 class="text-lg font-bold mb-2">ربط حساب GitHub</h4>
+            <p class="text-gray-500 mb-6 text-sm">للنشر والاستيراد، يجب ربط حسابك أولاً</p>
+            <a href="/auth/github/login" class="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition text-sm">
+                <i class="fab fa-github"></i>
+                <span>ربط بضغطة واحدة</span>
+            </a>
+        </div>
+
+        <!-- No Files State (deploy only) -->
+        <div id="gh-no-files" class="text-center py-8 hidden">
+            <i class="fa-solid fa-folder-open text-4xl text-gray-500 mb-4"></i>
+            <p class="text-gray-500 text-sm">لا توجد ملفات بعد. أنشئ مشروعاً أولاً.</p>
+        </div>
+
+        <!-- Deploy Tab -->
+        <div id="gh-deploy-form" class="space-y-4 hidden">
+            <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-300">اسم المستودع</label>
+                <input type="text" id="gh-repo-name"
+                       class="w-full px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-indigo-500 outline-none text-sm text-white"
+                       placeholder="my-orgteh-project">
+            </div>
+            <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-300">الوصف (اختياري)</label>
+                <input type="text" id="gh-repo-desc"
+                       class="w-full px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-indigo-500 outline-none text-sm text-white"
+                       placeholder="Generated by Orgteh Infra Code Hub">
+            </div>
+            <div class="flex items-center justify-between py-1">
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-300">
+                    <input type="checkbox" id="gh-private" class="w-4 h-4 rounded accent-indigo-500">
+                    <span>مستودع خاص</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-300">
+                    <input type="checkbox" id="gh-pages" checked class="w-4 h-4 rounded accent-indigo-500">
+                    <span>تفعيل GitHub Pages</span>
+                </label>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-3 max-h-32 overflow-y-auto">
+                <p class="text-xs font-semibold text-gray-500 mb-2">الملفات المراد رفعها:</p>
+                <ul id="gh-files-list" class="space-y-1 text-xs text-gray-400"></ul>
+            </div>
+            <button onclick="executeGitHubDeploy()" id="gh-deploy-btn"
+                    class="w-full py-4 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-xl font-bold hover:opacity-90 transition flex items-center justify-center gap-2 text-sm">
+                <i class="fas fa-rocket"></i> نشر الآن
+            </button>
+        </div>
+
+        <!-- Import Tab -->
+        <div id="gh-import-form" class="space-y-4 hidden">
+            <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-300">رابط المستودع</label>
+                <input type="text" id="gh-import-url"
+                       class="w-full px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-indigo-500 outline-none text-sm text-white"
+                       placeholder="https://github.com/username/repo">
+            </div>
+            <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-300">الفرع (اختياري)</label>
+                <input type="text" id="gh-import-branch"
+                       class="w-full px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-indigo-500 outline-none text-sm text-white"
+                       placeholder="main">
+            </div>
+            <p class="text-xs text-gray-500">
+                <i class="fa-solid fa-circle-info mr-1"></i>
+                سيتم استيراد الملفات وتحميلها في المحرر لإمكانية التعديل
+            </p>
+            <button onclick="executeGitHubImport()" id="gh-import-btn"
+                    class="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:opacity-90 transition flex items-center justify-center gap-2 text-sm">
+                <i class="fas fa-file-import"></i> استيراد المشروع
+            </button>
+        </div>
+
+        <!-- Loading -->
+        <div id="gh-loading" class="hidden text-center py-8">
+            <div class="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <h4 class="font-bold mb-1" id="gh-loading-title">جاري النشر...</h4>
+            <p id="gh-status-text" class="text-gray-500 text-sm">جاري التنفيذ</p>
+        </div>
+
+        <!-- Deploy Success -->
+        <div id="gh-success" class="hidden text-center py-6">
+            <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-check text-2xl text-green-500"></i>
+            </div>
+            <h4 class="font-bold mb-4" id="gh-success-title">تم النشر بنجاح! 🎉</h4>
+            <div class="space-y-3">
+                <a id="gh-repo-link" href="#" target="_blank"
+                   class="flex items-center justify-center gap-2 w-full py-3 bg-gray-800 rounded-xl font-semibold hover:bg-gray-700 transition text-sm">
+                    <i class="fab fa-github"></i> فتح المستودع
+                </a>
+                <a id="gh-pages-link" href="#" target="_blank"
+                   class="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:opacity-90 transition text-sm">
+                    <i class="fas fa-external-link-alt"></i> عرض الموقع المباشر
+                </a>
+            </div>
+        </div>
+    </div>
 </div>

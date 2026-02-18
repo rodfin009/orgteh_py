@@ -413,11 +413,24 @@
     // ── Auto Language Detection (Problem 3) ──────────────────────────────────
     (function detectAndRedirectLang() {
         const currentLang = window.SERVER_LANG || '{{ lang }}';
-        // Only redirect if user hasn't manually chosen (no lang cookie)
-        const langCookie = document.cookie.split(';').find(c => c.trim().startsWith('preferred_lang='));
+        // Check if user has set a preferred lang via cookie (set by toggleLang or us)
+        const getCookie = (name) => {
+            const match = document.cookie.match(new RegExp('(?:^|;)\\s*' + name + '=([^;]*)'));
+            return match ? decodeURIComponent(match[1]) : null;
+        };
+        const langCookie = getCookie('preferred_lang');
+        if (langCookie && langCookie !== currentLang && (langCookie === 'ar' || langCookie === 'en')) {
+            // User has a saved preference different from current - redirect
+            const newUrl = window.location.pathname.replace('/' + currentLang + '/', '/' + langCookie + '/') + window.location.search;
+            window.location.replace(newUrl);
+            return;
+        }
         if (!langCookie) {
-            const browserLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
-            const preferredLang = browserLang.startsWith('ar') ? 'ar' : 'en';
+            // First visit - detect from browser/phone language and save preference
+            const browserLang = (navigator.language || navigator.userLanguage || 'en').split('-')[0].toLowerCase();
+            const preferredLang = browserLang === 'ar' ? 'ar' : 'en';
+            // Save to cookie so we remember next time
+            document.cookie = 'preferred_lang=' + preferredLang + '; max-age=' + (60*60*24*365) + '; path=/; samesite=lax';
             if (preferredLang !== currentLang) {
                 const newUrl = window.location.pathname.replace('/' + currentLang + '/', '/' + preferredLang + '/') + window.location.search;
                 window.location.replace(newUrl);
@@ -499,11 +512,16 @@
 
     function goToStep(step) {
         if (step === 2) {
-            const email = document.getElementById('regEmail').value;
+            const email = document.getElementById('regEmail').value.trim();
             const pw = document.getElementById('regPassword').value;
             const conf = document.getElementById('regPasswordConfirm').value;
             if (!email || !pw || !conf) { showToast('يرجى ملء جميع الحقول', 'error'); return; }
             if (!email.includes('@')) { showToast('يرجى إدخال بريد إلكتروني صحيح', 'error'); return; }
+            // Gmail only validation
+            if (!email.toLowerCase().endsWith('@gmail.com')) { 
+                showToast('يُقبل فقط البريد الإلكتروني من Gmail (@gmail.com)', 'error'); 
+                return; 
+            }
             if (pw !== conf) { showToast('كلمتا المرور غير متطابقتين', 'error'); return; }
             if (!checkPasswordStrength(pw)) { showToast('كلمة المرور لا تلبي المتطلبات', 'error'); return; }
         }
@@ -566,12 +584,23 @@
     }
 
     document.querySelectorAll('.verification-input').forEach((input, index) => {
-        // Focus first input when step 3 loads - already handled in goToStep
         input.addEventListener('focus', function() {
             this.select();
         });
+
+        // Use keyup instead of input to avoid Android double-fire
+        input.addEventListener('keyup', function(e) {
+            if (e.key === 'Backspace' || e.key === 'Delete') return;
+            const val = this.value.replace(/[^0-9]/g, '');
+            this.value = val.slice(-1); // keep only last digit
+            if (this.value && index < 5) {
+                document.querySelector(`.verification-input[data-index="${index+1}"]`).focus();
+            }
+            updateVerificationCode();
+        });
+
         input.addEventListener('input', function() {
-            // Handle if user types multiple chars (e.g. paste via keyboard shortcut caught here)
+            // Handle multi-char input (Android paste via keyboard)
             const val = this.value.replace(/[^0-9]/g, '');
             if (val.length > 1) {
                 // Distribute across boxes
@@ -581,36 +610,50 @@
                 }
                 const nextIndex = Math.min(index + val.length, 5);
                 inputs[nextIndex].focus();
+                updateVerificationCode();
+                // Auto-submit if 6 digits filled
+                if (getFullCode().length === 6) {
+                    setTimeout(() => {
+                        const btn = document.getElementById('registerBtn');
+                        if (btn && !btn.disabled) btn.click();
+                    }, 150);
+                }
             } else {
                 this.value = val;
-                if (val.length === 1 && index < 5)
+                if (val && index < 5)
                     document.querySelector(`.verification-input[data-index="${index+1}"]`).focus();
+                updateVerificationCode();
             }
-            updateVerificationCode();
         });
+
         input.addEventListener('keydown', function(e) {
             if (e.key === 'Backspace' && this.value === '' && index > 0)
                 document.querySelector(`.verification-input[data-index="${index-1}"]`).focus();
         });
+
         input.addEventListener('paste', function(e) {
             e.preventDefault();
             const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g,'').slice(0,6);
             if (!pasted) return;
             const inputs = document.querySelectorAll('.verification-input');
             inputs.forEach((inp, idx) => { inp.value = pasted[idx] || ''; });
-            // Focus last filled or last box
             const focusIdx = Math.min(pasted.length, 5);
             inputs[focusIdx].focus();
             updateVerificationCode();
-            // Auto-submit if all 6 digits filled
             if (pasted.length === 6) {
                 setTimeout(() => {
-                    const submitBtn = document.getElementById('registerBtn');
-                    if (submitBtn && !submitBtn.disabled) submitBtn.click();
-                }, 100);
+                    const btn = document.getElementById('registerBtn');
+                    if (btn && !btn.disabled) btn.click();
+                }, 150);
             }
         });
     });
+
+    function getFullCode() {
+        let code = '';
+        document.querySelectorAll('.verification-input').forEach(i => code += i.value);
+        return code;
+    }
 
     function updateVerificationCode() {
         verificationCode = '';
@@ -702,5 +745,93 @@
         showToast(message, 'error');
         window.history.replaceState({}, document.title, '/auth');
     }
+
+    // ── Auth Page Translations ─────────────────────────────────────────────
+    const authTranslations = {
+        ar: {
+            tab_login: 'تسجيل الدخول',
+            tab_register: 'إنشاء حساب',
+            email_label: 'البريد الإلكتروني',
+            password_label: 'كلمة المرور',
+            confirm_password_label: 'تأكيد كلمة المرور',
+            remember_me: 'تذكرني',
+            forgot_password: 'نسيت كلمة المرور؟',
+            login_btn: 'تسجيل الدخول',
+            next_btn: 'التالي',
+            back_btn: 'رجوع',
+            step2_title: 'التحقق من الأمان',
+            step2_desc: 'يرجى إكمال التحقق أدناه للمتابعة',
+            step3_title: 'التحقق من البريد',
+            step3_desc: 'أدخل الرمز المكون من 6 أرقام المرسل إلى',
+            resend: 'لم تستلم الرمز؟ إعادة الإرسال',
+            create_account_btn: 'إنشاء الحساب',
+            req_length: '6 أحرف على الأقل',
+            req_upper: 'حرف كبير (A-Z)',
+            req_number: 'رقم (0-9)',
+            password_match_error: 'كلمتا المرور غير متطابقتين',
+            or_login_with: 'أو سجل الدخول باستخدام',
+            terms: 'بالتسجيل، أنت توافق على',
+            terms_link: 'شروط الاستخدام',
+            subtitle: 'منصة الذكاء الاصطناعي المتكاملة',
+            gmail_only: 'يُقبل فقط Gmail (@gmail.com)',
+        },
+        en: {
+            tab_login: 'Sign In',
+            tab_register: 'Create Account',
+            email_label: 'Email Address',
+            password_label: 'Password',
+            confirm_password_label: 'Confirm Password',
+            remember_me: 'Remember me',
+            forgot_password: 'Forgot password?',
+            login_btn: 'Sign In',
+            next_btn: 'Next',
+            back_btn: 'Back',
+            step2_title: 'Security Check',
+            step2_desc: 'Please complete the verification below to continue',
+            step3_title: 'Email Verification',
+            step3_desc: 'Enter the 6-digit code sent to',
+            resend: "Didn't receive the code? Resend",
+            create_account_btn: 'Create Account',
+            req_length: 'At least 6 characters',
+            req_upper: 'One uppercase letter (A-Z)',
+            req_number: 'One number (0-9)',
+            password_match_error: 'Passwords do not match',
+            or_login_with: 'Or sign in with',
+            terms: 'By registering, you agree to our',
+            terms_link: 'Terms of Use',
+            subtitle: 'Integrated AI Platform',
+            gmail_only: 'Only Gmail accounts are accepted (@gmail.com)',
+        }
+    };
+
+    function applyAuthTranslations() {
+        const lang = window.SERVER_LANG || document.documentElement.lang || 'ar';
+        const t = authTranslations[lang] || authTranslations['ar'];
+
+        // Tab buttons
+        const tabLogin = document.getElementById('tab-login');
+        const tabRegister = document.getElementById('tab-register');
+        if (tabLogin) tabLogin.textContent = t.tab_login;
+        if (tabRegister) tabRegister.textContent = t.tab_register;
+
+        // Labels (login)
+        document.querySelectorAll('[data-auth-i18n]').forEach(el => {
+            const key = el.getAttribute('data-auth-i18n');
+            if (t[key]) {
+                if (el.tagName === 'INPUT') el.placeholder = t[key];
+                else el.textContent = t[key];
+            }
+        });
+
+        // Subtitle
+        const subtitle = document.querySelector('.gradient-text + p');
+        if (subtitle) subtitle.textContent = t.subtitle;
+    }
+
+    // Apply on load
+    applyAuthTranslations();
+
+    // Re-apply when language changes
+    window.addEventListener('langChange', applyAuthTranslations);
 </script>
 {% endblock %}

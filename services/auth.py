@@ -243,14 +243,14 @@ def send_verification_email(to_email: str, code: str) -> bool:
         <body>
             <div class="container">
                 <div class="header">
-                    <div class="logo">N</div>
-                    <h1>Nexus API</h1>
+                    <div class="logo">O</div>
+                    <h1>Orgteh Infra</h1>
                 </div>
                 <div class="content">
                     <div class="welcome">مرحباً بك! | Welcome!</div>
                     <div class="message">
-                        شكراً لتسجيلك في Nexus API.<br>
-                        Thank you for registering with Nexus API.
+                        شكراً لتسجيلك في Orgteh Infra.<br>
+                        Thank you for registering with Orgteh Infra.
                     </div>
 
                     <div class="code-container">
@@ -269,7 +269,7 @@ def send_verification_email(to_email: str, code: str) -> bool:
                     </div>
                 </div>
                 <div class="footer">
-                    <p>© 2026 Nexus API. جميع الحقوق محفوظة | All rights reserved.</p>
+                    <p>© 2026 Orgteh Infra. جميع الحقوق محفوظة | All rights reserved.</p>
                     <p style="margin-top: 10px; font-size: 12px;">
                         هذا بريد إلكتروني تلقائي، يرجى عدم الرد عليه.<br>
                         This is an automated email, please do not reply.
@@ -377,6 +377,10 @@ async def handle_send_verification(request: Request, data: SendVerificationReque
 
     if not is_valid:
         raise HTTPException(status_code=400, detail="فشل التحقق من الكابتشا. يرجى المحاولة مرة أخرى.")
+
+    # Gmail only validation
+    if not data.email.lower().endswith('@gmail.com'):
+        raise HTTPException(status_code=400, detail="يُقبل فقط البريد الإلكتروني من Gmail (@gmail.com)")
 
     # Check if email already exists
     existing_user = get_user_by_email(data.email)

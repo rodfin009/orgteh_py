@@ -152,7 +152,9 @@
                     <a href="javascript:void(0)" onclick="navigateWithLang('')" class="font-bold hover:text-primary transition" data-i18n="nav_home">الرئيسية</a>
                     <a href="javascript:void(0)" onclick="navigateWithLang('models')" class="font-bold hover:text-primary transition" data-i18n="nav_models">النماذج</a>
                     <a href="javascript:void(0)" onclick="navigateWithLang('accesory')" class="font-bold hover:text-primary transition" data-i18n="nav_tools">الأدوات</a>
-                    <a href="javascript:void(0)" onclick="navigateWithLang('code-hub')" class="font-bold hover:text-primary transition" data-i18n="nav_code_builder">منشئ الكود الذكي</a>
+                    <a href="javascript:void(0)" onclick="navigateWithLang('code-hub')" class="font-bold hover:text-primary transition flex items-center gap-1.5" data-i18n="nav_code_builder">منشئ الكود الذكي
+                        <span id="code-hub-badge" style="font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:6px;border:1.5px solid #22c55e;color:#22c55e;background:rgba(34,197,94,0.08);letter-spacing:0.03em;white-space:nowrap;"></span>
+                    </a>
                     <a href="javascript:void(0)" onclick="navigateWithLang('cart')" class="font-bold hover:text-primary transition" data-i18n="nav_pricing">الأسعار</a>
                     <a href="javascript:void(0)" onclick="navigateWithLang('contacts')" class="font-bold hover:text-primary transition" data-i18n="nav_contacts">تواصل معنا</a>
                     <a href="javascript:void(0)" onclick="navigateWithLang('docs')" class="font-bold hover:text-primary transition" data-i18n="nav_docs">التوثيق</a>
@@ -200,7 +202,7 @@
             <a href="javascript:void(0)" onclick="navigateWithLang(''); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-home w-6"></i> <span data-i18n="nav_home">الرئيسية</span></a>
             <a href="javascript:void(0)" onclick="navigateWithLang('models'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-layer-group w-6"></i> <span data-i18n="nav_models">النماذج</span></a>
             <a href="javascript:void(0)" onclick="navigateWithLang('accesory'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-screwdriver-wrench w-6"></i> <span data-i18n="nav_tools">الأدوات</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('code-hub'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3 transition"><i class="fa-solid fa-code-branch w-6"></i> <span data-i18n="nav_code_builder">منشئ الكود الذكي</span></a>
+            <a href="javascript:void(0)" onclick="navigateWithLang('code-hub'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3 transition"><i class="fa-solid fa-code-branch w-6"></i> <span data-i18n="nav_code_builder">منشئ الكود الذكي</span> <span style="font-size:0.6rem;font-weight:700;padding:2px 6px;border-radius:5px;border:1.5px solid #22c55e;color:#22c55e;background:rgba(34,197,94,0.08);" id="code-hub-badge-sidebar"></span></a>
             <a href="javascript:void(0)" onclick="navigateWithLang('cart'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-tags w-6"></i> <span data-i18n="nav_pricing">الأسعار</span></a>
             <a href="javascript:void(0)" onclick="navigateWithLang('contacts'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-envelope w-6"></i> <span data-i18n="nav_contacts">تواصل معنا</span></a>
             <a href="javascript:void(0)" onclick="navigateWithLang('enterprise'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-building w-6"></i> <span data-i18n="nav_custom_solutions">حلول مخصصة</span></a>
@@ -337,6 +339,14 @@
                     el.innerHTML = t[key];
                 }
             });
+
+            // Update Beta/تجريبي badge
+            const badgeText = lang === 'ar' ? 'تجريبي' : 'Beta';
+            ['code-hub-badge', 'code-hub-badge-sidebar'].forEach(id => {
+                const badge = document.getElementById(id);
+                if (badge) badge.textContent = badgeText;
+            });
+
             window.dispatchEvent(new Event('langChange'));
         }
 

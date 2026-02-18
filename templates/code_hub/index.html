@@ -1,61 +1,116 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- External Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
+<!-- Mode Configuration -->
 <script>const NEXUS_MODE = "standard";</script>
 
+<!-- Include Styles -->
 {% include "code_hub/styles.html" %}
 
+<!-- Main IDE Layout -->
 <div id="ide-layout">
+
+    <!-- Chat View -->
     <div id="view-chat" class="view-section active">
         <div id="chat-container" class="custom-scrollbar">
+            <!-- Welcome Message Container -->
             <div id="welcome-message-container" class="msg-row ai"></div>
         </div>
     </div>
 
+    <!-- Preview View -->
     <div id="view-preview" class="view-section">
         <iframe id="preview-frame"></iframe>
-        <div id="preview-empty" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-[#09090b] text-gray-400">
+        <div id="preview-empty" class="absolute inset-0 flex flex-col items-center justify-center">
             <i class="fa-solid fa-layer-group text-4xl mb-4 opacity-30"></i>
             <p data-i18n-ide="no_preview">No build available yet.</p>
         </div>
     </div>
 
+    <!-- Bottom Controls Layer -->
     <div class="bottom-controls-layer">
 
+        <!-- Input Row -->
         <div class="input-row" id="main-input-row">
-
+            <!-- File Attachment -->
             <div class="relative">
-                <button onclick="document.getElementById('file-input').click()" class="action-btn">
+                <button onclick="document.getElementById('file-input').click()" class="action-btn" title="Attach files">
                     <i class="fa-solid fa-paperclip"></i>
                 </button>
                 <input type="file" id="file-input" multiple class="hidden" onchange="updateFileBadge()">
-                <div id="file-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center hidden">0</div>
+                <div id="file-badge" class="hidden">0</div>
             </div>
-            <textarea id="prompt-input" rows="1" data-i18n-ide="input_placeholder" placeholder="Ask Nexus..." oninput="autoResize(this)"></textarea>
-            <button onclick="sendMessage()" class="send-btn flex items-center justify-center transition">
+
+            <!-- Text Input -->
+            <textarea 
+                id="prompt-input" 
+                rows="1" 
+                data-i18n-ide="input_placeholder" 
+                placeholder="Ask Nexus..." 
+                oninput="autoResize(this)" 
+                onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendMessage();}">
+            </textarea>
+
+            <!-- Send Button -->
+            <button onclick="sendMessage()" class="send-btn" title="Send message">
                 <i class="fa-solid fa-arrow-up"></i>
             </button>
         </div>
 
+        <!-- Navigation Tabs -->
         <div class="nav-container" id="nav-container">
+            <!-- Menu Button (Three Dots) -->
+            <button onclick="openSpecificModal('main-menu-modal')" class="action-btn model-trigger" id="nexus-menu-btn" title="Menu">
+                <i class="fa-solid fa-ellipsis"></i>
+            </button>
+            <!-- Tab Pills -->
+            <div class="tab-pill">
+                <div onclick="switchView('preview')" id="tab-preview" class="tab-item" data-i18n-ide="tab_preview">المعاينة</div>
+                <div onclick="switchView('chat')" id="tab-chat" class="tab-item active" data-i18n-ide="tab_chat">المحادثة</div>
+            </div>
+            <!-- Visibility Toggle -->
             <div onclick="toggleNavVisibility()" class="visibility-btn" title="Toggle UI">
                 <i id="eye-icon" class="fa-solid fa-eye-slash"></i>
             </div>
-            <div class="tab-pill">
-                <div onclick="switchView('chat')" id="tab-chat" class="tab-item active" data-i18n-ide="tab_chat">Chat</div>
-                <div onclick="switchView('preview')" id="tab-preview" class="tab-item" data-i18n-ide="tab_preview">Preview</div>
-            </div>
-            <button onclick="openSpecificModal('main-menu-modal')" class="action-btn model-trigger" id="nexus-menu-btn">
-                <i class="fa-solid fa-ellipsis"></i>
-            </button>
         </div>
     </div>
 </div>
 
+<!-- Include Modals -->
 {% include "code_hub/modals.html" %}
+
+<!-- Include Scripts -->
 {% include "code_hub/scripts.html" %}
+
+<!-- Hide footer and support chat in code-hub -->
+<style>
+    body > footer,
+    body > .fab-chat,
+    footer,
+    .fab-chat {
+        display: none !important;
+    }
+</style>
+<script>
+    (function() {
+        // Hide footer
+        var footer = document.querySelector('footer');
+        if (footer) footer.style.display = 'none';
+
+        // Hide support chat button
+        var fabChat = document.querySelector('.fab-chat');
+        if (fabChat) fabChat.style.display = 'none';
+
+        // Also try by ID if exists
+        var supportBtn = document.querySelector('[onclick*="supportModal"]');
+        if (supportBtn && supportBtn.classList.contains('fab-chat')) {
+            supportBtn.style.display = 'none';
+        }
+    })();
+</script>
 
 {% endblock %}

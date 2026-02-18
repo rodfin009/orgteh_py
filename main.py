@@ -397,7 +397,18 @@ async def policy_page(request: Request, lang: str):
 @app.get("/performance", response_class=HTMLResponse)
 async def performance_page(request: Request):
     stats = get_global_stats()
-    context = get_template_context(request)
+    context = get_template_context(request, "en")
+    context.update({
+        "stats": stats,
+        "last_update": datetime.utcnow().isoformat(),
+        "active_nodes": 5
+    })
+    return templates.TemplateResponse("performance.html", context)
+
+@app.get("/{lang}/performance", response_class=HTMLResponse)
+async def performance_page_lang(request: Request, lang: str):
+    stats = get_global_stats()
+    context = get_template_context(request, lang)
     context.update({
         "stats": stats,
         "last_update": datetime.utcnow().isoformat(),
