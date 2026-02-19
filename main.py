@@ -591,6 +591,127 @@ async def get_my_key(request: Request):
 
 from telegram_bot import notify_contact_form, notify_enterprise_form
 
+# =============================================================================
+# SUPPORT CHAT API — خدمة العملاء الذكية
+# =============================================================================
+
+@app.post("/api/support/chat")
+async def support_chat(request: Request):
+    """خدمة العملاء - يرد بنفس لغة الواجهة"""
+    try:
+        body = await request.json()
+        message = body.get("message", "").strip()
+        lang = body.get("lang", "en")
+        system_lang_hint = body.get("system_lang", "")
+
+        if not message:
+            return JSONResponse({"error": "No message provided"}, 400)
+
+        # Build language-aware system prompt
+        if lang == "ar":
+            system_prompt = (
+                "أنت مساعد خدمة عملاء ذكي لموقع Orgteh Infra (orgteh.com). "
+                "يجب أن ترد دائماً باللغة العربية فقط مهما كانت لغة السؤال. "
+                "موقعنا يوفر بنية تحتية موحدة للوصول إلى نماذج الذكاء الاصطناعي عبر API واحدة، "
+                "بكمون منخفض وأسعار تنافسية. النماذج المتاحة: GPT-4o، Claude، Gemini، Llama وغيرها. "
+                "الخطط: مجانية (تجريبية)، Pro، Enterprise. "
+                "كن مفيداً ومختصراً وودياً. للأسئلة التقنية المعقدة أحل المستخدم لـ orgteh.com/docs"
+            )
+        else:
+            system_prompt = (
+                "You are a smart customer support assistant for Orgteh Infra (orgteh.com). "
+                "Always reply in English only regardless of the user's language. "
+                "Our platform provides unified infrastructure for AI models via a single API, "
+                "with low latency and competitive pricing. Available models: GPT-4o, Claude, Gemini, Llama and more. "
+                "Plans: Free (trial), Pro, Enterprise. "
+                "Be helpful, concise and friendly. For complex technical questions, refer to orgteh.com/docs"
+            )
+
+        if system_lang_hint:
+            system_prompt = system_lang_hint + " " + system_prompt
+
+        # Use smart_chat_stream for streaming response
+        payload = {
+            "model": "gpt-4o-mini",  # fast, cheap for support
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message}
+            ],
+            "max_tokens": 800,
+            "stream": True
+        }
+
+        async def generate():
+            try:
+                async for chunk in smart_chat_stream(payload, "support@orgteh.com", is_trial=True):
+                    # smart_chat_stream yields SSE-formatted data, extract text
+                    if isinstance(chunk, bytes):
+                        text = chunk.decode("utf-8", errors="ignore")
+                    else:
+                        text = str(chunk)
+                    # Strip SSE formatting if present
+                    if text.startswith("data: "):
+                        text = text[6:]
+                    if text.strip() and text.strip() != "[DONE]":
+                        try:
+                            import json as _json
+                            data = _json.loads(text)
+                            content = (
+                                data.get("choices", [{}])[0]
+                                .get("delta", {})
+                                .get("content", "")
+                            )
+                            if content:
+                                yield content.encode("utf-8")
+                        except Exception:
+                            pass
+            except Exception as e:
+                err_msg = "عذراً، حدث خطأ." if lang == "ar" else "Sorry, an error occurred."
+                yield err_msg.encode("utf-8")
+
+        return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
+
+    except Exception as e:
+        print(f"[Support Chat] Error: {e}")
+        return JSONResponse({"error": str(e)}, 500)
+
+
+# =============================================================================
+# GITHUB STATUS API
+# =============================================================================
+
+@app.get("/api/github/status")
+async def github_status(request: Request):
+    """تحقق من حالة ربط GitHub"""
+    try:
+        connected = is_github_connected(request)
+        context = {}
+        if connected:
+            email = get_current_user_email(request)
+            if email:
+                try:
+                    from database import redis as _redis
+                    if _redis:
+                        gh_info = _redis.hgetall(f"github:{email}")
+                        if gh_info:
+                            def _dec(v):
+                                return v.decode() if isinstance(v, bytes) else v
+                            context = {
+                                "login": _dec(gh_info.get(b"login", gh_info.get("login", ""))),
+                                "avatar": _dec(gh_info.get(b"avatar", gh_info.get("avatar", "")))
+                            }
+                except Exception:
+                    pass
+        return JSONResponse({
+            "connected": connected,
+            "user": context if connected else None,
+            "connect_url": "/auth/github/login"
+        })
+    except Exception as e:
+        return JSONResponse({"connected": False, "error": str(e)}, 500)
+
+
+
 @app.post("/api/contact")
 async def api_contact(request: Request):
     """نموذج 'تواصل معنا' — يُرسل الرسالة للمالك عبر Telegram"""

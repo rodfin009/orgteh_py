@@ -419,19 +419,19 @@
             <!-- Welcome message with floating quick questions -->
             <div class="welcome-container">
                 <div class="msg-bot">
-                    <span data-i18n="support_welcome">Hello! I am Orgteh Assistant. How can I help you?</span>
+                    <span id="csWelcomeMsg">Hello! I am Orgteh Assistant. How can I help you?</span>
                 </div>
-                <div class="quick-questions-float">
-                    <button class="quick-question-chip" onclick="sendQuickQuestion('pricing')" data-i18n="quick_pricing">💰 الأسعار؟</button>
-                    <button class="quick-question-chip" onclick="sendQuickQuestion('models')" data-i18n="quick_models">🤖 النماذج؟</button>
-                    <button class="quick-question-chip" onclick="sendQuickQuestion('api_key')" data-i18n="quick_api_key">🔑 المفتاح؟</button>
+                <div class="quick-questions-float" id="csQuickQuestions">
+                    <button class="quick-question-chip" onclick="sendQuickQuestion('pricing')" id="csBtnPricing">💰 Pricing?</button>
+                    <button class="quick-question-chip" onclick="sendQuickQuestion('models')" id="csBtnModels">🤖 Models?</button>
+                    <button class="quick-question-chip" onclick="sendQuickQuestion('api_key')" id="csBtnApiKey">🔑 API Key?</button>
                 </div>
             </div>
         </div>
 
         <div class="p-4 bg-white dark:bg-[#0d0d0d] border-t border-gray-200 dark:border-gray-800 z-20">
             <div class="relative">
-                <textarea id="supportInput" rows="1" class="w-full bg-gray-100 dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 pr-12 text-sm focus:ring-2 focus:ring-primary focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 resize-none overflow-hidden" data-i18n="[placeholder]support_placeholder" placeholder="Type your message..." autocomplete="off" oninput="autoResizeTextarea(this)" onkeydown="handleTextareaKeydown(event)"></textarea>
+                <textarea id="supportInput" rows="1" class="w-full bg-gray-100 dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 pr-12 text-sm focus:ring-2 focus:ring-primary focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 resize-none overflow-hidden" placeholder="Type your message..." autocomplete="off" oninput="autoResizeTextarea(this)" onkeydown="handleTextareaKeydown(event)"></textarea>
                 <button onclick="sendSupportMessage()" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center hover:bg-indigo-600 transition shadow-sm">
                     <i class="fa-solid fa-paper-plane text-xs"></i>
                 </button>
@@ -463,8 +463,8 @@
 
     // ===== Quick Questions Functionality =====
     function sendQuickQuestion(questionId) {
-        const lang = document.documentElement.getAttribute('lang') || 'ar';
-        const query = quickQuestionQueries[lang][questionId];
+        const qqLang = document.documentElement.getAttribute('lang') || 'en';
+        const query = quickQuestionQueries[qqLang][questionId];
         if (query) {
             addUserMessage(query);
             sendToBot(query);
@@ -519,8 +519,8 @@
 
         navigator.clipboard.writeText(codeText).then(() => {
             const originalHTML = button.innerHTML;
-            const lang = document.documentElement.getAttribute('lang') || 'ar';
-            const copiedText = lang === 'ar' ? 'تم النسخ!' : 'Copied!';
+            const copyLang = document.documentElement.getAttribute('lang') || 'en';
+            const copiedText = copyLang === 'ar' ? 'تم النسخ!' : 'Copied!';
 
             button.classList.add('copied');
             button.innerHTML = `<i class="fa-solid fa-check"></i> ${copiedText}`;
@@ -540,13 +540,13 @@
             textArea.select();
             try {
                 document.execCommand('copy');
-                const lang = document.documentElement.getAttribute('lang') || 'ar';
-                const copiedText = lang === 'ar' ? 'تم النسخ!' : 'Copied!';
+                const fbLang = document.documentElement.getAttribute('lang') || 'en';
+                const copiedText = fbLang === 'ar' ? 'تم النسخ!' : 'Copied!';
                 button.classList.add('copied');
                 button.innerHTML = `<i class="fa-solid fa-check"></i> ${copiedText}`;
                 setTimeout(() => {
                     button.classList.remove('copied');
-                    button.innerHTML = `<i class="fa-regular fa-copy"></i> ${lang === 'ar' ? 'نسخ' : 'Copy'}`;
+                    button.innerHTML = `<i class="fa-regular fa-copy"></i> ${fbLang === 'ar' ? 'نسخ' : 'Copy'}`;
                 }, 2000);
             } catch (e) {
                 console.error('Fallback copy failed:', e);
@@ -786,8 +786,8 @@
         });
 
         // Restore code blocks with copy button
-        const currentLang = document.documentElement.getAttribute('lang') || 'ar';
-        const copyText = currentLang === 'ar' ? 'نسخ' : 'Copy';
+        const blockLang = document.documentElement.getAttribute('lang') || 'en';
+        const copyText = blockLang === 'ar' ? 'نسخ' : 'Copy';
 
         codeBlocks.forEach(({ id, lang, code }) => {
             const escapedCode = escapeHtml(code);
@@ -811,13 +811,22 @@
     async function sendToBot(message) {
         showTyping();
 
-        const currentLang = localStorage.getItem('lang') || 'ar';
+        // Get current language from HTML lang attribute
+        const currentLang = document.documentElement.getAttribute('lang') || 
+                            window.SERVER_LANG || 'en';
 
         try {
             const response = await fetch('/api/support/chat', { 
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ message: message, lang: currentLang }) 
+                body: JSON.stringify({ 
+                    message: message, 
+                    lang: currentLang,
+                    // Force language instruction in message context
+                    system_lang: currentLang === 'ar' 
+                        ? 'يجب أن ترد دائماً باللغة العربية فقط بغض النظر عن لغة السؤال.' 
+                        : 'Always reply in English only regardless of the question language.'
+                }) 
             });
 
             hideTyping();
@@ -844,8 +853,8 @@
 
         } catch (err) { 
             hideTyping();
-            const lang = document.documentElement.getAttribute('lang') || 'ar';
-            const errorMsg = lang === 'ar' ? 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.' : 'Sorry, an error occurred. Please try again.';
+            const errLang = document.documentElement.getAttribute('lang') || 'en';
+            const errorMsg = errLang === 'ar' ? 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.' : 'Sorry, an error occurred. Please try again.';
             addBotMessage('<span class="text-red-500">' + errorMsg + '</span>'); 
         }
     }
@@ -862,7 +871,7 @@
         // Shift+Enter = send message
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            // Just insert a newline
+            // Just insert a newlineد
             const textarea = e.target;
             const start = textarea.selectionStart;
             const end = textarea.selectionEnd;
@@ -894,4 +903,55 @@
         e.preventDefault();
         sendSupportMessage();
     }
+
+    // ===== Initialize Customer Service Language =====
+    function initCustomerService() {
+        const lang = document.documentElement.getAttribute('lang') || 'en';
+
+        // Set welcome message
+        const welcomeMsg = document.getElementById('csWelcomeMsg');
+        if (welcomeMsg) {
+            welcomeMsg.textContent = lang === 'ar' 
+                ? 'مرحباً! أنا مساعد Orgteh، كيف يمكنني مساعدتك؟'
+                : 'Hello! I am Orgteh Assistant. How can I help you?';
+        }
+
+        // Set quick question buttons
+        const btnPricing = document.getElementById('csBtnPricing');
+        const btnModels = document.getElementById('csBtnModels');
+        const btnApiKey = document.getElementById('csBtnApiKey');
+
+        if (lang === 'ar') {
+            if (btnPricing) btnPricing.textContent = '💰 الأسعار؟';
+            if (btnModels) btnModels.textContent = '🤖 النماذج؟';
+            if (btnApiKey) btnApiKey.textContent = '🔑 المفتاح؟';
+        } else {
+            if (btnPricing) btnPricing.textContent = '💰 Pricing?';
+            if (btnModels) btnModels.textContent = '🤖 Models?';
+            if (btnApiKey) btnApiKey.textContent = '🔑 API Key?';
+        }
+
+        // Set placeholder
+        const input = document.getElementById('supportInput');
+        if (input) {
+            input.placeholder = lang === 'ar' ? 'أكتب رسالتك...' : 'Type your message...';
+        }
+
+        // Set modal title
+        const titleEl = document.querySelector('#supportModal h3');
+        if (titleEl) {
+            titleEl.textContent = lang === 'ar' ? 'مساعد Orgteh' : 'Orgteh Assistant';
+        }
+
+        // Set online status
+        const onlineEl = document.querySelector('#supportModal .text-xs');
+        if (onlineEl) {
+            onlineEl.textContent = lang === 'ar' ? 'متصل' : 'Online';
+        }
+    }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', initCustomerService);
+    // Re-initialize whenever language changes
+    window.addEventListener('langChange', initCustomerService);
 </script>

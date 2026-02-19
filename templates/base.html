@@ -5,7 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Orgteh Infra</title>
 
-    <link id="site-favicon" rel="icon" type="image/png" href="/static/logo_dark.png">
+    <!-- Favicons — دائرية في تبويب المتصفح ومحركات البحث -->
+    <link id="site-favicon" rel="icon" type="image/svg+xml" href="/static/favicon-round.svg">
+    <link rel="alternate icon" type="image/png" href="/static/logo_dark.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/logo_dark.png">
+    <link rel="manifest" href="/static/site.webmanifest">
+    <meta name="msapplication-TileImage" content="/static/logo_dark.png">
+    <meta property="og:image" content="/static/logo_dark.png">
+    <meta name="theme-color" content="#7c3aed">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -78,10 +85,10 @@
 
             if (savedTheme === 'light') {
                 document.documentElement.classList.remove('dark');
-                if(favicon) favicon.href = "/static/logo_light.png";
+                if(favicon) favicon.href = "/static/favicon-round.svg";
             } else {
                 document.documentElement.classList.add('dark');
-                if(favicon) favicon.href = "/static/logo_dark.png";
+                if(favicon) favicon.href = "/static/favicon-round.svg";
             }
         })();
     </script>
@@ -167,8 +174,8 @@
             </div>
 
             <a href="javascript:void(0)" onclick="navigateWithLang('')" class="flex items-center z-50 ml-auto">
-                <img src="/static/logo_dark.png" alt="Orgteh" class="dark-logo w-14 h-14 rounded-full object-cover border border-gray-800" style="mix-blend-mode: normal;">
-                <img src="/static/logo_light.png" alt="Orgteh" class="light-logo w-14 h-14 rounded-full object-cover border border-gray-200" style="mix-blend-mode: normal;">
+                <img src="/static/logo_dark.png" alt="Orgteh" class="dark-logo w-10 h-10 object-cover" style="border-radius:8px;">
+                <img src="/static/logo_light.png" alt="Orgteh" class="light-logo w-10 h-10 object-cover" style="border-radius:8px;">
             </a>
         </div>
     </nav>
@@ -320,11 +327,11 @@
             if (html.classList.contains('dark')) {
                 html.classList.remove('dark');
                 localStorage.setItem('theme', 'light');
-                if(favicon) favicon.href = "/static/logo_light.png";
+                if(favicon) favicon.href = "/static/favicon-round.svg";
             } else {
                 html.classList.add('dark');
                 localStorage.setItem('theme', 'dark');
-                if(favicon) favicon.href = "/static/logo_dark.png";
+                if(favicon) favicon.href = "/static/favicon-round.svg";
             }
         }
 
