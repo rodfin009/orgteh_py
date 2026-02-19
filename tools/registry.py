@@ -4,8 +4,8 @@ TOOLS_DB = {
     # ==============================================================================
     # 1. FINANCIAL NEWS TOOL
     # ==============================================================================
-    "nexus-finance-rss": {
-        "id": "nexus-finance-rss",
+    "orgteh-finance-rss": {
+        "id": "orgteh-finance-rss",
         "name_en": "Global Market Pulse",
         "name_ar": "نبض الأسواق المالية",
         "type": "Finance Stream",
@@ -23,7 +23,7 @@ TOOLS_DB = {
         ],
         "usage_python": """import requests
 
-url = "https://your-domain.com/api/tools/execute/nexus-finance-rss"
+url = "https://orgteh.com/api/tools/execute/orgteh-finance-rss"
 headers = {"Authorization": "Bearer YOUR_API_KEY"}
 payload = {
     "limit": 5, 
@@ -46,7 +46,7 @@ public class Main {
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create("https://your-domain.com/api/tools/execute/nexus-finance-rss"))
+            .uri(URI.create("https://orgteh.com/api/tools/execute/orgteh-finance-rss"))
             .header("Authorization", "Bearer YOUR_API_KEY")
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
@@ -57,7 +57,7 @@ public class Main {
     }
 }""",
 
-        "usage_http": """curl -X POST https://your-domain.com/api/tools/execute/nexus-finance-rss \\
+        "usage_http": """curl -X POST https://orgteh.com/api/tools/execute/orgteh-finance-rss \\
 -H "Authorization: Bearer YOUR_API_KEY" \\
 -H "Content-Type: application/json" \\
 -d '{
@@ -79,7 +79,7 @@ for item in news_items:
     text = item.get('full_content', item.get('summary'))
     context += f"Title: {item['title']}\\nBody: {text}\\n---\\n"
 
-chat_url = "https://your-domain.com/v1/chat/completions"
+chat_url = "https://orgteh.com/v1/chat/completions"
 chat_payload = {
     "model": "deepseek-ai/deepseek-v3.2",
     "messages": [
@@ -99,7 +99,7 @@ String chatBody = "{"
         + "}";
 
 HttpRequest chatReq = HttpRequest.newBuilder()
-    .uri(URI.create("https://your-domain.com/v1/chat/completions"))
+    .uri(URI.create("https://orgteh.com/v1/chat/completions"))
     .header("Authorization", "Bearer YOUR_API_KEY")
     .header("Content-Type", "application/json")
     .POST(HttpRequest.BodyPublishers.ofString(chatBody))
@@ -107,8 +107,8 @@ HttpRequest chatReq = HttpRequest.newBuilder()
 
 System.out.println(client.send(chatReq, HttpResponse.BodyHandlers.ofString()).body());""",
 
-        "integ_http": """POST https://your-domain.com/v1/chat/completions HTTP/1.1
-Host: your-domain.com
+        "integ_http": """POST https://orgteh.com/v1/chat/completions HTTP/1.1
+Host: orgteh.com
 Authorization: Bearer YOUR_API_KEY
 Content-Type: application/json
 
@@ -130,8 +130,8 @@ Content-Type: application/json
     # ==============================================================================
     # 2. GENERAL NEWS TOOL
     # ==============================================================================
-    "nexus-news-general": {
-        "id": "nexus-news-general",
+    "orgteh-news-general": {
+        "id": "orgteh-news-general",
         "name_en": "World News & Events",
         "name_ar": "أخبار العالم والأحداث",
         "type": "News Stream",
@@ -149,7 +149,7 @@ Content-Type: application/json
         ],
         "usage_python": """import requests
 
-url = "https://your-domain.com/api/tools/execute/nexus-news-general"
+url = "https://orgteh.com/api/tools/execute/orgteh-news-general"
 headers = {"Authorization": "Bearer YOUR_API_KEY"}
 payload = {"limit": 3, "lang": "ar", "time_filter": "1d", "scrape_content": "true"}
 
@@ -167,7 +167,7 @@ public class Main {
         String json = "{\\"limit\\":3, \\"lang\\":\\"ar\\", \\"time_filter\\":\\"1d\\", \\"scrape_content\\":\\"true\\"}";
 
         HttpRequest req = HttpRequest.newBuilder()
-            .uri(URI.create("https://your-domain.com/api/tools/execute/nexus-news-general"))
+            .uri(URI.create("https://orgteh.com/api/tools/execute/orgteh-news-general"))
             .header("Authorization", "Bearer YOUR_API_KEY")
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(json))
@@ -177,7 +177,7 @@ public class Main {
     }
 }""",
 
-        "usage_http": """curl -X POST https://your-domain.com/api/tools/execute/nexus-news-general \\
+        "usage_http": """curl -X POST https://orgteh.com/api/tools/execute/orgteh-news-general \\
 -H "Authorization: Bearer YOUR_API_KEY" \\
 -H "Content-Type: application/json" \\
 -d '{"limit": 3, "lang": "ar", "time_filter": "1d", "scrape_content": "true"}'""",
@@ -190,7 +190,7 @@ public class Main {
         "integ_python": """headlines = [item['title'] for item in resp.json()['items']]
 prompt = f"Categorize these headlines into [Politics, Sports, Tech]: {headlines}"
 
-chat_url = "https://your-domain.com/v1/chat/completions"
+chat_url = "https://orgteh.com/v1/chat/completions"
 chat_payload = {
     "model": "deepseek-ai/deepseek-v3.2",
     "messages": [{"role": "user", "content": prompt}]
@@ -206,7 +206,7 @@ String body = "{"
         + "}";
 
 HttpRequest req = HttpRequest.newBuilder()
-    .uri(URI.create("https://your-domain.com/v1/chat/completions"))
+    .uri(URI.create("https://orgteh.com/v1/chat/completions"))
     .header("Authorization", "Bearer YOUR_API_KEY")
     .header("Content-Type", "application/json")
     .POST(HttpRequest.BodyPublishers.ofString(body))
@@ -214,8 +214,8 @@ HttpRequest req = HttpRequest.newBuilder()
 
 System.out.println(client.send(req, HttpResponse.BodyHandlers.ofString()).body());""",
 
-        "integ_http": """POST https://your-domain.com/v1/chat/completions HTTP/1.1
-Host: your-domain.com
+        "integ_http": """POST https://orgteh.com/v1/chat/completions HTTP/1.1
+Host: orgteh.com
 Authorization: Bearer YOUR_API_KEY
 Content-Type: application/json
 
@@ -230,9 +230,9 @@ Content-Type: application/json
     # ==============================================================================
     # 3. NVIDIA OCR TOOL
     # ==============================================================================
-    "nexus-vision-ocr": {
-        "id": "nexus-vision-ocr",
-        "name_en": "Nexus Vision (OCR)",
+    "orgteh-vision-ocr": {
+        "id": "orgteh-vision-ocr",
+        "name_en": "Orgteh Vision (OCR)",
         "name_ar": "محرك الرؤية (OCR)",
         "type": "Vision Model",
         "price": "20 Points / Req",
@@ -246,7 +246,7 @@ Content-Type: application/json
         ],
         "usage_python": """import requests
 
-url = "https://your-domain.com/api/tools/execute/nexus-vision-ocr"
+url = "https://orgteh.com/api/tools/execute/orgteh-vision-ocr"
 files = {'file_input': open('invoice.png', 'rb')}
 headers = {"Authorization": "Bearer YOUR_API_KEY"}
 
@@ -265,14 +265,14 @@ RequestBody body = new MultipartBody.Builder().setType(MultipartBody.FORM)
     .build();
 
 Request request = new Request.Builder()
-    .url("https://your-domain.com/api/tools/execute/nexus-vision-ocr")
+    .url("https://orgteh.com/api/tools/execute/orgteh-vision-ocr")
     .addHeader("Authorization", "Bearer YOUR_API_KEY")
     .post(body)
     .build();
 
 System.out.println(client.newCall(request).execute().body().string());""",
 
-        "usage_http": """curl -X POST https://your-domain.com/api/tools/execute/nexus-vision-ocr \\
+        "usage_http": """curl -X POST https://orgteh.com/api/tools/execute/orgteh-vision-ocr \\
 -H "Authorization: Bearer YOUR_API_KEY" \\
 -F "file_input=@/path/to/invoice.png" """,
 
@@ -284,7 +284,7 @@ System.out.println(client.newCall(request).execute().body().string());""",
         "integ_python": """ocr_text = response.json()['data']['text']
 prompt = f"Extract date, vendor, and total from this text and return JSON:\\n{ocr_text}"
 
-chat_url = "https://your-domain.com/v1/chat/completions"
+chat_url = "https://orgteh.com/v1/chat/completions"
 payload = {
     "model": "deepseek-ai/deepseek-v3.2",
     "messages": [{"role": "user", "content": prompt}]
@@ -299,10 +299,10 @@ String llmBody = "{"
     + "\\"messages\\": [{\\"role\\":\\"user\\", \\"content\\": \\"Extract JSON from: " + extractedText + "\\"}]"
     + "}";
 
-// Send POST to your-domain.com/v1/chat/completions ...""",
+// Send POST to orgteh.com/v1/chat/completions ...""",
 
-        "integ_http": """POST https://your-domain.com/v1/chat/completions HTTP/1.1
-Host: your-domain.com
+        "integ_http": """POST https://orgteh.com/v1/chat/completions HTTP/1.1
+Host: orgteh.com
 Authorization: Bearer YOUR_API_KEY
 Content-Type: application/json
 
@@ -320,8 +320,8 @@ Content-Type: application/json
     # ==============================================================================
     # 4. EMBEDDINGS TOOL
     # ==============================================================================
-    "nexus-semantic-embed": {
-        "id": "nexus-semantic-embed",
+    "orgteh-semantic-embed": {
+        "id": "orgteh-semantic-embed",
         "name_en": "Semantic Core V2",
         "name_ar": "المحرك الدلالي V2",
         "type": "Embedding",
@@ -337,7 +337,7 @@ Content-Type: application/json
         ],
         "usage_python": """import requests
 
-url = "https://your-domain.com/api/tools/execute/nexus-semantic-embed"
+url = "https://orgteh.com/api/tools/execute/orgteh-semantic-embed"
 headers = {"Authorization": "Bearer YOUR_API_KEY"}
 payload = {
     "text_input": "Artificial Intelligence agents",
@@ -358,7 +358,7 @@ public class Main {
         String json = "{\\"text_input\\":\\"Hello World\\", \\"truncate\\":\\"NONE\\"}";
 
         HttpRequest req = HttpRequest.newBuilder()
-            .uri(URI.create("https://your-domain.com/api/tools/execute/nexus-semantic-embed"))
+            .uri(URI.create("https://orgteh.com/api/tools/execute/orgteh-semantic-embed"))
             .header("Authorization", "Bearer YOUR_API_KEY")
             .header("Content-Type", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(json))
@@ -368,7 +368,7 @@ public class Main {
     }
 }""",
 
-        "usage_http": """curl -X POST https://your-domain.com/api/tools/execute/nexus-semantic-embed \\
+        "usage_http": """curl -X POST https://orgteh.com/api/tools/execute/orgteh-semantic-embed \\
 -H "Authorization: Bearer YOUR_API_KEY" \\
 -H "Content-Type: application/json" \\
 -d '{"text_input": "Search Query", "truncate": "NONE"}'""",
@@ -383,7 +383,7 @@ public class Main {
 # ... Search Vector DB (Pinecone/Milvus) ...
 # context = results['text']
 
-chat_url = "https://your-domain.com/v1/chat/completions"
+chat_url = "https://orgteh.com/v1/chat/completions"
 payload = {
     "model": "deepseek-ai/deepseek-v3.2",
     "messages": [
@@ -400,7 +400,7 @@ String body = "{\\"model\\":\\"deepseek-ai/deepseek-v3.2\\", \\"messages\\":[{\\
 
 // Send POST to /v1/chat/completions ...""",
 
-        "integ_http": """POST https://your-domain.com/v1/chat/completions HTTP/1.1
+        "integ_http": """POST https://orgteh.com/v1/chat/completions HTTP/1.1
 Authorization: Bearer YOUR_API_KEY
 Content-Type: application/json
 

@@ -1,0 +1,21 @@
+# robots.txt - Temporary: Block all indexing during development
+# Last updated: 2026-02-19
+
+User-agent: *
+Disallow: /
+
+# Block specific bots explicitly
+User-agent: Googlebot
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /
+
+User-agent: Slurp
+Disallow: /
+
+User-agent: DuckDuckBot
+Disallow: /
+
+# Sitemap (comment out until site is ready)
+# Sitemap: https://yourdomain.com/sitemap.xml

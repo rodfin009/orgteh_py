@@ -540,10 +540,10 @@ async def internal_chat_ui(request: Request):
 async def openai_compatible_proxy(request: Request):
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-         return JSONResponse({"error": "Invalid Nexus API Key"}, 401)
+         return JSONResponse({"error": "Invalid Orgteh API Key"}, 401)
     api_key = auth_header.split(" ")[1]
     user = get_user_by_api_key(api_key)
-    if not user: return JSONResponse({"error": "Invalid Nexus API Key"}, 401)
+    if not user: return JSONResponse({"error": "Invalid Orgteh API Key"}, 401)
     try: body = await request.json()
     except: return JSONResponse({"error": "Invalid JSON"}, 400)
     return await handle_chat_request(user['email'], body)

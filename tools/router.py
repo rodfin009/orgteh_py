@@ -50,7 +50,7 @@ async def execute_tool_endpoint(
     # 2. Route Logic based on Tool ID
     try:
         # --- A. FINANCIAL NEWS ---
-        if tool_id == "nexus-finance-rss":
+        if tool_id == "orgteh-finance-rss":
             return await rss_engine.execute_hybrid_news(
                 category="finance",
                 limit=int(params.get("limit", 5)),
@@ -60,7 +60,7 @@ async def execute_tool_endpoint(
             )
 
         # --- B. GENERAL NEWS ---
-        elif tool_id == "nexus-news-general":
+        elif tool_id == "orgteh-news-general":
             return await rss_engine.execute_hybrid_news(
                 category="general",
                 limit=int(params.get("limit", 3)),
@@ -70,13 +70,13 @@ async def execute_tool_endpoint(
             )
 
         # --- C. VISION / OCR ---
-        elif tool_id == "nexus-vision-ocr":
+        elif tool_id == "orgteh-vision-ocr":
             if not file_input:
                 return JSONResponse({"error": "File input required for OCR"}, 400)
             return await nvidia_engine.execute_ocr(file_input)
 
         # --- D. SEMANTIC EMBEDDING ---
-        elif tool_id == "nexus-semantic-embed":
+        elif tool_id == "orgteh-semantic-embed":
             text = params.get("text_input")
             if not text:
                 return JSONResponse({"error": "text_input is required"}, 400)

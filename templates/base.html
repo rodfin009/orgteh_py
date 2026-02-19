@@ -140,7 +140,7 @@
 </head>
 <body class="bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-300">
 
-    <nav id="main-navbar" style="position:fixed;top:0;left:0;right:0;z-index:9999;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);" class="bg-white/95 dark:bg-black/95 border-b border-gray-200 dark:border-gray-800">
+    <nav id="main-navbar" style="position:relative;z-index:100;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);" class="bg-white/95 dark:bg-black/95 border-b border-gray-200 dark:border-gray-800">
         <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
             <div class="flex items-center gap-4 md:gap-8 flex-1">
                 <button onclick="toggleSidebar()" class="md:hidden text-2xl z-50 p-2"><i class="fa-solid fa-bars"></i></button>
@@ -186,7 +186,7 @@
         </div>
     </nav>
 
-<div id="page-wrapper" style="padding-top:80px;min-height:100vh;display:flex;flex-direction:column;">
+<div id="page-wrapper" style="min-height:100vh;display:flex;flex-direction:column;">
 
     <div id="sidebar-overlay" onclick="toggleSidebar()" class="hidden"></div>
 

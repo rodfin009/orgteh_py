@@ -11,7 +11,7 @@ from services.providers import NVIDIA_API_KEY, NVIDIA_BASE_URL
 from tools.registry import TOOLS_DB
 
 # Configuration
-PROJECT_HOST_URL = "https://orgteh.com"
+PROJECT_HOST_URL = "https://orgteh.com/v1"
 
 # 櫨 CODE HUB SPECIFIC CONFIGURATION 櫨
 CODE_HUB_MODELS_INFO = {
