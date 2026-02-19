@@ -5,14 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Orgteh Infra</title>
 
-    <!-- Favicons — دائرية في تبويب المتصفح ومحركات البحث -->
-    <link id="site-favicon" rel="icon" type="image/svg+xml" href="/static/favicon-round.svg">
-    <link rel="alternate icon" type="image/png" href="/static/logo_dark.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/logo_dark.png">
-    <link rel="manifest" href="/static/site.webmanifest">
-    <meta name="msapplication-TileImage" content="/static/logo_dark.png">
-    <meta property="og:image" content="/static/logo_dark.png">
-    <meta name="theme-color" content="#7c3aed">
+    <link id="site-favicon" rel="icon" type="image/png" href="/static/logo_dark.png">
+    <!-- الفافيكون الدائري يُنشأ عبر Canvas في JS أدناه -->
 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -79,18 +73,40 @@
         Object.assign(window.translations.ar, baseTranslations.ar);
 
         // Theme & Favicon Initialization
+        // ── تطبيق الوضع المحفوظ فوراً ──────────────────────────────────
         (function() {
             const savedTheme = localStorage.getItem('theme');
-            const favicon = document.getElementById('site-favicon');
-
             if (savedTheme === 'light') {
                 document.documentElement.classList.remove('dark');
-                if(favicon) favicon.href = "/static/favicon-round.svg";
             } else {
                 document.documentElement.classList.add('dark');
-                if(favicon) favicon.href = "/static/favicon-round.svg";
             }
         })();
+
+        // ── إنشاء الفافيكون الدائري عبر Canvas ──────────────────────────
+        function setCircularFavicon(imgSrc) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                ctx.beginPath();
+                ctx.arc(32, 32, 32, 0, Math.PI * 2, false);
+                ctx.closePath();
+                ctx.clip();
+                ctx.drawImage(img, 0, 0, 64, 64);
+                const link = document.getElementById('site-favicon');
+                if (link) link.href = canvas.toDataURL('image/png');
+            };
+            img.src = imgSrc;
+        }
+
+        // تطبيق الفافيكون عند تحميل الصفحة
+        window.addEventListener('DOMContentLoaded', function() {
+            const isDark = document.documentElement.classList.contains('dark');
+            setCircularFavicon(isDark ? '/static/logo_dark.png' : '/static/logo_light.png');
+        });
     </script>
 
     <style>
@@ -174,8 +190,8 @@
             </div>
 
             <a href="javascript:void(0)" onclick="navigateWithLang('')" class="flex items-center z-50 ml-auto">
-                <img src="/static/logo_dark.png" alt="Orgteh" class="dark-logo w-10 h-10 object-cover" style="border-radius:8px;">
-                <img src="/static/logo_light.png" alt="Orgteh" class="light-logo w-10 h-10 object-cover" style="border-radius:8px;">
+                <img src="/static/logo_dark.png" alt="Orgteh" class="dark-logo h-9 w-auto object-contain" style="display:block;">
+                <img src="/static/logo_light.png" alt="Orgteh" class="light-logo h-9 w-auto object-contain" style="display:block;">
             </a>
         </div>
     </nav>
@@ -323,15 +339,14 @@
 
         function toggleTheme() {
             const html = document.documentElement;
-            const favicon = document.getElementById('site-favicon');
             if (html.classList.contains('dark')) {
                 html.classList.remove('dark');
                 localStorage.setItem('theme', 'light');
-                if(favicon) favicon.href = "/static/favicon-round.svg";
+                setCircularFavicon('/static/logo_light.png');
             } else {
                 html.classList.add('dark');
                 localStorage.setItem('theme', 'dark');
-                if(favicon) favicon.href = "/static/favicon-round.svg";
+                setCircularFavicon('/static/logo_dark.png');
             }
         }
 

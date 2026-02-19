@@ -727,7 +727,7 @@
         document.querySelectorAll('.verification-input').forEach(i => verificationCode += i.value);
     }
 
-    function showToast(message, type = 'info') {
+    function showToast(message, type = 'info', duration = 3000) {
         const toast = document.getElementById('toast');
         const icon = document.getElementById('toast-icon');
         const msg = document.getElementById('toast-message');
@@ -738,7 +738,7 @@
         else if (type === 'warning') icon.classList.add('fa-exclamation-triangle','text-yellow-500');
         else icon.classList.add('fa-info-circle','text-blue-400');
         toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 3000);
+        setTimeout(() => toast.classList.remove('show'), duration);
     }
 
     function loginWithGitHub() { window.location.href = '/auth/github/login'; }
@@ -810,7 +810,35 @@
     if (urlParams.get('error')) {
         const message = urlParams.get('message') || 'حدث خطأ في تسجيل الدخول';
         showToast(message, 'error');
-        window.history.replaceState({}, document.title, '/auth');
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    // GitHub OAuth error handling
+    if (urlParams.get('github_error')) {
+        const errCode = urlParams.get('github_error');
+        const lang = document.documentElement.getAttribute('lang') || 'ar';
+        const githubErrors = {
+            ar: {
+                'token_exchange_failed': '⚠️ فشل ربط GitHub: مفاتيح OAuth غير صحيحة. يرجى التحقق من GITHUB_CLIENT_SECRET في إعدادات Vercel.',
+                'check_env_vars': 'تحقق من متغيرات البيئة في Vercel: GITHUB_CLIENT_ID و GITHUB_CLIENT_SECRET',
+                'not_configured': '⚠️ GitHub OAuth غير مُعد. يرجى إضافة GITHUB_CLIENT_ID و GITHUB_CLIENT_SECRET في Vercel.',
+                'no_access_token': '⚠️ لم يتم الحصول على رمز الوصول من GitHub.',
+                'user_info_failed': '⚠️ فشل جلب معلومات مستخدم GitHub.',
+                'server_error': '⚠️ خطأ في الخادم أثناء ربط GitHub.',
+                'callback_error': '⚠️ خطأ في معالجة رد GitHub.'
+            },
+            en: {
+                'token_exchange_failed': '⚠️ GitHub link failed: OAuth keys are incorrect. Check GITHUB_CLIENT_SECRET in Vercel settings.',
+                'not_configured': '⚠️ GitHub OAuth not configured. Add GITHUB_CLIENT_ID & GITHUB_CLIENT_SECRET in Vercel.',
+                'no_access_token': '⚠️ No access token received from GitHub.',
+                'user_info_failed': '⚠️ Failed to fetch GitHub user info.',
+                'server_error': '⚠️ Server error while connecting GitHub.',
+                'callback_error': '⚠️ Error processing GitHub response.'
+            }
+        };
+        const msgs = githubErrors[lang] || githubErrors['ar'];
+        const msg = msgs[errCode] || (lang === 'ar' ? '⚠️ خطأ في ربط GitHub.' : '⚠️ GitHub connection error.');
+        showToast(msg, 'error', 8000);
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     // ── Auth Page Translations ─────────────────────────────────────────────

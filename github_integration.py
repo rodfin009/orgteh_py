@@ -226,14 +226,19 @@ async def handle_github_login(request: Request):
 
         if not GITHUB_CLIENT_ID:
             print("[GitHub OAuth] ERROR: GITHUB_CLIENT_ID not configured")
-            return RedirectResponse("/auth?error=github_not_configured")
+            referer = request.headers.get("referer", "")
+            return_url = _extract_return_url(referer) or "/ar/login"
+            return RedirectResponse(f"{return_url}?github_error=not_configured")
 
-        state = secrets.token_urlsafe(32)
-        request.session["oauth_state"] = state
+        state_token = secrets.token_urlsafe(24)
+        referer = request.headers.get("referer", "")
+        return_url = _extract_return_url(referer) or ""
+        request.session["oauth_state"] = state_token
+        request.session["oauth_return_url"] = return_url
 
-        print(f"[GitHub OAuth] Generated state: {state}")
+        print(f"[GitHub OAuth] Generated state: {state_token}, return_url: {return_url}")
 
-        auth_url = get_github_auth_url(state)
+        auth_url = get_github_auth_url(state_token)
         print(f"[GitHub OAuth] Redirecting to: {auth_url[:80]}...")
 
         return RedirectResponse(auth_url)
@@ -241,7 +246,25 @@ async def handle_github_login(request: Request):
     except Exception as e:
         print(f"[GitHub OAuth] CRITICAL ERROR in handle_github_login: {str(e)}")
         print(traceback.format_exc())
-        return RedirectResponse(f"/auth?error=server_error&message={str(e)}")
+        referer = request.headers.get("referer", "")
+        return_url = _extract_return_url(referer) or "/ar/login"
+        return RedirectResponse(f"{return_url}?github_error=server_error")
+
+
+def _extract_return_url(referer: str) -> str:
+    """Extract a safe return URL from referer header"""
+    if not referer:
+        return ""
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(referer)
+        path = parsed.path
+        safe_prefixes = ["/ar", "/en"]
+        if any(path.startswith(p) for p in safe_prefixes):
+            return path
+    except Exception:
+        pass
+    return ""
 
 async def handle_github_callback(request: Request, code: str, state: str):
     """Handle GitHub OAuth callback"""
@@ -267,12 +290,14 @@ async def handle_github_callback(request: Request, code: str, state: str):
             token_data = await exchange_code_for_token(code)
         except Exception as e:
             print(f"[GitHub OAuth] Token exchange failed: {e}")
-            return RedirectResponse(f"/auth?error=token_exchange_failed")
+            return_url = request.session.get("oauth_return_url", "/ar/login") or "/ar/login"
+            return RedirectResponse(f"{return_url}?github_error=token_exchange_failed&detail=check_env_vars")
 
         access_token = token_data.get("access_token")
         if not access_token:
             print("[GitHub OAuth] ERROR: No access token in response")
-            return RedirectResponse("/auth?error=no_access_token")
+            return_url = request.session.get("oauth_return_url", "/ar/login") or "/ar/login"
+            return RedirectResponse(f"{return_url}?github_error=no_access_token")
 
         print("[GitHub OAuth] Got access token, fetching user info...")
 
@@ -281,7 +306,8 @@ async def handle_github_callback(request: Request, code: str, state: str):
             github_user = await get_github_user(access_token)
         except Exception as e:
             print(f"[GitHub OAuth] Failed to get user info: {e}")
-            return RedirectResponse(f"/auth?error=user_info_failed")
+            return_url = request.session.get("oauth_return_url", "/ar/login") or "/ar/login"
+            return RedirectResponse(f"{return_url}?github_error=user_info_failed")
 
         print(f"[GitHub OAuth] User: {github_user.login}, Email: {github_user.email}")
 
@@ -325,7 +351,8 @@ async def handle_github_callback(request: Request, code: str, state: str):
     except Exception as e:
         print(f"[GitHub OAuth] CRITICAL ERROR in callback: {str(e)}")
         print(traceback.format_exc())
-        return RedirectResponse(f"/auth?error=callback_error&message={str(e)}")
+        return_url = request.session.get("oauth_return_url", "/ar/login") or "/ar/login"
+        return RedirectResponse(f"{return_url}?github_error=callback_error")
 
 async def handle_github_logout(request: Request):
     """Disconnect GitHub account"""
