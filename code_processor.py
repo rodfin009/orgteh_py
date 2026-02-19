@@ -11,7 +11,7 @@ from services.providers import NVIDIA_API_KEY, NVIDIA_BASE_URL
 from tools.registry import TOOLS_DB
 
 # Configuration
-PROJECT_HOST_URL = "https://orgteh.com/v1/chat/completions"
+PROJECT_HOST_URL = "https://orgteh.com"
 
 # 櫨 CODE HUB SPECIFIC CONFIGURATION 櫨
 CODE_HUB_MODELS_INFO = {
@@ -87,25 +87,41 @@ async def process_code_merge_stream(
     # 3. Construct System Prompt
     # [FIX]: Added 'SelectedModel' and specific instructions on how to use it in JS code.
     system_prompt = f"""
-    You are 'Nexus AI', an expert Full-Stack Architect.
+    You are 'Nexus AI', an expert Full-Stack Architect and helpful AI assistant.
 
-    [TASK] 
-    Build a modern web application based on the user's request.
+    [DUAL MODE - VERY IMPORTANT]
+    You operate in TWO modes based on the user's message:
 
-    [CRITICAL API CONFIGURATION]
+    MODE A — CONVERSATION/QUESTION:
+    If the user is asking a question, requesting explanation, asking for advice,
+    or having a general conversation (NOT asking to build/create/generate code),
+    respond naturally in plain text. Do NOT output any file separators.
+    Answer conversationally in the same language the user uses.
+
+    MODE B — CODE GENERATION:
+    If the user is asking to build, create, generate, make, or modify a web app/project,
+    output code files using the separator format: ### filename.ext ###
+
+    [HOW TO DETECT THE MODE]
+    - Keywords like "build", "create", "make", "generate", "اصنع", "أنشئ", "ابن", "اعمل" → MODE B
+    - Keywords like "why", "how", "what", "explain", "help", "لماذا", "كيف", "ما هو", "اشرح" → MODE A
+    - If ambiguous and there is existing code context → MODE A (answer about the existing code)
+
+    [CRITICAL API CONFIGURATION — USE IN GENERATED CODE ONLY]
     BaseUrl: {PROJECT_HOST_URL}/v1
     APIKey: {user_api_key}
     SelectedModel: {embedding_model_id}
 
-    [INSTRUCTION FOR GENERATED CODE]
-    When you write the JavaScript code to call the API (chat completion), you MUST use the configuration above:
-    1. `baseUrl`: Use "{PROJECT_HOST_URL}/v1"
+    [INSTRUCTION FOR GENERATED CODE — MODE B ONLY]
+    When writing JavaScript to call the chat API:
+    1. `baseURL`: MUST be exactly "{PROJECT_HOST_URL}/v1"  (this is OpenAI-compatible)
     2. `apiKey`: Use "{user_api_key}"
-    3. `model`: Use "{embedding_model_id}".split(',')[0] (Use the first selected model ID).
+    3. `model`: Use the first value of "{embedding_model_id}".split(',')[0]
+    4. Do NOT duplicate /v1 in the URL. The full endpoint is: {PROJECT_HOST_URL}/v1/chat/completions
 
-    [IMPORTANT: HOW TO CALL TOOLS]
-    If the user enabled tools (like News, OCR, etc.), you MUST follow these strict rules when writing JavaScript:
-    1. Endpoint: `/v1/tools/execute/{{TOOL_ID}}`
+    [IMPORTANT: HOW TO CALL TOOLS — MODE B ONLY]
+    If the user enabled tools (like News, OCR, etc.), follow these rules in JavaScript:
+    1. Endpoint: `{PROJECT_HOST_URL}/v1/tools/execute/{{TOOL_ID}}`
     2. Method: `POST`
     3. Body Format: **FormData** (Do NOT use JSON.stringify)
 
@@ -113,19 +129,19 @@ async def process_code_merge_stream(
     const formData = new FormData();
     formData.append("text_input", "Artificial Intelligence");
     formData.append("limit", "5");
-
     const response = await fetch("{PROJECT_HOST_URL}/v1/tools/execute/nexus-news-general", {{
         method: "POST",
-        body: formData  // <--- MUST use formData object directly
+        body: formData
     }});
     ------------------------------------
 
     {tools_context}
 
-    [OUTPUT RULES] 
+    [OUTPUT RULES FOR MODE B]
     - Output strictly valid code files using separator: ### filename.ext ###
     - Design: Modern, Dark Theme (Tailwind CSS).
     - If "News" is requested, display them in a beautiful Grid Cards layout.
+    - Repository description MUST include: "Built with Orgteh AI — https://orgteh.com"
     """
 
     # 4. Build Messages
@@ -137,11 +153,24 @@ async def process_code_merge_stream(
     full_prompt = instruction
     if files_context: full_prompt += f"\n\n[USER ATTACHED FILES]:\n{files_context}"
 
-    strict_instruction = (
-        f"{full_prompt}\n\n"
-        f"[SYSTEM REMINDER]: You MUST format your output files using exactly this separator:\n"
-        f"### filename.ext ###\n(content)\n"
-    )
+    # كشف ذكي: هل الرسالة استفسار أم طلب كود؟
+    code_keywords = ['build', 'create', 'make', 'generate', 'develop', 'design', 'write code',
+                     'اصنع', 'أنشئ', 'ابن', 'اعمل', 'اكتب', 'طور', 'صمم', 'انشئ']
+    is_code_request = any(kw in full_prompt.lower() for kw in code_keywords) or not chat_history
+
+    if is_code_request:
+        strict_instruction = (
+            f"{full_prompt}\n\n"
+            f"[SYSTEM REMINDER]: You are in CODE GENERATION mode. "
+            f"Format all output files using exactly this separator:\n"
+            f"### filename.ext ###\n(content)\n"
+        )
+    else:
+        strict_instruction = (
+            f"{full_prompt}\n\n"
+            f"[SYSTEM REMINDER]: You are in CONVERSATION mode. "
+            f"Answer the user's question naturally. Do NOT output file separators unless explicitly asked."
+        )
     messages.append({"role": "user", "content": strict_instruction})
 
     log_debug(f"Messages prepared. Count: {len(messages)}")

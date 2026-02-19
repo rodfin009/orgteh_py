@@ -6,7 +6,6 @@
     <title>Orgteh Infra</title>
 
     <link id="site-favicon" rel="icon" type="image/png" href="/static/logo_dark.png">
-    <!-- الفافيكون الدائري يُنشأ عبر Canvas في JS أدناه -->
 
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -47,6 +46,10 @@
                 "nav_pricing": "Pricing",
                 "nav_contacts": "Contact Us",
                 "nav_docs": "Documentation",
+                "nav_beta": "Beta",
+                "sidebar_login": "Login",
+                "sidebar_register": "Create Account",
+                "sidebar_logout": "Logout",
                 "nav_custom_solutions": "Custom Solutions",
                 "nav_policy": "Policy", 
                 "nav_dashboard": "Dashboard",
@@ -61,6 +64,10 @@
                 "nav_pricing": "الأسعار",
                 "nav_contacts": "تواصل معنا",
                 "nav_docs": "التوثيق",
+                "nav_beta": "تجريبي",
+                "sidebar_login": "تسجيل الدخول",
+                "sidebar_register": "إنشاء حساب جديد",
+                "sidebar_logout": "تسجيل الخروج",
                 "nav_custom_solutions": "حلول مخصصة",
                 "nav_policy": "سياسة الاستخدام",
                 "nav_dashboard": "لوحة التحكم",
@@ -72,41 +79,24 @@
         Object.assign(window.translations.en, baseTranslations.en);
         Object.assign(window.translations.ar, baseTranslations.ar);
 
-        // Theme & Favicon Initialization
-        // ── تطبيق الوضع المحفوظ فوراً ──────────────────────────────────
+        window._setCircularFavicon = function(src) {
+            var img = new Image(); img.onload = function() {
+                var c = document.createElement('canvas'); c.width = c.height = 64;
+                var ctx = c.getContext('2d');
+                ctx.beginPath(); ctx.arc(32,32,32,0,Math.PI*2); ctx.clip();
+                ctx.drawImage(img,0,0,64,64);
+                var lnk = document.getElementById('site-favicon');
+                if(lnk) lnk.href = c.toDataURL('image/png');
+            }; img.src = src;
+        };
         (function() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'light') {
-                document.documentElement.classList.remove('dark');
-            } else {
-                document.documentElement.classList.add('dark');
-            }
+            var t = localStorage.getItem('theme');
+            if(t==='light') document.documentElement.classList.remove('dark');
+            else document.documentElement.classList.add('dark');
+            window.addEventListener('load', function(){
+                window._setCircularFavicon(t==='light'?'/static/logo_light.png':'/static/logo_dark.png');
+            });
         })();
-
-        // ── إنشاء الفافيكون الدائري عبر Canvas ──────────────────────────
-        function setCircularFavicon(imgSrc) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 64; canvas.height = 64;
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = function() {
-                ctx.beginPath();
-                ctx.arc(32, 32, 32, 0, Math.PI * 2, false);
-                ctx.closePath();
-                ctx.clip();
-                ctx.drawImage(img, 0, 0, 64, 64);
-                const link = document.getElementById('site-favicon');
-                if (link) link.href = canvas.toDataURL('image/png');
-            };
-            img.src = imgSrc;
-        }
-
-        // تطبيق الفافيكون عند تحميل الصفحة
-        window.addEventListener('DOMContentLoaded', function() {
-            const isDark = document.documentElement.classList.contains('dark');
-            setCircularFavicon(isDark ? '/static/logo_dark.png' : '/static/logo_light.png');
-        });
     </script>
 
     <style>
@@ -148,9 +138,9 @@
     </style>
 {% block head_extra %}{% endblock %}
 </head>
-<body class="bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-300 flex flex-col min-h-screen">
+<body class="bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-300">
 
-    <nav class="sticky top-0 w-full z-50 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
+    <nav id="main-navbar" style="position:fixed;top:0;left:0;right:0;z-index:9999;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);" class="bg-white/95 dark:bg-black/95 border-b border-gray-200 dark:border-gray-800">
         <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
             <div class="flex items-center gap-4 md:gap-8 flex-1">
                 <button onclick="toggleSidebar()" class="md:hidden text-2xl z-50 p-2"><i class="fa-solid fa-bars"></i></button>
@@ -159,7 +149,7 @@
                     <a href="javascript:void(0)" onclick="navigateWithLang('')" class="font-bold hover:text-primary transition" data-i18n="nav_home">الرئيسية</a>
                     <a href="javascript:void(0)" onclick="navigateWithLang('models')" class="font-bold hover:text-primary transition" data-i18n="nav_models">النماذج</a>
                     <a href="javascript:void(0)" onclick="navigateWithLang('accesory')" class="font-bold hover:text-primary transition" data-i18n="nav_tools">الأدوات</a>
-                    <a href="javascript:void(0)" onclick="navigateWithLang('code-hub')" class="font-bold hover:text-primary transition" data-i18n="nav_code_builder">منشئ الكود الذكي</a>
+                    <a href="javascript:void(0)" onclick="navigateWithLang('code-hub')" class="font-bold hover:text-primary transition" style="display:flex;align-items:center;gap:5px;"><span data-i18n="nav_code_builder">منشئ الكود الذكي</span><span data-i18n="nav_beta" style="font-size:10px;background:#22c55e;color:white;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap;">تجريبي</span></a>
                     <a href="javascript:void(0)" onclick="navigateWithLang('cart')" class="font-bold hover:text-primary transition" data-i18n="nav_pricing">الأسعار</a>
                     <a href="javascript:void(0)" onclick="navigateWithLang('contacts')" class="font-bold hover:text-primary transition" data-i18n="nav_contacts">تواصل معنا</a>
                     <a href="javascript:void(0)" onclick="navigateWithLang('docs')" class="font-bold hover:text-primary transition" data-i18n="nav_docs">التوثيق</a>
@@ -189,12 +179,14 @@
                 </div>
             </div>
 
-            <a href="javascript:void(0)" onclick="navigateWithLang('')" class="flex items-center z-50 ml-auto">
-                <img src="/static/logo_dark.png" alt="Orgteh" class="dark-logo h-9 w-auto object-contain" style="display:block;">
-                <img src="/static/logo_light.png" alt="Orgteh" class="light-logo h-9 w-auto object-contain" style="display:block;">
+            <a href="javascript:void(0)" onclick="navigateWithLang('')" style="display:flex;align-items:stretch;align-self:stretch;margin-left:auto;">
+                <img src="/static/logo_dark.png" alt="Orgteh" class="dark-logo" style="height:100%;width:auto;object-fit:contain;padding:4px 0;">
+                <img src="/static/logo_light.png" alt="Orgteh" class="light-logo" style="height:100%;width:auto;object-fit:contain;padding:4px 0;">
             </a>
         </div>
     </nav>
+
+<div id="page-wrapper" style="padding-top:80px;min-height:100vh;display:flex;flex-direction:column;">
 
     <div id="sidebar-overlay" onclick="toggleSidebar()" class="hidden"></div>
 
@@ -208,7 +200,7 @@
             <a href="javascript:void(0)" onclick="navigateWithLang(''); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-home w-6"></i> <span data-i18n="nav_home">الرئيسية</span></a>
             <a href="javascript:void(0)" onclick="navigateWithLang('models'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-layer-group w-6"></i> <span data-i18n="nav_models">النماذج</span></a>
             <a href="javascript:void(0)" onclick="navigateWithLang('accesory'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-screwdriver-wrench w-6"></i> <span data-i18n="nav_tools">الأدوات</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('code-hub'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3 transition"><i class="fa-solid fa-code-branch w-6"></i> <span data-i18n="nav_code_builder">منشئ الكود الذكي</span></a>
+            <a href="javascript:void(0)" onclick="navigateWithLang('code-hub'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3 transition"><i class="fa-solid fa-code-branch w-6"></i><span data-i18n="nav_code_builder">منشئ الكود الذكي</span><span data-i18n="nav_beta" style="font-size:10px;background:#22c55e;color:white;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap;">تجريبي</span></a>
             <a href="javascript:void(0)" onclick="navigateWithLang('cart'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-tags w-6"></i> <span data-i18n="nav_pricing">الأسعار</span></a>
             <a href="javascript:void(0)" onclick="navigateWithLang('contacts'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-envelope w-6"></i> <span data-i18n="nav_contacts">تواصل معنا</span></a>
             <a href="javascript:void(0)" onclick="navigateWithLang('enterprise'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-building w-6"></i> <span data-i18n="nav_custom_solutions">حلول مخصصة</span></a>
@@ -221,14 +213,14 @@
             {% if is_logged_in %}
                 <a href="javascript:void(0)" onclick="navigateWithLang('profile'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-gauge w-6"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span></a>
                 <button onclick="confirmLogout(); toggleSidebar();" class="w-full text-red-500 font-bold flex items-center gap-3 mt-2 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition">
-                    <i class="fa-solid fa-sign-out-alt w-6"></i> تسجيل الخروج
+                    <i class="fa-solid fa-sign-out-alt w-6"></i> <span data-i18n="sidebar_logout">تسجيل الخروج</span>
                 </button>
             {% else %}
                 <a href="javascript:void(0)" onclick="navigateWithLang('login'); toggleSidebar();" class="font-bold text-gray-500 hover:text-primary flex items-center gap-3">
                     <i class="fa-solid fa-gauge w-6"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span> <i class="fa-solid fa-lock text-xs text-primary/50"></i>
                 </a>
-                <a href="javascript:void(0)" onclick="navigateWithLang('login'); toggleSidebar();" class="w-full py-3 rounded-lg border border-gray-200 dark:border-gray-800 font-bold hover:bg-gray-100 dark:bg-[#111111] text-center block">تسجيل الدخول</a>
-                <a href="javascript:void(0)" onclick="navigateWithLang('register'); toggleSidebar();" class="w-full py-3 bg-primary text-gray-900 dark:text-white rounded-lg font-bold hover:opacity-90 text-center block mt-3">إنشاء حساب جديد</a>
+                <a href="javascript:void(0)" onclick="navigateWithLang('login'); toggleSidebar();" class="w-full py-3 rounded-lg border border-gray-200 dark:border-gray-800 font-bold hover:bg-gray-100 dark:bg-[#111111] text-center block"><span data-i18n="sidebar_login">تسجيل الدخول</span></a>
+                <a href="javascript:void(0)" onclick="navigateWithLang('register'); toggleSidebar();" class="w-full py-3 bg-primary text-gray-900 dark:text-white rounded-lg font-bold hover:opacity-90 text-center block mt-3"><span data-i18n="sidebar_register">إنشاء حساب جديد</span></a>
             {% endif %}
         </div>
 
@@ -245,11 +237,11 @@
         </div>
     </aside>
 
-    <main class="flex-grow relative z-0 text-left" dir="rtl">
+    <main class="flex-grow-0 relative z-0 text-left" dir="rtl" style="flex:1;">
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="py-8 text-center text-gray-500 text-sm border-t border-gray-200 dark:border-gray-800 mt-auto bg-white dark:bg-black relative z-10">
+    <footer class="py-8 text-center text-gray-500 text-sm border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-black relative z-10 mt-auto">
         <p data-i18n="footer_rights">All rights reserved © 2026 Orgteh Infra</p>
     </footer>
 
@@ -340,13 +332,11 @@
         function toggleTheme() {
             const html = document.documentElement;
             if (html.classList.contains('dark')) {
-                html.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-                setCircularFavicon('/static/logo_light.png');
+                html.classList.remove('dark'); localStorage.setItem('theme','light');
+                window._setCircularFavicon('/static/logo_light.png');
             } else {
-                html.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-                setCircularFavicon('/static/logo_dark.png');
+                html.classList.add('dark'); localStorage.setItem('theme','dark');
+                window._setCircularFavicon('/static/logo_dark.png');
             }
         }
 
@@ -466,5 +456,6 @@
         </div>
     </div>
 
+</div><!-- /page-wrapper -->
 </body>
 </html>
