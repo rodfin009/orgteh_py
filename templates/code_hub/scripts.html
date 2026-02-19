@@ -100,7 +100,10 @@
     // FIXED: Initialize empty to force user selection or default fallback, NOT hardcoded Kimi
     let selectedItems = { models: [], tools: [] };
     let isPreviewDirty = false;
-    let currentPreviewFile = "index.html"; 
+    let currentPreviewFile = "index.html";
+
+    // ── MODE STATE: 'auto' | 'build' | 'chat' ──────────────────────────
+    let currentMode = 'auto';
 
     // --- [3] INITIALIZATION & LOCALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
@@ -187,91 +190,415 @@
 
     window.addEventListener('langChange', applyIdeTranslations);
 
-    // --- [4] MAIN CHAT HANDLERS ---
+    // ══════════════════════════════════════════════════
+    // [MODE SELECTOR]
+    // ══════════════════════════════════════════════════
+    function toggleModeDropdown(e) {
+        e.stopPropagation();
+        var dd = document.getElementById('mode-dropdown');
+        if (dd) dd.classList.toggle('show');
+    }
+
+    function selectMode(mode, isManual) {
+        currentMode = mode;
+        // Track whether user manually picked a mode from the dropdown
+        if (isManual !== undefined) window._manualModeSet = isManual;
+
+        var icons = { auto: 'fa-wand-magic-sparkles', build: 'fa-hammer', chat: 'fa-comments' };
+        var labelsAr = { auto: 'تلقائي', build: 'البناء', chat: 'محادثة' };
+        var labelsEn = { auto: 'Auto', build: 'Build', chat: 'Chat' };
+        var colors   = { auto: '', build: 'mode-build', chat: 'mode-chat' };
+
+        var lang = localStorage.getItem('lang') || 'ar';
+        var iconEl  = document.getElementById('mode-icon');
+        var labelEl = document.getElementById('mode-label');
+        var btn     = document.getElementById('mode-btn');
+        var dd      = document.getElementById('mode-dropdown');
+
+        if (iconEl)  iconEl.className  = 'fa-solid ' + icons[mode];
+        if (labelEl) labelEl.textContent = (lang === 'ar') ? labelsAr[mode] : labelsEn[mode];
+        if (btn)     btn.className = 'mode-btn ' + colors[mode];
+        if (dd)      dd.classList.remove('show');
+
+        ['auto','build','chat'].forEach(function(m) {
+            var opt = document.getElementById('mode-opt-' + m);
+            if (opt) opt.classList.toggle('active', m === mode);
+        });
+
+        var input = document.getElementById('prompt-input');
+        if (input) {
+            if (mode === 'build') {
+                input.placeholder = (lang === 'ar') ? 'اطلب من Nexus بناء مشروع...' : 'Ask Nexus to build something...';
+            } else if (mode === 'chat') {
+                input.placeholder = (lang === 'ar') ? 'استفسر أو اطرح سؤالك...' : 'Ask a question or discuss...';
+            } else {
+                var t = getTrans();
+                input.placeholder = t.input_placeholder || 'Ask Nexus...';
+            }
+        }
+    }
+
+    // Close mode dropdown when clicking outside
+    document.addEventListener('click', function(evt) {
+        var wrapper = document.querySelector('.mode-toggle-wrapper');
+        if (wrapper && !wrapper.contains(evt.target)) {
+            var dd = document.getElementById('mode-dropdown');
+            if (dd) dd.classList.remove('show');
+        }
+    });
+
+    // ══════════════════════════════════════════════════
+    // [4] MAIN CHAT HANDLER
+    // ══════════════════════════════════════════════════
     async function sendMessage() {
-        const input = document.getElementById('prompt-input');
-        const fileInput = document.getElementById('file-input');
+        var input    = document.getElementById('prompt-input');
+        var fileInput = document.getElementById('file-input');
         let text = input.value.trim();
-        if(!text && fileInput.files.length === 0) return;
+        if (!text && fileInput.files.length === 0) return;
 
-        if(window.event) window.event.preventDefault();
+        if (window.event) window.event.preventDefault();
 
-        const t = getTrans();
+        var t = getTrans();
 
-        // Inject pending file context if user clicked "ask about file"
+        // ── Capture mode BEFORE any side effects ──────────────────────────
+        // CRITICAL: must read currentMode here, before clearFloatingChip resets it
+        var resolvedMode = currentMode; // 'auto' | 'build' | 'chat'
+
+        // Inject pending file context (floating chip)
         if (window._pendingFileContext) {
-            const fc = window._pendingFileContext;
-            text = text + `\n\n[File context: ${fc.name}]\n${fc.content}`;
-            window._pendingFileContext = null;
+            var fc = window._pendingFileContext;
+            text = text + '\n\n[File context: ' + fc.name + ']\n' + fc.content;
+            // File inquiry → ALWAYS chat, regardless of selected mode
+            resolvedMode = 'chat';
+            clearFloatingChipSilent(); // clear visual only, don't change currentMode
         }
 
         let displayMsg = input.value.trim().replace(/\n/g, '<br>');
-        if(fileInput.files.length > 0) displayMsg += `<div class="text-xs opacity-70 mt-1"><i class="fa-solid fa-paperclip"></i> ${fileInput.files.length} ${t.file_attached}</div>`;
+        if (fileInput.files.length > 0) {
+            displayMsg += '<div class="text-xs opacity-70 mt-1"><i class="fa-solid fa-paperclip"></i> ' + fileInput.files.length + ' ' + t.file_attached + '</div>';
+        }
 
         addMessageUI('user', displayMsg);
-
         chatHistory.push({ role: 'user', content: text });
-        currentPreviewFile = "index.html"; 
-
+        // Don't reset currentPreviewFile here — keep the last known HTML file
+        // It gets updated properly in handleV1Stream after parsing new files
         input.value = ''; input.style.height = 'auto';
-        filesBuffer = {}; 
-        isPreviewDirty = true; 
-
+        filesBuffer = {};
+        isPreviewDirty = true;
         switchView('chat');
 
-        // FORCE V1 ONLY (Advanced mode removed)
-        await handleV1Stream(text, fileInput.files);
+        // Route: 'chat' → handleChatStream | 'build'/'auto' → handleV1Stream
+        if (resolvedMode === 'chat') {
+            await handleChatStream(text, fileInput.files);
+        } else {
+            await handleV1Stream(text, fileInput.files, resolvedMode);
+        }
 
-        fileInput.value = "";
+        fileInput.value = '';
         updateFileBadge();
     }
 
-    // --- [5] V1 STANDARD LOGIC ---
-    async function handleV1Stream(text, files) {
-        const aiContainer = createAIContainer('v1');
-        const formData = new FormData();
+    // ─────────────────────────────────────────────────────────────────────
+    // [5] SMART STREAM HANDLER  (build + auto)
+    //
+    //  GUARANTEED LOGIC:
+    //  • 'build' mode  → always treat response as files
+    //  • 'auto'  mode  → peek at first content chunk:
+    //      - starts with "###" → building  → progress bar + files
+    //      - anything else     → chatting  → chat bubble, NO files ever
+    //
+    //  parseFilesStrict never creates code.txt fallback.
+    // ─────────────────────────────────────────────────────────────────────
+    async function handleV1Stream(text, files, mode) {
+        mode = mode || 'build';
+        var feed = document.getElementById('chat-container');
+        var t    = getTrans();
+
+        var formData = new FormData();
         formData.append('instruction', text);
-
-        // Ensure we send the user's SELECTED model
-        const targetModel = selectedItems.models.length > 0 ? selectedItems.models[0] : "deepseek-ai/deepseek-v3.2";
+        var targetModel = selectedItems.models.length > 0
+            ? selectedItems.models[0]
+            : 'deepseek-ai/deepseek-v3.2';
         formData.append('target_model', targetModel);
-
         formData.append('target_tools', selectedItems.tools.join(','));
         formData.append('chat_history', JSON.stringify(chatHistory));
         formData.append('current_files', JSON.stringify(currentFiles));
-        for(let f of files) formData.append('files', f);
+        formData.append('chat_mode', mode);
+        for (var fi = 0; fi < files.length; fi++) formData.append('files', files[fi]);
 
+        // Build the shared container row
+        var row = document.createElement('div');
+        row.className = 'msg-row ai v1-msg-row';
+        row.innerHTML =
+            '<div class="msg-bubble msg-ai" style="width:100%">' +
+                '<div class="thinking-wrapper open">' +
+                    '<div class="thinking-header" onclick="toggleThinking(this)">' +
+                        '<i class="fa-solid fa-circle-notch fa-spin"></i> ' + t.thinking_process +
+                    '</div>' +
+                    '<div class="thinking-body"></div>' +
+                '</div>' +
+                '<div class="progress-container hidden"><div class="progress-track"><div class="progress-fill"></div></div></div>' +
+                '<div class="file-artifacts mt-2 pl-1"></div>' +
+                '<div class="chat-response-bubble" style="display:none;"></div>' +
+            '</div>';
+        feed.appendChild(row);
+        feed.scrollTop = feed.scrollHeight;
+
+        var thinkWrapper = row.querySelector('.thinking-wrapper');
+        var thinkHeader  = row.querySelector('.thinking-header');
+        var thinkBody    = row.querySelector('.thinking-body');
+        var progressBox  = row.querySelector('.progress-container');
+        var progressFill = row.querySelector('.progress-fill');
+        var chatBubble   = row.querySelector('.chat-response-bubble');
+
+        var fullText     = '';
+        var thinkingDone = false;
+        var renderPath   = null; // 'build' | 'chat' — decided on FIRST content chunk
+
+        function markThinkingDone() {
+            if (thinkingDone) return;
+            thinkingDone = true;
+            thinkWrapper.classList.add('done');
+            thinkWrapper.classList.remove('open');
+            thinkHeader.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i> ' + t.thinking_finished;
+        }
+
+        try {
+            var response = await fetch('/api/process-code', { method: 'POST', body: formData });
+            var reader   = response.body.getReader();
+            var decoder  = new TextDecoder();
+            var buf = '';
+
+            while (true) {
+                var rd = await reader.read();
+                if (rd.done) break;
+                buf += decoder.decode(rd.value, { stream: true });
+                var lines = buf.split('\n');
+                buf = lines.pop();
+
+                for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i];
+                    if (!line.trim()) continue;
+                    var data;
+                    try { data = JSON.parse(line); } catch(pe) { continue; }
+
+                    if (data.type === 'thinking') {
+                        thinkBody.innerText += data.content;
+                        feed.scrollTop = feed.scrollHeight;
+                        continue;
+                    }
+                    if (data.type !== 'code') continue;
+
+                    fullText += data.content;
+
+                    // ── Decide render path on FIRST content chunk ──────────
+                    if (renderPath === null) {
+                        markThinkingDone();
+                        var trimmed = fullText.trimStart();
+                        if (mode === 'build' || trimmed.startsWith('###')) {
+                            renderPath = 'build';
+                            progressBox.classList.remove('hidden');
+                            progressFill.style.width = '30%';
+                        } else {
+                            renderPath = 'chat';
+                            chatBubble.style.display = 'block';
+                        }
+                    }
+
+                    if (renderPath === 'chat') {
+                        chatBubble.innerHTML = chatMarkdown(fullText);
+                    } else {
+                        progressFill.style.width = '60%';
+                    }
+                    feed.scrollTop = feed.scrollHeight;
+                }
+            }
+
+            // ── Post-stream ────────────────────────────────────────────────
+            markThinkingDone();
+
+            if (renderPath === 'build' || (mode === 'build' && renderPath === null)) {
+                progressFill.style.width = '100%';
+                if (fullText.trim()) {
+                    var newFiles = parseFilesStrict(fullText);
+                    if (Object.keys(newFiles).length > 0) {
+                        Object.assign(currentFiles, newFiles);
+                        // ── Update currentPreviewFile to the actual HTML file produced ──
+                        // This is critical: if model returns "public/index.html", we must
+                        // point currentPreviewFile to it, not keep stale "index.html"
+                        updateCurrentPreviewFile(newFiles);
+                        chatHistory.push({ role: 'assistant', content: fullText });
+                        Object.keys(newFiles).forEach(function(f) { renderArtifactBadge(row, f); });
+                        renderDownloadAllBtn(row);
+                        // ── Always render preview with updated content ──────────────
+                        // Whether preview tab is active or not, update the iframe now
+                        // so switching to it shows the latest version immediately
+                        isPreviewDirty = false;
+                        renderPreview(currentPreviewFile);
+                    } else {
+                        // Model was supposed to build but produced no ### files
+                        // → show as chat instead of creating code.txt
+                        chatBubble.style.display = 'block';
+                        chatBubble.innerHTML = chatMarkdown(fullText);
+                        chatHistory.push({ role: 'assistant', content: fullText });
+                        progressBox.classList.add('hidden');
+                    }
+                }
+            } else {
+                // chat path (or auto that chose chat)
+                if (fullText.trim()) {
+                    chatBubble.style.display = 'block';
+                    chatBubble.innerHTML = chatMarkdown(fullText);
+                    chatHistory.push({ role: 'assistant', content: fullText });
+                }
+            }
+
+        } catch(e) {
+            markThinkingDone();
+            chatBubble.style.display = 'block';
+            chatBubble.innerHTML = '<span style="color:#ef4444">Error: ' + e.message + '</span>';
+        }
+    }
+
+    // parseFilesStrict — ONLY returns files when ### separators exist.
+    // NEVER creates a code.txt fallback. That was the root cause of the bug.
+    function parseFilesStrict(text) {
+        var cleanText = text.replace(/```\w+\n/g, '').replace(/```/g, '');
+        var regex = /###\s*([\w\.\-\/]+)(?:\s*###)?\s*\n([\s\S]*?)(?=###\s*[\w\.\-\/]|$)/g;
+        var match;
+        var files = {};
+        while ((match = regex.exec(cleanText)) !== null) {
+            var name    = match[1].trim();
+            var content = match[2].trim();
+            if (name && content) files[name] = content;
+        }
+        return files;
+    }
+
+    // updateCurrentPreviewFile — called after every build to keep currentPreviewFile
+    // pointing at the correct HTML entry point in the latest set of files.
+    // Handles paths like "public/index.html", "src/index.html", "index.html" etc.
+    function updateCurrentPreviewFile(newFiles) {
+        var allHtml = Object.keys(currentFiles).filter(function(f) { return f.endsWith('.html'); });
+        if (allHtml.length === 0) return; // no html files in project at all
+
+        // Prefer files from the newly received batch
+        var newHtml = Object.keys(newFiles).filter(function(f) { return f.endsWith('.html'); });
+        var pool = newHtml.length > 0 ? newHtml : allHtml;
+
+        // Priority: file containing 'index', then 'home', then first .html
+        var best = pool.find(function(f) { return f.replace(/.*\//, '').toLowerCase() === 'index.html'; })
+            || pool.find(function(f) { return f.toLowerCase().includes('index'); })
+            || pool.find(function(f) { return f.toLowerCase().includes('home'); })
+            || pool[0];
+
+        if (best) {
+            currentPreviewFile = best;
+            console.log('[Preview] currentPreviewFile updated to:', best);
+        }
+    }
+
+    // --- [5b] CHAT MODE STREAM — no progress bar, direct streaming text ---
+    async function handleChatStream(text, files) {
+        const feed = document.getElementById('chat-container');
         const t = getTrans();
+
+        const row = document.createElement('div');
+        row.className = 'msg-row ai';
+        row.innerHTML =
+            '<div class="msg-bubble msg-ai" style="width:100%">' +
+                '<div class="thinking-wrapper open" id="chat-thinking-tmp">' +
+                    '<div class="thinking-header" onclick="toggleThinking(this)">' +
+                        '<i class="fa-solid fa-circle-notch fa-spin"></i> ' + t.thinking_process +
+                    '</div>' +
+                    '<div class="thinking-body"></div>' +
+                '</div>' +
+                '<div class="chat-response-bubble" style="display:none;"></div>' +
+            '</div>';
+        feed.appendChild(row);
+        feed.scrollTop = feed.scrollHeight;
+
+        const thinkWrapper = row.querySelector('.thinking-wrapper');
+        const thinkHeader  = row.querySelector('.thinking-header');
+        const thinkBody    = row.querySelector('.thinking-body');
+        const respBubble   = row.querySelector('.chat-response-bubble');
+
+        const formData = new FormData();
+        formData.append('instruction', text);
+        const targetModel = selectedItems.models.length > 0 ? selectedItems.models[0] : 'deepseek-ai/deepseek-v3.2';
+        formData.append('target_model', targetModel);
+        formData.append('target_tools', selectedItems.tools.join(','));
+        formData.append('chat_history', JSON.stringify(chatHistory));
+        formData.append('current_files', JSON.stringify(currentFiles));
+        formData.append('chat_mode', 'chat');
+        for (let f of files) formData.append('files', f);
+
+        let fullText = '';
+        let thinkingDone = false;
+
         try {
             const response = await fetch('/api/process-code', { method: 'POST', body: formData });
-            await processStream(response, aiContainer, (data) => {
-                if(data.type === 'thinking') {
-                     const tb = aiContainer.querySelector('.thinking-body');
-                     if(tb) tb.innerText += data.content;
-                } else if(data.type === 'code') {
-                    const wrapper = aiContainer.querySelector('.thinking-wrapper');
-                    const header = aiContainer.querySelector('.thinking-header');
-                    if(wrapper && !wrapper.classList.contains('done')) {
-                        wrapper.classList.add('done');
-                        header.innerHTML = `<i class="fa-solid fa-circle-check text-green-500"></i> ${t.thinking_finished}`;
-                    }
-                    aiContainer.querySelector('.progress-container').classList.remove('hidden');
-                    aiContainer.querySelector('.progress-fill').style.width = '75%';
-                    return data.content;
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buf = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+                const lines = buf.split('\n');
+                buf = lines.pop();
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                        const data = JSON.parse(line);
+                        if (data.type === 'thinking') {
+                            thinkBody.innerText += data.content;
+                            feed.scrollTop = feed.scrollHeight;
+                        } else if (data.type === 'code') {
+                            if (!thinkingDone) {
+                                thinkingDone = true;
+                                thinkWrapper.classList.add('done');
+                                thinkWrapper.classList.remove('open');
+                                thinkHeader.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i> ' + t.thinking_finished;
+                                respBubble.style.display = 'block';
+                            }
+                            fullText += data.content;
+                            respBubble.innerHTML = chatMarkdown(fullText);
+                            feed.scrollTop = feed.scrollHeight;
+                        }
+                    } catch(e2) {}
                 }
-            });
-            const finalWrapper = aiContainer.querySelector('.thinking-wrapper');
-            if (finalWrapper && !finalWrapper.classList.contains('done')) {
-                finalWrapper.classList.add('done');
-                aiContainer.querySelector('.thinking-header').innerHTML = `<i class="fa-solid fa-circle-check text-green-500"></i> ${t.thinking_finished}`;
             }
-            aiContainer.querySelector('.progress-fill').style.width = '100%';
-            if (document.querySelector('.tab-item.active')?.id === 'tab-preview') {
-                renderPreview(currentPreviewFile);
-            }
-        } catch(e) { 
-            aiContainer.innerHTML += `<div class="text-red-500">Err: ${e.message}</div>`; 
+        } catch(e) {
+            respBubble.style.display = 'block';
+            respBubble.innerHTML = '<span style="color:#ef4444">Error: ' + e.message + '</span>';
         }
+
+        if (!thinkingDone) {
+            thinkWrapper.classList.add('done');
+            thinkWrapper.classList.remove('open');
+            thinkHeader.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i> ' + t.thinking_finished;
+        }
+        if (fullText) {
+            respBubble.style.display = 'block';
+            respBubble.innerHTML = chatMarkdown(fullText);
+            chatHistory.push({ role: 'assistant', content: fullText });
+        }
+    }
+
+    function chatMarkdown(text) {
+        // code blocks
+        var html = text.replace(/```(\w*)\n?([\s\S]*?)```/g, function(_, lang, code) {
+            return '<pre><code>' + code.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</code></pre>';
+        });
+        // inline code
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        // bold
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        // newlines
+        html = html.replace(/\n/g, '<br>');
+        return html;
     }
 
     // --- [6] UI UTILITIES ---
@@ -280,34 +607,7 @@
         if (wrapper) wrapper.classList.toggle('open');
     }
 
-    async function processStream(response, container, callback) {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = ""; let fullCode = "";
-        while(true) {
-            const { done, value } = await reader.read();
-            if(done) break;
-            buffer += decoder.decode(value, { stream: true });
-            let lines = buffer.split('\n');
-            buffer = lines.pop();
-            for(const line of lines) {
-                if(!line.trim()) continue;
-                try {
-                    const data = JSON.parse(line);
-                    const res = await callback(data); 
-                    if(res && typeof res === 'string') fullCode += res;
-                } catch(e) {}
-            }
-        }
-        if(fullCode) {
-            const newFiles = parseFiles(fullCode);
-            Object.assign(currentFiles, newFiles);
-            chatHistory.push({ role: 'assistant', content: fullCode });
-            Object.keys(newFiles).forEach(f => renderArtifactBadge(container, f));
-            renderDownloadAllBtn(container);
-            isPreviewDirty = true;
-        }
-    }
+    // processStream removed — handleV1Stream now handles all streaming directly
 
     function addMessageUI(role, html) {
         const feed = document.getElementById('chat-container');
@@ -339,21 +639,9 @@
         return row;
     }
 
+    // parseFiles: kept for any legacy references, delegates to parseFilesStrict (no code.txt fallback)
     function parseFiles(text) {
-        const cleanText = text.replace(/```\w+\n/g, '').replace(/```/g, ''); 
-        const regex = /###\s*([\w\.-]+)(?:\s*###)?\s*\n([\s\S]*?)(?=###|$)/g;
-        let match; 
-        const files = {};
-
-        while ((match = regex.exec(cleanText)) !== null) {
-            files[match[1].trim()] = match[2].trim();
-        }
-
-        if (Object.keys(files).length === 0 && cleanText.trim().length > 0) {
-             const fname = cleanText.includes('<html') ? 'index.html' : 'code.txt';
-             files[fname] = cleanText;
-        }
-        return files;
+        return parseFilesStrict(text);
     }
 
     function updateFileBadge() {
@@ -434,31 +722,90 @@
         document.getElementById('editor-filename').textContent = filename;
         const ta = document.getElementById('editor-textarea');
         ta.value = content;
-        // Save handler
+        // Save handler — always refresh preview immediately
         document.getElementById('editor-save-btn').onclick = () => {
             currentFiles[filename] = ta.value;
-            isPreviewDirty = true;
+            isPreviewDirty = false;
             modal.style.display = 'none';
-            // If preview is active, refresh it
-            if (document.getElementById('tab-preview')?.classList.contains('active')) {
-                renderPreview(currentPreviewFile);
-            }
+            renderPreview(currentPreviewFile);
+            showSaveToast(filename);
         };
     }
 
     function askAboutFile(filename) {
         const content = currentFiles[filename] || '';
+        const lang = localStorage.getItem('lang') || 'ar';
+
+        // Store file context
+        window._pendingFileContext = { name: filename, content: content.slice(0, 3000) };
+
+        // Auto-switch to chat mode (mark as NOT manually set so it resets after)
+        window._manualModeSet = false;
+        selectMode('chat');
+
+        // Show floating chip
+        showFloatingChip(filename);
+
         const input = document.getElementById('prompt-input');
         if (input) {
-            const lang = localStorage.getItem('lang') || 'ar';
-            input.value = lang === 'ar'
-                ? `بالنسبة لملف ${filename}، `
-                : `Regarding file ${filename}, `;
-            // Also inject file content into next message context
-            window._pendingFileContext = { name: filename, content: content.slice(0, 2000) };
+            input.value = '';
+            input.placeholder = (lang === 'ar') ? ('اسأل عن ' + filename + '...') : ('Ask about ' + filename + '...');
             input.focus();
-            autoResize(input);
         }
+    }
+
+    function showFloatingChip(filename) {
+        var area = document.getElementById('floating-file-area');
+        if (!area) return;
+        var ext = filename.split('.').pop().toLowerCase();
+        var iconMap = { html:'fa-html5', css:'fa-css3-alt', js:'fa-js', py:'fa-python' };
+        var icon = iconMap[ext] || 'fa-file-code';
+        area.style.display = 'block';
+        area.innerHTML =
+            '<div class="floating-file-chip">' +
+                '<i class="fab ' + icon + ' chip-icon"></i>' +
+                '<span class="chip-name">' + filename + '</span>' +
+                '<button class="chip-close" onclick="clearFloatingChip()">' +
+                    '<i class="fa-solid fa-xmark"></i>' +
+                '</button>' +
+            '</div>';
+    }
+
+    // clearFloatingChip: called by X button — resets mode to auto
+    function clearFloatingChip() {
+        clearFloatingChipSilent();
+        // Reset mode to auto only if it was auto-switched (not manually set)
+        if (currentMode === 'chat' && !window._manualModeSet) {
+            selectMode('auto');
+        }
+    }
+
+    // clearFloatingChipSilent: clears UI only, does NOT change currentMode
+    // Used by sendMessage so mode isn't reset before routing logic
+    function clearFloatingChipSilent() {
+        window._pendingFileContext = null;
+        var area = document.getElementById('floating-file-area');
+        if (area) { area.style.display = 'none'; area.innerHTML = ''; }
+        var input = document.getElementById('prompt-input');
+        if (input) {
+            var t = getTrans();
+            input.placeholder = t.input_placeholder || 'Ask Nexus...';
+        }
+    }
+
+    function showSaveToast(filename) {
+        var toast = document.getElementById('save-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'save-toast';
+            document.body.appendChild(toast);
+        }
+        var lang = localStorage.getItem('lang') || 'ar';
+        toast.innerHTML = '<i class="fa-solid fa-check" style="margin-left:6px;margin-right:6px;"></i>' +
+            (lang === 'ar' ? ('تم حفظ ' + filename) : (filename + ' saved'));
+        toast.style.opacity = '1';
+        clearTimeout(toast._t);
+        toast._t = setTimeout(function() { toast.style.opacity = '0'; }, 2000);
     }
 
     function renderDownloadAllBtn(container) {
@@ -549,6 +896,9 @@
                             <span>${getTrans().tab_preview}</span>
                         </div>
                     </div>
+                    <button onclick="renderPreview(currentPreviewFile)" class="preview-refresh-btn" id="preview-refresh-btn" title="تحديث المعاينة">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
                     <button onclick="openSpecificModal('main-menu-modal')" class="action-btn model-trigger" id="preview-menu-btn">
                         <i class="fa-solid fa-ellipsis"></i>
                     </button>
@@ -576,17 +926,18 @@
         if (!pNav) return;
         const pill = document.getElementById('preview-tab-pill');
         const menuBtn = document.getElementById('preview-menu-btn');
+        const refreshBtn = document.getElementById('preview-refresh-btn');
         const eyeIcon = document.getElementById('eye-icon-preview');
         const isHidden = pill && pill.style.display === 'none';
         if (isHidden) {
-            // Show content
             if (pill) pill.style.display = '';
             if (menuBtn) menuBtn.style.display = '';
+            if (refreshBtn) refreshBtn.style.display = '';
             if (eyeIcon) eyeIcon.className = 'fa-solid fa-eye-slash';
         } else {
-            // Hide content, keep only eye icon
             if (pill) pill.style.display = 'none';
             if (menuBtn) menuBtn.style.display = 'none';
+            if (refreshBtn) refreshBtn.style.display = 'none';
             if (eyeIcon) eyeIcon.className = 'fa-solid fa-eye';
         }
     }
@@ -650,10 +1001,14 @@
         Object.keys(currentFiles).forEach(fname => {
             if (fname === htmlFileName) return;
             const content = cleanCodeFence(currentFiles[fname]);
+            // baseName: handle paths like "public/styles.css" → "styles.css"
+            const baseName = fname.includes('/') ? fname.split('/').pop() : fname;
 
             if(fname.endsWith('.css')) {
-                 if(html.includes(fname)) {
-                     const cssRegex = new RegExp(`<link[^>]+href=["']${fname}["'][^>]*>`, 'i');
+                 // Match by full path OR base filename in html
+                 const cssRef = html.includes(fname) ? fname : (html.includes(baseName) ? baseName : null);
+                 if(cssRef) {
+                     const cssRegex = new RegExp(`<link[^>]+href=["']${cssRef.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}["'][^>]*>`, 'i');
                      if (cssRegex.test(html)) {
                          html = html.replace(cssRegex, `<style>\n${content}\n</style>`);
                      } else {
@@ -665,9 +1020,10 @@
             }
 
             if(fname.endsWith('.js')) {
-                 const closingScript = '<\/script>'; 
-                 if(html.includes(fname)) {
-                     const jsRegex = new RegExp(`<script[^>]+src=["']${fname}["'][^>]*>[\\s\\S]*?<\/script>`, 'i');
+                 const closingScript = '<\/script>';
+                 const jsRef = html.includes(fname) ? fname : (html.includes(baseName) ? baseName : null);
+                 if(jsRef) {
+                     const jsRegex = new RegExp(`<script[^>]+src=["']${jsRef.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}["'][^>]*>[\s\S]*?<\/script>`, 'i');
                      if(jsRegex.test(html)) {
                          html = html.replace(jsRegex, `<script>\n${content}\n` + closingScript);
                      } else {

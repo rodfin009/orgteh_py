@@ -555,6 +555,7 @@ async def process_code_endpoint(
     target_model: str = Form("deepseek-ai/deepseek-v3.2"),
     target_tools: str = Form(""), 
     chat_history: str = Form("[]"),
+    chat_mode: str = Form("build"),
     files: list[UploadFile] = File(default=[])
 ):
     if target_model in HIDDEN_MODELS: return JSONResponse({"error": "Target model unavailable"}, 400)
@@ -572,7 +573,7 @@ async def process_code_endpoint(
                 except: pass
 
     async def event_generator():
-        async for event in process_code_merge_stream(instruction, files_data, user_api_key, target_model, history_list, target_tools):
+        async for event in process_code_merge_stream(instruction, files_data, user_api_key, target_model, history_list, target_tools, chat_mode):
             if event['type'] in ['thinking', 'code', 'error']:
                 yield json.dumps({"type": event['type'], "content": event['content']}, ensure_ascii=False).encode('utf-8') + b"\n"
 

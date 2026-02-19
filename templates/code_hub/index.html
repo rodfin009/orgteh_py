@@ -25,7 +25,41 @@
 
     <div class="bottom-controls-layer">
 
+        <!-- Floating file chip: appears above input when "ask about file" is clicked -->
+        <div id="floating-file-area" class="floating-file-area"></div>
+
         <div class="input-row" id="main-input-row">
+
+            <!-- Mode Selector Button -->
+            <div class="mode-toggle-wrapper">
+                <button class="mode-btn" id="mode-btn" onclick="toggleModeDropdown(event)">
+                    <i class="fa-solid fa-wand-magic-sparkles" id="mode-icon"></i>
+                    <span id="mode-label">تلقائي</span>
+                </button>
+                <div class="mode-dropdown" id="mode-dropdown">
+                    <div class="mode-option active" id="mode-opt-auto" onclick="selectMode('auto', true)">
+                        <div class="mode-icon-box"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                        <div class="mode-info">
+                            <h4>تلقائي / Auto</h4>
+                            <p>النموذج يحدد هل يبني أم يستجيب</p>
+                        </div>
+                    </div>
+                    <div class="mode-option" id="mode-opt-build" onclick="selectMode('build', true)">
+                        <div class="mode-icon-box"><i class="fa-solid fa-hammer"></i></div>
+                        <div class="mode-info">
+                            <h4>وضع البناء / Build</h4>
+                            <p>لبناء مشاريع وملفات كود فقط</p>
+                        </div>
+                    </div>
+                    <div class="mode-option" id="mode-opt-chat" onclick="selectMode('chat', true)">
+                        <div class="mode-icon-box"><i class="fa-solid fa-comments"></i></div>
+                        <div class="mode-info">
+                            <h4>وضع المحادثة / Chat</h4>
+                            <p>للاستفسار والشرح والنقاش</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div class="relative">
                 <button onclick="document.getElementById('file-input').click()" class="action-btn">

@@ -293,4 +293,89 @@
     html.dark .option-card.selected { background: rgba(79, 70, 229, 0.15); }
     .option-icon { width: 44px; height: 44px; border-radius: 12px; object-fit: contain; background: #ffffff; padding: 4px; border: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
     iframe { width: 100%; height: 100%; border: none; background: white; }
+
+    /* ── MODE BUTTON COLORS ── */
+    .mode-btn { background: none; border: none; }
+    .mode-btn.mode-build { color: #f59e0b; }
+    .mode-btn.mode-build .mode-icon-box { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .mode-btn.mode-chat  { color: #10b981; }
+    .mode-btn.mode-chat .mode-icon-box  { background: rgba(16,185,129,0.15); color: #10b981; }
+    .mode-option:last-child { border-bottom: none; }
+
+    /* ── FLOATING FILE CHIP AREA ── */
+    .floating-file-area {
+        display: none;
+        width: 100%; max-width: 800px;
+        padding: 0 4px 4px 4px;
+        margin: 0 auto;
+    }
+    .floating-file-chip {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: rgba(99,102,241,0.12);
+        border: 1px solid rgba(99,102,241,0.35);
+        border-radius: 18px;
+        padding: 4px 8px 4px 12px;
+        font-size: 0.78rem;
+        animation: chipIn 0.25s ease-out;
+    }
+    @keyframes chipIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    .chip-icon { color: #818cf8; }
+    .chip-name { font-weight: 600; color: #818cf8; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chip-close {
+        width: 18px; height: 18px; border-radius: 50%;
+        background: rgba(99,102,241,0.15); border: none;
+        color: var(--text-secondary); cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.6rem; flex-shrink: 0; padding: 0; transition: 0.15s;
+    }
+    .chip-close:hover { background: rgba(239,68,68,0.2); color: #ef4444; }
+
+    /* ── CHAT RESPONSE TEXT BUBBLE ── */
+    .chat-response-bubble {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 16px;
+        margin-top: 10px;
+        font-size: 0.9rem;
+        line-height: 1.75;
+        color: var(--text-primary);
+        width: 100%;
+        max-width: 700px;
+        word-break: break-word;
+    }
+    .chat-response-bubble p { margin: 0 0 8px 0; }
+    .chat-response-bubble p:last-child { margin-bottom: 0; }
+    .chat-response-bubble pre {
+        background: #1e1e2e; border-radius: 10px;
+        padding: 14px; overflow-x: auto;
+        margin: 10px 0; font-size: 0.8rem; color: #cdd6f4;
+    }
+    .chat-response-bubble code:not(pre code) {
+        background: rgba(99,102,241,0.12); border-radius: 4px;
+        padding: 2px 5px; font-size: 0.85em; color: #818cf8;
+    }
+
+    /* ── PREVIEW REFRESH BUTTON ── */
+    .preview-refresh-btn {
+        width: 34px; height: 34px; border-radius: 50%;
+        background: transparent; border: none;
+        color: var(--text-secondary);
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: all 0.3s;
+    }
+    .preview-refresh-btn:hover { color: var(--accent-color); transform: rotate(180deg); }
+
+    /* ── SAVE TOAST ── */
+    #save-toast {
+        position: fixed; bottom: 100px; left: 50%;
+        transform: translateX(-50%);
+        background: #22c55e; color: white;
+        padding: 7px 18px; border-radius: 20px;
+        font-size: 0.8rem; font-weight: bold; z-index: 9999;
+        opacity: 0; pointer-events: none; white-space: nowrap;
+        box-shadow: 0 4px 14px rgba(34,197,94,0.35);
+        transition: opacity 0.3s;
+    }
+
 </style>

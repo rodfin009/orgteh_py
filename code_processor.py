@@ -11,7 +11,7 @@ from services.providers import NVIDIA_API_KEY, NVIDIA_BASE_URL
 from tools.registry import TOOLS_DB
 
 # Configuration
-PROJECT_HOST_URL = "https://orgteh.com/v1"
+PROJECT_HOST_URL = "https://orgteh.com"
 
 # 櫨 CODE HUB SPECIFIC CONFIGURATION 櫨
 CODE_HUB_MODELS_INFO = {
@@ -58,7 +58,8 @@ async def process_code_merge_stream(
     user_api_key: str, 
     embedding_model_id: str, 
     chat_history: list,
-    target_tools: str = "" 
+    target_tools: str = "",
+    chat_mode: str = "build"  # "build" = توليد كود | "inquiry" = استفسار عن ملف
 ):
     log_debug(f"Starting Process. Target Model: {embedding_model_id}")
     log_debug(f"Target Tools IDs: {target_tools}")
@@ -84,65 +85,107 @@ async def process_code_merge_stream(
                     tools_context += "Usage Note: This API accepts FORM DATA only. Do NOT use JSON body.\n"
                     tools_context += f"Python Usage:\n{tool.get('usage_python')}\n"
 
-    # 3. Construct System Prompt
-    # [FIX]: Added 'SelectedModel' and specific instructions on how to use it in JS code.
-    system_prompt = f"""
-    You are 'Nexus AI', an expert Full-Stack Architect and helpful AI assistant.
+    # 3. Construct System Prompt — مبني على chat_mode الصريح من الفرونتند
+    is_inquiry = (chat_mode in ["inquiry", "chat"])
+    is_auto    = (chat_mode == "auto")
 
-    [DUAL MODE - VERY IMPORTANT]
-    You operate in TWO modes based on the user's message:
+    if is_inquiry:
+        # ── وضع المحادثة: استفسار طبيعي ──────────────────────────────────
+        system_prompt = f"""
+You are 'Nexus AI', a helpful AI assistant specialized in code review and explanation.
 
-    MODE A — CONVERSATION/QUESTION:
-    If the user is asking a question, requesting explanation, asking for advice,
-    or having a general conversation (NOT asking to build/create/generate code),
-    respond naturally in plain text. Do NOT output any file separators.
-    Answer conversationally in the same language the user uses.
+The user is in CHAT MODE — asking a question or discussing code. Do NOT generate new project files.
+Answer naturally and conversationally in the SAME language the user uses (Arabic or English).
+Be concise, helpful, and direct. You may include short code snippets to illustrate points.
+NEVER output file separators like ### filename.ext ###.
+"""
 
-    MODE B — CODE GENERATION:
-    If the user is asking to build, create, generate, make, or modify a web app/project,
-    output code files using the separator format: ### filename.ext ###
+    elif is_auto:
+        # ── الوضع التلقائي: النموذج يقرر بنفسه ──────────────────────────
+        active_model = embedding_model_id.split(",")[0] if embedding_model_id else "deepseek-ai/deepseek-v3.2"
+        system_prompt = f"""
+You are 'Nexus AI', an expert AI assistant and Full-Stack Developer.
 
-    [HOW TO DETECT THE MODE]
-    - Keywords like "build", "create", "make", "generate", "اصنع", "أنشئ", "ابن", "اعمل" → MODE B
-    - Keywords like "why", "how", "what", "explain", "help", "لماذا", "كيف", "ما هو", "اشرح" → MODE A
-    - If ambiguous and there is existing code context → MODE A (answer about the existing code)
+IMPORTANT — YOU DECIDE THE RESPONSE TYPE:
 
-    [CRITICAL API CONFIGURATION — USE IN GENERATED CODE ONLY]
-    BaseUrl: {PROJECT_HOST_URL}/v1
-    APIKey: {user_api_key}
-    SelectedModel: {embedding_model_id}
+▸ If the user wants to BUILD something (create app, page, component, code project, design UI, etc.)
+  → Output complete code files using this EXACT separator format:
+    ### filename.ext ###
+    (file content)
+    ### another-file.ext ###
+    (content)
+  Always output at minimum an index.html. Never add explanations before files — start directly.
 
-    [INSTRUCTION FOR GENERATED CODE — MODE B ONLY]
-    When writing JavaScript to call the chat API:
-    1. `baseURL`: MUST be exactly "{PROJECT_HOST_URL}/v1"  (this is OpenAI-compatible)
-    2. `apiKey`: Use "{user_api_key}"
-    3. `model`: Use the first value of "{embedding_model_id}".split(',')[0]
-    4. Do NOT duplicate /v1 in the URL. The full endpoint is: {PROJECT_HOST_URL}/v1/chat/completions
+▸ If the user is ASKING A QUESTION, requesting explanation, or having a conversation
+  → Reply conversationally in the same language (Arabic or English). Do NOT use ### separators.
+  → You may include inline code snippets wrapped in ``` but do NOT use ### file separators.
 
-    [IMPORTANT: HOW TO CALL TOOLS — MODE B ONLY]
-    If the user enabled tools (like News, OCR, etc.), follow these rules in JavaScript:
-    1. Endpoint: `{PROJECT_HOST_URL}/v1/tools/execute/{{TOOL_ID}}`
-    2. Method: `POST`
-    3. Body Format: **FormData** (Do NOT use JSON.stringify)
+════ API CONFIG (for generated JS code only) ════
+Endpoint : {PROJECT_HOST_URL}/v1/chat/completions
+API Key  : {user_api_key}
+Model    : {active_model}
 
-    --- CORRECT JS EXAMPLE FOR TOOLS ---
-    const formData = new FormData();
-    formData.append("text_input", "Artificial Intelligence");
-    formData.append("limit", "5");
-    const response = await fetch("{PROJECT_HOST_URL}/v1/tools/execute/nexus-news-general", {{
-        method: "POST",
-        body: formData
-    }});
-    ------------------------------------
+JavaScript pattern:
+const res = await fetch("{PROJECT_HOST_URL}/v1/chat/completions", {{
+    method: "POST",
+    headers: {{"Content-Type": "application/json", "Authorization": "Bearer {user_api_key}"}},
+    body: JSON.stringify({{model: "{active_model}", messages: [...], stream: false}})
+}});
 
-    {tools_context}
+Tools endpoint: {PROJECT_HOST_URL}/v1/tools/execute/{{TOOL_ID}} (POST with FormData, NOT JSON)
+{tools_context}
+════════════════════════════════════════════════
+[DESIGN RULES when building]
+- Tailwind CSS via CDN (https://cdn.tailwindcss.com)
+- Dark theme by default, mobile responsive, modern animations
+"""
 
-    [OUTPUT RULES FOR MODE B]
-    - Output strictly valid code files using separator: ### filename.ext ###
-    - Design: Modern, Dark Theme (Tailwind CSS).
-    - If "News" is requested, display them in a beautiful Grid Cards layout.
-    - Repository description MUST include: "Built with Orgteh AI — https://orgteh.com"
-    """
+    else:
+        # ── وضع البناء الصريح: توليد ملفات دائماً ───────────────────────
+        active_model = embedding_model_id.split(",")[0] if embedding_model_id else "deepseek-ai/deepseek-v3.2"
+        system_prompt = f"""
+You are 'Nexus AI', an expert Full-Stack Web Developer and Architect.
+
+YOUR ONLY JOB: Build complete, working web applications and output them as code files.
+You MUST ALWAYS output code files using the separator format below — no exceptions.
+Even for small requests, output at minimum an index.html file.
+
+════ MANDATORY OUTPUT FORMAT ════
+### filename.ext ###
+(file content here)
+### another-file.ext ###
+(content)
+════════════════════════════════
+
+════ API CONFIGURATION (USE EXACTLY AS SHOWN IN ALL GENERATED JS CODE) ════
+Chat Endpoint : {PROJECT_HOST_URL}/v1/chat/completions
+API Key       : {user_api_key}
+Model         : {active_model}
+
+JavaScript fetch pattern:
+const response = await fetch("{PROJECT_HOST_URL}/v1/chat/completions", {{
+    method: "POST",
+    headers: {{
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {user_api_key}"
+    }},
+    body: JSON.stringify({{
+        model: "{active_model}",
+        messages: [{{ "role": "user", "content": userMessage }}],
+        stream: false
+    }})
+}});
+const data = await response.json();
+const reply = data.choices[0].message.content;
+
+Tools: POST to {PROJECT_HOST_URL}/v1/tools/execute/{{TOOL_ID}} with FormData (NOT JSON)
+{tools_context}
+════════════════════════════════
+
+[DESIGN RULES]
+- Tailwind CSS via CDN (https://cdn.tailwindcss.com)
+- Dark theme by default, modern UI, mobile responsive, smooth animations
+"""
 
     # 4. Build Messages
     messages = [{"role": "system", "content": system_prompt}]
@@ -151,27 +194,24 @@ async def process_code_merge_stream(
             messages.append({"role": msg.get('role', 'user'), "content": msg['content']})
 
     full_prompt = instruction
-    if files_context: full_prompt += f"\n\n[USER ATTACHED FILES]:\n{files_context}"
+    if files_context: full_prompt += f"\n\n[ATTACHED FILE CONTENT]:\n{files_context}"
 
-    # كشف ذكي: هل الرسالة استفسار أم طلب كود؟
-    code_keywords = ['build', 'create', 'make', 'generate', 'develop', 'design', 'write code',
-                     'اصنع', 'أنشئ', 'ابن', 'اعمل', 'اكتب', 'طور', 'صمم', 'انشئ']
-    is_code_request = any(kw in full_prompt.lower() for kw in code_keywords) or not chat_history
-
-    if is_code_request:
-        strict_instruction = (
+    if is_inquiry:
+        final_user_msg = f"{full_prompt}\n\n[REMINDER: Answer conversationally in the user language. Do NOT output ### file separators.]"
+    elif is_auto:
+        final_user_msg = (
             f"{full_prompt}\n\n"
-            f"[SYSTEM REMINDER]: You are in CODE GENERATION mode. "
-            f"Format all output files using exactly this separator:\n"
-            f"### filename.ext ###\n(content)\n"
+            f"[REMINDER: Analyze this request and decide: BUILD (output ### files) or CHAT (conversational reply). "
+            f"If building, start immediately with ### filename.ext ###. If chatting, reply naturally.]"
         )
     else:
-        strict_instruction = (
+        final_user_msg = (
             f"{full_prompt}\n\n"
-            f"[SYSTEM REMINDER]: You are in CONVERSATION mode. "
-            f"Answer the user's question naturally. Do NOT output file separators unless explicitly asked."
+            f"[CRITICAL REMINDER]: You MUST output all files using the separator format:\n"
+            f"### filename.ext ###\n"
+            f"Start your response with the first file immediately. Do not add any preamble."
         )
-    messages.append({"role": "user", "content": strict_instruction})
+    messages.append({"role": "user", "content": final_user_msg})
 
     log_debug(f"Messages prepared. Count: {len(messages)}")
 
