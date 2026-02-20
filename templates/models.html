@@ -83,6 +83,13 @@
   }
 }
 </script>
+<!-- Preload first model image (LCP element) -->
+{% if models %}
+<link rel="preload" as="image" href="{{ models[0].image }}" fetchpriority="high">
+{% endif %}
+<!-- Preconnect to CDN for fast image loading -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 {% endblock %}
 
 {% block content %}
@@ -276,13 +283,20 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {% for model in models %}
                 {% set short_name = "deepseek" if "deepseek" in model.id else "mistral" if "mistral" in model.id else "kimi" if "kimi" in model.id else "llama" if "llama" in model.id else "gemma" %}
-                <div onclick="openModelDetails('{{ model.id }}', '{{ short_name }}')" onmouseenter="_prefetchDescription('{{ short_name }}')" class="group bg-white dark:bg-[#1e293b] rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col cursor-pointer">
+                <div onclick="openModelDetails('{{ model.id }}', '{{ short_name }}')" onmouseenter="_prefetchDescription('{{ short_name }}')" class="group bg-white dark:bg-[#1e293b] rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col cursor-pointer min-h-[200px]">
                     <div class="p-6 flex items-start justify-between border-b border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/30">
                         <div class="flex items-center gap-4">
-                            <img src="{{ model.image }}" alt="{{ model.provider }}" class="w-14 h-14 rounded-lg shadow-md bg-white p-1 object-contain">
+                            <img 
+                                src="{{ model.image }}" 
+                                alt="{{ model.provider }}" 
+                                width="56" height="56"
+                                loading="{{ 'eager' if loop.index <= 2 else 'lazy' }}"
+                                fetchpriority="{{ 'high' if loop.index == 1 else 'auto' }}"
+                                decoding="{{ 'sync' if loop.index == 1 else 'async' }}"
+                                class="w-14 h-14 rounded-lg shadow-md bg-white p-1 object-contain">
                             <div>
-                                <h3 class="font-bold text-lg text-gray-900 dark:text-white leading-tight group-hover:text-primary transition model-name-target" data-key="{{ short_name }}"></h3>
-                                <span class="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{{ model.provider }}</span>
+                                <h2 class="font-bold text-lg text-gray-900 dark:text-white leading-tight group-hover:text-primary transition model-name-target" data-key="{{ short_name }}"></h2>
+                                <span class="text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/40 px-2 py-0.5 rounded-full">{{ model.provider }}</span>
                             </div>
                         </div>
                     </div>
@@ -305,7 +319,7 @@
             <div class="bg-white dark:bg-[#1e293b] rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 mb-6 relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-600"></div>
                 <div class="flex flex-col md:flex-row gap-8">
-                    <div class="flex-shrink-0"><img id="detail-image" src="" class="w-24 h-24 rounded-2xl shadow-md bg-white p-2 object-contain border border-gray-100 dark:border-gray-600"></div>
+                    <div class="flex-shrink-0"><img id="detail-image" src="" alt="" width="96" height="96" decoding="async" class="w-24 h-24 rounded-2xl shadow-md bg-white p-2 object-contain border border-gray-100 dark:border-gray-600"></div>
                     <div class="flex-1">
                         <div id="detail-content-area" class="prose dark:prose-invert max-w-none flex items-center justify-center min-h-[200px]">
                             <span class="animate-pulse text-gray-400">Loading description...</span>
@@ -338,8 +352,8 @@
                     </div>
                     <div class="p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex gap-3">
                         <input type="text" id="chat-input" class="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:text-white" placeholder="..." autocomplete="off">
-                        <button id="send-btn" onclick="sendMessage()" class="bg-primary text-white w-12 h-12 rounded-xl hover:bg-indigo-600 transition shadow-lg flex items-center justify-center">
-                            <i id="send-icon" class="fa-solid fa-paper-plane"></i>
+                        <button id="send-btn" onclick="sendMessage()" aria-label="Send message" class="bg-primary text-white w-12 h-12 rounded-xl hover:bg-indigo-600 transition shadow-lg flex items-center justify-center">
+                            <i id="send-icon" class="fa-solid fa-paper-plane" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
@@ -355,7 +369,7 @@
             <h3 class="font-bold text-xl text-gray-800 dark:text-white flex items-center gap-2">
                 <i class="fa-solid fa-sliders text-primary"></i> <span data-i18n="lbl_parameters">Parameters</span>
             </h3>
-            <button onclick="closeParamsModal()" class="text-gray-500 hover:text-red-500"><i class="fa-solid fa-times text-xl"></i></button>
+            <button onclick="closeParamsModal()" aria-label="Close parameters" class="text-gray-500 hover:text-red-500"><i class="fa-solid fa-times text-xl" aria-hidden="true"></i></button>
         </div>
         <div id="params-container" class="space-y-4 overflow-y-auto max-h-[60vh] pr-2"></div>
         <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 text-right">
@@ -369,8 +383,8 @@
     <div class="bg-white dark:bg-[#1e293b] w-[90%] md:w-[650px] max-h-[85vh] rounded-2xl shadow-2xl relative z-10 transform scale-95 transition-transform duration-300 flex flex-col border-2 border-gray-200 dark:border-gray-600" dir="ltr">
         <div class="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shrink-0">
             <h3 class="text-lg font-bold text-gray-900 dark:text-white" data-i18n="code_modal_title">API Integration Code</h3>
-            <button onclick="closeCodeModal()" class="text-gray-500 hover:text-red-500 bg-gray-100 dark:bg-gray-800 w-8 h-8 rounded-full flex items-center justify-center transition">
-                <i class="fa-solid fa-times"></i>
+            <button onclick="closeCodeModal()" aria-label="Close code modal" class="text-gray-500 hover:text-red-500 bg-gray-100 dark:bg-gray-800 w-8 h-8 rounded-full flex items-center justify-center transition">
+                <i class="fa-solid fa-times" aria-hidden="true"></i>
             </button>
         </div>
         <div class="flex border-b border-gray-200 dark:border-gray-700 px-5 pt-2 gap-4 shrink-0">
