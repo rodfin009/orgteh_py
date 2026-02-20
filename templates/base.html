@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Orgteh Infra</title>
 
+    <!-- ✅ Preload الخطوط المحلية: يبدأ تحميلها فوراً قبل أي CSS -->
+    <link rel="preload" href="/static/fonts/Cairo-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/static/fonts/Cairo-Bold.woff2" as="font" type="font/woff2" crossorigin>
+
     <link id="site-favicon" rel="icon" type="image/png" href="/static/logo_dark.webp">
 
     <link rel="preload" href="/static/css/tailwind.min.css" as="style">
@@ -12,7 +16,9 @@
 
     <style>
         /* ===================================================
-           🔤 خط Cairo محلي (بدل Google Fonts الخارجي)
+           🔤 خط Cairo محلي - مُحسَّن: ملفان فقط بدل 4
+           Regular  → يغطي: 400 (النص العادي)
+           Bold     → يغطي: 600, 700, 900 (العناوين والـ font-bold)
            تأكد أن الملفات موجودة في: /static/fonts/
         =================================================== */
         @font-face {
@@ -24,22 +30,8 @@
         }
         @font-face {
             font-family: 'Cairo';
-            src: url('/static/fonts/Cairo-SemiBold.woff2') format('woff2');
-            font-weight: 600;
-            font-style: normal;
-            font-display: swap;
-        }
-        @font-face {
-            font-family: 'Cairo';
             src: url('/static/fonts/Cairo-Bold.woff2') format('woff2');
-            font-weight: 700;
-            font-style: normal;
-            font-display: swap;
-        }
-        @font-face {
-            font-family: 'Cairo';
-            src: url('/static/fonts/Cairo-Black.woff2') format('woff2');
-            font-weight: 900;
+            font-weight: 600 900;
             font-style: normal;
             font-display: swap;
         }
@@ -117,15 +109,10 @@
         html.dark footer { color: #6b7280; }
     </style>
 
-    <!-- ✅ تم حذف preconnect لـ Google Fonts (لم نعد نحتاجه)  -->
-    <!-- ✅ فقط preconnect لـ Cloudflare لـ Font Awesome -->
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-
-    <!-- ✅ Font Awesome: تحميل مؤجل لا يحجب الرسم -->
+    <!-- ✅ لا preconnect لـ Google Fonts - الخط الآن محلي بالكامل -->
+    <!-- ✅ Font Awesome: تحميل مؤجل لا يحجب الرسم - لا حاجة لـ preconnect -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
-
-    <!-- ✅ تم حذف Google Fonts الخارجي نهائياً (الخط الآن محلي في @font-face أعلاه) -->
 
     <script>
         (function() {
