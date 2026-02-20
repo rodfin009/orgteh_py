@@ -11,7 +11,6 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-# Import authentication service
 from services.auth import (
     LoginRequest, SendVerificationRequest, RegisterRequest,
     handle_send_verification, handle_register, handle_login, handle_logout,
@@ -36,38 +35,35 @@ app = FastAPI(title="Orgteh Infra", docs_url=None, redoc_url=None)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=False) 
 
-# --- FIX: ABSOLUTE PATHS FOR VERCEL ---
-# This ensures we get the absolute path of the file executing right now
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"
 
-# Create directories if they don't exist (mainly for local testing)
 if not STATIC_DIR.exists(): STATIC_DIR.mkdir()
 if not TEMPLATES_DIR.exists(): TEMPLATES_DIR.mkdir()
 
-# Mount static files using absolute path
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 app.include_router(customer_service_router)
 
 # ============================================================================
-# DEBUGGING ENDPOINT (CRITICAL FOR VERCEL)
+# HEALTH CHECK ENDPOINT (CRITICAL FOR PREVENTING VERCEL COLD STARTS)
 # ============================================================================
+@app.get("/api/health")
+async def health_check():
+    """
+    Ping this endpoint using cron-job.org every 5 minutes to keep the
+    Vercel Serverless Function warm and drastically reduce TTFB/FCP for real users.
+    """
+    return JSONResponse({"status": "healthy", "timestamp": datetime.utcnow().isoformat()})
+
 @app.get("/debug/static-files")
 async def check_static_files():
-    """
-    This endpoint scans the server directories to verify where files are located.
-    Access this via browser: /debug/static-files
-    """
     file_structure = []
-
-    # Walk through the static directory
     if STATIC_DIR.exists():
         for root, dirs, files in os.walk(str(STATIC_DIR)):
             for name in files:
-                # Add relative path from static dir
                 full_path = os.path.join(root, name)
                 rel_path = os.path.relpath(full_path, str(BASE_DIR))
                 file_structure.append(rel_path)
@@ -77,25 +73,15 @@ async def check_static_files():
     return {
         "base_dir": str(BASE_DIR),
         "static_dir": str(STATIC_DIR),
-        "found_files": file_structure[:100]  # Limit to first 100 files to avoid huge response
+        "found_files": file_structure[:100]  
     }
 
-# ============================================================================
-# TEMPLATE CONTEXT HELPER
-# ============================================================================
-
 def get_template_context(request: Request, lang: str = "en"):
-    """Get template context with auth info and active language"""
     context = get_auth_context(request)
-    # Validate language
     if lang not in ["ar", "en"]:
         lang = "en"
     context["lang"] = lang
     return context
-
-# ============================================================================
-# PAGE ROUTES - SEO OPTIMIZED (FIXED LANGUAGE)
-# ============================================================================
 
 @app.get("/", response_class=HTMLResponse)
 async def root_redirect():
@@ -105,10 +91,8 @@ async def root_redirect():
 async def home(request: Request, lang: str): 
     return templates.TemplateResponse("index.html", get_template_context(request, lang))
 
-# Redirects for new URL structure
 @app.get("/login", response_class=HTMLResponse)
 async def login_redirect(request: Request): 
-    # Detect preferred language from cookie or browser header
     lang_cookie = request.cookies.get("preferred_lang")
     if lang_cookie in ["ar", "en"]:
         return RedirectResponse(f"/{lang_cookie}/auth")
@@ -202,7 +186,6 @@ async def contacts_redirect(): return RedirectResponse("/en/contacts")
 async def contacts_page(request: Request, lang: str):
     return templates.TemplateResponse("contacts.html", get_template_context(request, lang))
 
-# Legacy routes (keep for backward compatibility)
 @app.get("/auth", response_class=HTMLResponse)
 async def auth_redirect(): return RedirectResponse("/en/login")
 
@@ -223,25 +206,18 @@ async def pricing(request: Request, lang: str):
         context["current_plan"] = sub_status["plan_name"] if sub_status else "Free Tier"
     return templates.TemplateResponse("pricing.html", context)
 
-# --- MODELS PAGE ---
 @app.get("/models", response_class=HTMLResponse)
 async def models_redirect():
     return RedirectResponse("/en/models")
 
 @app.get("/{lang}/models", response_class=HTMLResponse)
 async def models_page(request: Request, lang: str):
-    """
-    SEO Optimized Models Page.
-    """
     context = get_template_context(request, lang)
     context["models"] = context["models_metadata"]
     return templates.TemplateResponse("models.html", context)
 
 @app.get("/{lang}/models/{model_key}", response_class=HTMLResponse)
 async def model_detail_page(request: Request, lang: str, model_key: str):
-    """
-    Individual model detail page for SEO.
-    """
     context = get_template_context(request, lang)
     model_info = next((m for m in MODELS_METADATA if m["short_key"] == model_key), None)
     if not model_info:
@@ -252,9 +228,6 @@ async def model_detail_page(request: Request, lang: str, model_key: str):
 
 @app.get("/api/model-description/{model_key}")
 async def get_model_description(model_key: str, lang: str = "en"):
-    """
-    API endpoint to serve model description HTML.
-    """
     try:
         file_path = STATIC_DIR / "models_translation" / f"{model_key}.html"
         if file_path.exists():
@@ -268,10 +241,6 @@ async def get_model_description(model_key: str, lang: str = "en"):
             )
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
-
-# ============================================================================
-# GITHUB OAUTH ROUTES
-# ============================================================================
 
 from github_integration import (
     handle_github_login, 
@@ -294,10 +263,6 @@ async def github_callback(request: Request, code: str, state: str):
 @app.post("/auth/github/logout")
 async def github_logout(request: Request):
     return await handle_github_logout(request)
-
-# ============================================================================
-# ONE-CLICK DEPLOY API
-# ============================================================================
 
 @app.post("/api/deploy/github")
 async def deploy_to_github(request: Request, deploy_data: DeployRequest):
@@ -338,14 +303,10 @@ async def get_user_repos(request: Request):
     repos = deployer.get_repos()
     return {"repos": repos}
 
-# ============================================================================
-# OTHER PAGES
-# ============================================================================
 
 app.include_router(tools_router, prefix="/api") 
 app.include_router(tools_router, prefix="/v1")
 
-# Legacy redirect for /tools to /accesory
 @app.get("/tools", response_class=HTMLResponse)
 async def tools_legacy_redirect(): return RedirectResponse("/en/accesory")
 
@@ -423,10 +384,6 @@ async def dash_redirect(): return RedirectResponse("/en/profile")
 async def dashboard_page(request: Request, lang: str):
     return RedirectResponse(f"/{lang}/profile")
 
-# ============================================================================
-# AUTH API ENDPOINTS
-# ============================================================================
-
 @app.post("/auth/send-verification")
 async def send_verification(request: Request, data: SendVerificationRequest):
     return await handle_send_verification(request, data)
@@ -445,7 +402,6 @@ async def logout(request: Request):
 
 @app.post("/api/set-language")
 async def set_language(request: Request):
-    """Save user's preferred language in a cookie"""
     from fastapi.responses import JSONResponse
     body = await request.json()
     lang = body.get("lang", "en")
@@ -454,10 +410,6 @@ async def set_language(request: Request):
     response = JSONResponse({"ok": True, "lang": lang})
     response.set_cookie("preferred_lang", lang, max_age=60*60*24*365, path="/", samesite="lax")
     return response
-
-# ============================================================================
-# CHAT API ENDPOINTS
-# ============================================================================
 
 @app.post("/api/chat/trial")
 async def trial_chat_endpoint(request: Request):
@@ -503,7 +455,6 @@ async def internal_chat_ui(request: Request):
 
         is_trial = data.get("is_trial", False)
         if is_trial:
-            # Handle as trial request
             model_id = data.get("model_id")
             allowed = await check_trial_allowance(email, model_id)
             if not allowed:
@@ -521,7 +472,6 @@ async def internal_chat_ui(request: Request):
             await acquire_provider_slot(is_priority=False)
             return StreamingResponse(smart_chat_stream(payload, email, is_trial=True), media_type="text/event-stream")
 
-        # Standard Paid/Usage Chat
         payload = {
             "model": data.get("model_id"),
             "messages": [{"role": "user", "content": data.get("message")}],
@@ -586,19 +536,10 @@ async def get_my_key(request: Request):
     user = get_user_by_email(email)
     return {"key": user.get("api_key")} if user else JSONResponse({"error": "Not found"}, 404)
 
-# =============================================================================
-# CONTACT & ENTERPRISE API — يُرسل الرسائل عبر Telegram Bot
-# =============================================================================
-
 from telegram_bot import notify_contact_form, notify_enterprise_form
-
-# =============================================================================
-# SUPPORT CHAT API — خدمة العملاء الذكية
-# =============================================================================
 
 @app.post("/api/support/chat")
 async def support_chat(request: Request):
-    """خدمة العملاء - يرد بنفس لغة الواجهة"""
     try:
         body = await request.json()
         message = body.get("message", "").strip()
@@ -608,7 +549,6 @@ async def support_chat(request: Request):
         if not message:
             return JSONResponse({"error": "No message provided"}, 400)
 
-        # Build language-aware system prompt
         if lang == "ar":
             system_prompt = (
                 "أنت مساعد خدمة عملاء ذكي لموقع Orgteh Infra (orgteh.com). "
@@ -631,9 +571,8 @@ async def support_chat(request: Request):
         if system_lang_hint:
             system_prompt = system_lang_hint + " " + system_prompt
 
-        # Use smart_chat_stream for streaming response
         payload = {
-            "model": "gpt-4o-mini",  # fast, cheap for support
+            "model": "gpt-4o-mini",
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": message}
@@ -645,12 +584,10 @@ async def support_chat(request: Request):
         async def generate():
             try:
                 async for chunk in smart_chat_stream(payload, "support@orgteh.com", is_trial=True):
-                    # smart_chat_stream yields SSE-formatted data, extract text
                     if isinstance(chunk, bytes):
                         text = chunk.decode("utf-8", errors="ignore")
                     else:
                         text = str(chunk)
-                    # Strip SSE formatting if present
                     if text.startswith("data: "):
                         text = text[6:]
                     if text.strip() and text.strip() != "[DONE]":
@@ -676,14 +613,8 @@ async def support_chat(request: Request):
         print(f"[Support Chat] Error: {e}")
         return JSONResponse({"error": str(e)}, 500)
 
-
-# =============================================================================
-# GITHUB STATUS API
-# =============================================================================
-
 @app.get("/api/github/status")
 async def github_status(request: Request):
-    """تحقق من حالة ربط GitHub"""
     try:
         connected = is_github_connected(request)
         context = {}
@@ -711,11 +642,8 @@ async def github_status(request: Request):
     except Exception as e:
         return JSONResponse({"connected": False, "error": str(e)}, 500)
 
-
-
 @app.post("/api/contact")
 async def api_contact(request: Request):
-    """نموذج 'تواصل معنا' — يُرسل الرسالة للمالك عبر Telegram"""
     try:
         body = await request.json()
         name    = body.get("name", "").strip()
@@ -729,16 +657,13 @@ async def api_contact(request: Request):
         if sent:
             return JSONResponse({"ok": True})
         else:
-            # نُعيد نجاح للمستخدم حتى لو فشل الإرسال (لا نُظهر تفاصيل تقنية)
             return JSONResponse({"ok": True})
     except Exception as e:
         print(f"[API /api/contact] Error: {e}")
         return JSONResponse({"detail": "خطأ في الخادم."}, status_code=500)
 
-
 @app.post("/api/enterprise/contact")
 async def api_enterprise_contact(request: Request):
-    """نموذج 'حلول مخصصة' — يُرسل تفاصيل الطلب للمالك عبر Telegram"""
     try:
         body = await request.json()
         project_type   = body.get("projectType", "").strip()
@@ -764,25 +689,19 @@ async def api_enterprise_contact(request: Request):
         return JSONResponse({"detail": "خطأ في الخادم."}, status_code=500)
 
 
-# =============================================================================
-# SERVER STARTER (للتطوير المحلي و Replit فقط - يتجاهل تلقائياً في Vercel)
-# =============================================================================
-
 if __name__ == "__main__":
     import os
 
-    # Vercel يضع متغيرات بيئة خاصة، إذا وجدناها نتخطى تشغيل Uvicorn
     if os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"):
         print("☁️ Vercel detected - Skipping local server (using Vercel Serverless)")
     else:
-        # هذا يعمل فقط في Replit/Local
         try:
             import uvicorn
             port = int(os.environ.get("PORT", 8080))
 
             print(f"🚀 Starting Orgteh Dev Server on port {port}")
             uvicorn.run(
-                "main:app",  # <--- هنا التغيير: نمرر اسم الملف:اسم المتغير كنص
+                "main:app",
                 host="0.0.0.0",
                 port=port,
                 reload=True,
