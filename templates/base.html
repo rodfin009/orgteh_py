@@ -7,28 +7,59 @@
 
     <link id="site-favicon" rel="icon" type="image/png" href="/static/logo_dark.png">
 
-    <!-- Preconnect لتسريع الاتصال بالـ CDNs -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
-
-    <!-- Tailwind CSS: مبني محلياً أثناء vercel build — أسرع بـ 10x من CDN -->
-    <link rel="stylesheet" href="/static/css/tailwind.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Logo Visibility Logic + Kimi Filter + Theme Switch — في tailwind.min.css */
+        /* Logo Visibility Logic */
+        html.dark .dark-logo { display:block !important; }
+        html.dark .light-logo { display:none !important; }
+        html:not(.dark) .dark-logo { display:none !important; }
+        html:not(.dark) .light-logo { display:block !important; }
+
+        /* =========================================================
+           الحل الجذري لشعار Kimi في كل الصفحات
+           إزالة الخلفية الصلبة وتطبيق الفلتر ليناسب الوضعين
+           ========================================================= */
+        html:not(.dark) img[src*="kimi"] {
+            background-color: transparent !important;
+            box-shadow: none !important;
+            filter: brightness(0) !important;
+            opacity: 0.85;
+        }
+        html.dark img[src*="kimi"] {
+            background-color: transparent !important;
+            box-shadow: none !important;
+            filter: brightness(0) invert(1) !important;
+            opacity: 0.95;
+        }
+
+        /* Theme Toggle Switch Logic (Safe for RTL & LTR) */
+        .theme-switch-thumb {
+            top: 2px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        html[dir="ltr"] .theme-switch-thumb { left: 2px; }
+        html[dir="ltr"].dark .theme-switch-thumb { left: 22px; }
+        html[dir="rtl"] .theme-switch-thumb { right: 2px; }
+        html[dir="rtl"].dark .theme-switch-thumb { right: 22px; }
     </style>
-    <!-- Font Awesome: تحميل غير متزامن لإزالة حجب العرض -->
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
-    <!-- Google Fonts: تحميل غير متزامن -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"></noscript>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 
     <script>
         // Set server language
         window.SERVER_LANG = "{{ lang }}";
         document.documentElement.setAttribute('lang', window.SERVER_LANG);
+
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { primary: '#7c3aed', darkbg: '#000000', cardbg: '#0d0d0d', lightcard: '#f5f3ff', success: '#22c55e' },
+                    fontFamily: { cairo: ['Cairo', 'sans-serif'] },
+                    zIndex: { '60': '60', '70': '70', '100': '100' }
+                }
+            }
+        };
 
         // --- تهيئة نظام الترجمة الداخلي ---
         window.translations = { ar: {}, en: {} };
@@ -82,7 +113,6 @@
         Object.assign(window.translations.ar, baseTranslations.ar);
 
         window._setCircularFavicon = function(src) {
-            /* Favicon دائري - يُنفّذ مرة واحدة فقط عند تغيير الثيم */
             var img = new Image(); img.onload = function() {
                 var c = document.createElement('canvas'); c.width = c.height = 64;
                 var ctx = c.getContext('2d');
@@ -96,24 +126,54 @@
             var t = localStorage.getItem('theme');
             if(t==='light') document.documentElement.classList.remove('dark');
             else document.documentElement.classList.add('dark');
-            /* تأخير رسم الـ favicon حتى ما بعد تحميل الصفحة الكامل لعدم تأثيره على الأداء */
-            if('requestIdleCallback' in window) {
-                requestIdleCallback(function(){ window._setCircularFavicon(t==='light'?'/static/logo_light.png':'/static/logo_dark.png'); });
-            } else {
-                setTimeout(function(){ window._setCircularFavicon(t==='light'?'/static/logo_light.png':'/static/logo_dark.png'); }, 1000);
-            }
+            window.addEventListener('load', function(){
+                window._setCircularFavicon(t==='light'?'/static/logo_light.png':'/static/logo_dark.png');
+            });
         })();
     </script>
 
-    <!-- الأنماط المضمّنة نُقلت لـ /static/css/input.css وتُبنى في tailwind.min.css -->
     <style>
-        /* الأنماط الأساسية — باقي الأنماط في /static/css/tailwind.min.css */
+        body { font-family: 'Cairo', sans-serif; overflow-x: hidden; text-align: left !important; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #000000; }
+        ::-webkit-scrollbar-thumb { background: #2a1a4e; border-radius: 4px; }
+
+        #sidebar { 
+            position: fixed; top: 0; bottom: 0; 
+            left: 0 !important; right: auto !important; 
+            width: 18rem; background-color: #ffffff; z-index: 200;
+            transform: translateX(-100%); transition: transform 0.3s ease-in-out;
+            border-right: 1px solid #e5e7eb;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+        html.dark #sidebar { background-color: #000000 !important; border-color: #1a1a1a; }
+
+        .sidebar-open { transform: translateX(0) !important; }
+        .sidebar-closed { transform: translateX(-100%) !important; }
+
+        #sidebar-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 199;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+
+        .fab-chat {
+            position: fixed; bottom: 2rem; left: 2rem !important; right: auto !important;
+            z-index: 50; animation: bounce-slow 3s infinite;
+        }
+        .fab-chat:hover { animation: none; transform: scale(1.1); }
+        @keyframes bounce-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .text-start { text-align: left !important; }
     </style>
 {% block head_extra %}{% endblock %}
 </head>
 <body class="bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-300">
 
-    <nav id="main-navbar" style="position:relative;z-index:100;" class="bg-white/95 dark:bg-black/95 border-b border-gray-200 dark:border-gray-800 backdrop-nav">
+    <nav id="main-navbar" style="position:relative;z-index:100;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);" class="bg-white/95 dark:bg-black/95 border-b border-gray-200 dark:border-gray-800">
         <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
             <div class="flex items-center gap-4 md:gap-8 flex-1">
                 <button onclick="toggleSidebar()" class="md:hidden text-2xl z-50 p-2"><i class="fa-solid fa-bars"></i></button>
@@ -153,8 +213,8 @@
             </div>
 
             <a href="javascript:void(0)" onclick="navigateWithLang('')" style="display:flex;align-items:stretch;align-self:stretch;margin-left:auto;">
-                <img src="/static/logo_dark.png" alt="Orgteh" class="dark-logo" width="120" height="40" style="height:100%;width:auto;object-fit:contain;padding:4px 0;">
-                <img src="/static/logo_light.png" alt="Orgteh" class="light-logo" width="120" height="40" style="height:100%;width:auto;object-fit:contain;padding:4px 0;">
+                <img src="/static/logo_dark.png" alt="Orgteh" class="dark-logo" style="height:100%;width:auto;object-fit:contain;padding:4px 0;">
+                <img src="/static/logo_light.png" alt="Orgteh" class="light-logo" style="height:100%;width:auto;object-fit:contain;padding:4px 0;">
             </a>
         </div>
     </nav>
@@ -441,39 +501,6 @@
         }
 
         window.addEventListener('DOMContentLoaded', applyGlobalTranslations);
-    </script>
-
-    <!-- ===== تحسينات الأداء ===== -->
-    <script>
-        /* 1. Navbar blur: يُفعّل فقط عند التمرير */
-        (function() {
-            var nav = document.getElementById('main-navbar');
-            if(!nav) return;
-            var ticking = false;
-            window.addEventListener('scroll', function() {
-                if(!ticking) {
-                    requestAnimationFrame(function() {
-                        nav.classList.toggle('scrolled', window.scrollY > 10);
-                        ticking = false;
-                    });
-                    ticking = true;
-                }
-            }, { passive: true });
-        })();
-
-        /* 2. إيقاف أنيميشن orbit rings عند الخروج من نطاق الشاشة */
-        if('IntersectionObserver' in window) {
-            var heroSection = document.querySelector('section');
-            if(heroSection) {
-                new IntersectionObserver(function(entries) {
-                    entries.forEach(function(e) {
-                        heroSection.querySelectorAll('.orbit-ring').forEach(function(ring) {
-                            ring.style.animationPlayState = e.isIntersecting ? 'running' : 'paused';
-                        });
-                    });
-                }, { threshold: 0.1 }).observe(heroSection);
-            }
-        }
     </script>
 
     <script>
