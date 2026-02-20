@@ -7,7 +7,7 @@
 
     <link id="site-favicon" rel="icon" type="image/png" href="/static/logo_dark.png">
 
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/tailwind.min.css">
     <style>
         /* Logo Visibility Logic */
         html.dark .dark-logo { display:block !important; }
@@ -42,24 +42,19 @@
         html[dir="rtl"] .theme-switch-thumb { right: 2px; }
         html[dir="rtl"].dark .theme-switch-thumb { right: 22px; }
     </style>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"></noscript>
 
     <script>
         // Set server language
         window.SERVER_LANG = "{{ lang }}";
         document.documentElement.setAttribute('lang', window.SERVER_LANG);
 
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: { primary: '#7c3aed', darkbg: '#000000', cardbg: '#0d0d0d', lightcard: '#f5f3ff', success: '#22c55e' },
-                    fontFamily: { cairo: ['Cairo', 'sans-serif'] },
-                    zIndex: { '60': '60', '70': '70', '100': '100' }
-                }
-            }
-        };
 
         // --- تهيئة نظام الترجمة الداخلي ---
         window.translations = { ar: {}, en: {} };

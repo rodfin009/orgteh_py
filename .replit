@@ -1,10 +1,10 @@
 run = "python main.py"
 entrypoint = "main.py"
-modules = ["python-3.10"]
+modules = ["nodejs-20", "python-3.10"]
 
 [nix]
 channel = "stable-22_11"
-packages = ["cargo", "glibcLocales", "libiconv", "libxcrypt", "rustc"]
+packages = ["cargo", "glibcLocales", "libiconv", "libxcrypt", "psmisc", "rustc"]
 
 [deployment]
 run = ["python", "main.py"]
