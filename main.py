@@ -150,14 +150,52 @@ async def check_static_files():
     }
 
 # ============================================================================
-# Template Context Helper
+# Template Context Helper (مُحدَّث لاستخدام الصور المحلية)
 # ============================================================================
 def get_template_context(request: Request, lang: str = "en"):
     context = get_auth_context(request)
     if lang not in ["ar", "en"]:
         lang = "en"
     context["lang"] = lang
-    context["models_metadata"] = [m for m in MODELS_METADATA if m["id"] not in HIDDEN_MODELS][:12]  # Limit for performance
+
+    # تجهيز بيانات النماذج مع استبدال روابط CDN بالمحلية
+    models_data = []
+    for m in MODELS_METADATA:
+        if m["id"] in HIDDEN_MODELS:
+            continue
+        if len(models_data) >= 12:  # Limit for performance
+            break
+
+        # نسخة من البيانات لتعديلها دون المساس بالأصل
+        model_copy = dict(m)
+
+        # استبدال روابط الصور الخارجية بالمحلية
+        if "image" in model_copy and model_copy["image"]:
+            original_url = model_copy["image"]
+
+            # التحقق إذا كان الرابط من CDN خارجي
+            if "cdn.jsdelivr.net" in original_url or "https://cdn." in original_url:
+                # استخراج نوع النموذج من الرابط أو الـ id
+                model_id = model_copy.get("short_key", model_copy.get("id", "")).lower()
+
+                # تحديد اسم الملف المحلي بناءً على النموذج
+                if "deepseek" in original_url.lower():
+                    model_copy["image"] = "/static/deepseek.webp"
+                elif "meta" in original_url.lower() or "llama" in model_id:
+                    model_copy["image"] = "/static/meta.webp"
+                elif "gemma" in original_url.lower():
+                    model_copy["image"] = "/static/gemma.webp"
+                elif "mistral" in original_url.lower():
+                    model_copy["image"] = "/static/mistral.webp"
+                elif "kimi" in original_url.lower():
+                    model_copy["image"] = "/static/kimi.webp"
+                else:
+                    # إذا لم يتطابق مع المعروف، حاول استخدام الـ short_key
+                    model_copy["image"] = f"/static/{model_id}.webp"
+
+        models_data.append(model_copy)
+
+    context["models_metadata"] = models_data
     return context
 
 # ============================================================================
@@ -177,7 +215,7 @@ async def login_redirect(request: Request):
     lang_cookie = request.cookies.get("preferred_lang")
     if lang_cookie in ["ar", "en"]:
         return RedirectResponse(f"/{lang_cookie}/auth")
-    return RedirectResponse("/en/auth")
+    return RedirectResponse("/en/login")
 
 @app.get("/{lang}/login", response_class=HTMLResponse)
 async def login_page(request: Request, lang: str):

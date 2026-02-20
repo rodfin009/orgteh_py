@@ -286,10 +286,11 @@
                 <div onclick="openModelDetails('{{ model.id }}', '{{ short_name }}')" onmouseenter="_prefetchDescription('{{ short_name }}')" class="group bg-white dark:bg-[#1e293b] rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col cursor-pointer min-h-[200px]">
                     <div class="p-6 flex items-start justify-between border-b border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/30">
                         <div class="flex items-center gap-4">
+                            <!-- ✅ تعديل أبعاد الصورة لتتناسب مع الحجم الحقيقي 84x84 -->
                             <img 
                                 src="{{ model.image }}" 
                                 alt="{{ model.provider }}" 
-                                width="56" height="56"
+                                width="84" height="84"
                                 loading="{{ 'eager' if loop.index <= 2 else 'lazy' }}"
                                 fetchpriority="{{ 'high' if loop.index == 1 else 'auto' }}"
                                 decoding="{{ 'sync' if loop.index == 1 else 'async' }}"
@@ -319,7 +320,10 @@
             <div class="bg-white dark:bg-[#1e293b] rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 mb-6 relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-600"></div>
                 <div class="flex flex-col md:flex-row gap-8">
-                    <div class="flex-shrink-0"><img id="detail-image" src="" alt="" width="96" height="96" decoding="async" class="w-24 h-24 rounded-2xl shadow-md bg-white p-2 object-contain border border-gray-100 dark:border-gray-600"></div>
+                    <div class="flex-shrink-0">
+                        <!-- ✅ تعديل أبعاد صورة التفاصيل -->
+                        <img id="detail-image" src="" alt="" width="84" height="84" decoding="async" class="w-24 h-24 rounded-2xl shadow-md bg-white p-2 object-contain border border-gray-100 dark:border-gray-600">
+                    </div>
                     <div class="flex-1">
                         <div id="detail-content-area" class="prose dark:prose-invert max-w-none flex items-center justify-center min-h-[200px]">
                             <span class="animate-pulse text-gray-400">Loading description...</span>

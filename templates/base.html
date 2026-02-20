@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Orgteh Infra</title>
 
+    <!-- ✅ Preconnect للمصادر الخارجية (تحسين الأداء) -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+
     <!-- ✅ Preload الخطوط المحلية: يبدأ تحميلها فوراً قبل أي CSS -->
     <link rel="preload" href="/static/fonts/Cairo-Regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/static/fonts/Cairo-Bold.woff2" as="font" type="font/woff2" crossorigin>
@@ -42,17 +50,20 @@
         html:not(.dark) .dark-logo { display:none !important; }
         html:not(.dark) .light-logo { display:block !important; }
 
+        /* ✨✨✨ إصلاح أيقونة Kimi - يعمل في الوضعين الفاتح والداكن ✨✨✨ */
         html:not(.dark) img[src*="kimi"] {
-            background-color: transparent !important;
-            box-shadow: none !important;
-            filter: brightness(0) !important;
-            opacity: 0.85;
+            background-color: #ffffff !important;
+            box-shadow: 0 0 0 2px #ffffff !important;
+            border-radius: 12px !important;
+            filter: none !important;
+            opacity: 1 !important;
         }
         html.dark img[src*="kimi"] {
-            background-color: transparent !important;
-            box-shadow: none !important;
-            filter: brightness(0) invert(1) !important;
-            opacity: 0.95;
+            background-color: #ffffff !important; /* خلفية بيضاء صريحة في الوضع الداكن */
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.1) !important;
+            border-radius: 12px !important;
+            filter: none !important; /* إلغاء أي فلتر ليبقى الشعار أسود واضح */
+            opacity: 1 !important;
         }
 
         .theme-switch-thumb {
@@ -109,8 +120,7 @@
         html.dark footer { color: #6b7280; }
     </style>
 
-    <!-- ✅ لا preconnect لـ Google Fonts - الخط الآن محلي بالكامل -->
-    <!-- ✅ Font Awesome: تحميل مؤجل لا يحجب الرسم - لا حاجة لـ preconnect -->
+    <!-- ✅ Font Awesome مع display=swap -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
 
