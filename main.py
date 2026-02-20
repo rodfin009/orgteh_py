@@ -302,16 +302,19 @@ async def models_redirect():
 async def models_page(request: Request, lang: str):
     context = get_template_context(request, lang)
     context["models"] = context["models_metadata"]
+    # ✅ SEO: Provide models list for JSON-LD structured data
     return templates.TemplateResponse("models.html", context)
 
 @app.get("/{lang}/models/{model_key}", response_class=HTMLResponse)
 async def model_detail_page(request: Request, lang: str, model_key: str):
     context = get_template_context(request, lang)
-    model_info = next((m for m in MODELS_METADATA if m["short_key"] == model_key), None)
+    model_info = next((m for m in MODELS_METADATA if m.get("short_key") == model_key or model_key in m.get("id", "")), None)
     if not model_info:
         return RedirectResponse(f"/{lang}/models")
     context["model"] = model_info
     context["models"] = context["models_metadata"]
+    # ✅ SEO: Pass current model info for page-specific meta tags
+    context["seo_model_key"] = model_key
     return templates.TemplateResponse("models.html", context)
 
 @app.get("/api/model-description/{model_key}")
@@ -321,7 +324,14 @@ async def get_model_description(model_key: str, lang: str = "en"):
         if file_path.exists():
             with open(file_path, 'r', encoding='utf-8') as f:
                 html_content = f.read()
-            return JSONResponse({"html": html_content})
+            # ✅ PERFORMANCE: Cache model descriptions for 1 hour (content rarely changes)
+            return JSONResponse(
+                {"html": html_content},
+                headers={
+                    "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+                    "Vary": "Accept-Encoding"
+                }
+            )
         else:
             return JSONResponse(
                 {"error": f"Model description not found for: {model_key}", "path": str(file_path)}, 
