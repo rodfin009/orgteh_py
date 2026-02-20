@@ -11,6 +11,39 @@
     <link rel="stylesheet" href="/static/css/tailwind.min.css">
 
     <style>
+        /* ===================================================
+           🔤 خط Cairo محلي (بدل Google Fonts الخارجي)
+           تأكد أن الملفات موجودة في: /static/fonts/
+        =================================================== */
+        @font-face {
+            font-family: 'Cairo';
+            src: url('/static/fonts/Cairo-Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Cairo';
+            src: url('/static/fonts/Cairo-SemiBold.woff2') format('woff2');
+            font-weight: 600;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Cairo';
+            src: url('/static/fonts/Cairo-Bold.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Cairo';
+            src: url('/static/fonts/Cairo-Black.woff2') format('woff2');
+            font-weight: 900;
+            font-style: normal;
+            font-display: swap;
+        }
+
         /* Logo Visibility Logic */
         html.dark .dark-logo { display:block !important; }
         html.dark .light-logo { display:none !important; }
@@ -78,15 +111,21 @@
         /* إصلاح: إخفاء علامات الصح افتراضياً */
         .lang-check { display: none !important; }
         .lang-check.active { display: inline-block !important; }
+
+        /* ♿ إصلاح تباين Footer للوضع الفاتح */
+        footer { color: #4b5563; }
+        html.dark footer { color: #6b7280; }
     </style>
 
+    <!-- ✅ تم حذف preconnect لـ Google Fonts (لم نعد نحتاجه)  -->
+    <!-- ✅ فقط preconnect لـ Cloudflare لـ Font Awesome -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
+    <!-- ✅ Font Awesome: تحميل مؤجل لا يحجب الرسم -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <!-- ✅ تم حذف Google Fonts الخارجي نهائياً (الخط الآن محلي في @font-face أعلاه) -->
 
     <script>
         (function() {
@@ -102,7 +141,10 @@
     <nav id="main-navbar" style="position:relative;z-index:100;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);" class="bg-white/95 dark:bg-black/95 border-b border-gray-200 dark:border-gray-800">
         <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
             <div class="flex items-center gap-4 md:gap-8 flex-1">
-                <button onclick="toggleSidebar()" class="md:hidden text-2xl z-50 p-2" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
+                <!-- ♿ إضافة aria-label لزر القائمة -->
+                <button onclick="toggleSidebar()" class="md:hidden text-2xl z-50 p-2" aria-label="فتح القائمة الجانبية">
+                    <i class="fa-solid fa-bars" aria-hidden="true"></i>
+                </button>
 
                 <div class="hidden md:flex items-center gap-6 lg:gap-8">
                     <a href="javascript:void(0)" onclick="navigateWithLang('')" class="font-bold hover:text-primary transition" data-i18n="nav_home">الرئيسية</a>
@@ -115,18 +157,20 @@
                 </div>
 
                 <div class="hidden md:flex items-center gap-4">
-                    <button onclick="toggleLang()" class="flex items-center gap-2 font-bold px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:bg-[#111111] transition text-sm border border-gray-200 dark:border-gray-800" aria-label="Change Language">
-                        <i class="fa-solid fa-globe"></i> <span id="lang-label">EN</span>
+                    <!-- ♿ aria-label محسّن -->
+                    <button onclick="toggleLang()" class="flex items-center gap-2 font-bold px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:bg-[#111111] transition text-sm border border-gray-200 dark:border-gray-800" aria-label="تغيير اللغة">
+                        <i class="fa-solid fa-globe" aria-hidden="true"></i> <span id="lang-label">EN</span>
                     </button>
-                    <button onclick="toggleTheme()" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#111111] flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition" aria-label="Toggle Theme">
-                        <i class="fa-solid fa-moon dark:hidden"></i>
-                        <i class="fa-solid fa-sun hidden dark:block text-yellow-400"></i>
+                    <!-- ♿ aria-label محسّن -->
+                    <button onclick="toggleTheme()" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#111111] flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition" aria-label="تبديل الوضع الليلي والنهاري">
+                        <i class="fa-solid fa-moon dark:hidden" aria-hidden="true"></i>
+                        <i class="fa-solid fa-sun hidden dark:block text-yellow-400" aria-hidden="true"></i>
                     </button>
                     {% if is_logged_in %}
                     <div class="flex items-center gap-4">
                         <span class="text-sm font-bold text-gray-500 hidden lg:inline">{{ user_email }}</span>
-                        <button onclick="confirmLogout()" class="px-5 py-2 rounded-lg font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition flex items-center gap-2">
-                            <i class="fa-solid fa-sign-out-alt"></i>
+                        <button onclick="confirmLogout()" class="px-5 py-2 rounded-lg font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition flex items-center gap-2" aria-label="تسجيل الخروج">
+                            <i class="fa-solid fa-sign-out-alt" aria-hidden="true"></i>
                             <span>تسجيل الخروج</span>
                         </button>
                     </div>
@@ -139,45 +183,48 @@
                 </div>
             </div>
 
-            <a href="javascript:void(0)" onclick="navigateWithLang('')" style="display:flex;align-items:stretch;align-self:stretch;margin-left:auto;">
-                <img src="/static/logo_dark.webp" alt="Orgteh" width="160" height="48" class="dark-logo" style="height:100%;width:auto;object-fit:contain;padding:4px 0;" fetchpriority="high" decoding="async">
-                <img src="/static/logo_light.webp" alt="Orgteh" width="160" height="48" class="light-logo" style="height:100%;width:auto;object-fit:contain;padding:4px 0;" fetchpriority="high" decoding="async">
+            <a href="javascript:void(0)" onclick="navigateWithLang('')" style="display:flex;align-items:stretch;align-self:stretch;margin-left:auto;" aria-label="الصفحة الرئيسية - Orgteh">
+                <img src="/static/logo_dark.webp" alt="Orgteh Infra" width="160" height="48" class="dark-logo" style="height:100%;width:auto;object-fit:contain;padding:4px 0;" fetchpriority="high" decoding="async">
+                <img src="/static/logo_light.webp" alt="Orgteh Infra" width="160" height="48" class="light-logo" style="height:100%;width:auto;object-fit:contain;padding:4px 0;" fetchpriority="high" decoding="async">
             </a>
         </div>
     </nav>
 
 <div id="page-wrapper" style="min-height:100vh;display:flex;flex-direction:column;">
 
-    <div id="sidebar-overlay" onclick="toggleSidebar()" class="hidden"></div>
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="hidden" aria-hidden="true"></div>
 
-    <aside id="sidebar" class="flex flex-col p-6 shadow-2xl sidebar-closed">
+    <aside id="sidebar" class="flex flex-col p-6 shadow-2xl sidebar-closed" aria-label="القائمة الجانبية">
         <div class="flex justify-between items-center mb-8">
             <h3 class="text-xl font-black">القائمة</h3>
-            <button onclick="toggleSidebar()" class="text-gray-500 hover:text-red-500"><i class="fa-solid fa-times text-xl"></i></button>
+            <!-- ♿ aria-label لزر إغلاق الـ Sidebar -->
+            <button onclick="toggleSidebar()" class="text-gray-500 hover:text-red-500" aria-label="إغلاق القائمة الجانبية">
+                <i class="fa-solid fa-times text-xl" aria-hidden="true"></i>
+            </button>
         </div>
 
         <div class="flex flex-col gap-6 text-start">
-            <a href="javascript:void(0)" onclick="navigateWithLang(''); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-home w-6"></i> <span data-i18n="nav_home">الرئيسية</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('models'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-layer-group w-6"></i> <span data-i18n="nav_models">النماذج</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('accesory'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-screwdriver-wrench w-6"></i> <span data-i18n="nav_tools">الأدوات</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('code-hub'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3 transition"><i class="fa-solid fa-code-branch w-6"></i><span data-i18n="nav_code_builder">منشئ الكود الذكي</span><span data-i18n="nav_beta" style="font-size:10px;background:#22c55e;color:white;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap;">تجريبي</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('cart'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-tags w-6"></i> <span data-i18n="nav_pricing">الأسعار</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('contacts'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-envelope w-6"></i> <span data-i18n="nav_contacts">تواصل معنا</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('enterprise'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-building w-6"></i> <span data-i18n="nav_custom_solutions">حلول مخصصة</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('docs'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-book w-6"></i> <span data-i18n="nav_docs">التوثيق</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('policy'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-shield-halved w-6"></i> <span data-i18n="nav_policy">سياسة الاستخدام</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('performance'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-chart-line w-6"></i> <span data-i18n="nav_performance">الأداء</span></a>
+            <a href="javascript:void(0)" onclick="navigateWithLang(''); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-home w-6" aria-hidden="true"></i> <span data-i18n="nav_home">الرئيسية</span></a>
+            <a href="javascript:void(0)" onclick="navigateWithLang('models'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-layer-group w-6" aria-hidden="true"></i> <span data-i18n="nav_models">النماذج</span></a>
+            <a href="javascript:void(0)" onclick="navigateWithLang('accesory'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-screwdriver-wrench w-6" aria-hidden="true"></i> <span data-i18n="nav_tools">الأدوات</span></a>
+            <a href="javascript:void(0)" onclick="navigateWithLang('code-hub'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3 transition"><i class="fa-solid fa-code-branch w-6" aria-hidden="true"></i><span data-i18n="nav_code_builder">منشئ الكود الذكي</span><span data-i18n="nav_beta" style="font-size:10px;background:#22c55e;color:white;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap;">تجريبي</span></a>
+            <a href="javascript:void(0)" onclick="navigateWithLang('cart'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-tags w-6" aria-hidden="true"></i> <span data-i18n="nav_pricing">الأسعار</span></a>
+            <a href="javascript:void(0)" onclick="navigateWithLang('contacts'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-envelope w-6" aria-hidden="true"></i> <span data-i18n="nav_contacts">تواصل معنا</span></a>
+            <a href="javascript:void(0)" onclick="navigateWithLang('enterprise'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-building w-6" aria-hidden="true"></i> <span data-i18n="nav_custom_solutions">حلول مخصصة</span></a>
+            <a href="javascript:void(0)" onclick="navigateWithLang('docs'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-book w-6" aria-hidden="true"></i> <span data-i18n="nav_docs">التوثيق</span></a>
+            <a href="javascript:void(0)" onclick="navigateWithLang('policy'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-shield-halved w-6" aria-hidden="true"></i> <span data-i18n="nav_policy">سياسة الاستخدام</span></a>
+            <a href="javascript:void(0)" onclick="navigateWithLang('performance'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-chart-line w-6" aria-hidden="true"></i> <span data-i18n="nav_performance">الأداء</span></a>
 
             <hr class="border-gray-200 dark:border-gray-800">
 
             {% if is_logged_in %}
-                <a href="javascript:void(0)" onclick="navigateWithLang('profile'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-gauge w-6"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span></a>
-                <button onclick="confirmLogout(); toggleSidebar();" class="w-full text-red-500 font-bold flex items-center gap-3 mt-2 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition">
-                    <i class="fa-solid fa-sign-out-alt w-6"></i> <span data-i18n="sidebar_logout">تسجيل الخروج</span>
+                <a href="javascript:void(0)" onclick="navigateWithLang('profile'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-gauge w-6" aria-hidden="true"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span></a>
+                <button onclick="confirmLogout(); toggleSidebar();" class="w-full text-red-500 font-bold flex items-center gap-3 mt-2 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition" aria-label="تسجيل الخروج">
+                    <i class="fa-solid fa-sign-out-alt w-6" aria-hidden="true"></i> <span data-i18n="sidebar_logout">تسجيل الخروج</span>
                 </button>
             {% else %}
                 <a href="javascript:void(0)" onclick="navigateWithLang('login'); toggleSidebar();" class="font-bold text-gray-500 hover:text-primary flex items-center gap-3">
-                    <i class="fa-solid fa-gauge w-6"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span> <i class="fa-solid fa-lock text-xs text-primary/50"></i>
+                    <i class="fa-solid fa-gauge w-6" aria-hidden="true"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span> <i class="fa-solid fa-lock text-xs text-primary/50" aria-hidden="true"></i>
                 </a>
                 <a href="javascript:void(0)" onclick="navigateWithLang('login'); toggleSidebar();" class="w-full py-3 rounded-lg border border-gray-200 dark:border-gray-800 font-bold hover:bg-gray-100 dark:bg-[#111111] text-center block mt-3"><span data-i18n="sidebar_login">تسجيل الدخول</span></a>
                 <a href="javascript:void(0)" onclick="navigateWithLang('register'); toggleSidebar();" class="w-full py-3 bg-primary text-gray-900 dark:text-white rounded-lg font-bold hover:opacity-90 text-center block mt-3"><span data-i18n="sidebar_register">إنشاء حساب جديد</span></a>
@@ -185,42 +232,38 @@
         </div>
 
         <div class="mt-auto pt-6 border-t border-gray-200 dark:border-gray-800 flex flex-col gap-2 relative z-50">
-            <!-- قسم اللغة المُصلح نهائياً -->
+            <!-- قسم اللغة -->
             <div class="relative w-full">
-                <button onclick="toggleLangDropdown()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111111] hover:bg-gray-100 dark:hover:bg-gray-800 transition border border-gray-200 dark:border-gray-800">
+                <button onclick="toggleLangDropdown()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111111] hover:bg-gray-100 dark:hover:bg-gray-800 transition border border-gray-200 dark:border-gray-800" aria-label="اختيار اللغة" aria-expanded="false" id="lang-dropdown-btn">
                     <div class="flex items-center gap-3 font-bold text-gray-700 dark:text-gray-300">
-                        <i class="fa-solid fa-globe text-primary"></i>
+                        <i class="fa-solid fa-globe text-primary" aria-hidden="true"></i>
                         <span data-i18n="sidebar_lang">اللغة</span>
                     </div>
-                    <i class="fa-solid fa-chevron-down text-sm text-gray-400 transition-transform duration-200" id="lang-chevron"></i>
+                    <i class="fa-solid fa-chevron-down text-sm text-gray-400 transition-transform duration-200" id="lang-chevron" aria-hidden="true"></i>
                 </button>
 
-                <div id="lang-dropdown" class="hidden absolute bottom-[calc(100%+0.5rem)] left-0 w-full bg-white dark:bg-[#0d0d0d] border border-gray-200 dark:border-gray-800 rounded-xl shadow-xl overflow-hidden z-[60]">
-                    <!-- 🔥 إصلاح: إزالة class hidden واستخدام style مباشرة -->
-                    <button onclick="setLanguage('ar')" class="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition font-bold text-sm text-gray-800 dark:text-gray-200" id="btn-lang-ar">
+                <div id="lang-dropdown" class="hidden absolute bottom-[calc(100%+0.5rem)] left-0 w-full bg-white dark:bg-[#0d0d0d] border border-gray-200 dark:border-gray-800 rounded-xl shadow-xl overflow-hidden z-[60]" role="menu">
+                    <button onclick="setLanguage('ar')" class="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition font-bold text-sm text-gray-800 dark:text-gray-200" id="btn-lang-ar" role="menuitem">
                         <span>العربية</span>
-                        <i class="fa-solid fa-check text-success text-base lang-check" id="check-ar" style="display: none;"></i>
+                        <i class="fa-solid fa-check text-success text-base lang-check" id="check-ar" style="display: none;" aria-hidden="true"></i>
                     </button>
                     <div class="h-[1px] w-full bg-gray-100 dark:bg-gray-800"></div>
-                    <button onclick="setLanguage('en')" class="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition font-bold text-sm text-gray-800 dark:text-gray-200" id="btn-lang-en">
+                    <button onclick="setLanguage('en')" class="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition font-bold text-sm text-gray-800 dark:text-gray-200" id="btn-lang-en" role="menuitem">
                         <span>English</span>
-                        <i class="fa-solid fa-check text-success text-base lang-check" id="check-en" style="display: none;"></i>
+                        <i class="fa-solid fa-check text-success text-base lang-check" id="check-en" style="display: none;" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- قسم الوضع المُصلح -->
-            <button onclick="toggleTheme()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111111] hover:bg-gray-100 dark:hover:bg-gray-800 transition border border-gray-200 dark:border-gray-800" id="theme-toggle-btn">
+            <!-- قسم الوضع -->
+            <button onclick="toggleTheme()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111111] hover:bg-gray-100 dark:hover:bg-gray-800 transition border border-gray-200 dark:border-gray-800" id="theme-toggle-btn" aria-label="تبديل الوضع الليلي والنهاري">
                 <div class="flex items-center gap-3 font-bold text-gray-700 dark:text-gray-300">
-                    <!-- أيقونة القمر تظهر في الوضع الفاتح -->
-                    <i class="fa-solid fa-moon text-gray-600" id="theme-icon-moon"></i>
-                    <!-- أيقونة الشمس تظهر في الوضع الداكن -->
-                    <i class="fa-solid fa-sun text-yellow-400" id="theme-icon-sun" style="display: none;"></i>
-
+                    <i class="fa-solid fa-moon text-gray-600" id="theme-icon-moon" aria-hidden="true"></i>
+                    <i class="fa-solid fa-sun text-yellow-400" id="theme-icon-sun" style="display: none;" aria-hidden="true"></i>
                     <span id="theme-text" data-i18n="sidebar_theme_dark">الوضع الداكن</span>
                 </div>
 
-                <div class="w-11 h-6 rounded-full transition-colors duration-300 bg-gray-300 dark:bg-primary relative">
+                <div class="w-11 h-6 rounded-full transition-colors duration-300 bg-gray-300 dark:bg-primary relative" aria-hidden="true">
                     <div class="w-5 h-5 bg-white rounded-full absolute shadow-sm theme-switch-thumb"></div>
                 </div>
             </button>
@@ -231,27 +274,28 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="py-8 text-center text-gray-500 text-sm border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-black relative z-10 mt-auto">
+    <!-- ♿ إصلاح تباين Footer: استبدال text-gray-500 بـ text-gray-600 للوضع الفاتح -->
+    <footer class="py-8 text-center text-gray-600 dark:text-gray-500 text-sm border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-black relative z-10 mt-auto">
         <p data-i18n="footer_rights">All rights reserved © 2026 Orgteh Infra</p>
     </footer>
 
-    <div id="loginModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition duration-300">
+    <div id="loginModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition duration-300" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('loginModal')"></div>
         <div class="bg-gray-50 dark:bg-[#0d0d0d] p-8 rounded-2xl shadow-2xl w-full max-w-md relative z-10 transform scale-95 transition-transform duration-300 text-left" dir="ltr">
-            <h3 class="text-2xl font-bold mb-6 text-center text-gray-900 dark:text-white">تسجيل الدخول</h3>
-            <input type="email" id="loginEmail" placeholder="Email" class="w-full mb-4 p-3 rounded-lg bg-black border border-gray-200 dark:border-gray-800 focus:border-primary outline-none text-gray-900 dark:text-white text-left">
-            <input type="password" id="loginPass" placeholder="Password" class="w-full mb-6 p-3 rounded-lg bg-black border border-gray-200 dark:border-gray-800 focus:border-primary outline-none text-gray-900 dark:text-white text-left">
+            <h3 id="login-modal-title" class="text-2xl font-bold mb-6 text-center text-gray-900 dark:text-white">تسجيل الدخول</h3>
+            <input type="email" id="loginEmail" placeholder="Email" autocomplete="email" class="w-full mb-4 p-3 rounded-lg bg-black border border-gray-200 dark:border-gray-800 focus:border-primary outline-none text-gray-900 dark:text-white text-left">
+            <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" class="w-full mb-6 p-3 rounded-lg bg-black border border-gray-200 dark:border-gray-800 focus:border-primary outline-none text-gray-900 dark:text-white text-left">
             <button onclick="handleLogin()" class="w-full py-3 bg-primary text-gray-900 dark:text-white font-bold rounded-lg hover:opacity-90 transition">Login</button>
         </div>
     </div>
 
-    <div id="regModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition duration-300">
+    <div id="regModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition duration-300" role="dialog" aria-modal="true" aria-labelledby="reg-modal-title">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('regModal')"></div>
         <div class="bg-gray-50 dark:bg-[#0d0d0d] p-8 rounded-2xl shadow-2xl w-full max-w-md relative z-10 transform scale-95 transition-transform duration-300 text-left" dir="ltr">
-            <h3 class="text-2xl font-bold mb-2 text-center text-gray-900 dark:text-white">Create Account</h3>
+            <h3 id="reg-modal-title" class="text-2xl font-bold mb-2 text-center text-gray-900 dark:text-white">Create Account</h3>
             <p id="reg-msg" class="text-sm text-center text-gray-500 mb-6">Register to get your API Key.</p>
-            <input type="email" id="regEmail" placeholder="Email" class="w-full mb-4 p-3 rounded-lg bg-black border border-gray-200 dark:border-gray-800 focus:border-primary outline-none text-gray-900 dark:text-white text-left">
-            <input type="password" id="regPass" placeholder="Password (6+ chars, 1 Uppercase)" class="w-full mb-2 p-3 rounded-lg bg-black border border-gray-200 dark:border-gray-800 focus:border-primary outline-none text-gray-900 dark:text-white text-left">
+            <input type="email" id="regEmail" placeholder="Email" autocomplete="email" class="w-full mb-4 p-3 rounded-lg bg-black border border-gray-200 dark:border-gray-800 focus:border-primary outline-none text-gray-900 dark:text-white text-left">
+            <input type="password" id="regPass" placeholder="Password (6+ chars, 1 Uppercase)" autocomplete="new-password" class="w-full mb-2 p-3 rounded-lg bg-black border border-gray-200 dark:border-gray-800 focus:border-primary outline-none text-gray-900 dark:text-white text-left">
             <ul class="text-xs text-gray-500 mb-6 list-disc list-inside">
                 <li>Min 6 characters</li>
                 <li>At least 1 Uppercase (A-Z)</li>
@@ -260,13 +304,13 @@
         </div>
     </div>
 
-    <div id="logoutConfirmModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition duration-300">
+    <div id="logoutConfirmModal" class="fixed inset-0 z-[100] flex items-center justify-center opacity-0 pointer-events-none transition duration-300" role="dialog" aria-modal="true" aria-labelledby="logout-modal-title">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeLogoutModal()"></div>
         <div class="bg-gray-50 dark:bg-[#0d0d0d] p-8 rounded-2xl shadow-2xl w-full max-w-sm relative z-10 transform scale-95 transition-transform duration-300 text-center">
             <div class="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="fa-solid fa-sign-out-alt text-2xl text-red-500"></i>
+                <i class="fa-solid fa-sign-out-alt text-2xl text-red-500" aria-hidden="true"></i>
             </div>
-            <h3 class="text-2xl font-bold mb-2 text-gray-900 dark:text-white">تسجيل الخروج</h3>
+            <h3 id="logout-modal-title" class="text-2xl font-bold mb-2 text-gray-900 dark:text-white">تسجيل الخروج</h3>
             <p class="text-gray-500 dark:text-gray-400 mb-6">هل أنت متأكد أنك تريد تسجيل الخروج من حسابك؟</p>
             <div class="flex gap-3">
                 <button onclick="closeLogoutModal()" class="flex-1 py-3 rounded-xl font-bold border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:bg-[#111111] transition">
@@ -360,8 +404,11 @@
         function toggleLangDropdown() {
             const dropdown = document.getElementById('lang-dropdown');
             const chevron = document.getElementById('lang-chevron');
+            const btn = document.getElementById('lang-dropdown-btn');
+            const isHidden = dropdown.classList.contains('hidden');
             dropdown.classList.toggle('hidden');
             chevron.classList.toggle('rotate-180');
+            btn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
         }
 
         document.addEventListener('click', function(event) {
@@ -371,18 +418,17 @@
                 if (!dropdown.contains(event.target) && !btn.contains(event.target)) {
                     dropdown.classList.add('hidden');
                     document.getElementById('lang-chevron').classList.remove('rotate-180');
+                    document.getElementById('lang-dropdown-btn').setAttribute('aria-expanded', 'false');
                 }
             }
         });
 
-        // 🔥 إصلاح نهائي: دالة موثوقة لتحديث علامات الصح
         function updateLangCheckmarks(lang) {
             const checkAr = document.getElementById('check-ar');
             const checkEn = document.getElementById('check-en');
 
             if (!checkAr || !checkEn) return;
 
-            // إخفاء كلاهما أولاً (بشكل قاطع)
             checkAr.style.display = 'none';
             checkAr.style.visibility = 'hidden';
             checkAr.style.opacity = '0';
@@ -391,7 +437,6 @@
             checkEn.style.visibility = 'hidden';
             checkEn.style.opacity = '0';
 
-            // إظهار اللغة المختارة فقط
             if (lang === 'ar') {
                 checkAr.style.display = 'inline-block';
                 checkAr.style.visibility = 'visible';
@@ -408,6 +453,7 @@
             if(dropdown) {
                 dropdown.classList.add('hidden');
                 document.getElementById('lang-chevron').classList.remove('rotate-180');
+                document.getElementById('lang-dropdown-btn').setAttribute('aria-expanded', 'false');
             }
             localStorage.setItem('lang', lang);
             window.SERVER_LANG = lang;
@@ -430,7 +476,6 @@
                 window.history.replaceState({}, '', '/' + lang + '/');
             }
 
-            // تحديث الواجهة
             updateLangCheckmarks(lang);
             applyGlobalTranslations();
         }
@@ -445,7 +490,6 @@
             document.documentElement.setAttribute('lang', lang);
             document.documentElement.setAttribute('dir', 'ltr'); 
 
-            // تحديث علامات الصح
             updateLangCheckmarks(lang);
 
             const btnLabel = document.getElementById('lang-label');
@@ -464,7 +508,6 @@
             window.dispatchEvent(new Event('langChange'));
         }
 
-        // 🔥 إصلاح نهائي: دالة موثوقة لتحديث الوضع
         function updateThemeUI() {
             const html = document.documentElement;
             const isDark = html.classList.contains('dark');
@@ -476,19 +519,15 @@
             if (!themeText || !moonIcon || !sunIcon) return;
 
             if (isDark) {
-                // الوضع الداكن: نعرض "الوضع الفاتح" مع ☀️
                 themeText.textContent = lang === 'ar' ? 'الوضع الفاتح' : 'Light Mode';
                 themeText.setAttribute('data-i18n', 'sidebar_theme_light');
-
                 moonIcon.style.display = 'none';
                 moonIcon.style.visibility = 'hidden';
                 sunIcon.style.display = 'inline-block';
                 sunIcon.style.visibility = 'visible';
             } else {
-                // الوضع الفاتح: نعرض "الوضع الداكن" مع 🌙
                 themeText.textContent = lang === 'ar' ? 'الوضع الداكن' : 'Dark Mode';
                 themeText.setAttribute('data-i18n', 'sidebar_theme_dark');
-
                 sunIcon.style.display = 'none';
                 sunIcon.style.visibility = 'hidden';
                 moonIcon.style.display = 'inline-block';
@@ -507,7 +546,6 @@
                 localStorage.setItem('theme','dark');
                 window._setCircularFavicon('/static/logo_dark.webp');
             }
-            // تحديث الواجهة فوراً
             updateThemeUI();
         }
 
@@ -593,11 +631,8 @@
             } catch (e) { console.error('Logout error:', e); }
         }
 
-        // 🔥 إصلاح: التأكد من تنفيذ الدوال بعد اكتمال التحميل
         document.addEventListener('DOMContentLoaded', function() {
             const lang = window.SERVER_LANG || localStorage.getItem('lang') || 'en';
-
-            // تأخير بسيط للتأكد من أن DOM جاهز تماماً
             setTimeout(function() {
                 updateLangCheckmarks(lang);
                 updateThemeUI();
