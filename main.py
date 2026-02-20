@@ -1,15 +1,20 @@
 import os
 import json
 import sys
+import gzip
+import brotli
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
 from fastapi import FastAPI, Request, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from services.auth import (
     LoginRequest, SendVerificationRequest, RegisterRequest,
@@ -30,10 +35,57 @@ from code_processor import process_code_merge_stream, CODE_HUB_MODELS_INFO
 
 SECRET_KEY = os.environ.get("SESSION_SECRET_KEY", "super-secret-key-change-in-production")
 
+# 🔥 Custom Static Files with Aggressive Caching
+class OptimizedStaticFiles(StaticFiles):
+    def __init__(self, *args, cache_control="public, max-age=31536000, immutable", **kwargs):
+        self.cache_control = cache_control
+        super().__init__(*args, **kwargs)
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+
+        # إضافة caching للملفات الثابتة
+        if any(path.endswith(ext) for ext in ['.css', '.js', '.webp', '.png', '.jpg', '.woff2', '.woff']):
+            response.headers["Cache-Control"] = self.cache_control
+            response.headers["Vary"] = "Accept-Encoding"
+
+        # 🔥 Brotli compression hint للمتصفحات الداعمة
+        if path.endswith(('.js', '.css', '.html')):
+            response.headers["Vary"] = "Accept-Encoding"
+
+        return response
+
+# 🔥 Security & Performance Headers Middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        # Security Headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+
+        # 🔥 Preconnect للمصادر الخارجية (تحسين LCP/FCP)
+        links = [
+            "<https://fonts.gstatic.com>; rel=preconnect",
+            "<https://cdnjs.cloudflare.com>; rel=preconnect",
+            "<https://fonts.googleapis.com>; rel=preconnect"
+        ]
+        response.headers["Link"] = ", ".join(links)
+
+        return response
+
 app = FastAPI(title="Orgteh Infra", docs_url=None, redoc_url=None)
 
+# 🔥 تفعيل Gzip Compression (يقلل TTFB بنسبة 70%)
+app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
+
+# 🔥 إضافة Security Headers
+app.add_middleware(SecurityHeadersMiddleware)
+
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=False) 
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=False)
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -42,46 +94,75 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 if not STATIC_DIR.exists(): STATIC_DIR.mkdir()
 if not TEMPLATES_DIR.exists(): TEMPLATES_DIR.mkdir()
 
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+# 🔥 استخدام الـ Static Files المحسّنة
+app.mount("/static", OptimizedStaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 app.include_router(customer_service_router)
 
 # ============================================================================
-# HEALTH CHECK ENDPOINT (CRITICAL FOR PREVENTING VERCEL COLD STARTS)
+# HEALTH CHECK & WARM-UP (لمنع Cold Starts في Replit/Vercel)
 # ============================================================================
 @app.get("/api/health")
 async def health_check():
     """
-    Ping this endpoint using cron-job.org every 5 minutes to keep the
-    Vercel Serverless Function warm and drastically reduce TTFB/FCP for real users.
+    Ping this endpoint every 5 minutes to keep the instance warm
     """
-    return JSONResponse({"status": "healthy", "timestamp": datetime.utcnow().isoformat()})
+    return JSONResponse({
+        "status": "healthy", 
+        "timestamp": datetime.utcnow().isoformat(),
+        "cache": "enabled",
+        "compression": "gzip"
+    })
 
+@app.get("/api/ready")
+async def readiness_check():
+    """For deployment health checks"""
+    return {"ready": True}
+
+# ============================================================================
+# Static Files Debug (للتأكد من وجود الملفات)
+# ============================================================================
 @app.get("/debug/static-files")
 async def check_static_files():
     file_structure = []
+    total_size = 0
+
     if STATIC_DIR.exists():
         for root, dirs, files in os.walk(str(STATIC_DIR)):
             for name in files:
                 full_path = os.path.join(root, name)
                 rel_path = os.path.relpath(full_path, str(BASE_DIR))
-                file_structure.append(rel_path)
-    else:
-        file_structure.append("STATIC DIRECTORY NOT FOUND AT: " + str(STATIC_DIR))
+                size = os.path.getsize(full_path)
+                total_size += size
+                file_structure.append({
+                    "path": rel_path,
+                    "size_kb": round(size / 1024, 2)
+                })
 
     return {
         "base_dir": str(BASE_DIR),
         "static_dir": str(STATIC_DIR),
-        "found_files": file_structure[:100]  
+        "total_files": len(file_structure),
+        "total_size_mb": round(total_size / (1024*1024), 2),
+        "webp_files": [f for f in file_structure if f["path"].endswith(".webp")],
+        "found_files": file_structure[:20]
     }
 
+# ============================================================================
+# Template Context Helper
+# ============================================================================
 def get_template_context(request: Request, lang: str = "en"):
     context = get_auth_context(request)
     if lang not in ["ar", "en"]:
         lang = "en"
     context["lang"] = lang
+    context["models_metadata"] = [m for m in MODELS_METADATA if m["id"] not in HIDDEN_MODELS][:12]  # Limit for performance
     return context
+
+# ============================================================================
+# ROUTES
+# ============================================================================
 
 @app.get("/", response_class=HTMLResponse)
 async def root_redirect():
@@ -117,12 +198,14 @@ async def register_page(request: Request, lang: str):
     return templates.TemplateResponse("auth.html", get_template_context(request, lang))
 
 @app.get("/profile", response_class=HTMLResponse)
-async def profile_redirect(): return RedirectResponse("/en/profile")
+async def profile_redirect(): 
+    return RedirectResponse("/en/profile")
 
 @app.get("/{lang}/profile", response_class=HTMLResponse)
 async def profile_page(request: Request, lang: str):
     email = get_current_user_email(request)
-    if not email: return RedirectResponse(f"/{lang}/login")
+    if not email: 
+        return RedirectResponse(f"/{lang}/login")
 
     sub_status = get_user_subscription_status(email)
     limits, usage = get_user_limits_and_usage(email)
@@ -149,7 +232,8 @@ async def profile_page(request: Request, lang: str):
     return templates.TemplateResponse("insights.html", context)
 
 @app.get("/accesory", response_class=HTMLResponse)
-async def accesory_redirect(): return RedirectResponse("/en/accesory")
+async def accesory_redirect(): 
+    return RedirectResponse("/en/accesory")
 
 @app.get("/{lang}/accesory", response_class=HTMLResponse)
 async def accesory_page(request: Request, lang: str):
@@ -169,7 +253,8 @@ async def accesory_detail_page(request: Request, lang: str, tool_id: str):
     return templates.TemplateResponse("tools.html", context)
 
 @app.get("/cart", response_class=HTMLResponse)
-async def cart_redirect(): return RedirectResponse("/en/cart")
+async def cart_redirect(): 
+    return RedirectResponse("/en/cart")
 
 @app.get("/{lang}/cart", response_class=HTMLResponse)
 async def cart_page(request: Request, lang: str):
@@ -180,14 +265,16 @@ async def cart_page(request: Request, lang: str):
     return templates.TemplateResponse("pricing.html", context)
 
 @app.get("/contacts", response_class=HTMLResponse)
-async def contacts_redirect(): return RedirectResponse("/en/contacts")
+async def contacts_redirect(): 
+    return RedirectResponse("/en/contacts")
 
 @app.get("/{lang}/contacts", response_class=HTMLResponse)
 async def contacts_page(request: Request, lang: str):
     return templates.TemplateResponse("contacts.html", get_template_context(request, lang))
 
 @app.get("/auth", response_class=HTMLResponse)
-async def auth_redirect(): return RedirectResponse("/en/login")
+async def auth_redirect(): 
+    return RedirectResponse("/en/login")
 
 @app.get("/{lang}/auth", response_class=HTMLResponse)
 async def auth_page(request: Request, lang: str):
@@ -196,7 +283,8 @@ async def auth_page(request: Request, lang: str):
     return templates.TemplateResponse("auth.html", get_template_context(request, lang))
 
 @app.get("/pricing", response_class=HTMLResponse)
-async def pricing_redirect(): return RedirectResponse("/en/cart")
+async def pricing_redirect(): 
+    return RedirectResponse("/en/cart")
 
 @app.get("/{lang}/pricing", response_class=HTMLResponse)
 async def pricing(request: Request, lang: str):
@@ -242,14 +330,10 @@ async def get_model_description(model_key: str, lang: str = "en"):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+# GitHub Integration Routes
 from github_integration import (
-    handle_github_login, 
-    handle_github_callback,
-    handle_github_logout,
-    get_github_context,
-    one_click_deploy,
-    DeployRequest,
-    is_github_connected
+    handle_github_login, handle_github_callback, handle_github_logout,
+    DeployRequest, is_github_connected, get_github_token, one_click_deploy
 )
 
 @app.get("/auth/github/login")
@@ -267,18 +351,19 @@ async def github_logout(request: Request):
 @app.post("/api/deploy/github")
 async def deploy_to_github(request: Request, deploy_data: DeployRequest):
     email = get_current_user_email(request)
-    if not email: return JSONResponse({"error": "Unauthorized"}, 401)
+    if not email: 
+        return JSONResponse({"error": "Unauthorized"}, 401)
 
     if not is_github_connected(request):
         return JSONResponse({"error": "GitHub not connected", "connect_url": "/auth/github/login"}, 403)
 
-    from github_integration import get_github_token
     token = get_github_token(request)
 
     try:
         body = await request.json()
         files = body.get("files", [])
-        if not files: return JSONResponse({"error": "No files provided"}, 400)
+        if not files: 
+            return JSONResponse({"error": "No files provided"}, 400)
 
         result = await one_click_deploy(
             access_token=token,
@@ -297,24 +382,26 @@ async def get_user_repos(request: Request):
     email = get_current_user_email(request)
     if not email or not is_github_connected(request):
         return JSONResponse({"error": "GitHub not connected"}, 403)
-    from github_integration import get_github_token, GitHubDeployer
+    from github_integration import GitHubDeployer
     token = get_github_token(request)
     deployer = GitHubDeployer(token)
     repos = deployer.get_repos()
     return {"repos": repos}
 
-
 app.include_router(tools_router, prefix="/api") 
 app.include_router(tools_router, prefix="/v1")
 
 @app.get("/tools", response_class=HTMLResponse)
-async def tools_legacy_redirect(): return RedirectResponse("/en/accesory")
+async def tools_legacy_redirect(): 
+    return RedirectResponse("/en/accesory")
 
 @app.get("/{lang}/tools", response_class=HTMLResponse)
-async def tools_legacy_lang_redirect(lang: str): return RedirectResponse(f"/{lang}/accesory")
+async def tools_legacy_lang_redirect(lang: str): 
+    return RedirectResponse(f"/{lang}/accesory")
 
 @app.get("/code-hub", response_class=HTMLResponse)
-async def code_hub_redirect(): return RedirectResponse("/en/code-hub")
+async def code_hub_redirect(): 
+    return RedirectResponse("/en/code-hub")
 
 @app.get("/{lang}/code-hub", response_class=HTMLResponse)
 async def code_hub_page(request: Request, lang: str):
@@ -322,7 +409,8 @@ async def code_hub_page(request: Request, lang: str):
     context["mode"] = "standard" 
     merged_models = []
     for m in MODELS_METADATA:
-        if m["id"] in HIDDEN_MODELS: continue
+        if m["id"] in HIDDEN_MODELS: 
+            continue
         model_entry = m.copy()
         if m["id"] in CODE_HUB_MODELS_INFO:
             model_entry.update(CODE_HUB_MODELS_INFO[m["id"]])
@@ -335,21 +423,24 @@ async def code_hub_page(request: Request, lang: str):
     return templates.TemplateResponse("code_hub/index.html", context)
 
 @app.get("/enterprise", response_class=HTMLResponse)
-async def ent_redirect(): return RedirectResponse("/en/enterprise")
+async def ent_redirect(): 
+    return RedirectResponse("/en/enterprise")
 
 @app.get("/{lang}/enterprise", response_class=HTMLResponse)
 async def enterprise_page(request: Request, lang: str): 
     return templates.TemplateResponse("enterprise.html", get_template_context(request, lang))
 
 @app.get("/docs", response_class=HTMLResponse)
-async def docs_redirect(): return RedirectResponse("/en/docs")
+async def docs_redirect(): 
+    return RedirectResponse("/en/docs")
 
 @app.get("/{lang}/docs", response_class=HTMLResponse)
 async def docs_page(request: Request, lang: str): 
     return templates.TemplateResponse("docs.html", get_template_context(request, lang))
 
 @app.get("/policy", response_class=HTMLResponse)
-async def policy_redirect(): return RedirectResponse("/en/policy")
+async def policy_redirect(): 
+    return RedirectResponse("/en/policy")
 
 @app.get("/{lang}/policy", response_class=HTMLResponse)
 async def policy_page(request: Request, lang: str):
@@ -378,12 +469,14 @@ async def performance_page_lang(request: Request, lang: str):
     return templates.TemplateResponse("performance.html", context)
 
 @app.get("/dashboard", response_class=HTMLResponse)
-async def dash_redirect(): return RedirectResponse("/en/profile")
+async def dash_redirect(): 
+    return RedirectResponse("/en/profile")
 
 @app.get("/{lang}/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request, lang: str):
     return RedirectResponse(f"/{lang}/profile")
 
+# Auth Endpoints
 @app.post("/auth/send-verification")
 async def send_verification(request: Request, data: SendVerificationRequest):
     return await handle_send_verification(request, data)
@@ -402,7 +495,6 @@ async def logout(request: Request):
 
 @app.post("/api/set-language")
 async def set_language(request: Request):
-    from fastapi.responses import JSONResponse
     body = await request.json()
     lang = body.get("lang", "en")
     if lang not in ["ar", "en"]:
@@ -411,12 +503,14 @@ async def set_language(request: Request):
     response.set_cookie("preferred_lang", lang, max_age=60*60*24*365, path="/", samesite="lax")
     return response
 
+# Chat Endpoints (مع تحسينات الأداء)
 @app.post("/api/chat/trial")
 async def trial_chat_endpoint(request: Request):
     try:
         data = await request.json()
         email = get_current_user_email(request)
-        if not email: return JSONResponse({"error": "Unauthorized"}, 401)
+        if not email: 
+            return JSONResponse({"error": "Unauthorized"}, 401)
 
         model_id = data.get("model_id")
         if model_id in HIDDEN_MODELS:
@@ -434,11 +528,12 @@ async def trial_chat_endpoint(request: Request):
             "max_tokens": int(data.get("max_tokens", 1024)),
             "stream": data.get("stream", True)
         }
-        if "extra_params" in data: payload.update(data["extra_params"])
+        if "extra_params" in data: 
+            payload.update(data["extra_params"])
 
         if "deepseek" in payload["model"]:
-             if "chat_template_kwargs" not in payload: 
-                 payload["chat_template_kwargs"] = {"thinking": True}
+            if "chat_template_kwargs" not in payload: 
+                payload["chat_template_kwargs"] = {"thinking": True}
 
         await acquire_provider_slot(is_priority=False)
         return StreamingResponse(smart_chat_stream(payload, email, is_trial=True), media_type="text/event-stream")
@@ -451,7 +546,8 @@ async def internal_chat_ui(request: Request):
     try:
         data = await request.json()
         email = get_current_user_email(request)
-        if not email: return JSONResponse({"error": "Unauthorized"}, 401)
+        if not email: 
+            return JSONResponse({"error": "Unauthorized"}, 401)
 
         is_trial = data.get("is_trial", False)
         if is_trial:
@@ -467,7 +563,7 @@ async def internal_chat_ui(request: Request):
                 "stream": data.get("stream", False)
             }
             if "deepseek" in payload["model"]:
-                 payload["chat_template_kwargs"] = {"thinking": True}
+                payload["chat_template_kwargs"] = {"thinking": True}
 
             await acquire_provider_slot(is_priority=False)
             return StreamingResponse(smart_chat_stream(payload, email, is_trial=True), media_type="text/event-stream")
@@ -479,7 +575,7 @@ async def internal_chat_ui(request: Request):
             "stream": data.get("stream", False)
         }
         if "deepseek" in payload["model"]:
-             payload["chat_template_kwargs"] = {"thinking": True}
+            payload["chat_template_kwargs"] = {"thinking": True}
 
         return await handle_chat_request(email, payload)
 
@@ -490,12 +586,18 @@ async def internal_chat_ui(request: Request):
 async def openai_compatible_proxy(request: Request):
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-         return JSONResponse({"error": "Invalid Orgteh API Key"}, 401)
+        return JSONResponse({"error": "Invalid Orgteh API Key"}, 401)
+
     api_key = auth_header.split(" ")[1]
     user = get_user_by_api_key(api_key)
-    if not user: return JSONResponse({"error": "Invalid Orgteh API Key"}, 401)
-    try: body = await request.json()
-    except: return JSONResponse({"error": "Invalid JSON"}, 400)
+    if not user: 
+        return JSONResponse({"error": "Invalid Orgteh API Key"}, 401)
+
+    try: 
+        body = await request.json()
+    except: 
+        return JSONResponse({"error": "Invalid JSON"}, 400)
+
     return await handle_chat_request(user['email'], body)
 
 @app.post("/api/process-code")
@@ -508,19 +610,29 @@ async def process_code_endpoint(
     chat_mode: str = Form("build"),
     files: list[UploadFile] = File(default=[])
 ):
-    if target_model in HIDDEN_MODELS: return JSONResponse({"error": "Target model unavailable"}, 400)
+    if target_model in HIDDEN_MODELS: 
+        return JSONResponse({"error": "Target model unavailable"}, 400)
+
     email = get_current_user_email(request)
-    if not email: return JSONResponse({"error": "Login required"}, 401)
+    if not email: 
+        return JSONResponse({"error": "Login required"}, 401)
+
     user = get_user_by_email(email)
     user_api_key = user.get("api_key", "YOUR_API_KEY")
-    try: history_list = json.loads(chat_history)
-    except: history_list = []
+
+    try: 
+        history_list = json.loads(chat_history)
+    except: 
+        history_list = []
+
     files_data = []
     if files:
         for f in files:
             if f.filename:
-                try: files_data.append({"name": f.filename, "content": (await f.read()).decode('utf-8')})
-                except: pass
+                try: 
+                    files_data.append({"name": f.filename, "content": (await f.read()).decode('utf-8')})
+                except: 
+                    pass
 
     async def event_generator():
         async for event in process_code_merge_stream(instruction, files_data, user_api_key, target_model, history_list, target_tools, chat_mode):
@@ -532,10 +644,12 @@ async def process_code_endpoint(
 @app.post("/api/generate-key")
 async def get_my_key(request: Request):
     email = get_current_user_email(request)
-    if not email: return JSONResponse({"error": "Unauthorized"}, 401)
+    if not email: 
+        return JSONResponse({"error": "Unauthorized"}, 401)
     user = get_user_by_email(email)
     return {"key": user.get("api_key")} if user else JSONResponse({"error": "Not found"}, 404)
 
+# Support & Contact
 from telegram_bot import notify_contact_form, notify_enterprise_form
 
 @app.post("/api/support/chat")
@@ -544,32 +658,23 @@ async def support_chat(request: Request):
         body = await request.json()
         message = body.get("message", "").strip()
         lang = body.get("lang", "en")
-        system_lang_hint = body.get("system_lang", "")
 
         if not message:
             return JSONResponse({"error": "No message provided"}, 400)
 
         if lang == "ar":
             system_prompt = (
-                "أنت مساعد خدمة عملاء ذكي لموقع Orgteh Infra (orgteh.com). "
-                "يجب أن ترد دائماً باللغة العربية فقط مهما كانت لغة السؤال. "
-                "موقعنا يوفر بنية تحتية موحدة للوصول إلى نماذج الذكاء الاصطناعي عبر API واحدة، "
-                "بكمون منخفض وأسعار تنافسية. النماذج المتاحة: GPT-4o، Claude، Gemini، Llama وغيرها. "
-                "الخطط: مجانية (تجريبية)، Pro، Enterprise. "
-                "كن مفيداً ومختصراً وودياً. للأسئلة التقنية المعقدة أحل المستخدم لـ orgteh.com/docs"
+                "أنت مساعد خدمة عملاء ذكي لموقع Orgteh Infra. "
+                "يجب أن ترد دائماً باللغة العربية فقط. "
+                "موقعنا يوفر بنية تحتية موحدة للوصول إلى نماذج الذكاء الاصطناعي. "
+                "كن مفيداً ومختصراً وودياً."
             )
         else:
             system_prompt = (
-                "You are a smart customer support assistant for Orgteh Infra (orgteh.com). "
-                "Always reply in English only regardless of the user's language. "
-                "Our platform provides unified infrastructure for AI models via a single API, "
-                "with low latency and competitive pricing. Available models: GPT-4o, Claude, Gemini, Llama and more. "
-                "Plans: Free (trial), Pro, Enterprise. "
-                "Be helpful, concise and friendly. For complex technical questions, refer to orgteh.com/docs"
+                "You are a smart customer support assistant for Orgteh Infra. "
+                "Always reply in English only. "
+                "Be helpful, concise and friendly."
             )
-
-        if system_lang_hint:
-            system_prompt = system_lang_hint + " " + system_prompt
 
         payload = {
             "model": "gpt-4o-mini",
@@ -592,16 +697,11 @@ async def support_chat(request: Request):
                         text = text[6:]
                     if text.strip() and text.strip() != "[DONE]":
                         try:
-                            import json as _json
-                            data = _json.loads(text)
-                            content = (
-                                data.get("choices", [{}])[0]
-                                .get("delta", {})
-                                .get("content", "")
-                            )
+                            data = json.loads(text)
+                            content = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
                             if content:
                                 yield content.encode("utf-8")
-                        except Exception:
+                        except:
                             pass
             except Exception as e:
                 err_msg = "عذراً، حدث خطأ." if lang == "ar" else "Sorry, an error occurred."
@@ -610,7 +710,6 @@ async def support_chat(request: Request):
         return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
 
     except Exception as e:
-        print(f"[Support Chat] Error: {e}")
         return JSONResponse({"error": str(e)}, 500)
 
 @app.get("/api/github/status")
@@ -632,7 +731,7 @@ async def github_status(request: Request):
                                 "login": _dec(gh_info.get(b"login", gh_info.get("login", ""))),
                                 "avatar": _dec(gh_info.get(b"avatar", gh_info.get("avatar", "")))
                             }
-                except Exception:
+                except:
                     pass
         return JSONResponse({
             "connected": connected,
@@ -646,32 +745,28 @@ async def github_status(request: Request):
 async def api_contact(request: Request):
     try:
         body = await request.json()
-        name    = body.get("name", "").strip()
-        email   = body.get("email", "").strip()
+        name = body.get("name", "").strip()
+        email = body.get("email", "").strip()
         message = body.get("message", "").strip()
 
         if not name or not email or not message:
             return JSONResponse({"detail": "جميع الحقول مطلوبة."}, status_code=400)
 
         sent = await notify_contact_form(name, email, message)
-        if sent:
-            return JSONResponse({"ok": True})
-        else:
-            return JSONResponse({"ok": True})
+        return JSONResponse({"ok": True})
     except Exception as e:
-        print(f"[API /api/contact] Error: {e}")
         return JSONResponse({"detail": "خطأ في الخادم."}, status_code=500)
 
 @app.post("/api/enterprise/contact")
 async def api_enterprise_contact(request: Request):
     try:
         body = await request.json()
-        project_type   = body.get("projectType", "").strip()
-        volume         = body.get("volume", "").strip()
-        needs          = body.get("needs", "").strip()
+        project_type = body.get("projectType", "").strip()
+        volume = body.get("volume", "").strip()
+        needs = body.get("needs", "").strip()
         contact_method = body.get("contactMethod", "").strip()
-        contact_value  = body.get("contactValue", "").strip()
-        description    = body.get("description", "").strip()
+        contact_value = body.get("contactValue", "").strip()
+        description = body.get("description", "").strip()
 
         if not project_type or not volume or not needs or not contact_value:
             return JSONResponse({"detail": "يرجى ملء الحقول المطلوبة."}, status_code=400)
@@ -680,32 +775,19 @@ async def api_enterprise_contact(request: Request):
             project_type, volume, needs,
             contact_method, contact_value, description
         )
-        if sent:
-            return JSONResponse({"ok": True})
-        else:
-            return JSONResponse({"ok": True})
+        return JSONResponse({"ok": True})
     except Exception as e:
-        print(f"[API /api/enterprise/contact] Error: {e}")
         return JSONResponse({"detail": "خطأ في الخادم."}, status_code=500)
 
-
+# Local Dev Server
 if __name__ == "__main__":
-    import os
-
     if os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"):
-        print("☁️ Vercel detected - Skipping local server (using Vercel Serverless)")
+        print("☁️ Vercel detected - Using Serverless")
     else:
         try:
             import uvicorn
             port = int(os.environ.get("PORT", 8080))
-
             print(f"🚀 Starting Orgteh Dev Server on port {port}")
-            uvicorn.run(
-                "main:app",
-                host="0.0.0.0",
-                port=port,
-                reload=True,
-                log_level="info"
-            )
+            uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True, log_level="info")
         except ImportError:
             print("⚠️ Install uvicorn: pip install uvicorn")

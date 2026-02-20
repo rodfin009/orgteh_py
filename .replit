@@ -4,7 +4,7 @@ modules = ["nodejs-20", "python-3.10"]
 
 [nix]
 channel = "stable-22_11"
-packages = ["cargo", "glibcLocales", "libiconv", "libxcrypt", "psmisc", "rustc"]
+packages = ["cargo", "freetype", "glibcLocales", "lcms2", "libiconv", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "psmisc", "rustc", "tcl", "tk", "zlib"]
 
 [deployment]
 run = ["python", "main.py"]

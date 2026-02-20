@@ -29,3 +29,5 @@ upstash-redis
 python-multipart
 redis
 aiofiles
+brotli
+pillow
