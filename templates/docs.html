@@ -19,11 +19,21 @@
         to { opacity: 1; transform: translateY(0); }
     }
 
+    /* حاوية أزرار التنقل السفلية (الحل الجذري لعدم تداخلها مع الحقوق) */
+    .nav-arrow-wrapper {
+        position: sticky;
+        bottom: 2rem;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        padding: 0 2rem;
+        pointer-events: none; /* لمنع حجب النقرات عن المحتوى الذي خلفها */
+        z-index: 60;
+        margin-top: auto; /* لدفعها لنهاية الصفحة دائماً */
+    }
+
     /* تنسيق أزرار التنقل السفلية */
     .nav-arrow-btn {
-        position: fixed;
-        bottom: 2rem;
-        z-index: 60;
         width: 3.5rem;
         height: 3.5rem;
         border-radius: 50%;
@@ -36,6 +46,7 @@
         transition: all 0.3s ease;
         border: 2px solid #333;
         cursor: pointer;
+        pointer-events: auto; /* إعادة تفعيل النقرات للأزرار فقط */
     }
     .nav-arrow-btn:hover {
         transform: scale(1.1);
@@ -47,9 +58,6 @@
         pointer-events: none;
     }
     .nav-arrow-btn i { font-size: 1.2rem; }
-
-    #nextBtn { right: 2rem; } 
-    #prevBtn { left: 2rem; }
 
     .dark .nav-arrow-btn {
         background-color: #fff;
@@ -174,9 +182,9 @@
     }
 </style>
 
-<div class="min-h-screen bg-gray-50 dark:bg-darkbg flex flex-col relative pb-20">
+<div class="min-h-screen bg-gray-50 dark:bg-darkbg flex flex-col relative pb-10">
 
-    <div class="md:hidden sticky top-20 z-40 bg-white dark:bg-cardbg border-b border-gray-200 dark:border-gray-700 shadow-sm">
+    <div class="md:hidden relative z-40 bg-white dark:bg-cardbg border-b border-gray-200 dark:border-gray-700 shadow-sm">
         <button onclick="toggleMobileMenu()" class="w-full px-5 py-3 flex items-center justify-between text-sm font-bold text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
             <span class="flex items-center gap-2">
                 <i class="fa-solid fa-list-ul text-primary"></i>
@@ -185,7 +193,7 @@
             <i id="mobile-chevron" class="fa-solid fa-chevron-down text-gray-400 transition-transform duration-300"></i>
         </button>
 
-        <div id="mobile-docs-menu" class="bg-gray-50 dark:bg-[#151e2e] border-t border-gray-100 dark:border-gray-700 absolute w-full shadow-xl">
+        <div id="mobile-docs-menu" class="bg-gray-50 dark:bg-[#151e2e] border-t border-gray-100 dark:border-gray-700 absolute w-full shadow-xl z-50">
              <button onclick="goToPage(0); toggleMobileMenu()" class="mobile-link w-full px-6 py-3 border-b border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-cardbg text-sm text-gray-600 dark:text-gray-300 transition text-left rtl:text-right">
                 1. <span data-i18n="toc_quickstart">Quick Start</span>
             </button>
@@ -210,13 +218,10 @@
             <button onclick="goToPage(7); toggleMobileMenu()" class="mobile-link w-full px-6 py-3 border-b border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-cardbg text-sm text-gray-600 dark:text-gray-300 transition text-left rtl:text-right">
                 8. <span data-i18n="toc_integration">AI Code Builder</span>
             </button>
-            <button onclick="goToPage(8); toggleMobileMenu()" class="mobile-link w-full px-6 py-3 border-b border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-cardbg text-sm text-gray-600 dark:text-gray-300 transition text-left rtl:text-right">
-                9. <span data-i18n="toc_plans">Plans & Pricing</span>
-            </button>
         </div>
     </div>
 
-    <div id="desktop-sidebar" class="hidden md:block fixed top-24 w-64 z-40 transition-all duration-300 left-8">
+    <div id="desktop-sidebar" class="hidden md:block absolute top-10 w-64 z-40 transition-all duration-300 left-8">
         <div class="bg-white dark:bg-cardbg rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4">
             <h3 class="font-bold text-gray-400 text-xs uppercase tracking-wider mb-4 px-2" data-i18n="docs_guide">Guide</h3>
             <nav class="space-y-1">
@@ -244,16 +249,12 @@
                 <button onclick="goToPage(7)" class="nav-item w-full px-3 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 text-left rtl:text-right" id="nav-integration">
                     8. <span data-i18n="toc_integration">AI Code Builder</span>
                 </button>
-                <button onclick="goToPage(8)" class="nav-item w-full px-3 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 text-left rtl:text-right" id="nav-plans">
-                    9. <span data-i18n="toc_plans">Plans & Pricing</span>
-                </button>
             </nav>
         </div>
     </div>
 
-    <div id="main-doc-content" class="max-w-3xl mx-auto w-full px-6 pt-10 transition-all duration-300 md:pl-72">
+    <div id="main-doc-content" class="max-w-3xl mx-auto w-full px-6 pt-10 pb-6 transition-all duration-300 md:pl-72">
 
-        <!-- PAGE 1: QUICK START -->
         <div id="page-quickstart" class="doc-page active">
             <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="quickstart_title">Quick Start Guide</h1>
             <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
@@ -315,7 +316,6 @@
             </div>
         </div>
 
-        <!-- PAGE 2: AUTHENTICATION -->
         <div id="page-auth" class="doc-page">
             <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="auth_title">Authentication</h1>
             <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
@@ -356,7 +356,6 @@
             </div>
         </div>
 
-        <!-- PAGE 3: ENDPOINTS -->
         <div id="page-endpoints" class="doc-page">
             <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="endpoints_title">Endpoints & Models</h1>
             <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
@@ -421,7 +420,6 @@
             </div>
         </div>
 
-        <!-- PAGE 4: REQUESTS & RESPONSES -->
         <div id="page-requests" class="doc-page">
             <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="req_title">Requests & Responses</h1>
             <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed mb-6">
@@ -533,7 +531,6 @@ Content-Type: application/json
             <p class="mt-4 text-xs text-gray-500" data-i18n="req_note">Note: The response format follows the standard OpenAI Schema, making it easy to parse.</p>
         </div>
 
-        <!-- PAGE 5: RATE LIMITS -->
         <div id="page-limits" class="doc-page">
             <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="limits_title">Rate Limits & Quotas</h1>
             <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
@@ -578,7 +575,7 @@ Content-Type: application/json
                     </div>
 
                     <div class="mt-6 text-center">
-                        <a href="/pricing" class="inline-flex items-center gap-2 text-primary font-bold hover:underline">
+                        <a href="/cart" class="inline-flex items-center gap-2 text-primary font-bold hover:underline">
                             <span data-i18n="lim_check_pricing">Check Full Pricing & Limits</span>
                             <i class="fa-solid fa-arrow-right rtl:rotate-180"></i>
                         </a>
@@ -608,7 +605,6 @@ Content-Type: application/json
             </div>
         </div>
 
-        <!-- PAGE 6: ERRORS -->
         <div id="page-errors" class="doc-page">
             <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="err_title">Common Errors</h1>
             <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
@@ -683,7 +679,6 @@ Content-Type: application/json
             </div>
         </div>
 
-        <!-- PAGE 7: TOOLS -->
         <div id="page-tools" class="doc-page">
             <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="tools_title">Orgteh Tools Hub</h1>
             <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
@@ -718,7 +713,6 @@ Content-Type: application/json
                 <h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-10 mb-6" data-i18n="tools_available_title">Available Tools</h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Tool 1: Finance -->
                     <div class="tool-card">
                         <div class="flex items-center gap-3 mb-4">
                             <div class="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 text-xl">
@@ -726,7 +720,7 @@ Content-Type: application/json
                             </div>
                             <div>
                                 <h4 class="font-bold text-gray-900 dark:text-white">Global Market Pulse</h4>
-                                <span class="text-xs text-gray-500 font-mono">nexus-finance-rss</span>
+                                <span class="text-xs text-gray-500 font-mono">orgteh-finance-rss</span>
                             </div>
                         </div>
                         <p class="text-sm text-gray-600 dark:text-gray-300 mb-4" data-i18n="tools_finance_desc">
@@ -738,11 +732,10 @@ Content-Type: application/json
                             <span class="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded">Real-time</span>
                         </div>
                         <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
-                            <code class="text-xs text-gray-600 dark:text-gray-400">POST /api/tools/execute/nexus-finance-rss</code>
+                            <code class="text-xs text-gray-600 dark:text-gray-400">POST /api/tools/execute/orgteh-finance-rss</code>
                         </div>
                     </div>
 
-                    <!-- Tool 2: News -->
                     <div class="tool-card">
                         <div class="flex items-center gap-3 mb-4">
                             <div class="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 text-xl">
@@ -750,7 +743,7 @@ Content-Type: application/json
                             </div>
                             <div>
                                 <h4 class="font-bold text-gray-900 dark:text-white">World News Stream</h4>
-                                <span class="text-xs text-gray-500 font-mono">nexus-news-general</span>
+                                <span class="text-xs text-gray-500 font-mono">orgteh-news-general</span>
                             </div>
                         </div>
                         <p class="text-sm text-gray-600 dark:text-gray-300 mb-4" data-i18n="tools_news_desc">
@@ -762,11 +755,10 @@ Content-Type: application/json
                             <span class="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">RSS</span>
                         </div>
                         <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
-                            <code class="text-xs text-gray-600 dark:text-gray-400">POST /api/tools/execute/nexus-news-general</code>
+                            <code class="text-xs text-gray-600 dark:text-gray-400">POST /api/tools/execute/orgteh-news-general</code>
                         </div>
                     </div>
 
-                    <!-- Tool 3: OCR -->
                     <div class="tool-card">
                         <div class="flex items-center gap-3 mb-4">
                             <div class="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 text-xl">
@@ -774,7 +766,7 @@ Content-Type: application/json
                             </div>
                             <div>
                                 <h4 class="font-bold text-gray-900 dark:text-white">Vision OCR</h4>
-                                <span class="text-xs text-gray-500 font-mono">nexus-vision-ocr</span>
+                                <span class="text-xs text-gray-500 font-mono">orgteh-vision-ocr</span>
                             </div>
                         </div>
                         <p class="text-sm text-gray-600 dark:text-gray-300 mb-4" data-i18n="tools_ocr_desc">
@@ -786,11 +778,10 @@ Content-Type: application/json
                             <span class="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-1 rounded">Documents</span>
                         </div>
                         <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
-                            <code class="text-xs text-gray-600 dark:text-gray-400">POST /api/tools/execute/nexus-vision-ocr (multipart/form-data)</code>
+                            <code class="text-xs text-gray-600 dark:text-gray-400">POST /api/tools/execute/orgteh-vision-ocr (multipart/form-data)</code>
                         </div>
                     </div>
 
-                    <!-- Tool 4: Embeddings -->
                     <div class="tool-card">
                         <div class="flex items-center gap-3 mb-4">
                             <div class="w-12 h-12 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 text-xl">
@@ -798,7 +789,7 @@ Content-Type: application/json
                             </div>
                             <div>
                                 <h4 class="font-bold text-gray-900 dark:text-white">Semantic Core</h4>
-                                <span class="text-xs text-gray-500 font-mono">nexus-semantic-embed</span>
+                                <span class="text-xs text-gray-500 font-mono">orgteh-semantic-embed</span>
                             </div>
                         </div>
                         <p class="text-sm text-gray-600 dark:text-gray-300 mb-4" data-i18n="tools_embed_desc">
@@ -810,7 +801,7 @@ Content-Type: application/json
                             <span class="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-1 rounded">Search</span>
                         </div>
                         <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
-                            <code class="text-xs text-gray-600 dark:text-gray-400">POST /api/tools/execute/nexus-semantic-embed</code>
+                            <code class="text-xs text-gray-600 dark:text-gray-400">POST /api/tools/execute/orgteh-semantic-embed</code>
                         </div>
                     </div>
                 </div>
@@ -827,7 +818,6 @@ Content-Type: application/json
             </div>
         </div>
 
-        <!-- PAGE 8: AI CODE BUILDER -->
         <div id="page-integration" class="doc-page">
             <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="integ_title">AI Code Builder</h1>
             <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
@@ -898,92 +888,23 @@ Content-Type: application/json
             </div>
         </div>
 
-        <!-- PAGE 9: PLANS & PRICING -->
-        <div id="page-plans" class="doc-page">
-            <h1 class="text-4xl font-black text-gray-900 dark:text-white mb-6" data-i18n="plans_title">Plans & Pricing</h1>
-            <div class="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300 leading-relaxed">
-                <p data-i18n="plans_intro">
-                    Orgteh offers flexible pricing plans to suit everyone from individual developers to enterprise teams. Choose the plan that fits your needs and scale as you grow.
-                </p>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-8">
-                    <!-- Free Tier -->
-                    <div class="feature-card border-2 border-gray-200 dark:border-gray-700">
-                        <div class="text-center mb-4">
-                            <h3 class="text-xl font-bold text-gray-900 dark:text-white" data-i18n="plan_free_title">Free Tier</h3>
-                            <div class="text-3xl font-black text-primary my-2">$0</div>
-                            <p class="text-sm text-gray-500" data-i18n="plan_free_desc">Perfect for testing</p>
-                        </div>
-                        <ul class="text-sm space-y-2 mb-6">
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500"></i> <span>10 Llama requests/day</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500"></i> <span>5 Kimi requests/day</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500"></i> <span>Access to all tools</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500"></i> <span>Community support</span></li>
-                        </ul>
-                        <a href="/register" class="block w-full text-center py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition" data-i18n="plan_free_btn">Get Started</a>
-                    </div>
-
-                    <!-- Individual Plans -->
-                    <div class="feature-card border-2 border-primary">
-                        <div class="text-center mb-4">
-                            <div class="bg-primary text-white text-xs font-bold px-3 py-1 rounded-full inline-block mb-2" data-i18n="plan_popular">POPULAR</div>
-                            <h3 class="text-xl font-bold text-gray-900 dark:text-white" data-i18n="plan_individual_title">Individual Plans</h3>
-                            <div class="text-3xl font-black text-primary my-2">From $5</div>
-                            <p class="text-sm text-gray-500" data-i18n="plan_individual_desc">Per model, per month</p>
-                        </div>
-                        <ul class="text-sm space-y-2 mb-6">
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500"></i> <span>DeepSeek: 300 req/day</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500"></i> <span>Kimi: 200 req/day</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500"></i> <span>Mistral: 100 req/day</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500"></i> <span>Overdraft protection</span></li>
-                        </ul>
-                        <a href="/cart" class="block w-full text-center py-2 bg-primary text-white rounded-lg font-bold hover:bg-indigo-600 transition" data-i18n="plan_individual_btn">View Plans</a>
-                    </div>
-
-                    <!-- Bundles -->
-                    <div class="feature-card border-2 border-purple-500">
-                        <div class="text-center mb-4">
-                            <h3 class="text-xl font-bold text-gray-900 dark:text-white" data-i18n="plan_bundle_title">Bundles</h3>
-                            <div class="text-3xl font-black text-purple-500 my-2">From $12</div>
-                            <p class="text-sm text-gray-500" data-i18n="plan_bundle_desc">Best value for teams</p>
-                        </div>
-                        <ul class="text-sm space-y-2 mb-6">
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500"></i> <span>Multiple models included</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500"></i> <span>Higher daily limits</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500"></i> <span>Priority processing</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-green-500"></i> <span>Email support</span></li>
-                        </ul>
-                        <a href="/cart" class="block w-full text-center py-2 bg-purple-500 text-white rounded-lg font-bold hover:bg-purple-600 transition" data-i18n="plan_bundle_btn">View Bundles</a>
-                    </div>
-                </div>
-
-                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-6 text-white">
-                    <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div>
-                            <h3 class="text-xl font-bold mb-2" data-i18n="plans_enterprise_title">Need Enterprise Features?</h3>
-                            <p class="text-indigo-100" data-i18n="plans_enterprise_desc">Custom limits, dedicated support, and SLA guarantees.</p>
-                        </div>
-                        <a href="/enterprise" class="px-6 py-3 bg-white text-indigo-600 rounded-lg font-bold hover:bg-indigo-50 transition" data-i18n="plans_enterprise_btn">Contact Sales</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-
     </div>
 
-    <button id="prevBtn" class="nav-arrow-btn" onclick="prevPage()" title="Previous">
-        <i class="fa-solid fa-arrow-left"></i>
-    </button>
+    <div class="nav-arrow-wrapper">
+        <button id="prevBtn" class="nav-arrow-btn" onclick="prevPage()" title="Previous">
+            <i class="fa-solid fa-arrow-left"></i>
+        </button>
 
-    <button id="nextBtn" class="nav-arrow-btn" onclick="nextPage()" title="Next">
-        <i class="fa-solid fa-arrow-right"></i>
-    </button>
+        <button id="nextBtn" class="nav-arrow-btn" onclick="nextPage()" title="Next">
+            <i class="fa-solid fa-arrow-right"></i>
+        </button>
+    </div>
 
 </div>
 
 <script>
     // --- Data & State ---
-    const pages = ['page-quickstart', 'page-auth', 'page-endpoints', 'page-requests', 'page-limits', 'page-errors', 'page-tools', 'page-integration', 'page-plans'];
+    const pages = ['page-quickstart', 'page-auth', 'page-endpoints', 'page-requests', 'page-limits', 'page-errors', 'page-tools', 'page-integration'];
     let currentPageIndex = 0;
 
     // --- Core Navigation Function ---
@@ -1025,8 +946,7 @@ Content-Type: application/json
             'page-limits': docsTranslations[lang]['toc_limits'],
             'page-errors': docsTranslations[lang]['toc_errors'],
             'page-tools': docsTranslations[lang]['toc_tools'],
-            'page-integration': docsTranslations[lang]['toc_integration'],
-            'page-plans': docsTranslations[lang]['toc_plans']
+            'page-integration': docsTranslations[lang]['toc_integration']
         };
         const currentTitleEl = document.getElementById('mobile-current-title');
         if(currentTitleEl) currentTitleEl.textContent = pageNames[pages[currentPageIndex]];
@@ -1092,7 +1012,6 @@ Content-Type: application/json
             "toc_errors": "Errors",
             "toc_tools": "Orgteh Tools",
             "toc_integration": "AI Code Builder",
-            "toc_plans": "Plans & Pricing",
 
             "quickstart_title": "Quick Start Guide",
             "qs_p1": "Welcome to the Orgteh API documentation. This guide is designed to get you up and running with our enterprise-grade AI models in less than 5 minutes. Our platform is architected to be a fully compatible drop-in replacement for the standard OpenAI SDKs, ensuring seamless migration.",
@@ -1197,23 +1116,7 @@ Content-Type: application/json
             "cb_github_title": "GitHub Integration",
             "cb_github_desc": "Deploy projects directly to GitHub repositories with one click.",
             "cb_export_title": "Multiple Formats",
-            "cb_export_desc": "Export as ZIP or deploy directly to GitHub Pages.",
-
-            "plans_title": "Plans & Pricing",
-            "plans_intro": "Orgteh offers flexible pricing plans to suit everyone from individual developers to enterprise teams. Choose the plan that fits your needs and scale as you grow.",
-            "plan_free_title": "Free Tier",
-            "plan_free_desc": "Perfect for testing",
-            "plan_free_btn": "Get Started",
-            "plan_popular": "POPULAR",
-            "plan_individual_title": "Individual Plans",
-            "plan_individual_desc": "Per model, per month",
-            "plan_individual_btn": "View Plans",
-            "plan_bundle_title": "Bundles",
-            "plan_bundle_desc": "Best value for teams",
-            "plan_bundle_btn": "View Bundles",
-            "plans_enterprise_title": "Need Enterprise Features?",
-            "plans_enterprise_desc": "Custom limits, dedicated support, and SLA guarantees.",
-            "plans_enterprise_btn": "Contact Sales"
+            "cb_export_desc": "Export as ZIP or deploy directly to GitHub Pages."
         },
         ar: {
             "docs_guide": "الدليل",
@@ -1225,7 +1128,6 @@ Content-Type: application/json
             "toc_errors": "الأخطاء الشائعة",
             "toc_tools": "أدوات Orgteh",
             "toc_integration": "منشئ الكود الذكي",
-            "toc_plans": "الخطط والأسعار",
 
             "quickstart_title": "دليل البدء السريع",
             "qs_p1": "مرحباً بك في توثيق Orgteh API. صممت هذه المنصة لتكون بديلاً متوافقاً تماماً مع مكتبات OpenAI، مما يعني أنك إذا كنت تملك تطبيقاً يعمل بنماذج GPT، يمكنك نقله إلينا في دقائق بتغيير الرابط والمفتاح فقط.",
@@ -1330,23 +1232,7 @@ Content-Type: application/json
             "cb_github_title": "تكامل GitHub",
             "cb_github_desc": "انشر المشاريع مباشرة في مستودعات GitHub بنقرة واحدة.",
             "cb_export_title": "صيغ متعددة",
-            "cb_export_desc": "صدر كملف ZIP أو انشر مباشرة على GitHub Pages.",
-
-            "plans_title": "الخطط والأسعار",
-            "plans_intro": "تقدم Orgteh خطط أسعار مرنة لتناسب الجميع من المطورين الأفراد إلى فرق المؤسسات. اختر الخطة التي تناسب احتياجاتك وقم بالتوسع مع نموك.",
-            "plan_free_title": "الخطة المجانية",
-            "plan_free_desc": "مثالية للاختبار",
-            "plan_free_btn": "ابدأ الآن",
-            "plan_popular": "الأكثر شيوعاً",
-            "plan_individual_title": "الخطط الفردية",
-            "plan_individual_desc": "لكل نموذج، شهرياً",
-            "plan_individual_btn": "عرض الخطط",
-            "plan_bundle_title": "الباقات",
-            "plan_bundle_desc": "أفضل قيمة للفرق",
-            "plan_bundle_btn": "عرض الباقات",
-            "plans_enterprise_title": "تحتاج ميزات المؤسسات؟",
-            "plans_enterprise_desc": "حدود مخصصة، دعم مخصص، وضمانات SLA.",
-            "plans_enterprise_btn": "تواصل مع المبيعات"
+            "cb_export_desc": "صدر كملف ZIP أو انشر مباشرة على GitHub Pages."
         }
     };
 

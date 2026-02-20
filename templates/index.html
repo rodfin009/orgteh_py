@@ -123,7 +123,7 @@
         border-radius: 50%;
         pointer-events: none;
         border: 1.5px solid transparent;
-        will-change: transform;
+        /* إزالة will-change لتوفير GPU memory */
         z-index: 0;
     }
 
@@ -144,6 +144,17 @@
 
     html:not(.dark) .dashed-ring {
         opacity: 0.5;
+    }
+
+    /* إيقاف الأنيميشن عند إخفاء العنصر عن الشاشة لتوفير CPU */
+    @media (prefers-reduced-motion: reduce) {
+        .orbit-ring { animation: none !important; }
+        .glowing-dot { box-shadow: none !important; }
+    }
+
+    /* تحسين الأداء على الموبايل: تقليل تعقيد الأنيميشن */
+    @media (max-width: 768px) {
+        .orbit-ring:nth-child(n+5) { display: none; }
     }
 
     .stat-card {
@@ -180,7 +191,7 @@
 <!-- Hero Section -->
 <section class="relative min-h-screen flex flex-col justify-center overflow-hidden pt-32 pb-20">
     <div class="absolute inset-0 w-full h-full pointer-events-none z-0">
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-3xl opacity-40"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/5 rounded-full opacity-40" style="filter:blur(60px);"></div>
     </div>
 
     <div class="max-w-7xl mx-auto px-4 text-center relative z-20">
@@ -265,7 +276,7 @@
 </section>
 
 <!-- Stats Section - Linked to Performance Data -->
-<section class="py-10 border-y border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-darkbg/50 relative z-10">
+<section class="py-10 border-y border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-darkbg/50 relative z-10" style="content-visibility:auto;contain-intrinsic-size:0 200px;">
     <div class="max-w-7xl mx-auto px-4">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div class="stat-card text-center p-4 rounded-xl bg-white dark:bg-[#1e293b] shadow-sm">
@@ -295,7 +306,7 @@
 </section>
 
 <!-- Why Orgteh Section -->
-<section class="py-24 bg-white dark:bg-darkbg relative z-10">
+<section class="py-24 bg-white dark:bg-darkbg relative z-10" style="content-visibility:auto;contain-intrinsic-size:0 400px;">
     <div class="max-w-7xl mx-auto px-4">
         <div class="text-center mb-16">
             <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="why_title"></h2>
@@ -331,7 +342,7 @@
 </section>
 
 <!-- Features Section -->
-<section class="py-24 bg-gray-50 dark:bg-[#0f172a] relative z-10">
+<section class="py-24 bg-gray-50 dark:bg-[#0f172a] relative z-10" style="content-visibility:auto;contain-intrinsic-size:0 400px;">
     <div class="max-w-7xl mx-auto px-4">
         <div class="text-center mb-16">
             <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="features_title"></h2>
@@ -375,7 +386,7 @@
 </section>
 
 <!-- Performance Metrics Section -->
-<section class="py-24 bg-white dark:bg-darkbg relative z-10">
+<section class="py-24 bg-white dark:bg-darkbg relative z-10" style="content-visibility:auto;contain-intrinsic-size:0 400px;">
     <div class="max-w-7xl mx-auto px-4">
         <div class="text-center mb-16">
             <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="performance_title"></h2>
@@ -437,7 +448,7 @@
 </section>
 
 <!-- Models Preview Section -->
-<section class="py-24 bg-gray-50 dark:bg-[#0f172a] relative z-10">
+<section class="py-24 bg-gray-50 dark:bg-[#0f172a] relative z-10" style="content-visibility:auto;contain-intrinsic-size:0 600px;">
     <div class="max-w-7xl mx-auto px-4">
         <div class="text-center mb-16">
             <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="models_preview_title"></h2>
@@ -449,7 +460,7 @@
             <div class="model-card bg-white dark:bg-[#1e293b] rounded-xl p-6 border border-gray-200 dark:border-gray-700">
                 <div class="flex items-center gap-4 mb-4">
                     <div class="w-14 h-14 rounded-xl bg-gray-50 dark:bg-gray-800 p-2 flex items-center justify-center border border-gray-100 dark:border-gray-700">
-                        <img src="{{ model.image }}" alt="{{ model.name }}" class="w-full h-full object-contain">
+                        <img src="{{ model.image }}" alt="{{ model.name }}" width="56" height="56" loading="lazy" decoding="async" class="w-full h-full object-contain">
                     </div>
                     <div>
                         <h3 class="font-bold text-lg text-gray-900 dark:text-white">{{ model.name }}</h3>
@@ -488,7 +499,7 @@
 </section>
 
 <!-- Code Example Section -->
-<section class="py-20 bg-white dark:bg-darkbg border-t border-gray-200 dark:border-gray-800 relative z-10">
+<section class="py-20 bg-white dark:bg-darkbg border-t border-gray-200 dark:border-gray-800 relative z-10" style="content-visibility:auto;contain-intrinsic-size:0 400px;">
     <div class="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center gap-12">
         <div class="flex-1">
             <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">
@@ -537,9 +548,9 @@ print(response.choices[0].message.content)
 
 <!-- CTA Section -->
 <section class="py-24 bg-gradient-to-br from-blue-600 to-violet-600 relative z-10 overflow-hidden">
-    <div class="absolute inset-0 opacity-10">
-        <div class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
-        <div class="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+    <div class="absolute inset-0 opacity-10" aria-hidden="true">
+        <div class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full -translate-x-1/2 -translate-y-1/2" style="filter:blur(60px);"></div>
+        <div class="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2" style="filter:blur(60px);"></div>
     </div>
 
     <div class="max-w-4xl mx-auto px-4 text-center relative z-10">

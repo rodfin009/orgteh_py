@@ -50,7 +50,7 @@
         <div class="text-center mb-12">
             <h2 class="text-primary font-bold tracking-wide uppercase text-sm" data-i18n="pricing.lbl_plans_header">Subscription Plans</h2>
             <p class="mt-2 text-4xl font-extrabold text-gray-900 dark:text-white sm:text-5xl">
-                <span data-i18n="pricing.title_main">Nexus API Plans</span>
+                <span data-i18n="pricing.title_main">Orgteh API Plans</span>
             </p>
             <p class="mt-4 max-w-2xl text-xl text-gray-600 dark:text-gray-400 mx-auto" data-i18n="pricing.subtitle_main">
                 Flexible options: Individual models, smart bundles, or global access.
@@ -79,7 +79,7 @@
             <div class="inline-flex rounded-xl bg-gray-200 dark:bg-gray-800 p-1.5">
                 <button onclick="switchTab('individual')" id="tab-individual" class="flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-base transition-all tab-active">
                     <i class="fa-solid fa-user"></i>
-                    <span data-i18n="pricing.tab_individual">Individual</span>
+                    <span data-i18n="pricing.tab_individual">Individual Plans</span>
                 </button>
                 <button onclick="switchTab('global')" id="tab-global" class="flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-base transition-all tab-inactive">
                     <i class="fa-solid fa-cubes"></i>
@@ -110,7 +110,7 @@
                     </div>
                     <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-deepseek">
                         <button onclick="setPeriod('deepseek', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
-                        <button onclick="setPeriod('deepseek', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                        <button onclick="setPeriod('deepseek', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly" data-i18n="pricing.btn_yearly">Yearly</button>
                     </div>
                     <div class="mb-4 text-center">
                         <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-deepseek">$3.99</span>
@@ -141,7 +141,7 @@
                     </div>
                     <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-kimi">
                         <button onclick="setPeriod('kimi', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
-                        <button onclick="setPeriod('kimi', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                        <button onclick="setPeriod('kimi', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly" data-i18n="pricing.btn_yearly">Yearly</button>
                     </div>
                     <div class="mb-4 text-center">
                         <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-kimi">$6.99</span>
@@ -177,7 +177,7 @@
                     </div>
                     <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-mistral">
                         <button onclick="setPeriod('mistral', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
-                        <button onclick="setPeriod('mistral', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                        <button onclick="setPeriod('mistral', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly" data-i18n="pricing.btn_yearly">Yearly</button>
                     </div>
                     <div class="mb-4 text-center">
                         <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-mistral">$11.99</span>
@@ -207,7 +207,7 @@
                     </div>
                     <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-gemma">
                         <button onclick="setPeriod('gemma', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
-                        <button onclick="setPeriod('gemma', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                        <button onclick="setPeriod('gemma', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly" data-i18n="pricing.btn_yearly">Yearly</button>
                     </div>
                     <div class="mb-4 text-center">
                         <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-gemma">$3.49</span>
@@ -237,7 +237,7 @@
                     </div>
                     <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-llama">
                         <button onclick="setPeriod('llama', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
-                        <button onclick="setPeriod('llama', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                        <button onclick="setPeriod('llama', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly" data-i18n="pricing.btn_yearly">Yearly</button>
                     </div>
                     <div class="mb-4 text-center">
                         <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-llama">$2.49</span>
@@ -336,7 +336,7 @@
 
                     <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-agents">
                         <button onclick="setPeriod('agents', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
-                        <button onclick="setPeriod('agents', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                        <button onclick="setPeriod('agents', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly" data-i18n="pricing.btn_yearly">Yearly</button>
                     </div>
 
                     <div class="mb-4 text-center">
@@ -393,17 +393,17 @@
                     </div>
 
                     <div class="mb-4 mt-2 text-center">
-                        <div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 shadow-xl ring-4 ring-white dark:ring-gray-800 transform hover:scale-105 transition-transform duration-300 relative overflow-hidden">
-                            <div class="absolute inset-0 bg-white/10 skew-x-12 -translate-x-10 w-1/2 h-full blur-md"></div>
-                            <span class="text-4xl font-black text-white tracking-tighter z-10" style="font-family: sans-serif;">NX</span>
+                        <div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-white dark:bg-black shadow-xl ring-4 ring-gray-100 dark:ring-gray-800 transform hover:scale-105 transition-transform duration-300 relative overflow-hidden">
+                            <img src="/static/logo_dark.png" alt="Orgteh" class="dark-logo w-14 h-14 object-contain z-10">
+                            <img src="/static/logo_light.png" alt="Orgteh" class="light-logo w-14 h-14 object-contain z-10">
                         </div>
-                        <h3 class="text-2xl font-bold text-gray-900 dark:text-white" data-i18n="pricing.title_global">Nexus Global</h3>
+                        <h3 class="text-2xl font-bold text-gray-900 dark:text-white" data-i18n="pricing.title_global">Orgteh Global</h3>
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.sec_global_desc">All models in one package.</p>
                     </div>
 
                     <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-global">
                         <button onclick="setPeriod('global', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
-                        <button onclick="setPeriod('global', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly"><span data-i18n="pricing.btn_yearly">Yearly</span></button>
+                        <button onclick="setPeriod('global', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly" data-i18n="pricing.btn_yearly">Yearly</button>
                     </div>
 
                     <div class="mb-4 text-center">
@@ -457,31 +457,31 @@
 </div>
 
 <script>
-    // --- 1. LOCAL TRANSLATION DATA ---
+    // --- 1. TRANSLATION DATA ---
     const pageTranslations = {
         en: {
             "pricing.lbl_plans_header": "Subscription Plans",
-            "pricing.title_main": "Nexus API Plans",
-            "pricing.subtitle_main": "Two payment systems: A cost-effective global subscription, or a smart single-model purchase.",
+            "pricing.title_main": "Orgteh API Plans",
+            "pricing.subtitle_main": "Flexible options: Individual models, smart bundles, or global access.",
             "pricing.promo_emergency_title": "Extra Credit Feature",
-            "pricing.promo_emergency_desc": "When your daily fast limit is reached, service does not stop! Extra credit is activated.",
+            "pricing.promo_emergency_desc": "Service does not stop when your daily fast limit is reached! Extra credit is activated.",
             "pricing.tab_individual": "Individual Plans",
-            "pricing.tab_global": "Bundles & Global",
-            "pricing.sec_individual_title": "For Professionals & Specialists",
+            "pricing.tab_global": "Bundles",
+            "pricing.sec_individual_title": "For Professionals",
             "pricing.sec_individual_desc": "Highest cap and priority - Choose the model that fits your specialty.",
-            "pricing.sec_global_title": "Bundles & Access",
+            "pricing.sec_global_title": "Smart Bundles",
             "pricing.sec_global_desc": "Combined power for specific needs.",
             "pricing.btn_monthly": "Monthly",
             "pricing.btn_yearly": "Yearly",
             "pricing.lbl_per_month": "/month",
             "pricing.lbl_per_year": "/year",
-            "pricing.lbl_popular": "Most Popular",
-            "pricing.lbl_elite": "For Elite",
+            "pricing.lbl_popular": "Popular",
+            "pricing.lbl_elite": "Elite",
             "pricing.lbl_global_badge": "All Access",
             "pricing.lbl_agents_badge": "Chat Agents",
             "pricing.lbl_req_day": "req/day",
             "pricing.lbl_extra_credit": "Extra Credit",
-            "pricing.lbl_unified_credit": "Unified Extra Credit",
+            "pricing.lbl_unified_credit": "Unified Credit",
             "pricing.btn_subscribe": "Subscribe Now",
             "pricing.footer_note_1": "All prices in USD. Limits reset daily at midnight (UTC).",
             "pricing.ribbon_free": "3 Days Free",
@@ -490,7 +490,7 @@
             "pricing.desc_free": "For testing & simple tasks",
             "pricing.title_agents": "Chat Agents",
             "pricing.desc_agents": "High volume conversational AI",
-            "pricing.title_global": "Nexus Global",
+            "pricing.title_global": "Orgteh Global",
             "pricing.btn_start_free": "Start Free",
             "pricing.lbl_active": "Active",
             "pricing.lbl_forever": "/forever",
@@ -508,98 +508,79 @@
         },
         ar: {
             "pricing.lbl_plans_header": "خطط الاشتراكات",
-            "pricing.title_main": "خطط Nexus API",
-            "pricing.subtitle_main": "نظامان للدفع: اشتراك شامل موفر، أو شراء ذكي لنموذج واحد.",
-            "pricing.promo_emergency_title": "ميزة \"رصيد إضافي\"",
-            "pricing.promo_emergency_desc": "عند انتهاء حدك اليومي السريع، لا تتوقف الخدمة! يتم تفعيل رصيد إضافي.",
+            "pricing.title_main": "خطط أورجتي API",
+            "pricing.subtitle_main": "خيارات مرنة: نماذج فردية، باقات مجمعة ذكية، أو وصول شامل.",
+            "pricing.promo_emergency_title": "ميزة الرصيد الإضافي",
+            "pricing.promo_emergency_desc": "الخدمة لا تتوقف عند وصولك للحد السريع اليومي! يتم تفعيل رصيد إضافي مجاناً.",
             "pricing.tab_individual": "الباقات الفردية",
             "pricing.tab_global": "الباقات المجمعة",
             "pricing.sec_individual_title": "للمحترفين والمتخصصين",
-            "pricing.sec_individual_desc": "أعلى سقف وأعلى أولوية - اختر النموذج المناسب لتخصصك",
-            "pricing.sec_global_title": "الباقات والوصول الشامل",
-            "pricing.sec_global_desc": "قوة مجمعة لاحتياجات محددة",
-            "pricing.btn_monthly": "شهري",
-            "pricing.btn_yearly": "سنوي",
-            "pricing.lbl_per_month": "/شهري",
-            "pricing.lbl_per_year": "/سنوي",
-            "pricing.lbl_popular": "الأكثر شعبية",
+            "pricing.sec_individual_desc": "أعلى سقف وأولوية قصوى - اختر النموذج الذي يناسب تخصصك.",
+            "pricing.sec_global_title": "الباقات الذكية والوصول الشامل",
+            "pricing.sec_global_desc": "قوة مجمعة صُممت لتلبي كافة الاحتياجات.",
+            "pricing.btn_monthly": "شهرياً",
+            "pricing.btn_yearly": "سنوياً",
+            "pricing.lbl_per_month": "/ شهر",
+            "pricing.lbl_per_year": "/ سنة",
+            "pricing.lbl_popular": "الأكثر طلباً",
             "pricing.lbl_elite": "للنخبة",
-            "pricing.lbl_global_badge": "الوصول الشامل",
-            "pricing.lbl_agents_badge": "وكلاء الدردشة",
-            "pricing.lbl_req_day": "طلب/يوم",
+            "pricing.lbl_global_badge": "وصول شامل",
+            "pricing.lbl_agents_badge": "وكلاء الذكاء",
+            "pricing.lbl_req_day": "طلب / يوم",
             "pricing.lbl_extra_credit": "رصيد إضافي",
             "pricing.lbl_unified_credit": "رصيد إضافي موحد",
             "pricing.btn_subscribe": "اشترك الآن",
-            "pricing.footer_note_1": "جميع الأسعار بالدولار الأمريكي. الحدود تتجدد يومياً.",
+            "pricing.footer_note_1": "جميع الأسعار بالدولار الأمريكي. يتم تصفير الحدود يومياً عند منتصف الليل (UTC).",
             "pricing.ribbon_free": "3 أيام مجاناً",
-            "pricing.ribbon_forever": "دائمة",
+            "pricing.ribbon_forever": "مجاني دائماً",
             "pricing.title_free": "الباقة المجانية",
             "pricing.desc_free": "للتجربة والمهام البسيطة",
             "pricing.title_agents": "وكلاء الدردشة",
             "pricing.desc_agents": "ذكاء محادثة بحجم ضخم",
-            "pricing.title_global": "باقة نيكسوس الشاملة",
+            "pricing.title_global": "باقة أورجتي الشاملة",
             "pricing.btn_start_free": "ابدأ مجاناً",
-            "pricing.lbl_active": "مشترك",
-            "pricing.lbl_forever": "/دائماً",
+            "pricing.lbl_active": "مُفعل",
+            "pricing.lbl_forever": "/ مدى الحياة",
             "pricing.no_overdraft": "لا يوجد رصيد إضافي",
             "feat_free_1": "وصول لـ Llama 3.2 (10/يوم)",
             "feat_free_2": "وصول لـ Kimi k2 (5/يوم)",
             "feat_free_3": "دعم مجتمعي",
-            "feat_agents_1": "Gemma بحجم ضخم",
-            "feat_agents_2": "محسنة للمحادثات",
-            "feat_agents_3": "نسخ احتياطي موحد",
-            "feat_global_1": "وصول لجميع النماذج الثلاثة",
+            "feat_agents_1": "وصول ضخم لـ Gemma",
+            "feat_agents_2": "مُحسّنة للمحادثات الطويلة",
+            "feat_agents_3": "رصيد موحد للطوارئ",
+            "feat_global_1": "وصول لجميع النماذج معاً",
             "feat_global_2": "تبديل سلس بين النماذج",
-            "feat_global_3": "رصيد إضافي موحد",
-            "feat_global_4": "أولوية في الدعم الفني"
+            "feat_global_3": "رصيد إضافي موحد للطوارئ",
+            "feat_global_4": "أولوية قصوى في الدعم الفني"
         }
     };
 
     // --- 2. PRICING LOGIC ---
     const pricingData = {
-        deepseek: {
-            monthly: { price: 3.99, bonus: 600 },
-            yearly: { price: 39.99, bonus: 1500 }
-        },
-        kimi: {
-            monthly: { price: 6.99, bonus: 300 },
-            yearly: { price: 69.99, bonus: 1000 }
-        },
-        mistral: {
-            monthly: { price: 11.99, bonus: 200 },
-            yearly: { price: 119.99, bonus: 500 }
-        },
-        gemma: {
-            monthly: { price: 3.49, bonus: 1000 },
-            yearly: { price: 34.99, bonus: 3000 }
-        },
-        llama: {
-            monthly: { price: 2.49, bonus: 800 },
-            yearly: { price: 24.99, bonus: 2500 }
-        },
-        agents: {
-            monthly: { price: 6.99, bonus: 750 },
-            yearly: { price: 69.99, bonus: 2000 }
-        },
-        global: {
-            monthly: { price: 18.99, bonus: 200 },
-            yearly: { price: 189.99, bonus: 500 }
-        }
+        deepseek: { monthly: { price: 3.99, bonus: 600 }, yearly: { price: 39.99, bonus: 1500 } },
+        kimi: { monthly: { price: 6.99, bonus: 300 }, yearly: { price: 69.99, bonus: 1000 } },
+        mistral: { monthly: { price: 11.99, bonus: 200 }, yearly: { price: 119.99, bonus: 500 } },
+        gemma: { monthly: { price: 3.49, bonus: 1000 }, yearly: { price: 34.99, bonus: 3000 } },
+        llama: { monthly: { price: 2.49, bonus: 800 }, yearly: { price: 24.99, bonus: 2500 } },
+        agents: { monthly: { price: 6.99, bonus: 750 }, yearly: { price: 69.99, bonus: 2000 } },
+        global: { monthly: { price: 18.99, bonus: 200 }, yearly: { price: 189.99, bonus: 500 } }
     };
 
-    const labelKeys = {
-        monthly: 'pricing.lbl_per_month',
-        yearly: 'pricing.lbl_per_year'
-    };
+    const labelKeys = { monthly: 'pricing.lbl_per_month', yearly: 'pricing.lbl_per_year' };
 
     // --- 3. CORE FUNCTIONS ---
 
+    function getActiveLang() {
+        return document.documentElement.getAttribute('lang') || window.SERVER_LANG || 'ar';
+    }
+
     function applyLocalTranslations() {
-        const lang = localStorage.getItem('lang') || 'ar';
+        const lang = getActiveLang();
         const t = pageTranslations[lang];
 
         if (!t) return;
 
+        // Apply string translations
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
             if (t[key]) {
@@ -607,8 +588,9 @@
             }
         });
 
+        // Sync period labels after translation
         document.querySelectorAll('[id^=period-]').forEach(group => {
-            const activeBtn = group.querySelector('.bg-white'); 
+            const activeBtn = Array.from(group.querySelectorAll('button')).find(btn => !btn.classList.contains('text-gray-500'));
             if(activeBtn) {
                 const period = activeBtn.dataset.period;
                 const plan = group.id.replace('period-', '');
@@ -620,6 +602,7 @@
     function setPeriod(plan, period) {
         const container = document.getElementById(`period-${plan}`);
         if(!container) return;
+
         const buttons = container.querySelectorAll('button');
         buttons.forEach(btn => {
             if (btn.dataset.period === period) {
@@ -632,6 +615,7 @@
         });
 
         const data = pricingData[plan][period];
+
         const priceEl = document.getElementById(`price-${plan}`);
         if(priceEl) priceEl.textContent = `$${data.price}`;
 
@@ -644,9 +628,9 @@
     function updatePriceLabels(plan, period) {
          const priceLabelEl = document.querySelector(`#price-${plan}`).nextElementSibling;
          if(priceLabelEl) {
-             const lang = localStorage.getItem('lang') || 'ar';
+             const lang = getActiveLang();
              const key = labelKeys[period];
-             if(pageTranslations[lang][key]) {
+             if(pageTranslations[lang] && pageTranslations[lang][key]) {
                  priceLabelEl.innerHTML = pageTranslations[lang][key];
              }
          }
@@ -675,9 +659,16 @@
         }
     }
 
-    // --- 4. INITIALIZATION ---
+    // --- 4. INITIALIZATION & SYNC ---
     window.addEventListener('DOMContentLoaded', () => {
+       // Inject into base.html global translation system safely
+       if (window.translations) {
+           Object.assign(window.translations.en, pageTranslations.en);
+           Object.assign(window.translations.ar, pageTranslations.ar);
+       }
+
        applyLocalTranslations();
+
        setPeriod('deepseek', 'monthly');
        setPeriod('kimi', 'monthly');
        setPeriod('mistral', 'monthly');
@@ -687,6 +678,7 @@
        setPeriod('global', 'monthly');
     });
 
+    // Sync when language is changed globally from base.html
     window.addEventListener('langChange', () => {
         applyLocalTranslations();
     });

@@ -7,32 +7,28 @@
 
     <link id="site-favicon" rel="icon" type="image/png" href="/static/logo_dark.png">
 
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Preconnect لتسريع الاتصال بالـ CDNs -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+
+    <!-- Tailwind CSS: مبني محلياً أثناء vercel build — أسرع بـ 10x من CDN -->
+    <link rel="stylesheet" href="/static/css/tailwind.min.css">
     <style>
-        /* Logo Visibility Logic */
-        html.dark .dark-logo { display:block !important; }
-        html.dark .light-logo { display:none !important; }
-        html:not(.dark) .dark-logo { display:none !important; }
-        html:not(.dark) .light-logo { display:block !important; }
+        /* Logo Visibility Logic + Kimi Filter + Theme Switch — في tailwind.min.css */
     </style>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <!-- Font Awesome: تحميل غير متزامن لإزالة حجب العرض -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
+    <!-- Google Fonts: تحميل غير متزامن -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"></noscript>
 
     <script>
         // Set server language
         window.SERVER_LANG = "{{ lang }}";
         document.documentElement.setAttribute('lang', window.SERVER_LANG);
-
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: { primary: '#7c3aed', darkbg: '#000000', cardbg: '#0d0d0d', lightcard: '#f5f3ff', success: '#22c55e' },
-                    fontFamily: { cairo: ['Cairo', 'sans-serif'] },
-                    zIndex: { '60': '60', '70': '70', '100': '100' }
-                }
-            }
-        };
 
         // --- تهيئة نظام الترجمة الداخلي ---
         window.translations = { ar: {}, en: {} };
@@ -54,6 +50,9 @@
                 "nav_policy": "Policy", 
                 "nav_dashboard": "Dashboard",
                 "nav_performance": "Performance",
+                "sidebar_lang": "Language",
+                "sidebar_theme_dark": "Dark Mode",
+                "sidebar_theme_light": "Light Mode",
                 "footer_rights": "All rights reserved © 2026 Orgteh Infra"
             },
             ar: {
@@ -72,6 +71,9 @@
                 "nav_policy": "سياسة الاستخدام",
                 "nav_dashboard": "لوحة التحكم",
                 "nav_performance": "الأداء",
+                "sidebar_lang": "اللغة",
+                "sidebar_theme_dark": "الوضع الداكن",
+                "sidebar_theme_light": "الوضع الفاتح",
                 "footer_rights": "جميع الحقوق محفوظة © 2026 Orgteh Infra"
             }
         };
@@ -80,6 +82,7 @@
         Object.assign(window.translations.ar, baseTranslations.ar);
 
         window._setCircularFavicon = function(src) {
+            /* Favicon دائري - يُنفّذ مرة واحدة فقط عند تغيير الثيم */
             var img = new Image(); img.onload = function() {
                 var c = document.createElement('canvas'); c.width = c.height = 64;
                 var ctx = c.getContext('2d');
@@ -93,54 +96,24 @@
             var t = localStorage.getItem('theme');
             if(t==='light') document.documentElement.classList.remove('dark');
             else document.documentElement.classList.add('dark');
-            window.addEventListener('load', function(){
-                window._setCircularFavicon(t==='light'?'/static/logo_light.png':'/static/logo_dark.png');
-            });
+            /* تأخير رسم الـ favicon حتى ما بعد تحميل الصفحة الكامل لعدم تأثيره على الأداء */
+            if('requestIdleCallback' in window) {
+                requestIdleCallback(function(){ window._setCircularFavicon(t==='light'?'/static/logo_light.png':'/static/logo_dark.png'); });
+            } else {
+                setTimeout(function(){ window._setCircularFavicon(t==='light'?'/static/logo_light.png':'/static/logo_dark.png'); }, 1000);
+            }
         })();
     </script>
 
+    <!-- الأنماط المضمّنة نُقلت لـ /static/css/input.css وتُبنى في tailwind.min.css -->
     <style>
-        body { font-family: 'Cairo', sans-serif; overflow-x: hidden; text-align: left !important; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #000000; }
-        ::-webkit-scrollbar-thumb { background: #2a1a4e; border-radius: 4px; }
-
-        #sidebar { 
-            position: fixed; top: 0; bottom: 0; 
-            left: 0 !important; right: auto !important; 
-            width: 18rem; background-color: #ffffff; z-index: 200;
-            transform: translateX(-100%); transition: transform 0.3s ease-in-out;
-            border-right: 1px solid #e5e7eb;
-            overflow-y: auto;
-            overscroll-behavior: contain;
-            -webkit-overflow-scrolling: touch;
-        }
-        html.dark #sidebar { background-color: #000000 !important; border-color: #1a1a1a; }
-
-        .sidebar-open { transform: translateX(0) !important; }
-        .sidebar-closed { transform: translateX(-100%) !important; }
-
-        #sidebar-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.6);
-            z-index: 199;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-        }
-
-        .fab-chat {
-            position: fixed; bottom: 2rem; left: 2rem !important; right: auto !important;
-            z-index: 50; animation: bounce-slow 3s infinite;
-        }
-        .fab-chat:hover { animation: none; transform: scale(1.1); }
-        @keyframes bounce-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        .text-start { text-align: left !important; }
+        /* الأنماط الأساسية — باقي الأنماط في /static/css/tailwind.min.css */
     </style>
 {% block head_extra %}{% endblock %}
 </head>
 <body class="bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-300">
 
-    <nav id="main-navbar" style="position:relative;z-index:100;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);" class="bg-white/95 dark:bg-black/95 border-b border-gray-200 dark:border-gray-800">
+    <nav id="main-navbar" style="position:relative;z-index:100;" class="bg-white/95 dark:bg-black/95 border-b border-gray-200 dark:border-gray-800 backdrop-nav">
         <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
             <div class="flex items-center gap-4 md:gap-8 flex-1">
                 <button onclick="toggleSidebar()" class="md:hidden text-2xl z-50 p-2"><i class="fa-solid fa-bars"></i></button>
@@ -156,10 +129,10 @@
                 </div>
 
                 <div class="hidden md:flex items-center gap-4">
-                    <button onclick="toggleLang()" class="flex items-center gap-2 font-bold px-3 py-1.5 rounded-lg hover:bg-gray-100 hover:bg-gray-100 dark:bg-[#111111] transition text-sm border border-gray-200 dark:border-gray-800">
+                    <button onclick="toggleLang()" class="flex items-center gap-2 font-bold px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:bg-[#111111] transition text-sm border border-gray-200 dark:border-gray-800">
                         <i class="fa-solid fa-globe"></i> <span id="lang-label">EN</span>
                     </button>
-                    <button onclick="toggleTheme()" class="w-10 h-10 rounded-full bg-gray-100 bg-gray-100 dark:bg-[#111111] flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                    <button onclick="toggleTheme()" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-[#111111] flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition">
                         <i class="fa-solid fa-moon dark:hidden"></i> <i class="fa-solid fa-sun hidden dark:block text-yellow-400"></i>
                     </button>
                     {% if is_logged_in %}
@@ -172,7 +145,7 @@
                     </div>
                     {% else %}
                     <div class="flex items-center gap-4">
-                        <a href="/auth" class="px-5 py-2 rounded-lg font-bold hover:bg-gray-100 hover:bg-gray-100 dark:bg-[#111111] transition">دخول</a>
+                        <a href="/auth" class="px-5 py-2 rounded-lg font-bold hover:bg-gray-100 dark:bg-[#111111] transition">دخول</a>
                         <a href="/auth?tab=register" class="px-5 py-2 bg-primary text-gray-900 dark:text-white rounded-lg font-bold hover:opacity-90 transition shadow-lg shadow-primary/30">تسجيل</a>
                     </div>
                     {% endif %}
@@ -180,8 +153,8 @@
             </div>
 
             <a href="javascript:void(0)" onclick="navigateWithLang('')" style="display:flex;align-items:stretch;align-self:stretch;margin-left:auto;">
-                <img src="/static/logo_dark.png" alt="Orgteh" class="dark-logo" style="height:100%;width:auto;object-fit:contain;padding:4px 0;">
-                <img src="/static/logo_light.png" alt="Orgteh" class="light-logo" style="height:100%;width:auto;object-fit:contain;padding:4px 0;">
+                <img src="/static/logo_dark.png" alt="Orgteh" class="dark-logo" width="120" height="40" style="height:100%;width:auto;object-fit:contain;padding:4px 0;">
+                <img src="/static/logo_light.png" alt="Orgteh" class="light-logo" width="120" height="40" style="height:100%;width:auto;object-fit:contain;padding:4px 0;">
             </a>
         </div>
     </nav>
@@ -208,7 +181,7 @@
             <a href="javascript:void(0)" onclick="navigateWithLang('policy'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-shield-halved w-6"></i> <span data-i18n="nav_policy">سياسة الاستخدام</span></a>
             <a href="javascript:void(0)" onclick="navigateWithLang('performance'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-chart-line w-6"></i> <span data-i18n="nav_performance">الأداء</span></a>
 
-            <hr class="border-gray-200 border-gray-200 dark:border-gray-800">
+            <hr class="border-gray-200 dark:border-gray-800">
 
             {% if is_logged_in %}
                 <a href="javascript:void(0)" onclick="navigateWithLang('profile'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-gauge w-6"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span></a>
@@ -219,22 +192,49 @@
                 <a href="javascript:void(0)" onclick="navigateWithLang('login'); toggleSidebar();" class="font-bold text-gray-500 hover:text-primary flex items-center gap-3">
                     <i class="fa-solid fa-gauge w-6"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span> <i class="fa-solid fa-lock text-xs text-primary/50"></i>
                 </a>
-                <a href="javascript:void(0)" onclick="navigateWithLang('login'); toggleSidebar();" class="w-full py-3 rounded-lg border border-gray-200 dark:border-gray-800 font-bold hover:bg-gray-100 dark:bg-[#111111] text-center block"><span data-i18n="sidebar_login">تسجيل الدخول</span></a>
+                <a href="javascript:void(0)" onclick="navigateWithLang('login'); toggleSidebar();" class="w-full py-3 rounded-lg border border-gray-200 dark:border-gray-800 font-bold hover:bg-gray-100 dark:bg-[#111111] text-center block mt-3"><span data-i18n="sidebar_login">تسجيل الدخول</span></a>
                 <a href="javascript:void(0)" onclick="navigateWithLang('register'); toggleSidebar();" class="w-full py-3 bg-primary text-gray-900 dark:text-white rounded-lg font-bold hover:opacity-90 text-center block mt-3"><span data-i18n="sidebar_register">إنشاء حساب جديد</span></a>
             {% endif %}
         </div>
 
-        <div class="mt-auto pt-6 border-t border-gray-200 border-gray-200 dark:border-gray-800 flex flex-col gap-3">
-             <button onclick="toggleLang()" class="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-gray-100 bg-gray-100 dark:bg-[#111111]">
-                <i class="fa-solid fa-globe"></i> <span>تغيير اللغة / Language</span>
-            </button>
-            <button onclick="toggleTheme()" class="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-gray-100 bg-gray-100 dark:bg-[#111111] hover:bg-gray-200 dark:hover:bg-gray-700 transition">
-                <i class="fa-solid fa-moon dark:hidden"></i>
-                <i class="fa-solid fa-sun hidden dark:block text-yellow-400"></i>
-                <span class="dark:hidden">الوضع الليلي</span>
-                <span class="hidden dark:block">الوضع النهاري</span>
+        <div class="mt-auto pt-6 border-t border-gray-200 dark:border-gray-800 flex flex-col gap-2 relative z-50">
+
+            <div class="relative w-full">
+                <button onclick="toggleLangDropdown()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111111] hover:bg-gray-100 dark:hover:bg-gray-800 transition border border-gray-200 dark:border-gray-800">
+                    <div class="flex items-center gap-3 font-bold text-gray-700 dark:text-gray-300">
+                        <i class="fa-solid fa-globe text-primary"></i>
+                        <span data-i18n="sidebar_lang">اللغة</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-sm text-gray-400 transition-transform duration-200" id="lang-chevron"></i>
+                </button>
+
+                <div id="lang-dropdown" class="hidden absolute bottom-[calc(100%+0.5rem)] left-0 w-full bg-white dark:bg-[#0d0d0d] border border-gray-200 dark:border-gray-800 rounded-xl shadow-xl overflow-hidden z-[60]">
+                    <button onclick="setLanguage('ar')" class="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition font-bold text-sm text-gray-800 dark:text-gray-200">
+                        <span>العربية</span>
+                        <i class="fa-solid fa-check text-success text-base lang-check hidden" id="check-ar"></i>
+                    </button>
+                    <div class="h-[1px] w-full bg-gray-100 dark:bg-gray-800"></div>
+                    <button onclick="setLanguage('en')" class="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition font-bold text-sm text-gray-800 dark:text-gray-200">
+                        <span>English</span>
+                        <i class="fa-solid fa-check text-success text-base lang-check hidden" id="check-en"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="toggleTheme()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#111111] hover:bg-gray-100 dark:hover:bg-gray-800 transition border border-gray-200 dark:border-gray-800">
+                <div class="flex items-center gap-3 font-bold text-gray-700 dark:text-gray-300">
+                    <i class="fa-solid fa-moon dark:hidden text-gray-600"></i>
+                    <i class="fa-solid fa-sun hidden dark:block text-yellow-400"></i>
+                    <span class="dark:hidden" data-i18n="sidebar_theme_dark">الوضع الداكن</span>
+                    <span class="hidden dark:block" data-i18n="sidebar_theme_light">الوضع الفاتح</span>
+                </div>
+
+                <div class="w-11 h-6 rounded-full transition-colors duration-300 bg-gray-300 dark:bg-primary relative">
+                    <div class="w-5 h-5 bg-white rounded-full absolute shadow-sm theme-switch-thumb"></div>
+                </div>
             </button>
         </div>
+
     </aside>
 
     <main class="flex-grow-0 relative z-0 text-left" dir="rtl" style="flex:1;">
@@ -270,7 +270,6 @@
         </div>
     </div>
 
-    <!-- ===== Customer Service (Included from customer.html) ===== -->
     {% include 'customer.html' %}
 
     <script>
@@ -280,11 +279,82 @@
             window.location.href = `/${currentLang}/${page}`;
         }
 
+        // --- Language Change Logic (Instant / No Reload) ---
+        function toggleLangDropdown() {
+            const dropdown = document.getElementById('lang-dropdown');
+            const chevron = document.getElementById('lang-chevron');
+            dropdown.classList.toggle('hidden');
+            chevron.classList.toggle('rotate-180');
+        }
+
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('lang-dropdown');
+            if (dropdown && !dropdown.classList.contains('hidden')) {
+                const btn = dropdown.previousElementSibling;
+                if (!dropdown.contains(event.target) && !btn.contains(event.target)) {
+                    dropdown.classList.add('hidden');
+                    document.getElementById('lang-chevron').classList.remove('rotate-180');
+                }
+            }
+        });
+
+        async function setLanguage(lang) {
+            // Hide dropdown
+            const dropdown = document.getElementById('lang-dropdown');
+            if(dropdown) {
+                dropdown.classList.add('hidden');
+                document.getElementById('lang-chevron').classList.remove('rotate-180');
+            }
+
+            // Save preferences locally
+            localStorage.setItem('lang', lang);
+            window.SERVER_LANG = lang;
+
+            // Sync with Server Session asynchronously
+            try {
+                await fetch('/api/set-language', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({lang: lang})
+                });
+            } catch(e) {}
+
+            // Soft-Update URL so sharing links works properly
+            const currentPath = window.location.pathname;
+            const pathParts = currentPath.split('/').filter(p => p);
+            if (pathParts.length > 0 && (pathParts[0] === 'ar' || pathParts[0] === 'en')) {
+                pathParts[0] = lang;
+                const newUrl = '/' + pathParts.join('/') + window.location.search;
+                window.history.replaceState({}, '', newUrl);
+            } else if (pathParts.length === 0) {
+                window.history.replaceState({}, '', '/' + lang + '/');
+            }
+
+            // Apply immediately to UI
+            applyGlobalTranslations();
+        }
+
+        function toggleLang() {
+            // For the Navbar button
+            const currentLang = window.SERVER_LANG || 'en';
+            setLanguage(currentLang === 'ar' ? 'en' : 'ar');
+        }
+
         function applyGlobalTranslations() {
-            const lang = window.SERVER_LANG || 'en';
+            const lang = window.SERVER_LANG || localStorage.getItem('lang') || 'en';
+
+            // Update UI Sidebar Checks
+            document.querySelectorAll('.lang-check').forEach(el => el.classList.add('hidden'));
+            const activeCheck = document.getElementById('check-' + lang);
+            if(activeCheck) activeCheck.classList.remove('hidden');
+
+            // Update Nav Label
             const btnLabel = document.getElementById('lang-label');
-            if(btnLabel) btnLabel.textContent = lang === 'ar' ? 'EN' : 'عربي';
+            if(btnLabel) btnLabel.textContent = lang === 'ar' ? 'English' : 'العربية';
+
             document.documentElement.setAttribute('lang', lang);
+
+            // تم إعادة الاتجاه ليكون ltr ثابتاً لتجنب كسر القائمة الجانبية وتوافقاً مع التصميم القديم
             document.documentElement.setAttribute('dir', 'ltr'); 
 
             let t = window.translations[lang] || {};
@@ -299,34 +369,6 @@
                 }
             });
             window.dispatchEvent(new Event('langChange'));
-        }
-
-        function toggleLang() {
-            const html = document.documentElement;
-            const currentLang = html.getAttribute('lang');
-            const newLang = (currentLang === 'ar') ? 'en' : 'ar';
-            const currentPath = window.location.pathname;
-            const pathParts = currentPath.split('/').filter(p => p);
-
-            // Check if we're on a specific model page
-            if (pathParts.length >= 2 && pathParts[1] === 'models' && pathParts.length === 3) {
-                // We're on /{lang}/models/{model_key}
-                const modelKey = pathParts[2];
-                window.location.href = `/${newLang}/models/${modelKey}`;
-            } else if (pathParts.length >= 2 && pathParts[1] === 'accesory' && pathParts.length === 3) {
-                // We're on /{lang}/accesory/{tool_id}
-                const toolId = pathParts[2];
-                window.location.href = `/${newLang}/accesory/${toolId}`;
-            } else {
-                // Normal page
-                if (pathParts.length > 0 && (pathParts[0] === 'ar' || pathParts[0] === 'en')) {
-                    pathParts[0] = newLang;
-                } else {
-                    pathParts.unshift(newLang);
-                }
-                const newPath = '/' + pathParts.join('/');
-                window.location.href = newPath;
-            }
         }
 
         function toggleTheme() {
@@ -398,16 +440,43 @@
             } catch(e) { alert("Connection Error"); }
         }
 
-        async function handleLogout() {
-            await fetch('/auth/logout', { method: 'POST' });
-            window.location.reload();
-        }
-
         window.addEventListener('DOMContentLoaded', applyGlobalTranslations);
     </script>
 
+    <!-- ===== تحسينات الأداء ===== -->
     <script>
-        // Logout Confirmation Functions
+        /* 1. Navbar blur: يُفعّل فقط عند التمرير */
+        (function() {
+            var nav = document.getElementById('main-navbar');
+            if(!nav) return;
+            var ticking = false;
+            window.addEventListener('scroll', function() {
+                if(!ticking) {
+                    requestAnimationFrame(function() {
+                        nav.classList.toggle('scrolled', window.scrollY > 10);
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            }, { passive: true });
+        })();
+
+        /* 2. إيقاف أنيميشن orbit rings عند الخروج من نطاق الشاشة */
+        if('IntersectionObserver' in window) {
+            var heroSection = document.querySelector('section');
+            if(heroSection) {
+                new IntersectionObserver(function(entries) {
+                    entries.forEach(function(e) {
+                        heroSection.querySelectorAll('.orbit-ring').forEach(function(ring) {
+                            ring.style.animationPlayState = e.isIntersecting ? 'running' : 'paused';
+                        });
+                    });
+                }, { threshold: 0.1 }).observe(heroSection);
+            }
+        }
+    </script>
+
+    <script>
         function confirmLogout() {
             const modal = document.getElementById('logoutConfirmModal');
             modal.classList.remove('opacity-0', 'pointer-events-none');
@@ -428,12 +497,8 @@
             closeLogoutModal();
             try {
                 const res = await fetch('/auth/logout', { method: 'POST' });
-                if (res.ok) {
-                    window.location.href = '/';
-                }
-            } catch (e) {
-                console.error('Logout error:', e);
-            }
+                if (res.ok) window.location.href = '/';
+            } catch (e) { console.error('Logout error:', e); }
         }
     </script>
 
@@ -456,6 +521,5 @@
         </div>
     </div>
 
-</div><!-- /page-wrapper -->
-</body>
+</div></body>
 </html>

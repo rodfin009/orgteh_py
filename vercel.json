@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "buildCommand": "npm install tailwindcss && npx tailwindcss -i ./static/css/input.css -o ./static/css/tailwind.min.css --minify",
   "builds": [
     {
       "src": "main.py",
