@@ -1,64 +1,159 @@
 {% extends "base.html" %}
 
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Orgteh Infra API",
+  "operatingSystem": "Cloud-based, All",
+  "applicationCategory": "DeveloperApplication",
+  "description": "منصة رائدة توفر واجهة برمجية موحدة (API Gateway) للوصول إلى أقوى نماذج الذكاء الاصطناعي العالمية مثل DeepSeek, Moonshot Kimi, Llama, و Mistral ببنية تحتية منخفضة الكمون ومصممة للتوسع المؤسسي.",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "description": "باقة مجانية متاحة للتجربة والتطوير"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Orgteh Infra",
+    "url": "https://orgteh.com"
+  },
+  "featureList": [
+    "Unified API for multiple LLMs",
+    "Low Latency Edge Infrastructure",
+    "OpenAI SDK Compatible",
+    "Enterprise-grade Security",
+    "Real-time Usage Monitoring"
+  ]
+}
+</script>
+<meta name="description" content="منصة Orgteh Infra توفر بنية تحتية متطورة للوصول إلى نماذج الذكاء الاصطناعي عبر واجهة برمجية موحدة (API). سرعة فائقة، أمان مؤسسي، ودعم لـ DeepSeek و Kimi و Llama.">
+<meta name="keywords" content="API, AI Models, DeepSeek, Kimi AI, LLM, OpenAI compatible, بنية تحتية للذكاء الاصطناعي, واجهة برمجة تطبيقات, نماذج لغوية كبيرة">
+{% endblock %}
+
 {% block content %}
 <script defer>
+    // 🌍 القاموس الضخم للإثراء اللغوي والـ SEO (يحتوي على أكثر من 1500 كلمة من المحتوى التقني)
     const indexTranslations = {
         en: {
             "home_title_prefix": "ORGTEH", "home_title_suffix": "INFRA",
-            "home_subtitle": "Infrastructure providing instant access to AI models through a single, secure, low-latency API gateway designed for growth.",
+            "home_subtitle": "Enterprise-grade infrastructure providing instant access to global AI models through a single, secure, and ultra-low latency API gateway designed for massive scalability.",
             "btn_explore": "Explore Models", "btn_trial": "Start Free Trial",
             "txt_instant_access": "Instant access, no credit card required",
             "stat_uptime": "Uptime SLA", "stat_latency": "Response Time",
-            "stat_models": "Active Models", "stat_support": "Support Status",
-            "why_title": "Why Orgteh?", "why_heading": "Enterprise Solutions for AI Model Management.",
-            "sec_security_title": "Strict Security Protocol",
-            "sec_security_desc": "Acting as a firewall; your data is never stored or used for model training.",
-            "sec_latency_title": "Low Latency Infrastructure",
-            "sec_latency_desc": "Distributed servers ensuring the lowest possible latency for your applications.",
-            "sec_unified_title": "Unified API Gateway",
-            "sec_unified_desc": "Single endpoint for all AI models. No need to manage multiple integrations.",
-            "features_title": "Platform Features",
-            "features_subtitle": "Everything you need to integrate AI into your applications",
-            "feat_multi_title": "Multi-Model Support", "feat_multi_desc": "Access diverse AI models from leading providers through one unified interface.",
-            "feat_realtime_title": "Real-time Performance", "feat_realtime_desc": "Monitor system metrics and model latency in real-time.",
-            "feat_scale_title": "Built for Scale", "feat_scale_desc": "From startup to enterprise, our infrastructure scales seamlessly.",
-            "feat_compatible_title": "OpenAI Compatible", "feat_compatible_desc": "Drop-in replacement for OpenAI SDK. Migrate instantly.",
-            "performance_title": "System Performance", "performance_subtitle": "Real-time metrics from our global infrastructure",
+            "stat_models": "Active Models", "stat_support": "System Status",
+            "why_title": "Why Choose Orgteh API Gateway?", 
+            "why_heading": "Advanced Enterprise Solutions for AI Model Management and Orchestration.",
+            "sec_security_title": "Strict Security & Compliance Protocol",
+            "sec_security_desc": "Acting as an impenetrable firewall; your payload data is processed securely in memory and is NEVER stored or used for foundational model training. SOC2 compliant architecture.",
+            "sec_latency_title": "Ultra-Low Latency Edge Infrastructure",
+            "sec_latency_desc": "Globally distributed high-GPU nodes ensuring the lowest possible Time-To-First-Token (TTFT) and seamless streaming for real-time production applications.",
+            "sec_unified_title": "Unified Open-Standard API",
+            "sec_unified_desc": "A single endpoint for all major AI models. Fully compatible with the OpenAI SDK. Switch between DeepSeek, Llama, and Kimi with zero code refactoring.",
+            "features_title": "Platform Capabilities",
+            "features_subtitle": "Everything a modern developer needs to deploy AI at scale",
+            "feat_multi_title": "Multi-Model Ecosystem", "feat_multi_desc": "Unrestricted access to diverse LLMs from top-tier providers (Meta, Mistral, Moonshot, DeepSeek) through one unified dashboard.",
+            "feat_realtime_title": "Real-time Telemetry", "feat_realtime_desc": "Monitor token usage, system metrics, and model latency in real-time through our comprehensive developer dashboard.",
+            "feat_scale_title": "Built for Hyper-Scale", "feat_scale_desc": "From bootstrapped startups to Fortune 500 enterprises, our Kubernetes-based infrastructure scales dynamically with your traffic spikes.",
+            "feat_compatible_title": "OpenAI SDK Compatible", "feat_compatible_desc": "Drop-in replacement for your existing OpenAI integrations. Just change the base URL and API key to migrate instantly.",
+            "performance_title": "Live System Performance", "performance_subtitle": "Real-time metrics from our global edge infrastructure",
             "perf_uptime_label": "System Uptime", "perf_latency_label": "Avg Response Time",
-            "perf_models_label": "Available Models", "perf_status_label": "System Status",
-            "perf_status_active": "Active",
-            "models_preview_title": "Available AI Models", "models_preview_subtitle": "Choose from our curated collection",
-            "view_all_models": "View All Models",
-            "cta_title": "Ready to Get Started?", "cta_subtitle": "Join thousands of developers building the future",
-            "cta_btn_primary": "Create Free Account", "cta_btn_secondary": "View Documentation"
+            "perf_models_label": "Available Models", "perf_status_label": "Network Status",
+            "perf_status_active": "Operational",
+            "models_preview_title": "The AI Models Ecosystem", "models_preview_subtitle": "Curated collection of the world's most powerful language and reasoning models",
+            "view_all_models": "View Full Model Catalog",
+            "btn_view_details": "View API Details",
+
+            // SEO Massive Content Translations (English)
+            "seo_arch_title": "Deep Dive: Our Infrastructure Architecture",
+            "seo_arch_p1": "At Orgteh Infra, we understand that building production-ready AI applications requires more than just API keys; it requires a robust, fault-tolerant, and high-throughput foundation. Our infrastructure is engineered from the ground up to serve as a high-performance proxy layer between your applications and the world's most capable Large Language Models (LLMs).",
+            "seo_arch_p2": "We utilize advanced load balancing, intelligent request routing, and connection pooling to ensure that your API calls are routed to the most available and lowest-latency GPU node globally. This drastically reduces the Time-To-First-Token (TTFT), which is critical for conversational AI, real-time code generation, and interactive user experiences.",
+
+            "seo_deep_models_title": "Comprehensive Analysis of Supported Models",
+            "seo_m_deepseek_title": "DeepSeek V3: The Logical & Coding Powerhouse",
+            "seo_m_deepseek_desc": "DeepSeek-V3 is optimized for highly complex reasoning, advanced mathematics, and multi-language programming. By integrating DeepSeek through Orgteh, developers gain access to a model that rivals GPT-4 in coding benchmarks while maintaining a fraction of the cost. Ideal for IDE plugins, automated code review systems, and complex logical pipeline orchestration.",
+            "seo_m_kimi_title": "Moonshot Kimi k2: The Long-Context Master",
+            "seo_m_kimi_desc": "Kimi k2 excels in processing massive context windows (up to 200k+ tokens) natively. It is exceptionally proficient in native Arabic NLP, document summarization, and extracting deep insights from massive datasets, financial reports, and legal documents without losing context accuracy.",
+            "seo_m_mistral_title": "Mistral Large & Gemma: Enterprise Efficiency",
+            "seo_m_mistral_desc": "Mistral Large provides top-tier multilingual capabilities and precise instruction following, making it perfect for enterprise automation. Meanwhile, Google's Gemma models offer incredible cost-efficiency and speed for high-volume, repetitive tasks like data classification and simple agentic workflows.",
+
+            "seo_usecases_title": "Industry Use Cases & Applications",
+            "seo_uc_1_title": "Autonomous Customer Support Agents",
+            "seo_uc_1_desc": "Deploy highly responsive, multi-lingual AI agents using our API. The low-latency streaming ensures customers feel they are interacting in real-time. Easily switch to Kimi for Arabic-centric markets or Llama for broad English support.",
+            "seo_uc_2_title": "SaaS Platform Integration",
+            "seo_uc_2_desc": "Enhance your B2B SaaS platform with generative AI features. Our unified API allows you to offer features like document generation, email drafting, and data summarization without managing multiple vendor billing accounts.",
+
+            "seo_faq_title": "Frequently Asked Questions (API & Infrastructure)",
+            "seo_faq_q1": "How does the Orgteh unified API work?",
+            "seo_faq_a1": "It acts as a single gateway. You use standard OpenAI SDKs or REST calls, point the base URL to our servers, pass your Orgteh API key, and specify the model (e.g., 'deepseek-v3'). We handle the routing, payload translation, and secure connection to the underlying providers.",
+            "seo_faq_q2": "Are my prompts and data used to train models?",
+            "seo_faq_a2": "Absolutely not. We operate a strict Zero-Data-Retention policy. Your data passes through our volatile memory for routing and generation only. It is never logged, stored, or utilized for training foundational models.",
+            "seo_faq_q3": "What happens if I exceed my daily rate limits?",
+            "seo_faq_a3": "Unlike other providers that hard-block your requests, Orgteh offers an 'Extra Credit' safeguard for paid plans. If you hit your high-speed limit, the system gracefully utilizes your extra credit reserve to ensure your production app never experiences downtime.",
+
+            "cta_title": "Ready to Build the Future?", "cta_subtitle": "Join thousands of developers and enterprise teams building next-gen AI applications on Orgteh Infra.",
+            "cta_btn_primary": "Create Free Account", "cta_btn_secondary": "Read Integration Docs"
         },
         ar: {
             "home_title_prefix": "بُنية", "home_title_suffix": "أورجتي",
-            "home_subtitle": "بنية تحتية توفر الوصول الفوري لنماذج الذكاء الإصطناعي عبر بوابة برمجية واحدة آمنة ومنخفضة الكمون",
+            "home_subtitle": "بنية تحتية مؤسسية توفر وصولاً فورياً لنخبة نماذج الذكاء الاصطناعي العالمية عبر واجهة برمجية (API) موحدة، آمنة، وفائقة السرعة، مصممة للتوسع اللامحدود.",
             "btn_explore": "استكشف النماذج", "btn_trial": "ابدأ التجربة المجانية",
-            "txt_instant_access": "تفعيل فوري بدون بطاقة ائتمان",
+            "txt_instant_access": "تفعيل فوري وبدون بطاقة ائتمان",
             "stat_uptime": "ضمان التشغيل", "stat_latency": "زمن الاستجابة",
-            "stat_models": "النماذج النشطة", "stat_support": "حالة الدعم",
-            "why_title": "لماذا Orgteh؟", "why_heading": "حلول مؤسسية لإدارة نماذج الذكاء الاصطناعي.",
-            "sec_security_title": "بروتوكول أمان صارم",
-            "sec_security_desc": "نعمل كجدار حماية؛ بياناتك لا تُخزن ولا تُستخدم لتدريب النماذج.",
-            "sec_latency_title": "بنية تحتية منخفضة الكمون",
-            "sec_latency_desc": "خوادم موزعة لضمان أقل زمن استجابة ممكن لتطبيقاتك.",
-            "sec_unified_title": "بوابة برمجية موحدة",
-            "sec_unified_desc": "نقطة نهاية واحدة لجميع نماذج الذكاء الاصطناعي.",
-            "features_title": "مميزات المنصة", "features_subtitle": "كل ما تحتاجه لدمج الذكاء الاصطناعي",
-            "feat_multi_title": "دعم متعدد النماذج", "feat_multi_desc": "الوصول إلى نماذج متنوعة من مزودين رائدين.",
-            "feat_realtime_title": "أداء فوري", "feat_realtime_desc": "مراقبة مقاييس النظام في الوقت الفعلي.",
-            "feat_scale_title": "مصمم للتوسع", "feat_scale_desc": "من الشركات الناشئة إلى المؤسسات.",
-            "feat_compatible_title": "متوافق مع OpenAI", "feat_compatible_desc": "بديل مباشر لـ OpenAI SDK.",
-            "performance_title": "أداء النظام", "performance_subtitle": "مقاييس فورية من بنيتنا التحتية العالمية",
-            "perf_uptime_label": "وقت تشغيل النظام", "perf_latency_label": "متوسط زمن الاستجابة",
-            "perf_models_label": "النماذج المتاحة", "perf_status_label": "حالة النظام",
-            "perf_status_active": "نشط",
-            "models_preview_title": "نماذج الذكاء الاصطناعي", "models_preview_subtitle": "اختر من مجموعتنا المختارة",
-            "view_all_models": "عرض جميع النماذج",
-            "cta_title": "مستعد للبدء؟", "cta_subtitle": "انضم إلى آلاف المطورين",
-            "cta_btn_primary": "إنشاء حساب مجاني", "cta_btn_secondary": "عرض التوثيق"
+            "stat_models": "النماذج النشطة", "stat_support": "حالة الشبكة",
+            "why_title": "لماذا تختار واجهة Orgteh البرمجية؟", 
+            "why_heading": "حلول برمجية متقدمة لإدارة النماذج الذكية وتوجيه الطلبات بذكاء (API Orchestration).",
+            "sec_security_title": "بروتوكول أمان وخصوصية صارم",
+            "sec_security_desc": "نعمل كجدار حماية منيع (Firewall)؛ تتم معالجة بياناتك في الذاكرة المؤقتة ولا تُخزن أبداً أو تُستخدم لتدريب النماذج. متوافقون تماماً مع معايير الأمان المؤسسية.",
+            "sec_latency_title": "بنية تحتية طرفية فائقة السرعة",
+            "sec_latency_desc": "نمتلك عقد خوادم GPU موزعة عالمياً لضمان أقل وقت ممكن لظهور أول كلمة (TTFT) وبث سلس (Streaming) للتطبيقات التي تتطلب استجابة فورية.",
+            "sec_unified_title": "بوابة برمجية قياسية وموحدة",
+            "sec_unified_desc": "نقطة نهاية (Endpoint) واحدة لجميع النماذج. متوافقة 100% مع مكتبات OpenAI. يمكنك التبديل بين DeepSeek و Kimi و Llama دون تغيير سطر كود واحد.",
+            "features_title": "قدرات المنصة",
+            "features_subtitle": "كل ما يحتاجه المطور الحديث لإطلاق تطبيقات الذكاء الاصطناعي",
+            "feat_multi_title": "نظام بيئي متعدد النماذج", "feat_multi_desc": "وصول غير مقيد لنماذج من عمالقة الذكاء الاصطناعي (Meta, Moonshot, DeepSeek, Mistral) من خلال لوحة تحكم واحدة.",
+            "feat_realtime_title": "قياس الأداء اللحظي (Telemetry)", "feat_realtime_desc": "راقب استهلاك التوكنز، وحالة النظام، وزمن استجابة كل نموذج في الوقت الفعلي عبر لوحة تحكم المطورين الشاملة.",
+            "feat_scale_title": "مصممة للتوسع الهائل", "feat_scale_desc": "من الشركات الناشئة وحتى المؤسسات الكبرى، بنيتنا المعتمدة على Kubernetes تتوسع تلقائياً للتعامل مع أي ضغط في الطلبات.",
+            "feat_compatible_title": "توافق تام مع OpenAI SDK", "feat_compatible_desc": "بديل مباشر وسهل. قم بتغيير رابط Base URL ومفتاح الـ API الخاص بك فقط، وانتقل إلى منصتنا في ثوانٍ معدودة.",
+            "performance_title": "أداء النظام المباشر", "performance_subtitle": "مقاييس حية من بنيتنا التحتية والخوادم الطرفية",
+            "perf_uptime_label": "وقت تشغيل النظام", "perf_latency_label": "متوسط الاستجابة",
+            "perf_models_label": "النماذج المتاحة للربط", "perf_status_label": "حالة الخوادم",
+            "perf_status_active": "تعمل بكفاءة",
+            "models_preview_title": "نخبة نماذج الذكاء الاصطناعي", "models_preview_subtitle": "مجموعة منتقاة بعناية من أقوى نماذج اللغة والتحليل المنطقي",
+            "view_all_models": "تصفح كتالوج النماذج الكامل",
+            "btn_view_details": "عرض تفاصيل الربط",
+
+            // SEO Massive Content Translations (Arabic)
+            "seo_arch_title": "نظرة عميقة: البنية التحتية البرمجية لمنصتنا",
+            "seo_arch_p1": "في Orgteh Infra، ندرك تماماً أن بناء تطبيقات الذكاء الاصطناعي الجاهزة للإنتاج (Production-ready) يتطلب ما هو أكثر بكثير من مجرد مفاتيح API؛ إنه يتطلب أساساً برمجياً متيناً، قادراً على تحمل الأخطاء (Fault-tolerant)، ويتمتع بإنتاجية عالية. تم هندسة بنيتنا التحتية من الصفر لتعمل كطبقة وكيل (Proxy Layer) فائقة الأداء بين تطبيقاتك وبين أقوى النماذج اللغوية الكبيرة (LLMs) في العالم.",
+            "seo_arch_p2": "نحن نستخدم تقنيات متقدمة في موازنة الأحمال (Load Balancing)، وتوجيه الطلبات الذكي (Intelligent Routing)، وتجميع الاتصالات (Connection Pooling) لضمان توجيه طلباتك البرمجية إلى أقرب خادم GPU متاح وبأقل كمون ممكن. هذا يقلل بشكل جذري من مقياس (Time-To-First-Token)، وهو أمر بالغ الأهمية لنجاح تطبيقات المحادثة الفورية، وتوليد الأكواد البرمجية بالزمن الفعلي، وتقديم تجربة مستخدم خالية من التقطيع.",
+
+            "seo_deep_models_title": "التحليل الشامل للنماذج المدعومة برمجياً",
+            "seo_m_deepseek_title": "نموذج DeepSeek V3: قوة البرمجة والمنطق الرياضي",
+            "seo_m_deepseek_desc": "تم تحسين DeepSeek-V3 للقيام بمهام الاستدلال المعقدة، والرياضيات المتقدمة، والبرمجة متعددة اللغات. من خلال دمج DeepSeek عبر واجهة Orgteh، يحصل المطورون على نموذج ينافس بقوة GPT-4 في اختبارات البرمجة المعيارية ولكن بجزء بسيط من التكلفة. يُعد هذا النموذج الخيار المثالي لبناء إضافات بيئات التطوير (IDE Plugins)، وأنظمة مراجعة الأكواد المؤتمتة، وإدارة خطوط أنابيب البيانات المنطقية المعقدة.",
+            "seo_m_kimi_title": "نموذج Moonshot Kimi k2: ريادة السياق الطويل واللغة العربية",
+            "seo_m_kimi_desc": "يتفوق نموذج Kimi k2 بشكل استثنائي في معالجة نوافذ السياق الضخمة (التي تصل إلى أكثر من 200 ألف توكن) بشكل أصلي. كما يتميز ببراعة ملحوظة في معالجة اللغات الطبيعية (NLP) العربية، وتلخيص المستندات الكبيرة، واستخراج رؤى دقيقة من قواعد البيانات الضخمة، والتقارير المالية، والملفات القانونية دون فقدان دقة السياق أو الهلوسة.",
+            "seo_m_mistral_title": "نماذج Mistral Large و Gemma: الكفاءة المؤسسية المطلقة",
+            "seo_m_mistral_desc": "يوفر Mistral Large قدرات ممتازة متعددة اللغات واتباعاً دقيقاً للتعليمات الصارمة، مما يجعله مثالياً لأتمتة المهام المؤسسية. في الوقت ذاته، تقدم نماذج Gemma من جوجل كفاءة مذهلة وسرعة فائقة للمهام المتكررة ذات الحجم الكبير، مثل تصنيف البيانات وسير عمل وكلاء الذكاء الاصطناعي البسيطة.",
+
+            "seo_usecases_title": "حالات الاستخدام الصناعي والتطبيقات العملية",
+            "seo_uc_1_title": "وكلاء خدمة العملاء المستقلون (Autonomous Agents)",
+            "seo_uc_1_desc": "نشر وكلاء ذكاء اصطناعي متعددي اللغات وعاليي الاستجابة باستخدام الـ API الخاص بنا. البث منخفض الكمون يضمن للعملاء الشعور بأنهم يتفاعلون مع نظام حي بالزمن الفعلي. يمكنك التبديل بسهولة لنموذج Kimi للأسواق العربية أو Llama لخدمة العملاء باللغات العالمية.",
+            "seo_uc_2_title": "الدمج في منصات الـ SaaS وبرمجيات الشركات",
+            "seo_uc_2_desc": "عزز منصتك السحابية بميزات الذكاء الاصطناعي التوليدي. واجهتنا الموحدة تتيح لك تقديم ميزات مثل توليد المستندات، وصياغة رسائل البريد الإلكتروني الذكية، وتلخيص البيانات دون الحاجة للتعامل مع فواتير وحسابات متعددة من مزودين مختلفين.",
+
+            "seo_faq_title": "الأسئلة الشائعة حول الـ API والبنية التحتية",
+            "seo_faq_q1": "كيف تعمل واجهة Orgteh البرمجية الموحدة (Unified API)؟",
+            "seo_faq_a1": "تعمل كبوابة موحدة. أنت تستخدم حزم OpenAI SDK التقليدية (في Python أو Node.js)، وتقوم فقط بتغيير رابط الـ Base URL ليشير إلى خوادمنا، وتمرر مفتاح API الخاص بـ Orgteh، وتحدد اسم النموذج (مثل 'deepseek-v3'). نحن نتكفل بتوجيه الطلب، ترجمة الحمولة (Payload)، والاتصال الآمن بمزود النموذج وإرجاع النتيجة بنفس التنسيق المعتاد.",
+            "seo_faq_q2": "هل يتم استخدام بياناتي أو نصوص الـ Prompts لتدريب النماذج؟",
+            "seo_faq_a2": "مطلقاً. نحن نطبق سياسة صارمة تعتمد على مبدأ (Zero-Data-Retention). تمر بياناتك عبر ذاكرتنا المتطايرة بهدف التوجيه والتوليد فقط. لا يتم تسجيلها، أو حفظها في قواعد بيانات، أو استخدامها بأي شكل من الأشكال لتدريب النماذج الأساسية.",
+            "seo_faq_q3": "ماذا يحدث إذا تجاوزت الحد الأقصى للطلبات اليومية (Rate Limits)؟",
+            "seo_faq_a3": "على عكس المزودين الآخرين الذين يوقفون طلباتك فوراً بظهور خطأ 429، تقدم Orgteh ميزة 'الرصيد الإضافي للطوارئ' للخطط المدفوعة. إذا وصلت للحد السريع، يقوم النظام تلقائياً وبسلاسة باستخدام رصيدك الاحتياطي لضمان عدم توقف تطبيقك عن العمل في بيئة الإنتاج.",
+
+            "cta_title": "هل أنت مستعد لبناء المستقبل؟", "cta_subtitle": "انضم إلى آلاف المطورين والشركات التقنية الذين يبنون الجيل القادم من تطبيقات الذكاء الاصطناعي عبر بنية Orgteh.",
+            "cta_btn_primary": "إنشاء حساب مطور مجاني", "cta_btn_secondary": "قراءة توثيق الـ API (Docs)"
         }
     };
 
@@ -90,7 +185,6 @@
         pointer-events: none;
         border: 1.5px solid transparent;
         z-index: 0;
-        /* GPU Acceleration */
         transform: translate(-50%, -50%);
         will-change: transform;
     }
@@ -99,135 +193,111 @@
         position: absolute;
         border-radius: 50%;
         box-shadow: 0 0 12px currentColor;
-        /* Reduce paint */
         contain: layout style;
     }
 
-    html:not(.dark) .glowing-dot {
-        box-shadow: 0 0 6px currentColor;
-        opacity: 0.8;
-    }
-
+    html:not(.dark) .glowing-dot { box-shadow: 0 0 6px currentColor; opacity: 0.8; }
     .dashed-ring { border-style: dashed !important; }
     html:not(.dark) .dashed-ring { opacity: 0.5; }
 
-    /* Reduced motion support */
     @media (prefers-reduced-motion: reduce) {
-        .orbit-ring, .glowing-dot { 
-            animation: none !important; 
-            display: none;
-        }
+        .orbit-ring, .glowing-dot { animation: none !important; display: none; }
     }
 
-    /* Mobile optimization */
     @media (max-width: 768px) {
         .orbit-ring:nth-child(n+4) { display: none; }
-        .orbit-ring { animation-duration: 20s !important; } /* Slower on mobile */
+        .orbit-ring { animation-duration: 20s !important; }
     }
 
-    /* Stats cards */
-    .stat-card { 
-        transition: transform 0.2s ease; 
-        contain: layout;
-    }
+    .stat-card { transition: transform 0.2s ease; contain: layout; }
     .stat-card:hover { transform: translateY(-5px); }
 
-    /* Feature cards */
-    .feature-card { 
-        transition: all 0.2s ease; 
-        contain: layout;
-    }
-    .feature-card:hover { 
-        transform: translateY(-8px); 
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); 
-    }
-    html.dark .feature-card:hover { 
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); 
-    }
+    .feature-card { transition: all 0.2s ease; contain: layout; }
+    .feature-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
+    html.dark .feature-card:hover { box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); }
 
-    /* Model cards */
-    .model-card { 
-        transition: border-color 0.2s ease; 
-        contain: layout;
-    }
+    .model-card { transition: border-color 0.2s ease; contain: layout; }
     .model-card:hover { border-color: #4f46e5; }
 
-    /* 🔥 Content Visibility for below-fold sections */
+    /* ✨✨✨ الإصلاح الشامل لأيقونة Kimi في بطاقات النماذج الصغيرة ✨✨✨ */
+    .model-card img[src*="kimi"] {
+        /* تصغير الحشوة لتجنب اختفاء الشعار في المربع الصغير */
+        background-color: #1f2937 !important;
+        padding: 5px !important;
+        border-radius: 8px !important;
+        object-fit: contain !important;
+    }
+    html.dark .model-card img[src*="kimi"] {
+        background-color: transparent !important;
+        padding: 0 !important;
+        filter: drop-shadow(0 0 6px rgba(255,255,255,0.6)) !important;
+    }
+
+    /* 🔥 تحسين أداء التحميل للأقسام السفلية (SEO Speed Fix) */
     .lazy-section {
         content-visibility: auto;
         contain-intrinsic-size: 0 500px;
     }
-
-    /* Image optimization */
-    img {
-        content-visibility: auto;
-    }
+    img { content-visibility: auto; }
 </style>
 
-<!-- Hero Section -->
 <section class="relative min-h-[80vh] flex flex-col justify-center overflow-hidden pt-32 pb-20">
-    <!-- Background glow -->
     <div class="absolute inset-0 w-full h-full pointer-events-none z-0">
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] md:w-[500px] md:h-[500px] bg-blue-500/5 rounded-full opacity-40 blur-[60px]"></div>
     </div>
 
     <div class="max-w-7xl mx-auto px-4 text-center relative z-20">
-        <!-- Logo with Orbit Animation -->
         <div class="relative inline-block mb-10 p-4 contain-layout">
-            <!-- Simplified orbits for performance -->
-            <div class="orbit-ring w-[105%] h-[140%] border-blue-600/30 dark:border-blue-500/20" 
-                 style="animation: orbit-cw 14s linear infinite;">
+            <div class="orbit-ring w-[105%] h-[140%] border-blue-600/30 dark:border-blue-500/20" style="animation: orbit-cw 14s linear infinite;">
                 <div class="glowing-dot w-3 h-3 md:w-4 md:h-4 bg-blue-600 dark:bg-blue-400 top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-500"></div>
             </div>
-            <div class="orbit-ring w-[110%] h-[130%] border-violet-600/30 dark:border-violet-500/20" 
-                 style="animation: orbit-ccw 18s linear infinite;">
+            <div class="orbit-ring w-[110%] h-[130%] border-violet-600/30 dark:border-violet-500/20" style="animation: orbit-ccw 18s linear infinite;">
                 <div class="glowing-dot w-3 h-3 bg-violet-600 dark:bg-violet-400 bottom-0 right-1/4 text-violet-500"></div>
             </div>
 
             <h1 class="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-gray-900 dark:text-white relative z-50 contain-layout">
-                <span data-i18n="home_title_prefix"></span> 
+                <span data-i18n="home_title_prefix">بُنية</span> 
                 <span class="relative inline-block">
                     <span class="absolute inset-0 bg-white/70 dark:bg-darkbg/70 blur-xl -z-10 rounded-full"></span>
-                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600 relative z-20" data-i18n="home_title_suffix"></span>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600 relative z-20" data-i18n="home_title_suffix">أورجتي</span>
                 </span>
             </h1>
         </div>
 
-        <p class="text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-10 font-light leading-relaxed contain-layout" 
-           data-i18n="home_subtitle">
+        <p class="text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-10 font-light leading-relaxed contain-layout" data-i18n="home_subtitle">
+            بنية تحتية مؤسسية توفر وصولاً فورياً لنخبة نماذج الذكاء الاصطناعي العالمية عبر واجهة برمجية (API) موحدة، آمنة، وفائقة السرعة، مصممة للتوسع اللامحدود.
         </p>
 
         <div class="flex flex-col sm:flex-row justify-center gap-4 relative z-50 contain-layout">
             <a href="/models" class="inline-flex items-center justify-center px-6 py-3 md:px-8 md:py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg font-bold shadow-xl transition-transform hover:scale-105 active:scale-95">
-                <span data-i18n="btn_explore"></span>
+                <span data-i18n="btn_explore">استكشف النماذج</span>
             </a>
             <a href="/register" class="inline-flex items-center justify-center px-6 py-3 md:px-8 md:py-4 border-2 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg font-bold hover:bg-gray-100 dark:hover:bg-gray-800 shadow-lg transition-transform hover:scale-105 active:scale-95">
-                <span data-i18n="btn_trial"></span>
+                <span data-i18n="btn_trial">ابدأ التجربة المجانية</span>
             </a>
         </div>
 
         <p class="mt-8 text-sm text-green-600 dark:text-green-400 font-bold flex justify-center items-center gap-2 contain-layout">
             <i class="fa-solid fa-bolt"></i> 
-            <span data-i18n="txt_instant_access"></span>
+            <span data-i18n="txt_instant_access">تفعيل فوري وبدون بطاقة ائتمان</span>
         </p>
     </div>
 </section>
 
-<!-- Stats Section -->
 <section class="py-8 border-y border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-darkbg/50 contain-layout">
     <div class="max-w-7xl mx-auto px-4">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
             <div class="stat-card text-center p-4 rounded-xl bg-white dark:bg-[#1e293b] shadow-sm">
                 <div class="text-2xl md:text-4xl font-black text-green-600 mb-1">99.99%</div>
-                <div class="text-xs text-gray-500 font-bold uppercase" data-i18n="stat_uptime"></div>
+                <div class="text-xs text-gray-500 font-bold uppercase" data-i18n="stat_uptime">ضمان التشغيل</div>
             </div>
             <div class="stat-card text-center p-4 rounded-xl bg-white dark:bg-[#1e293b] shadow-sm">
                 <div class="text-2xl md:text-4xl font-black text-blue-600 mb-1">&lt;45ms</div>
-                <div class="text-xs text-gray-500 font-bold uppercase" data-i18n="stat_latency"></div>
+                <div class="text-xs text-gray-500 font-bold uppercase" data-i18n="stat_latency">زمن الاستجابة</div>
             </div>
             <div class="stat-card text-center p-4 rounded-xl bg-white dark:bg-[#1e293b] shadow-sm">
                 <div class="text-2xl md:text-4xl font-black text-violet-600 mb-1">{{ models_metadata | length }}+</div>
-                <div class="text-xs text-gray-500 font-bold uppercase" data-i18n="stat_models"></div>
+                <div class="text-xs text-gray-500 font-bold uppercase" data-i18n="stat_models">النماذج النشطة</div>
             </div>
             <div class="stat-card text-center p-4 rounded-xl bg-white dark:bg-[#1e293b] shadow-sm">
                 <div class="flex items-center justify-center gap-2 mb-1">
@@ -235,161 +305,135 @@
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                     </span>
-                    <span class="text-lg md:text-2xl font-black text-green-600" data-i18n="perf_status_active">Active</span>
+                    <span class="text-lg md:text-2xl font-black text-green-600" data-i18n="perf_status_active">تعمل بكفاءة</span>
                 </div>
-                <div class="text-xs text-gray-500 font-bold uppercase" data-i18n="stat_support"></div>
+                <div class="text-xs text-gray-500 font-bold uppercase" data-i18n="stat_support">حالة الشبكة</div>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Why Section -->
 <section class="py-20 bg-white dark:bg-darkbg lazy-section">
     <div class="max-w-7xl mx-auto px-4">
-        <div class="text-center mb-12">
-            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="why_title"></h2>
-            <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto" data-i18n="why_heading"></p>
+        <div class="text-center mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="why_title">لماذا تختار واجهة Orgteh البرمجية؟</h2>
+            <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto" data-i18n="why_heading">حلول برمجية متقدمة لإدارة النماذج الذكية وتوجيه الطلبات بذكاء (API Orchestration).</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10">
-            <div class="p-6 md:p-8 rounded-2xl bg-gray-50 dark:bg-[#1e293b] hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-300">
-                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-6">
-                    <i class="fa-solid fa-shield-halved text-xl text-blue-600 dark:text-blue-400"></i>
-                </div>
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-3" data-i18n="sec_security_title"></h3>
-                <p class="text-gray-500 dark:text-gray-400 text-sm md:text-base" data-i18n="sec_security_desc"></p>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
+            <div>
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="seo_arch_title">نظرة عميقة: البنية التحتية البرمجية لمنصتنا</h3>
+                <p class="text-gray-600 dark:text-gray-400 mb-4 leading-relaxed" data-i18n="seo_arch_p1">في Orgteh Infra، ندرك تماماً أن بناء تطبيقات الذكاء الاصطناعي الجاهزة للإنتاج (Production-ready) يتطلب ما هو أكثر بكثير من مجرد مفاتيح API؛ إنه يتطلب أساساً برمجياً متيناً، قادراً على تحمل الأخطاء (Fault-tolerant)، ويتمتع بإنتاجية عالية. تم هندسة بنيتنا التحتية من الصفر لتعمل كطبقة وكيل (Proxy Layer) فائقة الأداء بين تطبيقاتك وبين أقوى النماذج اللغوية الكبيرة (LLMs) في العالم.</p>
+                <p class="text-gray-600 dark:text-gray-400 leading-relaxed" data-i18n="seo_arch_p2">نحن نستخدم تقنيات متقدمة في موازنة الأحمال (Load Balancing)، وتوجيه الطلبات الذكي (Intelligent Routing)، وتجميع الاتصالات (Connection Pooling) لضمان توجيه طلباتك البرمجية إلى أقرب خادم GPU متاح وبأقل كمون ممكن. هذا يقلل بشكل جذري من مقياس (Time-To-First-Token)، وهو أمر بالغ الأهمية لنجاح تطبيقات المحادثة الفورية، وتوليد الأكواد البرمجية بالزمن الفعلي، وتقديم تجربة مستخدم خالية من التقطيع.</p>
             </div>
-            <div class="p-6 md:p-8 rounded-2xl bg-gray-50 dark:bg-[#1e293b] hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-300">
-                <div class="w-12 h-12 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center mb-6">
-                    <i class="fa-solid fa-bolt text-xl text-violet-600 dark:text-violet-400"></i>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                 <div class="p-6 rounded-2xl bg-gray-50 dark:bg-[#1e293b] border border-gray-100 dark:border-gray-800 shadow-sm">
+                    <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-shield-halved text-xl text-blue-600 dark:text-blue-400"></i>
+                    </div>
+                    <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2" data-i18n="sec_security_title">بروتوكول أمان وخصوصية صارم</h4>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm" data-i18n="sec_security_desc">نعمل كجدار حماية منيع (Firewall)؛ تتم معالجة بياناتك في الذاكرة المؤقتة ولا تُخزن أبداً أو تُستخدم لتدريب النماذج. متوافقون تماماً مع معايير الأمان المؤسسية.</p>
                 </div>
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-3" data-i18n="sec_latency_title"></h3>
-                <p class="text-gray-500 dark:text-gray-400 text-sm md:text-base" data-i18n="sec_latency_desc"></p>
-            </div>
-            <div class="p-6 md:p-8 rounded-2xl bg-gray-50 dark:bg-[#1e293b] hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-300">
-                <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center mb-6">
-                    <i class="fa-solid fa-network-wired text-xl text-indigo-600 dark:text-indigo-400"></i>
+                <div class="p-6 rounded-2xl bg-gray-50 dark:bg-[#1e293b] border border-gray-100 dark:border-gray-800 shadow-sm">
+                    <div class="w-12 h-12 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-bolt text-xl text-violet-600 dark:text-violet-400"></i>
+                    </div>
+                    <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2" data-i18n="sec_latency_title">بنية تحتية طرفية فائقة السرعة</h4>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm" data-i18n="sec_latency_desc">نمتلك عقد خوادم GPU موزعة عالمياً لضمان أقل وقت ممكن لظهور أول كلمة (TTFT) وبث سلس (Streaming) للتطبيقات التي تتطلب استجابة فورية.</p>
                 </div>
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-3" data-i18n="sec_unified_title"></h3>
-                <p class="text-gray-500 dark:text-gray-400 text-sm md:text-base" data-i18n="sec_unified_desc"></p>
+                <div class="p-6 rounded-2xl bg-gray-50 dark:bg-[#1e293b] border border-gray-100 dark:border-gray-800 shadow-sm sm:col-span-2">
+                    <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-network-wired text-xl text-indigo-600 dark:text-indigo-400"></i>
+                    </div>
+                    <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2" data-i18n="sec_unified_title">بوابة برمجية قياسية وموحدة</h4>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm" data-i18n="sec_unified_desc">نقطة نهاية (Endpoint) واحدة لجميع النماذج. متوافقة 100% مع مكتبات OpenAI. يمكنك التبديل بين DeepSeek و Kimi و Llama دون تغيير سطر كود واحد.</p>
+                </div>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Features Section -->
 <section class="py-20 bg-gray-50 dark:bg-[#0f172a] lazy-section">
     <div class="max-w-7xl mx-auto px-4">
         <div class="text-center mb-12">
-            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="features_title"></h2>
-            <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto" data-i18n="features_subtitle"></p>
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="features_title">قدرات المنصة</h2>
+            <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto" data-i18n="features_subtitle">كل ما يحتاجه المطور الحديث لإطلاق تطبيقات الذكاء الاصطناعي</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div class="feature-card p-6 rounded-2xl bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700">
-                <div class="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-5">
-                    <i class="fa-solid fa-layer-group text-xl md:text-2xl text-white"></i>
+                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-5">
+                    <i class="fa-solid fa-layer-group text-xl text-white"></i>
                 </div>
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3" data-i18n="feat_multi_title"></h3>
-                <p class="text-gray-500 dark:text-gray-400 text-sm" data-i18n="feat_multi_desc"></p>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3" data-i18n="feat_multi_title">نظام بيئي متعدد النماذج</h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm" data-i18n="feat_multi_desc">وصول غير مقيد لنماذج من عمالقة الذكاء الاصطناعي (Meta, Moonshot, DeepSeek, Mistral) من خلال لوحة تحكم واحدة.</p>
             </div>
             <div class="feature-card p-6 rounded-2xl bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700">
-                <div class="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-violet-500 to-violet-600 rounded-xl flex items-center justify-center mb-5">
-                    <i class="fa-solid fa-chart-line text-xl md:text-2xl text-white"></i>
+                <div class="w-12 h-12 bg-gradient-to-br from-violet-500 to-violet-600 rounded-xl flex items-center justify-center mb-5">
+                    <i class="fa-solid fa-chart-line text-xl text-white"></i>
                 </div>
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3" data-i18n="feat_realtime_title"></h3>
-                <p class="text-gray-500 dark:text-gray-400 text-sm" data-i18n="feat_realtime_desc"></p>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3" data-i18n="feat_realtime_title">قياس الأداء اللحظي (Telemetry)</h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm" data-i18n="feat_realtime_desc">راقب استهلاك التوكنز، وحالة النظام، وزمن استجابة كل نموذج في الوقت الفعلي عبر لوحة تحكم المطورين الشاملة.</p>
             </div>
             <div class="feature-card p-6 rounded-2xl bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700">
-                <div class="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-5">
-                    <i class="fa-solid fa-rocket text-xl md:text-2xl text-white"></i>
+                <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-5">
+                    <i class="fa-solid fa-rocket text-xl text-white"></i>
                 </div>
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3" data-i18n="feat_scale_title"></h3>
-                <p class="text-gray-500 dark:text-gray-400 text-sm" data-i18n="feat_scale_desc"></p>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3" data-i18n="feat_scale_title">مصممة للتوسع الهائل</h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm" data-i18n="feat_scale_desc">من الشركات الناشئة وحتى المؤسسات الكبرى، بنيتنا المعتمدة على Kubernetes تتوسع تلقائياً للتعامل مع أي ضغط في الطلبات.</p>
             </div>
             <div class="feature-card p-6 rounded-2xl bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700">
-                <div class="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mb-5">
-                    <i class="fa-brands fa-openai text-xl md:text-2xl text-white"></i>
+                <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mb-5">
+                    <i class="fa-brands fa-openai text-xl text-white"></i>
                 </div>
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3" data-i18n="feat_compatible_title"></h3>
-                <p class="text-gray-500 dark:text-gray-400 text-sm" data-i18n="feat_compatible_desc"></p>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3" data-i18n="feat_compatible_title">توافق تام مع OpenAI SDK</h3>
+                <p class="text-gray-500 dark:text-gray-400 text-sm" data-i18n="feat_compatible_desc">بديل مباشر وسهل. قم بتغيير رابط Base URL ومفتاح الـ API الخاص بك فقط، وانتقل إلى منصتنا في ثوانٍ معدودة.</p>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Performance Section -->
 <section class="py-20 bg-white dark:bg-darkbg lazy-section">
     <div class="max-w-7xl mx-auto px-4">
-        <div class="text-center mb-12">
-            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="performance_title"></h2>
-            <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto" data-i18n="performance_subtitle"></p>
+        <div class="text-center mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="seo_deep_models_title">التحليل الشامل للنماذج المدعومة برمجياً</h2>
+            <div class="w-24 h-1 bg-primary mx-auto rounded-full"></div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/10 p-6 rounded-2xl border border-green-200 dark:border-green-800">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-server text-white"></i>
-                    </div>
-                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300" data-i18n="perf_uptime_label"></span>
-                </div>
-                <div class="text-3xl md:text-4xl font-black text-green-600">99.99%</div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="bg-gray-50 dark:bg-[#1e293b] p-8 rounded-2xl border border-gray-200 dark:border-gray-700">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="seo_m_deepseek_title">نموذج DeepSeek V3: قوة البرمجة والمنطق الرياضي</h3>
+                <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed" data-i18n="seo_m_deepseek_desc">تم تحسين DeepSeek-V3 للقيام بمهام الاستدلال المعقدة، والرياضيات المتقدمة، والبرمجة متعددة اللغات. من خلال دمج DeepSeek عبر واجهة Orgteh، يحصل المطورون على نموذج ينافس بقوة GPT-4 في اختبارات البرمجة المعيارية ولكن بجزء بسيط من التكلفة. يُعد هذا النموذج الخيار المثالي لبناء إضافات بيئات التطوير (IDE Plugins)، وأنظمة مراجعة الأكواد المؤتمتة، وإدارة خطوط أنابيب البيانات المنطقية المعقدة.</p>
             </div>
-            <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/10 p-6 rounded-2xl border border-blue-200 dark:border-blue-800">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-bolt text-white"></i>
-                    </div>
-                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300" data-i18n="perf_latency_label"></span>
-                </div>
-                <div class="text-3xl md:text-4xl font-black text-blue-600">&lt;45ms</div>
+
+            <div class="bg-gray-50 dark:bg-[#1e293b] p-8 rounded-2xl border border-gray-200 dark:border-gray-700">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="seo_m_kimi_title">نموذج Moonshot Kimi k2: ريادة السياق الطويل واللغة العربية</h3>
+                <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed" data-i18n="seo_m_kimi_desc">يتفوق نموذج Kimi k2 بشكل استثنائي في معالجة نوافذ السياق الضخمة (التي تصل إلى أكثر من 200 ألف توكن) بشكل أصلي. كما يتميز ببراعة ملحوظة في معالجة اللغات الطبيعية (NLP) العربية، وتلخيص المستندات الكبيرة، واستخراج رؤى دقيقة من قواعد البيانات الضخمة، والتقارير المالية، والملفات القانونية دون فقدان دقة السياق أو الهلوسة.</p>
             </div>
-            <div class="bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/20 dark:to-violet-800/10 p-6 rounded-2xl border border-violet-200 dark:border-violet-800">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-10 h-10 bg-violet-500 rounded-lg flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-brain text-white"></i>
-                    </div>
-                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300" data-i18n="perf_models_label"></span>
-                </div>
-                <div class="text-3xl md:text-4xl font-black text-violet-600">{{ models_metadata | length }}+</div>
-            </div>
-            <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/10 p-6 rounded-2xl border border-green-200 dark:border-green-800">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center shrink-0">
-                        <i class="fa-solid fa-check-circle text-white"></i>
-                    </div>
-                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300" data-i18n="perf_status_label"></span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="relative flex h-3 w-3">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                    </span>
-                    <span class="text-xl md:text-2xl font-black text-green-600" data-i18n="perf_status_active"></span>
-                </div>
+
+            <div class="bg-gray-50 dark:bg-[#1e293b] p-8 rounded-2xl border border-gray-200 dark:border-gray-700">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="seo_m_mistral_title">نماذج Mistral Large و Gemma: الكفاءة المؤسسية المطلقة</h3>
+                <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed" data-i18n="seo_m_mistral_desc">يوفر Mistral Large قدرات ممتازة متعددة اللغات واتباعاً دقيقاً للتعليمات الصارمة، مما يجعله مثالياً لأتمتة المهام المؤسسية. في الوقت ذاته، تقدم نماذج Gemma من جوجل كفاءة مذهلة وسرعة فائقة للمهام المتكررة ذات الحجم الكبير، مثل تصنيف البيانات وسير عمل وكلاء الذكاء الاصطناعي البسيطة.</p>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Models Preview -->
-<section class="py-20 bg-gray-50 dark:bg-[#0f172a] lazy-section">
+<section class="py-20 bg-gray-50 dark:bg-[#0f172a] lazy-section border-t border-gray-200 dark:border-gray-800">
     <div class="max-w-7xl mx-auto px-4">
         <div class="text-center mb-12">
-            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="models_preview_title"></h2>
-            <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto" data-i18n="models_preview_subtitle"></p>
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="models_preview_title">نخبة نماذج الذكاء الاصطناعي</h2>
+            <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto" data-i18n="models_preview_subtitle">مجموعة منتقاة بعناية من أقوى نماذج اللغة والتحليل المنطقي</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-            {% for model in models_metadata[:6] %} {# Limit to 6 for performance #}
+            {% for model in models_metadata[:6] %} 
             <div class="model-card bg-white dark:bg-[#1e293b] rounded-xl p-6 border border-gray-200 dark:border-gray-700">
                 <div class="flex items-center gap-4 mb-4">
-                    <div class="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-gray-50 dark:bg-gray-800 p-2 flex items-center justify-center border border-gray-100 dark:border-gray-700 shrink-0">
-                        <!-- 🔥 Lazy loading for below-fold images -->
+                    <div class="w-14 h-14 rounded-xl bg-gray-50 dark:bg-gray-800 p-2 flex items-center justify-center border border-gray-100 dark:border-gray-700 shrink-0">
                         <img src="{{ model.image }}" alt="{{ model.name }}" width="56" height="56" 
                              loading="lazy" decoding="async" 
-                             class="w-full h-full object-contain">
+                             class="w-full h-full object-contain drop-shadow-sm transition-transform duration-300 hover:scale-110">
                     </div>
                     <div class="min-w-0">
                         <h3 class="font-bold text-lg text-gray-900 dark:text-white truncate">{{ model.name }}</h3>
@@ -397,16 +441,16 @@
                     </div>
                 </div>
                 <p class="text-gray-500 dark:text-gray-400 text-sm mb-4 line-clamp-2">
-                    {% if 'deepseek' in model.id %} Leading model for programming tasks.
+                    {% if 'deepseek' in model.id %} Leading model for programming tasks and complex logic.
                     {% elif 'mistral' in model.id %} High-precision enterprise-grade model.
-                    {% elif 'kimi' in model.id %} Advanced reasoning capabilities.
-                    {% elif 'llama' in model.id %} Fast and lightweight model.
-                    {% elif 'gemma' in model.id %} Efficient multimodal model.
+                    {% elif 'kimi' in model.id %} Advanced reasoning and extreme long-context capabilities.
+                    {% elif 'llama' in model.id %} Fast, versatile, and lightweight model by Meta.
+                    {% elif 'gemma' in model.id %} Efficient multimodal model by Google.
                     {% else %} State-of-the-art AI model.
                     {% endif %}
                 </p>
                 <a href="/models" class="text-primary font-bold text-sm hover:underline flex items-center gap-2">
-                    <span data-i18n="btn_view_details"></span> 
+                    <span data-i18n="btn_view_details">عرض تفاصيل الربط</span> 
                     <i class="fa-solid fa-arrow-left rtl:rotate-0 ltr:rotate-180 transform"></i>
                 </a>
             </div>
@@ -415,14 +459,97 @@
 
         <div class="text-center">
             <a href="/models" class="inline-flex items-center justify-center px-6 py-3 md:px-8 md:py-4 bg-primary text-white rounded-lg font-bold shadow-lg hover:opacity-90 transition-transform hover:scale-105">
-                <span data-i18n="view_all_models"></span>
+                <span data-i18n="view_all_models">تصفح كتالوج النماذج الكامل</span>
                 <i class="fa-solid fa-arrow-left rtl:rotate-0 ltr:rotate-180 transform mr-2"></i>
             </a>
         </div>
     </div>
 </section>
 
-<!-- CTA Section -->
+<section class="py-20 bg-white dark:bg-darkbg lazy-section">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="seo_usecases_title">حالات الاستخدام الصناعي والتطبيقات العملية</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <div class="p-8 rounded-3xl bg-gradient-to-br from-indigo-50 to-white dark:from-[#1e293b] dark:to-darkbg border border-indigo-100 dark:border-gray-800">
+                <h3 class="text-2xl font-bold text-indigo-700 dark:text-indigo-400 mb-4" data-i18n="seo_uc_1_title">وكلاء خدمة العملاء المستقلون (Autonomous Agents)</h3>
+                <p class="text-gray-600 dark:text-gray-400 leading-relaxed" data-i18n="seo_uc_1_desc">نشر وكلاء ذكاء اصطناعي متعددي اللغات وعاليي الاستجابة باستخدام الـ API الخاص بنا. البث منخفض الكمون يضمن للعملاء الشعور بأنهم يتفاعلون مع نظام حي بالزمن الفعلي. يمكنك التبديل بسهولة لنموذج Kimi للأسواق العربية أو Llama لخدمة العملاء باللغات العالمية.</p>
+            </div>
+            <div class="p-8 rounded-3xl bg-gradient-to-br from-blue-50 to-white dark:from-[#1e293b] dark:to-darkbg border border-blue-100 dark:border-gray-800">
+                <h3 class="text-2xl font-bold text-blue-700 dark:text-blue-400 mb-4" data-i18n="seo_uc_2_title">الدمج في منصات الـ SaaS وبرمجيات الشركات</h3>
+                <p class="text-gray-600 dark:text-gray-400 leading-relaxed" data-i18n="seo_uc_2_desc">عزز منصتك السحابية بميزات الذكاء الاصطناعي التوليدي. واجهتنا الموحدة تتيح لك تقديم ميزات مثل توليد المستندات، وصياغة رسائل البريد الإلكتروني الذكية، وتلخيص البيانات دون الحاجة للتعامل مع فواتير وحسابات متعددة من مزودين مختلفين.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-20 bg-gray-50 dark:bg-[#0f172a] lazy-section">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="text-center mb-12">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4" data-i18n="performance_title">أداء النظام المباشر</h2>
+            <p class="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto" data-i18n="performance_subtitle">مقاييس حية من بنيتنا التحتية والخوادم الطرفية</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/10 p-6 rounded-2xl border border-green-200 dark:border-green-800">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-server text-white"></i></div>
+                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300" data-i18n="perf_uptime_label">وقت تشغيل النظام</span>
+                </div>
+                <div class="text-3xl md:text-4xl font-black text-green-600">99.99%</div>
+            </div>
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/10 p-6 rounded-2xl border border-blue-200 dark:border-blue-800">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-bolt text-white"></i></div>
+                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300" data-i18n="perf_latency_label">متوسط الاستجابة</span>
+                </div>
+                <div class="text-3xl md:text-4xl font-black text-blue-600">&lt;45ms</div>
+            </div>
+            <div class="bg-gradient-to-br from-violet-50 to-violet-100 dark:from-violet-900/20 dark:to-violet-800/10 p-6 rounded-2xl border border-violet-200 dark:border-violet-800">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-violet-500 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-brain text-white"></i></div>
+                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300" data-i18n="perf_models_label">النماذج المتاحة للربط</span>
+                </div>
+                <div class="text-3xl md:text-4xl font-black text-violet-600">{{ models_metadata | length }}+</div>
+            </div>
+            <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/10 p-6 rounded-2xl border border-green-200 dark:border-green-800">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-check-circle text-white"></i></div>
+                    <span class="text-sm font-bold text-gray-600 dark:text-gray-300" data-i18n="perf_status_label">حالة الخوادم</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="relative flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    </span>
+                    <span class="text-xl md:text-2xl font-black text-green-600" data-i18n="perf_status_active">تعمل بكفاءة</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-20 bg-white dark:bg-darkbg lazy-section">
+    <div class="max-w-4xl mx-auto px-4">
+        <h2 class="text-3xl md:text-4xl font-bold text-center text-gray-900 dark:text-white mb-12" data-i18n="seo_faq_title">الأسئلة الشائعة حول الـ API والبنية التحتية</h2>
+        <div class="space-y-6 text-start">
+            <div class="p-6 bg-gray-50 dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-gray-800">
+                <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2" data-i18n="seo_faq_q1">كيف تعمل واجهة Orgteh البرمجية الموحدة (Unified API)؟</h4>
+                <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed" data-i18n="seo_faq_a1">تعمل كبوابة موحدة. أنت تستخدم حزم OpenAI SDK التقليدية (في Python أو Node.js)، وتقوم فقط بتغيير رابط الـ Base URL ليشير إلى خوادمنا، وتمرر مفتاح API الخاص بـ Orgteh، وتحدد اسم النموذج (مثل 'deepseek-v3'). نحن نتكفل بتوجيه الطلب، ترجمة الحمولة (Payload)، والاتصال الآمن بمزود النموذج وإرجاع النتيجة بنفس التنسيق المعتاد.</p>
+            </div>
+            <div class="p-6 bg-gray-50 dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-gray-800">
+                <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2" data-i18n="seo_faq_q2">هل يتم استخدام بياناتي أو نصوص الـ Prompts لتدريب النماذج؟</h4>
+                <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed" data-i18n="seo_faq_a2">مطلقاً. نحن نطبق سياسة صارمة تعتمد على مبدأ (Zero-Data-Retention). تمر بياناتك عبر ذاكرتنا المتطايرة بهدف التوجيه والتوليد فقط. لا يتم تسجيلها، أو حفظها في قواعد بيانات، أو استخدامها بأي شكل من الأشكال لتدريب النماذج الأساسية.</p>
+            </div>
+            <div class="p-6 bg-gray-50 dark:bg-[#1e293b] rounded-xl border border-gray-200 dark:border-gray-800">
+                <h4 class="text-lg font-bold text-gray-900 dark:text-white mb-2" data-i18n="seo_faq_q3">ماذا يحدث إذا تجاوزت الحد الأقصى للطلبات اليومية (Rate Limits)؟</h4>
+                <p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed" data-i18n="seo_faq_a3">على عكس المزودين الآخرين الذين يوقفون طلباتك فوراً بظهور خطأ 429، تقدم Orgteh ميزة 'الرصيد الإضافي للطوارئ' للخطط المدفوعة. إذا وصلت للحد السريع، يقوم النظام تلقائياً وبسلاسة باستخدام رصيدك الاحتياطي لضمان عدم توقف تطبيقك عن العمل في بيئة الإنتاج.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
 <section class="py-20 bg-gradient-to-br from-blue-600 to-violet-600 relative overflow-hidden lazy-section">
     <div class="absolute inset-0 opacity-10 pointer-events-none">
         <div class="absolute top-0 left-0 w-64 md:w-96 h-64 md:h-96 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 blur-[60px]"></div>
@@ -430,15 +557,15 @@
     </div>
 
     <div class="max-w-4xl mx-auto px-4 text-center relative z-10">
-        <h2 class="text-2xl md:text-4xl lg:text-5xl font-black text-white mb-6" data-i18n="cta_title"></h2>
-        <p class="text-lg md:text-xl text-blue-100 mb-8" data-i18n="cta_subtitle"></p>
+        <h2 class="text-2xl md:text-4xl lg:text-5xl font-black text-white mb-6" data-i18n="cta_title">هل أنت مستعد لبناء المستقبل؟</h2>
+        <p class="text-lg md:text-xl text-blue-100 mb-8" data-i18n="cta_subtitle">انضم إلى آلاف المطورين والشركات التقنية الذين يبنون الجيل القادم من تطبيقات الذكاء الاصطناعي عبر بنية Orgteh.</p>
 
         <div class="flex flex-col sm:flex-row justify-center gap-4">
             <a href="/register" class="inline-flex items-center justify-center px-6 py-3 md:px-8 md:py-4 bg-white text-blue-600 rounded-lg font-bold shadow-xl transition-transform hover:scale-105 active:scale-95">
-                <span data-i18n="cta_btn_primary"></span>
+                <span data-i18n="cta_btn_primary">إنشاء حساب مطور مجاني</span>
             </a>
             <a href="/docs" class="inline-flex items-center justify-center px-6 py-3 md:px-8 md:py-4 border-2 border-white text-white rounded-lg font-bold hover:bg-white/10 transition-transform hover:scale-105 active:scale-95">
-                <span data-i18n="cta_btn_secondary"></span>
+                <span data-i18n="cta_btn_secondary">قراءة توثيق الـ API (Docs)</span>
             </a>
         </div>
     </div>
