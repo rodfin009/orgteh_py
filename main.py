@@ -153,10 +153,24 @@ async def check_static_files():
 # Template Context Helper (مُحدَّث لاستخدام الصور المحلية)
 # ============================================================================
 def get_template_context(request: Request, lang: str = "en"):
-    context = get_auth_context(request)
+    try:
+        context = get_auth_context(request)
+    except Exception as e:
+        # ✅ إصلاح: إذا فشل الحصول على السياق، ننشئ واحداً افتراضياً
+        context = {
+            "is_logged_in": False,
+            "user_email": "",
+            "user_api_key": ""
+        }
+
     if lang not in ["ar", "en"]:
         lang = "en"
     context["lang"] = lang
+
+    # ✅ إصلاح هنا: استخدام .get() لتجنب KeyError عندما يكون المستخدم غير مسجل
+    context["api_key"] = context.get("user_api_key", "")
+    context["user_email"] = context.get("user_email", "")
+    context["is_logged_in"] = context.get("is_logged_in", False)
 
     # تجهيز بيانات النماذج مع استبدال روابط CDN بالمحلية
     models_data = []
@@ -245,29 +259,33 @@ async def profile_page(request: Request, lang: str):
     if not email: 
         return RedirectResponse(f"/{lang}/login")
 
-    sub_status = get_user_subscription_status(email)
-    limits, usage = get_user_limits_and_usage(email)
-    context = get_template_context(request, lang)
+    try:
+        sub_status = get_user_subscription_status(email)
+        limits, usage = get_user_limits_and_usage(email)
+        context = get_template_context(request, lang)
 
-    def calc_pct(used, limit): 
-        return min(100, (used/limit)*100) if limit > 0 else 0
+        def calc_pct(used, limit): 
+            return min(100, (used/limit)*100) if limit > 0 else 0
 
-    context.update({
-        "api_key": context["user_api_key"],
-        "plan_name": sub_status["plan_name"],
-        "is_active_sub": sub_status["is_active"], 
-        "is_perpetual": sub_status["is_perpetual"],
-        "days_left": sub_status["days_left"],
-        "usage": usage,
-        "limits": limits,
-        "pct_deepseek": calc_pct(usage.get("deepseek",0), limits.get("deepseek",0)),
-        "pct_kimi": calc_pct(usage.get("kimi",0), limits.get("kimi",0)),
-        "pct_mistral": calc_pct(usage.get("mistral",0), limits.get("mistral",0)),
-        "pct_llama": calc_pct(usage.get("llama",0), limits.get("llama",0)),
-        "pct_gemma": calc_pct(usage.get("gemma",0), limits.get("gemma",0)),
-        "pct_extra": calc_pct(usage.get("unified_extra",0), limits.get("unified_extra",0)),
-    })
-    return templates.TemplateResponse("insights.html", context)
+        context.update({
+            "api_key": context.get("user_api_key", ""),
+            "plan_name": sub_status.get("plan_name", "Free") if sub_status else "Free",
+            "is_active_sub": sub_status.get("is_active", False) if sub_status else False,
+            "is_perpetual": sub_status.get("is_perpetual", False) if sub_status else False,
+            "days_left": sub_status.get("days_left", 0) if sub_status else 0,
+            "usage": usage if usage else {},
+            "limits": limits if limits else {},
+            "pct_deepseek": calc_pct(usage.get("deepseek",0), limits.get("deepseek",0)),
+            "pct_kimi": calc_pct(usage.get("kimi",0), limits.get("kimi",0)),
+            "pct_mistral": calc_pct(usage.get("mistral",0), limits.get("mistral",0)),
+            "pct_llama": calc_pct(usage.get("llama",0), limits.get("llama",0)),
+            "pct_gemma": calc_pct(usage.get("gemma",0), limits.get("gemma",0)),
+            "pct_extra": calc_pct(usage.get("unified_extra",0), limits.get("unified_extra",0)),
+        })
+        return templates.TemplateResponse("insights.html", context)
+    except Exception as e:
+        # ✅ إصلاح: في حالة خطأ، نعيد توجيه المستخدم
+        return RedirectResponse(f"/{lang}/login")
 
 @app.get("/accesory", response_class=HTMLResponse)
 async def accesory_redirect(): 
@@ -296,11 +314,33 @@ async def cart_redirect():
 
 @app.get("/{lang}/cart", response_class=HTMLResponse)
 async def cart_page(request: Request, lang: str):
-    context = get_template_context(request, lang)
-    if context["is_logged_in"]:
-        sub_status = get_user_subscription_status(context["user_email"])
-        context["current_plan"] = sub_status["plan_name"] if sub_status else "Free Tier"
-    return templates.TemplateResponse("pricing.html", context)
+    try:
+        context = get_template_context(request, lang)
+        # ✅ إصلاح: التعامل مع حالة عدم تسجيل الدخول بأمان
+        if context.get("is_logged_in"):
+            try:
+                sub_status = get_user_subscription_status(context["user_email"])
+                if sub_status and isinstance(sub_status, dict):
+                    context["current_plan"] = sub_status.get("plan_name", "Free Tier")
+                else:
+                    context["current_plan"] = "Free Tier"
+            except Exception as e:
+                context["current_plan"] = "Free Tier"
+        else:
+            context["current_plan"] = "Free Tier"
+
+        return templates.TemplateResponse("pricing.html", context)
+    except Exception as e:
+        # ✅ إصلاح: في حالة أي خطأ، نعرض الصفحة مع قيم افتراضية
+        context = {
+            "lang": lang,
+            "is_logged_in": False,
+            "user_email": "",
+            "api_key": "",
+            "current_plan": "Free Tier",
+            "models_metadata": []
+        }
+        return templates.TemplateResponse("pricing.html", context)
 
 @app.get("/contacts", response_class=HTMLResponse)
 async def contacts_redirect(): 
@@ -326,11 +366,33 @@ async def pricing_redirect():
 
 @app.get("/{lang}/pricing", response_class=HTMLResponse)
 async def pricing(request: Request, lang: str):
-    context = get_template_context(request, lang)
-    if context["is_logged_in"]:
-        sub_status = get_user_subscription_status(context["user_email"])
-        context["current_plan"] = sub_status["plan_name"] if sub_status else "Free Tier"
-    return templates.TemplateResponse("pricing.html", context)
+    try:
+        context = get_template_context(request, lang)
+        # ✅ إصلاح: التعامل مع حالة عدم تسجيل الدخول بأمان
+        if context.get("is_logged_in"):
+            try:
+                sub_status = get_user_subscription_status(context["user_email"])
+                if sub_status and isinstance(sub_status, dict):
+                    context["current_plan"] = sub_status.get("plan_name", "Free Tier")
+                else:
+                    context["current_plan"] = "Free Tier"
+            except Exception as e:
+                context["current_plan"] = "Free Tier"
+        else:
+            context["current_plan"] = "Free Tier"
+
+        return templates.TemplateResponse("pricing.html", context)
+    except Exception as e:
+        # ✅ إصلاح: في حالة أي خطأ، نعرض الصفحة مع قيم افتراضية
+        context = {
+            "lang": lang,
+            "is_logged_in": False,
+            "user_email": "",
+            "api_key": "",
+            "current_plan": "Free Tier",
+            "models_metadata": []
+        }
+        return templates.TemplateResponse("pricing.html", context)
 
 @app.get("/models", response_class=HTMLResponse)
 async def models_redirect():
