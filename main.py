@@ -15,6 +15,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+from pydantic import BaseModel
 
 from services.auth import (
     LoginRequest, SendVerificationRequest, RegisterRequest,
@@ -32,6 +33,7 @@ from customer_service import router as customer_service_router
 from tools import router as tools_router
 from tools.registry import TOOLS_DB 
 from code_processor import process_code_merge_stream, CODE_HUB_MODELS_INFO
+from services.payments import generate_payment_link, verify_spaceremit_payment
 
 SECRET_KEY = os.environ.get("SESSION_SECRET_KEY", "super-secret-key-change-in-production")
 
@@ -156,7 +158,6 @@ def get_template_context(request: Request, lang: str = "en"):
     try:
         context = get_auth_context(request)
     except Exception as e:
-        # ✅ إصلاح: إذا فشل الحصول على السياق، ننشئ واحداً افتراضياً
         context = {
             "is_logged_in": False,
             "user_email": "",
@@ -167,32 +168,23 @@ def get_template_context(request: Request, lang: str = "en"):
         lang = "en"
     context["lang"] = lang
 
-    # ✅ إصلاح هنا: استخدام .get() لتجنب KeyError عندما يكون المستخدم غير مسجل
     context["api_key"] = context.get("user_api_key", "")
     context["user_email"] = context.get("user_email", "")
     context["is_logged_in"] = context.get("is_logged_in", False)
 
-    # تجهيز بيانات النماذج مع استبدال روابط CDN بالمحلية
     models_data = []
     for m in MODELS_METADATA:
         if m["id"] in HIDDEN_MODELS:
             continue
-        if len(models_data) >= 12:  # Limit for performance
+        if len(models_data) >= 12:  
             break
 
-        # نسخة من البيانات لتعديلها دون المساس بالأصل
         model_copy = dict(m)
 
-        # استبدال روابط الصور الخارجية بالمحلية
         if "image" in model_copy and model_copy["image"]:
             original_url = model_copy["image"]
-
-            # التحقق إذا كان الرابط من CDN خارجي
             if "cdn.jsdelivr.net" in original_url or "https://cdn." in original_url:
-                # استخراج نوع النموذج من الرابط أو الـ id
                 model_id = model_copy.get("short_key", model_copy.get("id", "")).lower()
-
-                # تحديد اسم الملف المحلي بناءً على النموذج
                 if "deepseek" in original_url.lower():
                     model_copy["image"] = "/static/deepseek.webp"
                 elif "meta" in original_url.lower() or "llama" in model_id:
@@ -204,7 +196,6 @@ def get_template_context(request: Request, lang: str = "en"):
                 elif "kimi" in original_url.lower():
                     model_copy["image"] = "/static/kimi.webp"
                 else:
-                    # إذا لم يتطابق مع المعروف، حاول استخدام الـ short_key
                     model_copy["image"] = f"/static/{model_id}.webp"
 
         models_data.append(model_copy)
@@ -284,7 +275,6 @@ async def profile_page(request: Request, lang: str):
         })
         return templates.TemplateResponse("insights.html", context)
     except Exception as e:
-        # ✅ إصلاح: في حالة خطأ، نعيد توجيه المستخدم
         return RedirectResponse(f"/{lang}/login")
 
 @app.get("/accesory", response_class=HTMLResponse)
@@ -316,7 +306,6 @@ async def cart_redirect():
 async def cart_page(request: Request, lang: str):
     try:
         context = get_template_context(request, lang)
-        # ✅ إصلاح: التعامل مع حالة عدم تسجيل الدخول بأمان
         if context.get("is_logged_in"):
             try:
                 sub_status = get_user_subscription_status(context["user_email"])
@@ -331,7 +320,6 @@ async def cart_page(request: Request, lang: str):
 
         return templates.TemplateResponse("pricing.html", context)
     except Exception as e:
-        # ✅ إصلاح: في حالة أي خطأ، نعرض الصفحة مع قيم افتراضية
         context = {
             "lang": lang,
             "is_logged_in": False,
@@ -368,7 +356,6 @@ async def pricing_redirect():
 async def pricing(request: Request, lang: str):
     try:
         context = get_template_context(request, lang)
-        # ✅ إصلاح: التعامل مع حالة عدم تسجيل الدخول بأمان
         if context.get("is_logged_in"):
             try:
                 sub_status = get_user_subscription_status(context["user_email"])
@@ -383,7 +370,6 @@ async def pricing(request: Request, lang: str):
 
         return templates.TemplateResponse("pricing.html", context)
     except Exception as e:
-        # ✅ إصلاح: في حالة أي خطأ، نعرض الصفحة مع قيم افتراضية
         context = {
             "lang": lang,
             "is_logged_in": False,
@@ -402,7 +388,6 @@ async def models_redirect():
 async def models_page(request: Request, lang: str):
     context = get_template_context(request, lang)
     context["models"] = context["models_metadata"]
-    # ✅ SEO: Provide models list for JSON-LD structured data
     return templates.TemplateResponse("models.html", context)
 
 @app.get("/{lang}/models/{model_key}", response_class=HTMLResponse)
@@ -413,7 +398,6 @@ async def model_detail_page(request: Request, lang: str, model_key: str):
         return RedirectResponse(f"/{lang}/models")
     context["model"] = model_info
     context["models"] = context["models_metadata"]
-    # ✅ SEO: Pass current model info for page-specific meta tags
     context["seo_model_key"] = model_key
     return templates.TemplateResponse("models.html", context)
 
@@ -424,7 +408,6 @@ async def get_model_description(model_key: str, lang: str = "en"):
         if file_path.exists():
             with open(file_path, 'r', encoding='utf-8') as f:
                 html_content = f.read()
-            # ✅ PERFORMANCE: Cache model descriptions for 1 hour (content rarely changes)
             return JSONResponse(
                 {"html": html_content},
                 headers={
@@ -440,7 +423,6 @@ async def get_model_description(model_key: str, lang: str = "en"):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
-# GitHub Integration Routes
 from github_integration import (
     handle_github_login, handle_github_callback, handle_github_logout,
     DeployRequest, is_github_connected, get_github_token, one_click_deploy
@@ -586,7 +568,6 @@ async def dash_redirect():
 async def dashboard_page(request: Request, lang: str):
     return RedirectResponse(f"/{lang}/profile")
 
-# Auth Endpoints
 @app.post("/auth/send-verification")
 async def send_verification(request: Request, data: SendVerificationRequest):
     return await handle_send_verification(request, data)
@@ -613,7 +594,6 @@ async def set_language(request: Request):
     response.set_cookie("preferred_lang", lang, max_age=60*60*24*365, path="/", samesite="lax")
     return response
 
-# Chat Endpoints (مع تحسينات الأداء)
 @app.post("/api/chat/trial")
 async def trial_chat_endpoint(request: Request):
     try:
@@ -759,7 +739,6 @@ async def get_my_key(request: Request):
     user = get_user_by_email(email)
     return {"key": user.get("api_key")} if user else JSONResponse({"error": "Not found"}, 404)
 
-# Support & Contact
 from telegram_bot import notify_contact_form, notify_enterprise_form
 
 @app.post("/api/support/chat")
@@ -889,7 +868,132 @@ async def api_enterprise_contact(request: Request):
     except Exception as e:
         return JSONResponse({"detail": "خطأ في الخادم."}, status_code=500)
 
-# Local Dev Server
+# ============================================================================
+# مسارات بوابة الدفع (SpaceRemit)
+# ============================================================================
+class CheckoutRequest(BaseModel):
+    plan_name: str
+    period: str
+    amount: float
+
+@app.post("/api/payments/checkout-data")
+async def api_checkout_data(request: Request, data: CheckoutRequest):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized. Please login."}, status_code=401)
+
+    try:
+        result = await generate_payment_link(email, data.plan_name, data.period, data.amount)
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ─── NEW: verify payment code and activate subscription ───────────────────────
+class VerifyPaymentRequest(BaseModel):
+    payment_code: str
+    plan_key: str
+    period: str
+
+@app.post("/api/payments/verify-and-activate")
+async def api_verify_and_activate(request: Request, data: VerifyPaymentRequest):
+    """
+    Called by the frontend after SpaceRemit's SP_SUCCESSFUL_PAYMENT callback.
+    1. Verifies the payment_code with SpaceRemit server (private key auth).
+    2. On success (status_tag A or T), activates the subscription for the logged-in user.
+    """
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized. Please login."}, status_code=401)
+
+    # Validate plan key
+    plan_name_map = {
+        'deepseek': 'DeepSeek V3', 'kimi': 'Kimi k2', 'mistral': 'Mistral Large',
+        'gemma': 'Gemma 3', 'llama': 'Llama 3.2', 'agents': 'Chat Agents', 'global': 'Nexus Global'
+    }
+    plan_name = plan_name_map.get(data.plan_key)
+    if not plan_name:
+        return JSONResponse({"error": f"Unknown plan key: {data.plan_key}"}, status_code=400)
+
+    if data.period not in ("monthly", "yearly"):
+        return JSONResponse({"error": "Invalid period. Use 'monthly' or 'yearly'."}, status_code=400)
+
+    # Verify payment with SpaceRemit API
+    payment_info = await verify_spaceremit_payment(data.payment_code)
+    if not payment_info:
+        return JSONResponse(
+            {"error": "Payment not verified. It may be pending, failed, or already used."},
+            status_code=400
+        )
+
+    # Log payment details for auditing
+    print(f"[Payment] User={email} Plan={plan_name} Period={data.period} "
+          f"TxID={payment_info.get('id')} Status={payment_info.get('status_tag')} "
+          f"Amount={payment_info.get('original_amount')} {payment_info.get('currency')}")
+
+    # Activate subscription in DB
+    from services.subscriptions import perform_upgrade
+    success = perform_upgrade(email, plan_name, data.period)
+
+    if success:
+        return JSONResponse({"status": "success", "message": f"Subscription '{plan_name}' activated successfully."})
+    else:
+        return JSONResponse(
+            {"error": "Payment verified but failed to activate subscription. Please contact support."},
+            status_code=500
+        )
+
+@app.post("/api/webhooks/spaceremit")
+async def spaceremit_webhook(request: Request):
+    """
+    Legacy webhook endpoint kept for compatibility.
+    The primary flow now uses /api/payments/verify-and-activate (client-side initiated).
+    This endpoint can be used if SpaceRemit adds server-to-server webhook support in future.
+    """
+    try:
+        payload = await request.json()
+        tx_code = payload.get("spaceremit_code") or payload.get("transaction_id") or payload.get("payment_id")
+
+        if not tx_code:
+            return JSONResponse({"error": "No transaction code provided"}, status_code=400)
+
+        payment_info = await verify_spaceremit_payment(tx_code)
+
+        if not payment_info:
+            return JSONResponse({"status": "Failed", "error": "Payment not verified"}, status_code=400)
+
+        # Extract plan, period, and email from the notes field we stored at checkout
+        notes = payment_info.get("notes", "")
+        plan_key, period, email = "", "", ""
+
+        for part in notes.split("|"):
+            if part.startswith("plan:"):   plan_key = part.split(":", 1)[1].strip()
+            if part.startswith("period:"): period   = part.split(":", 1)[1].strip()
+            if part.startswith("user:"):   email    = part.split(":", 1)[1].strip()
+
+        if not email or not plan_key or not period:
+            print(f"[Webhook] Could not parse notes: '{notes}'")
+            return JSONResponse({"error": "Missing plan/period/user in notes"}, status_code=400)
+
+        plan_name_map = {
+            'deepseek': 'DeepSeek V3', 'kimi': 'Kimi k2', 'mistral': 'Mistral Large',
+            'gemma': 'Gemma 3', 'llama': 'Llama 3.2', 'agents': 'Chat Agents', 'global': 'Nexus Global'
+        }
+        plan_name = plan_name_map.get(plan_key, "Free Tier")
+
+        from services.subscriptions import perform_upgrade
+        success = perform_upgrade(email, plan_name, period)
+
+        if success:
+            print(f"[Webhook] Activated {plan_name}/{period} for {email}")
+            return JSONResponse({"status": "Success", "message": "Plan activated"})
+
+        return JSONResponse({"status": "Failed", "error": "Could not activate plan"}, status_code=400)
+
+    except Exception as e:
+        print(f"[Webhook] Error: {e}")
+        return JSONResponse({"error": "Webhook processing failed"}, status_code=500)
+
 if __name__ == "__main__":
     if os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"):
         print("☁️ Vercel detected - Using Serverless")
