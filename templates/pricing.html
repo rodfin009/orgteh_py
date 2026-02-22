@@ -649,140 +649,127 @@
     let _currentPlanKey = null;
     let _currentPeriod  = null;
 
-    /** Helper: get translated string for modal */
+    /* translated string helper */
     function spT(key) {
         const lang = getActiveLang();
-        return (pageTranslations[lang] || pageTranslations['en'])[key]
+        return (pageTranslations[lang]||pageTranslations['en'])[key]
             || pageTranslations['en'][key] || key;
     }
-
-    /** Period label (translated) */
     function periodLabel(p) {
         return p === 'yearly'
-            ? (getActiveLang() === 'ar' ? 'سنوياً' : 'Yearly')
-            : (getActiveLang() === 'ar' ? 'شهرياً' : 'Monthly');
+            ? (getActiveLang()==='ar' ? 'سنوياً' : 'Yearly')
+            : (getActiveLang()==='ar' ? 'شهرياً' : 'Monthly');
     }
 
-    /** Open / close modal */
+    // ── Modal helpers ──────────────────────────────────────────────────────
     function openPaymentModal() {
-        document.getElementById('payment-modal').classList.replace('hidden', 'flex');
+        document.getElementById('payment-modal').classList.replace('hidden','flex');
     }
     function closePaymentModal() {
-        document.getElementById('payment-modal').classList.replace('flex', 'hidden');
-        // Close SpaceRemit auth iframe if open
-        const iframeWrap = document.getElementById('sp-auth-iframe-wrap');
-        if (iframeWrap) iframeWrap.remove();
-        // Reset
+        document.getElementById('payment-modal').classList.replace('flex','hidden');
         const s = document.getElementById('sp-status-msg');
         s.classList.add('hidden'); s.innerHTML = '';
         document.getElementById('spaceremit-local-methods-pay').innerHTML = '';
-        document.getElementById('spaceremit-form').reset?.();
         const old = document.getElementById('sp-sdk-script');
         if (old) old.remove();
+        // clear pending session
+        sessionStorage.removeItem('sp_pending');
     }
-
-    /** Status message inside modal */
     function showSpStatus(type, msg) {
         const el = document.getElementById('sp-status-msg');
-        const colors = {
+        const c = {
             success:    'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
             error:      'bg-red-100   text-red-800   dark:bg-red-900/40   dark:text-red-300',
             processing: 'bg-blue-100  text-blue-800  dark:bg-blue-900/40  dark:text-blue-300'
         };
-        el.className = 'mt-4 rounded-xl px-4 py-3 text-sm font-medium '
-                     + (colors[type] || colors.processing);
+        el.className = 'mt-4 rounded-xl px-4 py-3 text-sm font-medium '+(c[type]||c.processing);
         el.innerHTML = msg;
     }
 
-    /**
-     * SpaceRemit auth required → embed inside the modal instead of popup
-     * (avoids browser popup blockers entirely)
-     */
-    function openSpaceRemitAuth(authLink) {
-        // Remove old iframe if any
-        const existing = document.getElementById('sp-auth-iframe-wrap');
-        if (existing) existing.remove();
-
-        const lang    = getActiveLang();
-        const wrap    = document.createElement('div');
-        wrap.id       = 'sp-auth-iframe-wrap';
-        wrap.className = 'fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm';
-        wrap.innerHTML = `
-          <div class="bg-white dark:bg-cardbg rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-               style="width:min(95vw,480px); height:min(90vh,680px)">
-            <div class="flex items-center justify-between bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-3 shrink-0">
-              <span class="text-white font-semibold text-sm">
-                ${lang === 'ar' ? 'تسجيل الدخول إلى SpaceRemit' : 'Sign in to SpaceRemit'}
-              </span>
-              <button onclick="document.getElementById('sp-auth-iframe-wrap').remove()"
-                      class="text-white/80 hover:text-white text-xl leading-none">✕</button>
-            </div>
-            <iframe src="${authLink}" class="flex-1 w-full border-0"
-                    allow="payment" sandbox="allow-scripts allow-same-origin allow-forms allow-popups">
-            </iframe>
-          </div>`;
-        document.body.appendChild(wrap);
-
-        // Listen for postMessage from SpaceRemit after auth completes
-        window.addEventListener('message', function onSpMsg(e) {
-            if (String(e.origin).includes('spaceremit')) {
-                wrap.remove();
-                window.removeEventListener('message', onSpMsg);
-                // Re-trigger SDK after auth
-                const sdkOld = document.getElementById('sp-sdk-script');
-                if (sdkOld) sdkOld.remove();
-                document.getElementById('spaceremit-local-methods-pay').innerHTML = '';
-                const s = document.createElement('script');
-                s.id    = 'sp-sdk-script';
-                s.src   = 'https://spaceremit.com/api/v2/js_script/spaceremit.js';
-                s.async = true;
-                document.body.appendChild(s);
-            }
-        }, false);
-    }
-
-    /** Handle form submission triggered by SpaceRemit SDK (backup path) */
-    function attachFormGuard() {
-        const form = document.getElementById('spaceremit-form');
-        if (!form || form._guardAttached) return;
-        form._guardAttached = true;
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const code = form.querySelector('[name="SP_payment_code"]')?.value;
-            if (code) {
-                await handlePaymentCode(code);
-            }
-        });
-    }
-
-    /** Verify payment code and activate subscription */
-    async function handlePaymentCode(spaceremit_code) {
+    // ── Verify payment code with backend ───────────────────────────────────
+    async function handlePaymentCode(code) {
         showSpStatus('processing',
             `<i class="fa-solid fa-spinner fa-spin mr-2"></i>${spT('modal.verifying')}`);
         try {
-            const vRes = await fetch('/api/payments/verify-and-activate', {
+            const r = await fetch('/api/payments/verify-and-activate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type':'application/json'},
                 body: JSON.stringify({
-                    payment_code: spaceremit_code,
+                    payment_code: code,
                     plan_key:     _currentPlanKey,
                     period:       _currentPeriod
                 })
             });
-            const vData = await vRes.json();
-            if (vRes.ok && vData.status === 'success') {
+            const d = await r.json();
+            if (r.ok && d.status === 'success') {
+                sessionStorage.removeItem('sp_pending');
                 showSpStatus('success', spT('modal.success'));
                 setTimeout(() => { closePaymentModal(); window.location.reload(); }, 3000);
             } else {
                 showSpStatus('error',
-                    spT('modal.verify_fail') + (vData.error || 'Please contact support.'));
+                    spT('modal.verify_fail') + (d.error || 'Please contact support.'));
             }
         } catch(e) {
             showSpStatus('error', spT('modal.net_error'));
         }
     }
 
-    /** Main checkout entry point */
+    // ── Load SpaceRemit SDK ─────────────────────────────────────────────────
+    function loadSpaceRemitSDK(onLoaded) {
+        const old = document.getElementById('sp-sdk-script');
+        if (old) old.remove();
+        document.getElementById('spaceremit-local-methods-pay').innerHTML = '';
+
+        const s   = document.createElement('script');
+        s.id      = 'sp-sdk-script';
+        s.src     = 'https://spaceremit.com/api/v2/js_script/spaceremit.js';
+        s.async   = true;
+        s.onload  = onLoaded || function(){};
+        s.onerror = () => {
+            closePaymentModal();
+            alert(getActiveLang()==='ar'
+                ? 'فشل تحميل بوابة الدفع. تحقق من اتصالك.'
+                : 'Failed to load payment gateway. Check your connection.');
+        };
+        document.body.appendChild(s);
+    }
+
+    // ── Set SpaceRemit globals + callbacks ─────────────────────────────────
+    function initSpaceRemitGlobals(publicKey) {
+        window.SP_PUBLIC_KEY                     = publicKey;
+        window.SP_FORM_ID                        = '#spaceremit-form';
+        window.SP_SELECT_RADIO_NAME              = 'sp-pay-type-radio';
+        window.LOCAL_METHODS_BOX_STATUS          = true;
+        window.LOCAL_METHODS_PARENT_ID           = '#spaceremit-local-methods-pay';
+        window.CARD_BOX_STATUS                   = false;
+        window.CARD_BOX_PARENT_ID                = '#spaceremit-card-pay';
+        // MUST be true so SDK auto-submits when code is ready
+        window.SP_FORM_AUTO_SUBMIT_WHEN_GET_CODE = true;
+
+        window.SP_SUCCESSFUL_PAYMENT = async function(code) {
+            await handlePaymentCode(code);
+        };
+        window.SP_FAILD_PAYMENT = function() {
+            showSpStatus('error', spT('modal.failed'));
+        };
+        window.SP_RECIVED_MESSAGE = function(msg) {
+            console.log('[SpaceRemit]', msg);
+        };
+        // ✅ KEY FIX: full page redirect to SpaceRemit auth
+        //    Save checkout state first so we restore it after returning
+        window.SP_NEED_AUTH = function(authLink) {
+            const pending = sessionStorage.getItem('sp_pending');
+            if (pending) {
+                // Already saved — just redirect
+                window.location.href = authLink;
+            } else {
+                console.warn('[SpaceRemit] SP_NEED_AUTH called but no pending state');
+                window.location.href = authLink;
+            }
+        };
+    }
+
+    // ── Main checkout entry ─────────────────────────────────────────────────
     async function initiateCheckout(planKey, period) {
         const planData = pricingData[planKey]?.[period];
         if (!planData) return;
@@ -794,23 +781,22 @@
         const planLabel = planNameMap[planKey] || planKey;
         const lang      = getActiveLang();
 
-        // 1. Show modal with spinner
+        // Show modal + spinner
         document.getElementById('modal-plan-title').textContent    = spT('modal.title');
         document.getElementById('modal-plan-subtitle').textContent =
             `${planLabel} · $${planData.price} ${spT('modal.per')} ${periodLabel(period)}`;
         document.getElementById('sp-loading-text').textContent     = spT('modal.loading');
         document.getElementById('sp-footer-text').textContent      = spT('modal.footer');
         document.getElementById('sp-loading').classList.remove('hidden');
-        document.getElementById('spaceremit-form').classList.add('opacity-0', 'pointer-events-none');
+        document.getElementById('spaceremit-form').classList.add('opacity-0','pointer-events-none');
         document.getElementById('sp-status-msg').classList.add('hidden');
         openPaymentModal();
 
-        // 2. Fetch public_key + email from backend
         try {
             const res = await fetch('/api/payments/checkout-data', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ plan_name: planLabel, period, amount: planData.price })
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({plan_name:planLabel, period, amount:planData.price})
             });
             if (res.status === 401) {
                 closePaymentModal();
@@ -818,81 +804,90 @@
                 return;
             }
             const data = await res.json();
-            if (!res.ok) { closePaymentModal(); alert('Error: ' + (data.error || 'Unknown')); return; }
+            if (!res.ok) { closePaymentModal(); alert('Error: '+(data.error||'Unknown')); return; }
 
-            // 3. Fill hidden form fields
+            // Fill form fields
             document.getElementById('sp-amount').value   = planData.price;
             document.getElementById('sp-email').value    = data.email;
-            document.getElementById('sp-fullname').value = (data.email || '').split('@')[0];
+            document.getElementById('sp-fullname').value = (data.email||'').split('@')[0];
             document.getElementById('sp-notes').value    =
                 `plan:${planKey}|period:${period}|user:${data.email}`;
 
             _currentPlanKey = planKey;
             _currentPeriod  = period;
 
-            // 4. SpaceRemit SDK globals — set BEFORE loading the script
-            window.SP_PUBLIC_KEY                     = data.public_key;
-            window.SP_FORM_ID                        = '#spaceremit-form';
-            window.SP_SELECT_RADIO_NAME              = 'sp-pay-type-radio';
-            window.LOCAL_METHODS_BOX_STATUS          = true;
-            window.LOCAL_METHODS_PARENT_ID           = '#spaceremit-local-methods-pay';
-            window.CARD_BOX_STATUS                   = false;
-            window.CARD_BOX_PARENT_ID                = '#spaceremit-card-pay';
-            // ⚠️ FALSE — we use SP_SUCCESSFUL_PAYMENT callback + form guard
-            //    TRUE causes a real form POST with no action → page reload
-            window.SP_FORM_AUTO_SUBMIT_WHEN_GET_CODE = false;
+            // Save checkout state — survives the SP_NEED_AUTH redirect
+            sessionStorage.setItem('sp_pending', JSON.stringify({
+                planKey, period, planLabel,
+                price:     planData.price,
+                email:     data.email,
+                publicKey: data.public_key
+            }));
 
-            // 5. Callbacks
+            initSpaceRemitGlobals(data.public_key);
 
-            // ✅ Primary success path
-            window.SP_SUCCESSFUL_PAYMENT = async function(code) {
-                await handlePaymentCode(code);
-            };
-
-            // ❌ Payment failed / cancelled
-            window.SP_FAILD_PAYMENT = function() {
-                showSpStatus('error', spT('modal.failed'));
-            };
-
-            // 📩 Informational messages
-            window.SP_RECIVED_MESSAGE = function(msg) {
-                console.log('[SpaceRemit]', msg);
-                // Surface important messages to the user
-                if (msg && typeof msg === 'string' && msg.length < 200) {
-                    showSpStatus('processing',
-                        `<i class="fa-solid fa-circle-info mr-2"></i>${msg}`);
-                }
-            };
-
-            // 🔐 Auth required — embed in modal (no popup blocker issues)
-            window.SP_NEED_AUTH = function(authLink) {
-                openSpaceRemitAuth(authLink);
-            };
-
-            // 6. Load SpaceRemit JS SDK
-            const sdkScript   = document.createElement('script');
-            sdkScript.id      = 'sp-sdk-script';
-            sdkScript.src     = 'https://spaceremit.com/api/v2/js_script/spaceremit.js';
-            sdkScript.async   = true;
-            sdkScript.onload  = () => {
+            loadSpaceRemitSDK(() => {
                 document.getElementById('sp-loading').classList.add('hidden');
-                const form = document.getElementById('spaceremit-form');
-                form.classList.remove('opacity-0', 'pointer-events-none');
-                attachFormGuard();   // backup: intercept form submit
-            };
-            sdkScript.onerror = () => {
-                closePaymentModal();
-                alert(lang === 'ar'
-                    ? 'فشل تحميل بوابة الدفع. تحقق من اتصالك بالإنترنت.'
-                    : 'Failed to load payment gateway. Please check your connection.');
-            };
-            document.body.appendChild(sdkScript);
+                document.getElementById('spaceremit-form')
+                    .classList.remove('opacity-0','pointer-events-none');
+            });
 
         } catch(err) {
             console.error('[Checkout Error]', err);
             closePaymentModal();
         }
     }
+
+    // ── RESTORE after SP_NEED_AUTH redirect ────────────────────────────────
+    // When SpaceRemit redirects the user back to our page after auth,
+    // we detect the saved state and re-open the payment modal automatically.
+    window.addEventListener('DOMContentLoaded', function restorePending() {
+        const raw = sessionStorage.getItem('sp_pending');
+        if (!raw) return;
+
+        let state;
+        try { state = JSON.parse(raw); } catch(e) { sessionStorage.removeItem('sp_pending'); return; }
+
+        // Small delay so the page finishes rendering
+        setTimeout(async () => {
+            const { planKey, period, planLabel, price, email, publicKey } = state;
+            const lang = getActiveLang();
+
+            // Re-open modal
+            document.getElementById('modal-plan-title').textContent    = spT('modal.title');
+            document.getElementById('modal-plan-subtitle').textContent =
+                `${planLabel} · $${price} ${spT('modal.per')} ${periodLabel(period)}`;
+            document.getElementById('sp-loading-text').textContent     = spT('modal.loading');
+            document.getElementById('sp-footer-text').textContent      = spT('modal.footer');
+            document.getElementById('sp-loading').classList.remove('hidden');
+            document.getElementById('spaceremit-form').classList.add('opacity-0','pointer-events-none');
+            document.getElementById('sp-status-msg').classList.add('hidden');
+            openPaymentModal();
+
+            // Restore form fields
+            document.getElementById('sp-amount').value   = price;
+            document.getElementById('sp-email').value    = email;
+            document.getElementById('sp-fullname').value = (email||'').split('@')[0];
+            document.getElementById('sp-notes').value    =
+                `plan:${planKey}|period:${period}|user:${email}`;
+
+            _currentPlanKey = planKey;
+            _currentPeriod  = period;
+
+            initSpaceRemitGlobals(publicKey);
+
+            loadSpaceRemitSDK(() => {
+                document.getElementById('sp-loading').classList.add('hidden');
+                document.getElementById('spaceremit-form')
+                    .classList.remove('opacity-0','pointer-events-none');
+                // Show a hint that auth is done
+                showSpStatus('processing',
+                    lang === 'ar'
+                        ? '<i class="fa-solid fa-circle-check mr-2 text-green-500"></i>تم تسجيل الدخول. اختر طريقة الدفع.'
+                        : '<i class="fa-solid fa-circle-check mr-2 text-green-500"></i>Signed in. Please select your payment method.');
+            });
+        }, 600);
+    });
 
     // --- 3. CORE FUNCTIONS ---
 
