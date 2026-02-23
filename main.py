@@ -64,7 +64,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         # Security Headers
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Frame-Options"] = "ALLOWALL"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
 
@@ -1015,7 +1015,7 @@ if __name__ == "__main__":
     else:
         try:
             import uvicorn
-            port = int(os.environ.get("PORT", 8080))
+            port = int(os.environ.get("PORT", 5000))
             print(f"🚀 Starting Orgteh Dev Server on port {port}")
             uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True, log_level="info")
         except ImportError:
