@@ -43,19 +43,26 @@
     html[dir="rtl"] .ribbon-wrapper { right: auto; left: 0; }
     html[dir="rtl"] .ribbon { right: auto; left: -45px; transform: rotate(-45deg); }
 
-    /* --- SpaceRemit Modal Clean Fixes --- */
+    /* --- Scroll Lock Class --- */
+    .lock-scroll {
+        overflow: hidden !important;
+        height: 100vh !important;
+        touch-action: none !important;
+    }
+
+    /* --- SpaceRemit Modal Clean Fixes (No Black Gaps) --- */
     #spaceremit-local-methods-pay {
         width: 100% !important;
-        min-height: 380px !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: flex-start !important;
-        overflow: hidden !important;
+        display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     #spaceremit-local-methods-pay iframe {
         width: 100% !important;
-        max-width: 100% !important;
+        min-height: 300px !important; /* ارتفاع مناسب للإطار فقط */
         border: none !important;
+        display: block !important;
+        background: transparent !important;
     }
 </style>
 
@@ -536,10 +543,10 @@
                 <input type="hidden" name="notes" id="sp-notes">
                 <input type="radio" name="sp-pay-type-radio" value="local-methods-pay" checked class="hidden">
 
-                <div id="spaceremit-local-methods-pay" class="w-full min-h-[380px] flex justify-center relative"></div>
+                <div id="spaceremit-local-methods-pay" class="w-full relative"></div>
                 <div id="spaceremit-card-pay" style="display:none"></div>
 
-                <button type="submit" id="sp-submit-btn" class="mt-6 w-full py-3.5 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-primary/30 flex items-center justify-center gap-2">
+                <button type="submit" id="sp-submit-btn" class="mt-4 w-full py-3.5 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-primary/30 flex items-center justify-center gap-2">
                     <i class="fa-solid fa-lock"></i>
                     <span data-i18n="modal.pay_btn">إتمام الدفع</span>
                 </button>
@@ -674,7 +681,7 @@
             "modal.verify_fail": "❌ فشل التحقق: ",
             "modal.footer":      "مدعوم بأمان من",
             "modal.per":         "/",
-            "modal.pay_btn":     "متابعة الدفع"
+            "modal.pay_btn":     "إتمام الدفع"
         }
     };
 
@@ -704,17 +711,23 @@
 
     function openSpOverlay() {
         const el = document.getElementById('sp-overlay');
-        // هنا يتم تبديل الفئات ليصبح العنصر flex متمركز عمودياً وأفقياً
         el.classList.remove('hidden');
         el.classList.add('flex');
-        document.body.style.overflow = 'hidden';
+
+        // تجميد الشاشة الخلفية بقوة عبر الفئة الجديدة
+        document.body.classList.add('lock-scroll');
+        document.documentElement.classList.add('lock-scroll');
     }
 
     function closeSpOverlay() {
         const el = document.getElementById('sp-overlay');
         el.classList.add('hidden');
         el.classList.remove('flex');
-        document.body.style.overflow = '';
+
+        // إزالة التجميد
+        document.body.classList.remove('lock-scroll');
+        document.documentElement.classList.remove('lock-scroll');
+
         document.getElementById('sp-status-msg').classList.add('hidden');
         document.getElementById('sp-status-msg').innerHTML = '';
         document.getElementById('spaceremit-local-methods-pay').innerHTML = '';
