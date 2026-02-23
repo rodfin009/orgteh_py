@@ -77,7 +77,6 @@ def get_global_stats():
         stats = redis.get(f"global_stats:{today_str}")
         if stats: return json.loads(stats) if isinstance(stats, str) else stats
     except: pass
-    # إرجاع هيكل فارغ افتراضي
     return {
         "total_requests": 0, "total_tokens": 0, 
         "latency_sum": 0, "errors": 0, "blocked": 0, "internal_ops": 0, 
@@ -94,7 +93,7 @@ def get_user_by_email(email):
 
 def create_user_record(email, password_hash, api_key):
     if not redis: return False
-    from services.limits import get_limits_for_new_subscription # تجنب الاستيراد الدائري
+    from services.limits import get_limits_for_new_subscription 
 
     default_limits = get_limits_for_new_subscription("free_tier")
 
@@ -102,6 +101,7 @@ def create_user_record(email, password_hash, api_key):
         "email": email, "password": password_hash, "api_key": api_key,
         "created_at": datetime.utcnow().isoformat(), "plan": "Free Tier",
         "subscription_end": None,
+        "active_plans": [], # المصفوفة الجديدة لدعم الباقات التراكمية
         "limits": default_limits, 
         "usage": {
             "date": str(datetime.utcnow().date()),
@@ -115,16 +115,68 @@ def create_user_record(email, password_hash, api_key):
         return True
     except: return False
 
-def activate_subscription(email, plan_name, days, limits_dict):
+def add_user_subscription(email, plan_key, plan_name, period):
+    """
+    دالة جديدة لإضافة اشتراك بشكل تراكمي، سواء كان جديداً أو تمديداً لاشتراك حالي
+    """
     if not redis: return False
     user = get_user_by_email(email)
     if not user: return False
-    expiry_date = datetime.utcnow() + timedelta(days=days)
-    user["plan"] = plan_name
-    user["limits"] = limits_dict
-    user["subscription_end"] = expiry_date.isoformat()
-    try: redis.set(f"user:{email}", json.dumps(user)); return True
-    except: return False
+
+    from services.limits import get_limits_for_new_subscription
+    limits_dict = get_limits_for_new_subscription(plan_key, period)
+
+    days_to_add = 365 if period == 'yearly' else 30
+
+    if "active_plans" not in user:
+        user["active_plans"] = []
+
+    existing_plan = next((p for p in user["active_plans"] if p.get("plan_key") == plan_key), None)
+
+    now = datetime.utcnow()
+
+    if existing_plan:
+        try:
+            current_exp = datetime.fromisoformat(existing_plan["expires"])
+            if current_exp > now:
+                # تمديد المدة المتبقية
+                new_exp = current_exp + timedelta(days=days_to_add)
+            else:
+                # تجديد من اليوم لأنها انتهت
+                new_exp = now + timedelta(days=days_to_add)
+        except:
+            new_exp = now + timedelta(days=days_to_add)
+
+        existing_plan["expires"] = new_exp.isoformat()
+        existing_plan["period"] = period
+        existing_plan["limits"] = limits_dict
+    else:
+        new_exp = now + timedelta(days=days_to_add)
+        user["active_plans"].append({
+            "plan_key": plan_key,
+            "name": plan_name,
+            "period": period,
+            "expires": new_exp.isoformat(),
+            "limits": limits_dict
+        })
+
+    # توافق رجعي للأنظمة القديمة في الواجهة
+    active_names = [p["name"] for p in user["active_plans"] if datetime.fromisoformat(p["expires"]) > now]
+    user["plan"] = " + ".join(active_names) if active_names else "Free Tier"
+    expirations = [p["expires"] for p in user["active_plans"] if datetime.fromisoformat(p["expires"]) > now]
+    user["subscription_end"] = max(expirations) if expirations else None
+
+    try: 
+        redis.set(f"user:{email}", json.dumps(user))
+        return True
+    except: 
+        return False
+
+# للأنظمة القديمة التي لا زالت تعتمد الدالة القديمة (يتم تحويلها لتعمل بالتراكمي)
+def activate_subscription(email, plan_name, days, limits_dict):
+    period = 'yearly' if days > 300 else 'monthly'
+    plan_key = plan_name.lower().replace(" ", "_")
+    return add_user_subscription(email, plan_key, plan_name, period)
 
 def update_user_usage_struct(email, usage_data):
     if not redis: return False
@@ -136,9 +188,6 @@ def update_user_usage_struct(email, usage_data):
     return False
 
 def track_request_metrics(email, latency_ms, tokens, model_key=None, is_error=False, is_internal=False, is_blocked=False):
-    """
-    تسجيل المقاييس للمستخدم وللنظام العام.
-    """
     update_global_stats(latency_ms, tokens, model_key, is_error, is_internal, is_blocked)
     if not redis: return False
     user = get_user_by_email(email)
@@ -150,13 +199,12 @@ def track_request_metrics(email, latency_ms, tokens, model_key=None, is_error=Fa
     if usage.get("date") != today_str:
         usage = {
             "date": today_str,
-            "deepseek": 0, "kimi": 0, "mistral": 0, "llama": 0, "gemma": 0, "unified_extra": 0,
+            "deepseek": 0, "kimi": 0, "mistral": 0, "llama": 0, "gemma": 0, "unified_extra": usage.get("unified_extra", 0),
             "total_requests": 0, "total_tokens": 0, "latency_sum": 0, "errors": 0, "internal_ops": 0
         }
 
     usage["total_requests"] = usage.get("total_requests", 0) + 1
 
-    # لا نحتسب استهلاك التوكنز أو زمن الاستجابة في سجل المستخدم إذا كان محظوراً
     if not is_blocked:
         usage["total_tokens"] = usage.get("total_tokens", 0) + tokens
         usage["latency_sum"] = usage.get("latency_sum", 0) + latency_ms

@@ -42,6 +42,21 @@
 
     html[dir="rtl"] .ribbon-wrapper { right: auto; left: 0; }
     html[dir="rtl"] .ribbon { right: auto; left: -45px; transform: rotate(-45deg); }
+
+    /* --- SpaceRemit Modal Clean Fixes --- */
+    #spaceremit-local-methods-pay {
+        width: 100% !important;
+        min-height: 380px !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: flex-start !important;
+        overflow: hidden !important;
+    }
+    #spaceremit-local-methods-pay iframe {
+        width: 100% !important;
+        max-width: 100% !important;
+        border: none !important;
+    }
 </style>
 
 <div class="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-darkbg min-h-screen">
@@ -130,7 +145,12 @@
                             </div>
                         </div>
                     </div>
-                    <button onclick="initiateCheckout('deepseek', document.querySelector('#period-deepseek .bg-white, #period-deepseek .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-primary/30" data-i18n="pricing.btn_subscribe">Subscribe</button>
+
+                    {% if current_plan == 'DeepSeek V3' %}
+                        <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
+                    {% else %}
+                        <button onclick="initiateCheckout('deepseek', document.querySelector('#period-deepseek .bg-white, #period-deepseek .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-primary/30" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                    {% endif %}
                 </div>
 
                 <div class="relative flex flex-col rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-cardbg p-6 shadow-lg hover:border-primary/50 transition-all">
@@ -160,7 +180,12 @@
                             </div>
                         </div>
                     </div>
-                    <button onclick="initiateCheckout('kimi', document.querySelector('#period-kimi .bg-white, #period-kimi .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold rounded-xl transition" data-i18n="pricing.btn_subscribe">Subscribe</button>
+
+                    {% if current_plan == 'Kimi k2' %}
+                        <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
+                    {% else %}
+                        <button onclick="initiateCheckout('kimi', document.querySelector('#period-kimi .bg-white, #period-kimi .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold rounded-xl transition" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                    {% endif %}
                 </div>
 
                 <div class="relative flex flex-col rounded-2xl border-2 border-yellow-500 bg-gradient-to-b from-white dark:from-cardbg to-yellow-500/5 p-6 shadow-lg">
@@ -196,7 +221,12 @@
                             </div>
                         </div>
                     </div>
-                    <button onclick="initiateCheckout('mistral', document.querySelector('#period-mistral .bg-white, #period-mistral .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-gradient-to-r from-yellow-700 via-yellow-500 to-yellow-400 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+
+                    {% if current_plan == 'Mistral Large' %}
+                        <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
+                    {% else %}
+                        <button onclick="initiateCheckout('mistral', document.querySelector('#period-mistral .bg-white, #period-mistral .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-gradient-to-r from-yellow-700 via-yellow-500 to-yellow-400 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                    {% endif %}
                 </div>
 
                 <div class="relative flex flex-col rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-cardbg p-6 shadow-lg hover:border-blue-500/50 transition-all">
@@ -226,7 +256,12 @@
                             </div>
                         </div>
                     </div>
-                    <button onclick="initiateCheckout('gemma', document.querySelector('#period-gemma .bg-white, #period-gemma .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+
+                    {% if current_plan == 'Gemma 3' %}
+                        <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
+                    {% else %}
+                        <button onclick="initiateCheckout('gemma', document.querySelector('#period-gemma .bg-white, #period-gemma .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                    {% endif %}
                 </div>
 
                 <div class="relative flex flex-col rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-cardbg p-6 shadow-lg hover:border-indigo-500/50 transition-all">
@@ -256,7 +291,12 @@
                             </div>
                         </div>
                     </div>
-                    <button onclick="initiateCheckout('llama', document.querySelector('#period-llama .bg-white, #period-llama .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+
+                    {% if current_plan == 'Llama 3.2' %}
+                        <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
+                    {% else %}
+                        <button onclick="initiateCheckout('llama', document.querySelector('#period-llama .bg-white, #period-llama .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                    {% endif %}
                 </div>
 
             </div>
@@ -312,9 +352,9 @@
                     </ul>
 
                     {% if not is_logged_in %}
-                    <a href="/" class="block w-full text-center py-3 bg-gray-900 dark:bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-800 transition" data-i18n="pricing.btn_start_free">Start Now</a>
+                        <a href="/auth" class="block w-full text-center py-3 bg-gray-900 dark:bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-800 transition" data-i18n="pricing.btn_start_free">Start Now</a>
                     {% else %}
-                    <button class="w-full py-3 bg-gray-200 dark:bg-gray-700 text-gray-500 font-bold rounded-xl cursor-default" data-i18n="pricing.lbl_active">Active</button>
+                        <button class="w-full py-3 bg-gray-200 dark:bg-gray-800 text-gray-500 font-bold rounded-xl cursor-default" data-i18n="pricing.lbl_active">Active</button>
                     {% endif %}
                 </div>
 
@@ -376,7 +416,11 @@
                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_agents_3">Unified Backup</span></li>
                     </ul>
 
-                    <button onclick="initiateCheckout('agents', document.querySelector('#period-agents .bg-white, #period-agents .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="mt-auto w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                    {% if current_plan == 'Chat Agents' %}
+                        <button disabled class="mt-auto w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
+                    {% else %}
+                        <button onclick="initiateCheckout('agents', document.querySelector('#period-agents .bg-white, #period-agents .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="mt-auto w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                    {% endif %}
                 </div>
 
                 <div class="relative flex flex-col rounded-2xl border-2 border-primary bg-gradient-to-b from-white dark:from-cardbg via-primary/5 to-blue-500/5 p-6 shadow-xl ring-2 ring-primary/20">
@@ -444,7 +488,11 @@
                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_global_4">Priority support</span></li>
                     </ul>
 
-                    <button onclick="initiateCheckout('global', document.querySelector('#period-global .bg-white, #period-global .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-gradient-to-r from-blue-600 to-violet-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                    {% if current_plan == 'Nexus Global' %}
+                        <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
+                    {% else %}
+                        <button onclick="initiateCheckout('global', document.querySelector('#period-global .bg-white, #period-global .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-gradient-to-r from-blue-600 to-violet-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -456,61 +504,58 @@
     </div>
 </div>
 
-<!-- ===== SpaceRemit Payment Modal ===== -->
-<div id="payment-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 backdrop-blur-sm">
-    <div class="bg-white dark:bg-cardbg rounded-2xl shadow-2xl w-full max-w-lg mx-4 relative overflow-hidden max-h-[90vh] flex flex-col">
+<div id="sp-overlay" class="fixed inset-0 hidden items-center justify-center bg-black/80 backdrop-blur-sm z-[9999] p-4 sm:p-6" style="isolation: isolate;">
 
-        <!-- Header -->
-        <div class="bg-gradient-to-r from-blue-600 to-violet-600 px-6 py-4 flex items-center justify-between shrink-0">
+    <div id="sp-form-wrap" class="w-full max-w-lg mx-auto bg-white dark:bg-[#111111] rounded-2xl shadow-2xl flex flex-col max-h-[95vh] border border-gray-200 dark:border-gray-800 relative overflow-hidden">
+
+        <div class="bg-gradient-to-r from-primary to-indigo-600 px-6 py-4 flex items-center justify-between shrink-0">
             <div>
-                <h3 class="text-white font-bold text-lg" id="modal-plan-title"></h3>
-                <p class="text-blue-100 text-sm" id="modal-plan-subtitle"></p>
+                <h3 id="sp-plan-title" class="text-white font-bold text-lg leading-tight"></h3>
+                <p id="sp-plan-sub" class="text-blue-100 text-sm font-medium"></p>
             </div>
-            <button onclick="closePaymentModal()" class="text-white/80 hover:text-white text-2xl leading-none font-light transition">✕</button>
+            <button onclick="closeSpOverlay()" class="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 w-8 h-8 rounded-full flex items-center justify-center transition" aria-label="إغلاق">
+                <i class="fa-solid fa-times"></i>
+            </button>
         </div>
 
-        <!-- Body (scrollable) -->
-        <div class="p-5 overflow-y-auto flex-1">
+        <div class="p-6 flex-1 overflow-y-auto relative w-full">
 
-            <!-- Loading state -->
-            <div id="sp-loading" class="text-center py-10 hidden">
-                <div class="inline-block w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-                <p id="sp-loading-text" class="text-gray-500 dark:text-gray-400 text-sm"></p>
+            <div id="sp-loading" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/95 dark:bg-[#111111]/95 hidden">
+                <div class="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+                <p id="sp-loading-text" class="text-gray-600 dark:text-gray-300 font-bold text-sm"></p>
             </div>
 
-            <!-- SpaceRemit Form — hidden until SDK loads -->
-            <form id="spaceremit-form" class="opacity-0 pointer-events-none transition-opacity duration-300">
-                <input type="hidden" name="amount"   id="sp-amount">
+            <div id="sp-status-msg" class="mb-4 rounded-xl px-4 py-3 text-sm font-bold hidden text-center"></div>
+
+            <form id="spaceremit-form" class="w-full flex flex-col">
+                <input type="hidden" name="amount" id="sp-amount">
                 <input type="hidden" name="currency" value="USD">
-                <input type="hidden" name="email"    id="sp-email">
+                <input type="hidden" name="email" id="sp-email">
                 <input type="hidden" name="fullname" id="sp-fullname">
-                <input type="hidden" name="phone"    value="0000000000">
-                <input type="hidden" name="notes"    id="sp-notes">
-                <!-- radio hidden — SpaceRemit SDK reads it internally -->
-                <input type="radio"  name="sp-pay-type-radio" value="local-methods-pay" checked class="hidden">
+                <input type="hidden" name="phone" value="0000000000">
+                <input type="hidden" name="notes" id="sp-notes">
+                <input type="radio" name="sp-pay-type-radio" value="local-methods-pay" checked class="hidden">
 
-                <!-- SpaceRemit injects the country dropdown + payment methods grid here -->
-                <div id="spaceremit-local-methods-pay"></div>
+                <div id="spaceremit-local-methods-pay" class="w-full min-h-[380px] flex justify-center relative"></div>
+                <div id="spaceremit-card-pay" style="display:none"></div>
 
-                <!-- Card Pay container hidden (not available) -->
-                <div id="spaceremit-card-pay" class="hidden"></div>
+                <button type="submit" id="sp-submit-btn" class="mt-6 w-full py-3.5 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-primary/30 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-lock"></i>
+                    <span data-i18n="modal.pay_btn">إتمام الدفع</span>
+                </button>
             </form>
-
-            <!-- Status message (success / error / processing) -->
-            <div id="sp-status-msg" class="mt-4 rounded-xl px-4 py-3 text-sm font-medium hidden"></div>
         </div>
 
-        <!-- Footer -->
-        <div class="px-5 py-3 border-t border-gray-100 dark:border-gray-700 text-center shrink-0">
-            <p class="text-xs text-gray-400 dark:text-gray-500">
-                <i class="fa-solid fa-lock mr-1"></i>
-                <span id="sp-footer-text"></span>
-                <a href="https://spaceremit.com" target="_blank" class="text-blue-500 hover:underline ml-1">SpaceRemit</a>
+        <div class="px-6 py-3 bg-gray-50 dark:bg-black border-t border-gray-100 dark:border-gray-800 text-center shrink-0">
+            <p class="text-xs text-gray-500 font-medium flex items-center justify-center">
+                <i class="fa-solid fa-shield-check text-green-500 mr-1.5"></i>
+                <span id="sp-footer-text">Secured by</span>
+                <a href="https://spaceremit.com" target="_blank" class="text-primary hover:underline ml-1.5 font-bold">SpaceRemit</a>
             </p>
         </div>
+
     </div>
 </div>
-<!-- ===== End SpaceRemit Modal ===== -->
 
 <script>
     // --- 1. TRANSLATION DATA ---
@@ -539,6 +584,7 @@
             "pricing.lbl_extra_credit": "Extra Credit",
             "pricing.lbl_unified_credit": "Unified Credit",
             "pricing.btn_subscribe": "Subscribe Now",
+            "pricing.btn_subscribed": "Subscribed",
             "pricing.footer_note_1": "All prices in USD. Limits reset daily at midnight (UTC).",
             "pricing.ribbon_free": "3 Days Free",
             "pricing.ribbon_forever": "Forever",
@@ -564,12 +610,13 @@
             "modal.title":       "Complete Payment",
             "modal.loading":     "Initializing payment gateway...",
             "modal.verifying":   "Verifying payment...",
-            "modal.success":     "✅ Payment confirmed! Your subscription is now active. Redirecting...",
+            "modal.success":     "✅ Payment confirmed! Your subscription is now active.",
             "modal.failed":      "❌ Payment was not completed. Please try again.",
-            "modal.net_error":   "❌ Network error. Please contact support@orgteh.com",
+            "modal.net_error":   "❌ Network error. Please contact support.",
             "modal.verify_fail": "❌ Verification failed: ",
             "modal.footer":      "Secured by",
-            "modal.per":         "/"
+            "modal.per":         "/",
+            "modal.pay_btn":     "Proceed to Payment"
         },
         ar: {
             "pricing.lbl_plans_header": "خطط الاشتراكات",
@@ -595,6 +642,7 @@
             "pricing.lbl_extra_credit": "رصيد إضافي",
             "pricing.lbl_unified_credit": "رصيد إضافي موحد",
             "pricing.btn_subscribe": "اشترك الآن",
+            "pricing.btn_subscribed": "مشترك",
             "pricing.footer_note_1": "جميع الأسعار بالدولار الأمريكي. يتم تصفير الحدود يومياً عند منتصف الليل (UTC).",
             "pricing.ribbon_free": "3 أيام مجاناً",
             "pricing.ribbon_forever": "مجاني دائماً",
@@ -620,16 +668,16 @@
             "modal.title":       "إتمام الدفع",
             "modal.loading":     "جاري تهيئة بوابة الدفع...",
             "modal.verifying":   "جاري التحقق من الدفع...",
-            "modal.success":     "✅ تم تأكيد الدفع! اشتراكك مفعّل الآن. جاري التحويل...",
+            "modal.success":     "✅ تم تأكيد الدفع! اشتراكك مفعّل الآن.",
             "modal.failed":      "❌ لم يكتمل الدفع. يرجى المحاولة مجدداً.",
-            "modal.net_error":   "❌ خطأ في الشبكة. تواصل مع support@orgteh.com",
+            "modal.net_error":   "❌ خطأ في الشبكة. تواصل مع الدعم.",
             "modal.verify_fail": "❌ فشل التحقق: ",
             "modal.footer":      "مدعوم بأمان من",
-            "modal.per":         "/"
+            "modal.per":         "/",
+            "modal.pay_btn":     "متابعة الدفع"
         }
     };
 
-    // --- 2. PRICING LOGIC ---
     const pricingData = {
         deepseek: { monthly: { price: 3.99, bonus: 600 }, yearly: { price: 39.99, bonus: 1500 } },
         kimi: { monthly: { price: 6.99, bonus: 300 }, yearly: { price: 69.99, bonus: 1000 } },
@@ -642,39 +690,38 @@
 
     const labelKeys = { monthly: 'pricing.lbl_per_month', yearly: 'pricing.lbl_per_year' };
 
-    // =========================================================
-    // SpaceRemit Payment Gateway — API v2
-    // =========================================================
-
     let _currentPlanKey = null;
     let _currentPeriod  = null;
 
-    /* translated string helper */
     function spT(key) {
         const lang = getActiveLang();
-        return (pageTranslations[lang]||pageTranslations['en'])[key]
-            || pageTranslations['en'][key] || key;
-    }
-    function periodLabel(p) {
-        return p === 'yearly'
-            ? (getActiveLang()==='ar' ? 'سنوياً' : 'Yearly')
-            : (getActiveLang()==='ar' ? 'شهرياً' : 'Monthly');
+        return (pageTranslations[lang]||pageTranslations['en'])[key] || pageTranslations['en'][key] || key;
     }
 
-    // ── Modal helpers ──────────────────────────────────────────────────────
-    function openPaymentModal() {
-        document.getElementById('payment-modal').classList.replace('hidden','flex');
+    function periodLabel(p) {
+        return p === 'yearly' ? (getActiveLang()==='ar' ? 'سنوياً' : 'Yearly') : (getActiveLang()==='ar' ? 'شهرياً' : 'Monthly');
     }
-    function closePaymentModal() {
-        document.getElementById('payment-modal').classList.replace('flex','hidden');
-        const s = document.getElementById('sp-status-msg');
-        s.classList.add('hidden'); s.innerHTML = '';
+
+    function openSpOverlay() {
+        const el = document.getElementById('sp-overlay');
+        // هنا يتم تبديل الفئات ليصبح العنصر flex متمركز عمودياً وأفقياً
+        el.classList.remove('hidden');
+        el.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeSpOverlay() {
+        const el = document.getElementById('sp-overlay');
+        el.classList.add('hidden');
+        el.classList.remove('flex');
+        document.body.style.overflow = '';
+        document.getElementById('sp-status-msg').classList.add('hidden');
+        document.getElementById('sp-status-msg').innerHTML = '';
         document.getElementById('spaceremit-local-methods-pay').innerHTML = '';
         const old = document.getElementById('sp-sdk-script');
         if (old) old.remove();
-        // clear pending session
-        sessionStorage.removeItem('sp_pending');
     }
+
     function showSpStatus(type, msg) {
         const el = document.getElementById('sp-status-msg');
         const c = {
@@ -682,18 +729,17 @@
             error:      'bg-red-100   text-red-800   dark:bg-red-900/40   dark:text-red-300',
             processing: 'bg-blue-100  text-blue-800  dark:bg-blue-900/40  dark:text-blue-300'
         };
-        el.className = 'mt-4 rounded-xl px-4 py-3 text-sm font-medium '+(c[type]||c.processing);
+        el.className = 'mb-4 rounded-xl px-4 py-3 text-sm font-bold transition-all ' + (c[type]||c.processing);
         el.innerHTML = msg;
+        el.classList.remove('hidden');
     }
 
-    // ── Verify payment code with backend ───────────────────────────────────
     async function handlePaymentCode(code) {
-        showSpStatus('processing',
-            `<i class="fa-solid fa-spinner fa-spin mr-2"></i>${spT('modal.verifying')}`);
+        showSpStatus('processing', `<i class="fa-solid fa-spinner fa-spin mr-2"></i>${spT('modal.verifying')}`);
         try {
             const r = await fetch('/api/payments/verify-and-activate', {
                 method: 'POST',
-                headers: {'Content-Type':'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     payment_code: code,
                     plan_key:     _currentPlanKey,
@@ -702,40 +748,17 @@
             });
             const d = await r.json();
             if (r.ok && d.status === 'success') {
-                sessionStorage.removeItem('sp_pending');
                 showSpStatus('success', spT('modal.success'));
-                setTimeout(() => { closePaymentModal(); window.location.reload(); }, 3000);
+                setTimeout(() => { closeSpOverlay(); window.location.reload(); }, 2000);
             } else {
-                showSpStatus('error',
-                    spT('modal.verify_fail') + (d.error || 'Please contact support.'));
+                showSpStatus('error', spT('modal.verify_fail') + (d.error||'Error'));
             }
         } catch(e) {
             showSpStatus('error', spT('modal.net_error'));
         }
     }
 
-    // ── Load SpaceRemit SDK ─────────────────────────────────────────────────
-    function loadSpaceRemitSDK(onLoaded) {
-        const old = document.getElementById('sp-sdk-script');
-        if (old) old.remove();
-        document.getElementById('spaceremit-local-methods-pay').innerHTML = '';
-
-        const s   = document.createElement('script');
-        s.id      = 'sp-sdk-script';
-        s.src     = 'https://spaceremit.com/api/v2/js_script/spaceremit.js';
-        s.async   = true;
-        s.onload  = onLoaded || function(){};
-        s.onerror = () => {
-            closePaymentModal();
-            alert(getActiveLang()==='ar'
-                ? 'فشل تحميل بوابة الدفع. تحقق من اتصالك.'
-                : 'Failed to load payment gateway. Check your connection.');
-        };
-        document.body.appendChild(s);
-    }
-
-    // ── Set SpaceRemit globals + callbacks ─────────────────────────────────
-    function initSpaceRemitGlobals(publicKey) {
+    function setSpGlobals(publicKey) {
         window.SP_PUBLIC_KEY                     = publicKey;
         window.SP_FORM_ID                        = '#spaceremit-form';
         window.SP_SELECT_RADIO_NAME              = 'sp-pay-type-radio';
@@ -743,33 +766,54 @@
         window.LOCAL_METHODS_PARENT_ID           = '#spaceremit-local-methods-pay';
         window.CARD_BOX_STATUS                   = false;
         window.CARD_BOX_PARENT_ID                = '#spaceremit-card-pay';
-        // MUST be true so SDK auto-submits when code is ready
         window.SP_FORM_AUTO_SUBMIT_WHEN_GET_CODE = true;
 
         window.SP_SUCCESSFUL_PAYMENT = async function(code) {
             await handlePaymentCode(code);
         };
+
         window.SP_FAILD_PAYMENT = function() {
             showSpStatus('error', spT('modal.failed'));
         };
+
         window.SP_RECIVED_MESSAGE = function(msg) {
-            console.log('[SpaceRemit]', msg);
-        };
-        // ✅ KEY FIX: full page redirect to SpaceRemit auth
-        //    Save checkout state first so we restore it after returning
-        window.SP_NEED_AUTH = function(authLink) {
-            const pending = sessionStorage.getItem('sp_pending');
-            if (pending) {
-                // Already saved — just redirect
-                window.location.href = authLink;
-            } else {
-                console.warn('[SpaceRemit] SP_NEED_AUTH called but no pending state');
-                window.location.href = authLink;
-            }
+            console.log('[SpaceRemit Signal]', msg);
         };
     }
 
-    // ── Main checkout entry ─────────────────────────────────────────────────
+    function loadSpaceRemitSDK(publicKey) {
+        const old = document.getElementById('sp-sdk-script');
+        if (old) old.remove();
+        document.getElementById('spaceremit-local-methods-pay').innerHTML = '';
+
+        setSpGlobals(publicKey);
+
+        const loading = document.getElementById('sp-loading');
+        loading.style.display = 'flex';
+        loading.classList.remove('hidden');
+
+        const s  = document.createElement('script');
+        s.id     = 'sp-sdk-script';
+        s.src    = 'https://spaceremit.com/api/v2/js_script/spaceremit.js';
+        s.async  = false;
+        s.onload = function() {
+            loading.style.display = 'none';
+            loading.classList.add('hidden');
+        };
+        s.onerror = function() {
+            closeSpOverlay();
+            alert(getActiveLang()==='ar' ? 'فشل تحميل بوابة الدفع. تحقق من اتصالك.' : 'Failed to load payment gateway.');
+        };
+        document.body.appendChild(s);
+    }
+
+    function fillForm(amount, email, fullname, notes) {
+        document.getElementById('sp-amount').value   = amount;
+        document.getElementById('sp-email').value    = email;
+        document.getElementById('sp-fullname').value = fullname;
+        document.getElementById('sp-notes').value    = notes;
+    }
+
     async function initiateCheckout(planKey, period) {
         const planData = pricingData[planKey]?.[period];
         if (!planData) return;
@@ -781,135 +825,65 @@
         const planLabel = planNameMap[planKey] || planKey;
         const lang      = getActiveLang();
 
-        // Show modal + spinner
-        document.getElementById('modal-plan-title').textContent    = spT('modal.title');
-        document.getElementById('modal-plan-subtitle').textContent =
-            `${planLabel} · $${planData.price} ${spT('modal.per')} ${periodLabel(period)}`;
-        document.getElementById('sp-loading-text').textContent     = spT('modal.loading');
-        document.getElementById('sp-footer-text').textContent      = spT('modal.footer');
-        document.getElementById('sp-loading').classList.remove('hidden');
-        document.getElementById('spaceremit-form').classList.add('opacity-0','pointer-events-none');
+        document.getElementById('sp-plan-title').textContent  = spT('modal.title');
+        document.getElementById('sp-plan-sub').textContent    = `${planLabel} · $${planData.price} ${spT('modal.per')} ${periodLabel(period)}`;
+        document.getElementById('sp-loading-text').textContent = spT('modal.loading');
+
         document.getElementById('sp-status-msg').classList.add('hidden');
-        openPaymentModal();
+
+        openSpOverlay();
 
         try {
             const res = await fetch('/api/payments/checkout-data', {
-                method:'POST',
-                headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({plan_name:planLabel, period, amount:planData.price})
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plan_name: planLabel, period, amount: planData.price })
             });
             if (res.status === 401) {
-                closePaymentModal();
+                closeSpOverlay();
                 window.location.href = `/${lang}/login?redirect=/pricing`;
                 return;
             }
             const data = await res.json();
-            if (!res.ok) { closePaymentModal(); alert('Error: '+(data.error||'Unknown')); return; }
-
-            // Fill form fields
-            document.getElementById('sp-amount').value   = planData.price;
-            document.getElementById('sp-email').value    = data.email;
-            document.getElementById('sp-fullname').value = (data.email||'').split('@')[0];
-            document.getElementById('sp-notes').value    =
-                `plan:${planKey}|period:${period}|user:${data.email}`;
+            if (!res.ok) { closeSpOverlay(); alert('Error: '+(data.error||'Unknown')); return; }
 
             _currentPlanKey = planKey;
             _currentPeriod  = period;
 
-            // Save checkout state — survives the SP_NEED_AUTH redirect
-            sessionStorage.setItem('sp_pending', JSON.stringify({
-                planKey, period, planLabel,
-                price:     planData.price,
-                email:     data.email,
-                publicKey: data.public_key
-            }));
+            const safeEmail = data.email || "guest@orgteh.com";
+            const safeName  = safeEmail.split('@')[0] || "User";
 
-            initSpaceRemitGlobals(data.public_key);
+            fillForm(
+                planData.price,
+                safeEmail,
+                safeName,
+                `plan:${planKey}|period:${period}|user:${safeEmail}`
+            );
 
-            loadSpaceRemitSDK(() => {
-                document.getElementById('sp-loading').classList.add('hidden');
-                document.getElementById('spaceremit-form')
-                    .classList.remove('opacity-0','pointer-events-none');
-            });
+            if(!data.public_key) {
+                showSpStatus('error', 'Configuration Error: Missing Public Key on Server');
+                document.getElementById('sp-loading').style.display = 'none';
+                return;
+            }
+
+            loadSpaceRemitSDK(data.public_key);
 
         } catch(err) {
-            console.error('[Checkout Error]', err);
-            closePaymentModal();
+            console.error('[Checkout]', err);
+            closeSpOverlay();
         }
     }
 
-    // ── RESTORE after SP_NEED_AUTH redirect ────────────────────────────────
-    // When SpaceRemit redirects the user back to our page after auth,
-    // we detect the saved state and re-open the payment modal automatically.
-    window.addEventListener('DOMContentLoaded', function restorePending() {
-        const raw = sessionStorage.getItem('sp_pending');
-        if (!raw) return;
-
-        let state;
-        try { state = JSON.parse(raw); } catch(e) { sessionStorage.removeItem('sp_pending'); return; }
-
-        // Small delay so the page finishes rendering
-        setTimeout(async () => {
-            const { planKey, period, planLabel, price, email, publicKey } = state;
-            const lang = getActiveLang();
-
-            // Re-open modal
-            document.getElementById('modal-plan-title').textContent    = spT('modal.title');
-            document.getElementById('modal-plan-subtitle').textContent =
-                `${planLabel} · $${price} ${spT('modal.per')} ${periodLabel(period)}`;
-            document.getElementById('sp-loading-text').textContent     = spT('modal.loading');
-            document.getElementById('sp-footer-text').textContent      = spT('modal.footer');
-            document.getElementById('sp-loading').classList.remove('hidden');
-            document.getElementById('spaceremit-form').classList.add('opacity-0','pointer-events-none');
-            document.getElementById('sp-status-msg').classList.add('hidden');
-            openPaymentModal();
-
-            // Restore form fields
-            document.getElementById('sp-amount').value   = price;
-            document.getElementById('sp-email').value    = email;
-            document.getElementById('sp-fullname').value = (email||'').split('@')[0];
-            document.getElementById('sp-notes').value    =
-                `plan:${planKey}|period:${period}|user:${email}`;
-
-            _currentPlanKey = planKey;
-            _currentPeriod  = period;
-
-            initSpaceRemitGlobals(publicKey);
-
-            loadSpaceRemitSDK(() => {
-                document.getElementById('sp-loading').classList.add('hidden');
-                document.getElementById('spaceremit-form')
-                    .classList.remove('opacity-0','pointer-events-none');
-                // Show a hint that auth is done
-                showSpStatus('processing',
-                    lang === 'ar'
-                        ? '<i class="fa-solid fa-circle-check mr-2 text-green-500"></i>تم تسجيل الدخول. اختر طريقة الدفع.'
-                        : '<i class="fa-solid fa-circle-check mr-2 text-green-500"></i>Signed in. Please select your payment method.');
-            });
-        }, 600);
-    });
-
-    // --- 3. CORE FUNCTIONS ---
-
-    function getActiveLang() {
-        return document.documentElement.getAttribute('lang') || window.SERVER_LANG || 'ar';
-    }
+    function getActiveLang() { return document.documentElement.getAttribute('lang') || window.SERVER_LANG || 'ar'; }
 
     function applyLocalTranslations() {
         const lang = getActiveLang();
         const t = pageTranslations[lang];
-
         if (!t) return;
-
-        // Apply string translations
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
-            if (t[key]) {
-                 el.innerHTML = t[key];
-            }
+            if (t[key]) el.innerHTML = t[key];
         });
-
-        // Sync period labels after translation
         document.querySelectorAll('[id^=period-]').forEach(group => {
             const activeBtn = Array.from(group.querySelectorAll('button')).find(btn => !btn.classList.contains('text-gray-500'));
             if(activeBtn) {
@@ -923,7 +897,6 @@
     function setPeriod(plan, period) {
         const container = document.getElementById(`period-${plan}`);
         if(!container) return;
-
         const buttons = container.querySelectorAll('button');
         buttons.forEach(btn => {
             if (btn.dataset.period === period) {
@@ -934,15 +907,11 @@
                 btn.classList.add('text-gray-500');
             }
         });
-
         const data = pricingData[plan][period];
-
         const priceEl = document.getElementById(`price-${plan}`);
         if(priceEl) priceEl.textContent = `$${data.price}`;
-
         const bonusEl = document.getElementById(`bonus-${plan}`);
         if(bonusEl) bonusEl.textContent = `+${data.bonus}`;
-
         updatePriceLabels(plan, period);
     }
 
@@ -964,45 +933,25 @@
         const globalSection = document.getElementById('section-global');
 
         if (tab === 'individual') {
-            individualTab.classList.add('tab-active');
-            individualTab.classList.remove('tab-inactive');
-            globalTab.classList.remove('tab-active');
-            globalTab.classList.add('tab-inactive');
-            individualSection.classList.remove('hidden');
-            globalSection.classList.add('hidden');
+            individualTab.classList.add('tab-active'); individualTab.classList.remove('tab-inactive');
+            globalTab.classList.remove('tab-active'); globalTab.classList.add('tab-inactive');
+            individualSection.classList.remove('hidden'); globalSection.classList.add('hidden');
         } else {
-            globalTab.classList.add('tab-active');
-            globalTab.classList.remove('tab-inactive');
-            individualTab.classList.remove('tab-active');
-            individualTab.classList.add('tab-inactive');
-            globalSection.classList.remove('hidden');
-            individualSection.classList.add('hidden');
+            globalTab.classList.add('tab-active'); globalTab.classList.remove('tab-inactive');
+            individualTab.classList.remove('tab-active'); individualTab.classList.add('tab-inactive');
+            globalSection.classList.remove('hidden'); individualSection.classList.add('hidden');
         }
     }
 
-    // --- 4. INITIALIZATION & SYNC ---
     window.addEventListener('DOMContentLoaded', () => {
-       // Inject into base.html global translation system safely
        if (window.translations) {
            Object.assign(window.translations.en, pageTranslations.en);
            Object.assign(window.translations.ar, pageTranslations.ar);
        }
-
        applyLocalTranslations();
-
-       setPeriod('deepseek', 'monthly');
-       setPeriod('kimi', 'monthly');
-       setPeriod('mistral', 'monthly');
-       setPeriod('gemma', 'monthly');
-       setPeriod('llama', 'monthly');
-       setPeriod('agents', 'monthly');
-       setPeriod('global', 'monthly');
+       ['deepseek','kimi','mistral','gemma','llama','agents','global'].forEach(p => setPeriod(p, 'monthly'));
     });
 
-    // Sync when language is changed globally from base.html
-    window.addEventListener('langChange', () => {
-        applyLocalTranslations();
-    });
-
+    window.addEventListener('langChange', () => { applyLocalTranslations(); });
 </script>
 {% endblock %}

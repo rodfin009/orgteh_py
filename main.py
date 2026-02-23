@@ -23,7 +23,7 @@ from services.auth import (
     get_current_user_email, get_auth_context
 )
 from database import (
-    get_user_by_email, get_user_by_api_key, get_global_stats
+    get_user_by_email, get_user_by_api_key, get_global_stats, add_user_subscription
 )
 from services.subscriptions import get_user_subscription_status
 from services.limits import get_user_limits_and_usage, check_trial_allowance
@@ -251,17 +251,33 @@ async def profile_page(request: Request, lang: str):
         return RedirectResponse(f"/{lang}/login")
 
     try:
+        user = get_user_by_email(email)
         sub_status = get_user_subscription_status(email)
         limits, usage = get_user_limits_and_usage(email)
         context = get_template_context(request, lang)
+
+        # دمج الباقات التراكمية لوحة التحكم
+        active_plans = user.get("active_plans", [])
+        now = datetime.utcnow()
+        valid_plans = []
+        for p in active_plans:
+            try:
+                if datetime.fromisoformat(p["expires"]) > now:
+                    valid_plans.append(p)
+            except:
+                pass
+
+        plan_names = [p["name"] for p in valid_plans]
+        display_plan_name = " + ".join(plan_names) if plan_names else "Free Tier"
 
         def calc_pct(used, limit): 
             return min(100, (used/limit)*100) if limit > 0 else 0
 
         context.update({
             "api_key": context.get("user_api_key", ""),
-            "plan_name": sub_status.get("plan_name", "Free") if sub_status else "Free",
-            "is_active_sub": sub_status.get("is_active", False) if sub_status else False,
+            "plan_name": display_plan_name,
+            "active_plans": valid_plans,
+            "is_active_sub": len(valid_plans) > 0,
             "is_perpetual": sub_status.get("is_perpetual", False) if sub_status else False,
             "days_left": sub_status.get("days_left", 0) if sub_status else 0,
             "usage": usage if usage else {},
@@ -931,9 +947,8 @@ async def api_verify_and_activate(request: Request, data: VerifyPaymentRequest):
           f"TxID={payment_info.get('id')} Status={payment_info.get('status_tag')} "
           f"Amount={payment_info.get('original_amount')} {payment_info.get('currency')}")
 
-    # Activate subscription in DB
-    from services.subscriptions import perform_upgrade
-    success = perform_upgrade(email, plan_name, data.period)
+    # تفعيل الاشتراك بشكل تراكمي
+    success = add_user_subscription(email, data.plan_key, plan_name, data.period)
 
     if success:
         return JSONResponse({"status": "success", "message": f"Subscription '{plan_name}' activated successfully."})
@@ -981,8 +996,8 @@ async def spaceremit_webhook(request: Request):
         }
         plan_name = plan_name_map.get(plan_key, "Free Tier")
 
-        from services.subscriptions import perform_upgrade
-        success = perform_upgrade(email, plan_name, period)
+        # تفعيل الاشتراك عبر الويبهوك بالتراكم
+        success = add_user_subscription(email, plan_key, plan_name, period)
 
         if success:
             print(f"[Webhook] Activated {plan_name}/{period} for {email}")

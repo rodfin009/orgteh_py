@@ -3,22 +3,11 @@ from datetime import datetime
 from database import get_user_by_email, update_user_usage_struct
 from services.providers import MODEL_MAPPING
 
-# --- 1. DEFINING THE TRUTH (تكوين الخطط) ---
-
 PLAN_CONFIGS = {
-    # --- Free Tier ---
     "free_tier": {
-        "daily_limits": {
-            "llama": 10, 
-            "kimi": 5, 
-            "deepseek": 0, 
-            "mistral": 0, 
-            "gemma": 0
-        },
+        "daily_limits": {"llama": 10, "kimi": 5, "deepseek": 0, "mistral": 0, "gemma": 0},
         "overdraft": {"forever": 0} 
     },
-
-    # --- Bundles ---
     "chat_agents": {
         "daily_limits": {"gemma": 270, "llama": 200, "kimi": 30, "deepseek": 0, "mistral": 0},
         "overdraft": {"monthly": 750, "yearly": 2000}
@@ -27,8 +16,6 @@ PLAN_CONFIGS = {
         "daily_limits": {"deepseek": 150, "kimi": 100, "mistral": 50, "llama": 0, "gemma": 0},
         "overdraft": {"monthly": 200, "yearly": 500}
     },
-
-    # --- Individual Plans ---
     "deepseek": {
         "daily_limits": {"deepseek": 300, "kimi": 0, "mistral": 0, "llama": 0, "gemma": 0},
         "overdraft": {"monthly": 600, "yearly": 1500}
@@ -62,48 +49,51 @@ PLAN_NAME_MAP = {
     "Llama 3.2": "llama"
 }
 
-# --- 2. HELPER FUNCTIONS ---
-
-def get_config_for_user(user):
-    plan_name = user.get("plan", "Free Tier")
-    config_key = PLAN_NAME_MAP.get(plan_name, "free_tier")
-    return PLAN_CONFIGS.get(config_key, PLAN_CONFIGS["free_tier"])
-
 def get_user_limits_and_usage(email):
-    """
-    تقوم بجلب الحدود والاستهلاك، وتتأكد من تصفير العدادات إذا بدأ يوم جديد.
-    """
     user = get_user_by_email(email)
     if not user: return {}, {}
 
-    config = get_config_for_user(user)
+    active_plans = user.get("active_plans", [])
+    now = datetime.utcnow()
+    valid_plans = []
 
-    # 1. Base limits from the Plan
-    final_limits = config["daily_limits"].copy()
+    # فلترة الباقات النشطة (غير المنتهية الصلاحية)
+    for p in active_plans:
+        try:
+            exp_date = datetime.fromisoformat(p["expires"])
+            if exp_date > now:
+                valid_plans.append(p)
+        except: pass
 
-    # 2. Add extra credit (Unified Extra) from DB
-    db_limits = user.get("limits", {})
-    final_limits["unified_extra"] = db_limits.get("unified_extra", 0)
+    # وضع الأساس (الخطة المجانية)
+    final_limits = PLAN_CONFIGS["free_tier"]["daily_limits"].copy()
+    final_limits["unified_extra"] = 0
 
-    # 3. Check for specific model overrides in DB
-    for model in ["deepseek", "kimi", "mistral", "llama", "gemma"]:
-        if model in db_limits and db_limits[model] > 0:
-            final_limits[model] = db_limits[model]
+    if not valid_plans:
+        # إذا لم توجد خطط فعالة، نطبق حدود الداتابيز القديمة إن وجدت احتياطاً
+        db_limits = user.get("limits", {})
+        if db_limits:
+            for k, v in db_limits.items():
+                if k in final_limits or k == "unified_extra":
+                    final_limits[k] = max(final_limits.get(k, 0), v)
+    else:
+        # تراكم الحدود (Sum) لجميع الباقات الفعالة معاً
+        for p in valid_plans:
+            p_limits = p.get("limits", {})
+            for k, v in p_limits.items():
+                if k in final_limits or k == "unified_extra":
+                    final_limits[k] += v
 
-    # 4. Handle Usage Structure & Date Reset
     usage = user.get("usage", {})
-    today_str = str(datetime.utcnow().date())
+    today_str = str(now.date())
 
     if usage.get("date") != today_str:
-        print(f"[DEBUG] New day detected for {email}, resetting daily counters")  # DEBUG
         preserved_extra_usage = usage.get("unified_extra", 0)
         usage = {
             "date": today_str,
             "deepseek": 0, "kimi": 0, "mistral": 0, "llama": 0, "gemma": 0,
-            "unified_extra": preserved_extra_usage, # الرصيد الإضافي تراكمي لا يصفر يومياً
-            # FIX: تصفير عداد التجربة اليومي لكل نموذج
-            "trial_counts": {},  # {"deepseek": 0, "kimi": 0, ...}
-            # FIX: تصفير العدادات اليومية بشكل صحيح
+            "unified_extra": preserved_extra_usage, 
+            "trial_counts": {}, 
             "total_requests": 0,
             "total_tokens": 0,
             "latency_sum": 0, 
@@ -115,36 +105,23 @@ def get_user_limits_and_usage(email):
     return final_limits, usage
 
 async def check_request_allowance(email, model_id):
-    """
-    القلب النابض للحدود.
-    Returns: (is_allowed: bool, is_priority: bool)
-
-    Logic:
-    1. If within Daily Limit -> Allowed + Priority (Fast Lane).
-    2. If within Extra Credit -> Allowed + No Priority (Slow Lane).
-    3. Else -> Not Allowed.
-    """
     user = get_user_by_email(email)
     if not user: return False, False
 
     internal_key = MODEL_MAPPING.get(model_id)
-    # إذا الموديل غير معروف، نسمح به مؤقتاً أو نرفضه (هنا نسمح به كـ Priority لتجنب التعطيل)
     if not internal_key: return True, True 
 
     limits, usage = get_user_limits_and_usage(email)
 
-    # --- A. Check Daily Limit (The "Priority" Lane) ---
     daily_limit = limits.get(internal_key, 0)
     daily_usage = usage.get(internal_key, 0)
 
     if daily_usage < daily_limit:
         usage[internal_key] += 1
-        # نقوم بتحديث الاستهلاك فوراً لمنع التلاعب (Check-and-Deduct)
         usage["total_requests"] = usage.get("total_requests", 0) + 1
         update_user_usage_struct(email, usage)
-        return True, True # (Allowed, Fast Lane)
+        return True, True 
 
-    # --- B. Check Extra Credit (The "Slow" Lane) ---
     extra_limit = limits.get("unified_extra", 0)
     extra_usage = usage.get("unified_extra", 0)
 
@@ -152,49 +129,28 @@ async def check_request_allowance(email, model_id):
         usage["unified_extra"] += 1
         usage["total_requests"] = usage.get("total_requests", 0) + 1
         update_user_usage_struct(email, usage)
-        return True, False # (Allowed, Slow Lane)
+        return True, False 
 
-    # --- C. Rejection ---
     return False, False
 
 async def check_trial_allowance(email, model_id):
-    """
-    تحقق خاص للتجربة الحية (Live Demo) في الموقع.
-    لا يخصم من الباقة، بحد أقصى 10 محاولات يومياً لكل نموذج.
-    """
     _, usage = get_user_limits_and_usage(email)
-
-    # Get model short key
     internal_key = MODEL_MAPPING.get(model_id, "unknown")
-
-    # Get trial counts object
     trial_counts = usage.get("trial_counts", {})
-
-    # Get count for this specific model
     model_trial_count = trial_counts.get(internal_key, 0)
 
-    print(f"[DEBUG] Trial count for {email} / {internal_key}: {model_trial_count}/10")  # DEBUG
-
     if model_trial_count < 10:
-        # Increment count for this model
         trial_counts[internal_key] = model_trial_count + 1
         usage["trial_counts"] = trial_counts
         update_user_usage_struct(email, usage)
-        print(f"[DEBUG] Trial allowed, new count: {model_trial_count + 1}")  # DEBUG
         return True
-
-    print(f"[DEBUG] Trial limit reached for {email} / {internal_key}")  # DEBUG
     return False
 
 def get_limits_for_new_subscription(plan_key, period="monthly"):
-    """
-    تستخدم عند إنشاء اشتراك جديد أو الترقية.
-    """
     config = PLAN_CONFIGS.get(plan_key)
-    if not config: return PLAN_CONFIGS["free_tier"]["daily_limits"], 0
+    if not config: return PLAN_CONFIGS["free_tier"]["daily_limits"].copy(), 0
 
     limits = config["daily_limits"].copy()
     overdraft = config["overdraft"].get(period, 0)
     limits["unified_extra"] = overdraft
-
     return limits
