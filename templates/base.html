@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- في قسم <head> -->
     <meta name="spaceremit-verification" content="LS27RIQEO4CH1GYCVWBCO0BPNUEQNQPYCFFQMUZSGAWBLGYTG6">
-     
+
     <title>Orgteh Infra</title>
 
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -169,6 +169,10 @@
                     {% if is_logged_in %}
                     <div class="flex items-center gap-4">
                         <span class="text-sm font-bold text-gray-500 hidden lg:inline">{{ user_email }}</span>
+                        <a href="javascript:void(0)" onclick="navigateWithLang('settings')" class="px-4 py-2 rounded-lg font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition flex items-center gap-2 text-sm" aria-label="الإعدادات">
+                            <i class="fa-solid fa-gear" aria-hidden="true"></i>
+                            <span class="hidden lg:inline" data-i18n="nav_settings">الإعدادات</span>
+                        </a>
                         <button onclick="confirmLogout()" class="px-5 py-2 rounded-lg font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition flex items-center gap-2" aria-label="تسجيل الخروج">
                             <i class="fa-solid fa-sign-out-alt" aria-hidden="true"></i>
                             <span>تسجيل الخروج</span>
@@ -218,6 +222,7 @@
 
             {% if is_logged_in %}
                 <a href="javascript:void(0)" onclick="navigateWithLang('profile'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-gauge w-6" aria-hidden="true"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span></a>
+                <a href="javascript:void(0)" onclick="navigateWithLang('settings')" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-gear w-6" aria-hidden="true"></i> <span data-i18n="nav_settings">الإعدادات</span></a>
                 <button onclick="confirmLogout(); toggleSidebar();" class="w-full text-red-500 font-bold flex items-center gap-3 mt-2 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition" aria-label="تسجيل الخروج">
                     <i class="fa-solid fa-sign-out-alt w-6" aria-hidden="true"></i> <span data-i18n="sidebar_logout">تسجيل الخروج</span>
                 </button>

@@ -236,6 +236,13 @@ async def handle_github_login(request: Request):
         request.session["oauth_state"] = state_token
         request.session["oauth_return_url"] = return_url
 
+        # ── حفظ إيميل المستخدم الحالي قبل التوجيه ─────────────────────────────
+        # هذا يضمن أننا نتذكر من يريد "ربط" حسابه حتى لو ضاعت بقية الـ session
+        # أثناء إعادة التوجيه الخارجية إلى GitHub
+        current_email = request.session.get("user_email")
+        if current_email:
+            request.session["oauth_linking_email"] = current_email
+
         print(f"[GitHub OAuth] Generated state: {state_token}, return_url: {return_url}")
 
         auth_url = get_github_auth_url(state_token)
@@ -311,42 +318,88 @@ async def handle_github_callback(request: Request, code: str, state: str):
 
         print(f"[GitHub OAuth] User: {github_user.login}, Email: {github_user.email}")
 
-        # Determine email
-        email = github_user.email or f"{github_user.login}@github.user"
+        # ─── Get the page the user came from ────────────────────────────────
+        return_url = request.session.pop("oauth_return_url", None) or "/ar/settings"
 
-        # Check if user exists
-        existing_user = get_user_by_email_safe(email)
+        # ─── Case A: User is already logged in → just LINK GitHub, never change account ──
+        # نتحقق أولاً من الـ session الحالية، ثم من oauth_linking_email كبديل
+        # عند فقدان الـ session أثناء إعادة التوجيه (وهو سبب المشكلة الأساسية)
+        current_user_email = (
+            request.session.get("user_email")
+            or request.session.pop("oauth_linking_email", None)
+        )
+
+        if current_user_email:
+            print(f"[GitHub OAuth] Linking GitHub to existing account: {current_user_email}")
+
+            # ── التحقق: هل حساب GitHub هذا مرتبط مسبقاً بحساب آخر؟ ──────────
+            github_email = github_user.email or f"{github_user.login}@github.user"
+            conflicting_user = get_user_by_email_safe(github_email)
+
+            if conflicting_user and github_email != current_user_email:
+                # حساب GitHub مرتبط بإيميل آخر (example1) لكن نحاول ربطه بـ (example2)
+                # الحل: نربط الـ token بالحساب الحالي (example2) مباشرة
+                # دون تغيير الـ session أو تسجيل دخول example1
+                print(
+                    f"[GitHub OAuth] GitHub account (email={github_email}) already linked to "
+                    f"'{github_email}' – overriding link to '{current_user_email}' as requested"
+                )
+
+            # في جميع الأحوال: نربط الـ GitHub بالحساب الذي طلب الربط
+            request.session["user_email"] = current_user_email  # نضمن بقاء الـ session صحيحة
+            store_github_token(request, token_data)
+            store_github_info_safe(
+                current_user_email,
+                github_user.login,
+                github_user.avatar_url,
+                access_token
+            )
+
+            # نمسح oauth_linking_email إذا كانت لا تزال موجودة
+            request.session.pop("oauth_linking_email", None)
+
+            sep = "&" if "?" in return_url else "?"
+            return RedirectResponse(f"{return_url}{sep}github_connected=true")
+
+        # ─── Case B: Not logged in + لا يوجد oauth_linking_email
+        # → هذا تسجيل دخول / إنشاء حساب جديد عبر GitHub ────────────────────
+        # نمسح oauth_linking_email لأنها لم تُستخدم
+        request.session.pop("oauth_linking_email", None)
+
+        github_email = github_user.email or f"{github_user.login}@github.user"
+        existing_user = get_user_by_email_safe(github_email)
 
         if existing_user:
-            print(f"[GitHub OAuth] Existing user found: {email}")
-            request.session["user_email"] = email
+            print(f"[GitHub OAuth] Sign-in via GitHub for existing user: {github_email}")
+            request.session["user_email"] = github_email
             store_github_token(request, token_data)
-            store_github_info_safe(email, github_user.login, github_user.avatar_url, access_token)
-            return RedirectResponse("/dashboard?github_connected=true")
+            store_github_info_safe(github_email, github_user.login, github_user.avatar_url, access_token)
+            sep = "&" if "?" in return_url else "?"
+            return RedirectResponse(f"{return_url}{sep}github_connected=true")
         else:
-            print(f"[GitHub OAuth] Creating new user: {email}")
-            # Create new user
+            print(f"[GitHub OAuth] Creating new user via GitHub: {github_email}")
             new_key = generate_nexus_key()
             temp_password = secrets.token_urlsafe(16)
             hashed = bcrypt.hashpw(
-                temp_password.encode('utf-8'), 
+                temp_password.encode('utf-8'),
                 bcrypt.gensalt(rounds=12)
             ).decode('utf-8')
 
-            user_created = create_user_record_safe(email, hashed, new_key)
+            user_created = create_user_record_safe(github_email, hashed, new_key)
 
             if user_created:
-                request.session["user_email"] = email
+                request.session["user_email"] = github_email
                 store_github_token(request, token_data)
-                store_github_info_safe(email, github_user.login, github_user.avatar_url, access_token)
+                store_github_info_safe(github_email, github_user.login, github_user.avatar_url, access_token)
                 print("[GitHub OAuth] New user created successfully")
-                return RedirectResponse("/dashboard?github_connected=true&new_user=true")
+                sep = "&" if "?" in return_url else "?"
+                return RedirectResponse(f"{return_url}{sep}github_connected=true&new_user=true")
             else:
                 print("[GitHub OAuth] ERROR: Failed to create user")
-                # Still try to log them in anyway for demo purposes
-                request.session["user_email"] = email
+                request.session["user_email"] = github_email
                 store_github_token(request, token_data)
-                return RedirectResponse("/dashboard?github_connected=true&demo=true")
+                sep = "&" if "?" in return_url else "?"
+                return RedirectResponse(f"{return_url}{sep}github_connected=true&demo=true")
 
     except Exception as e:
         print(f"[GitHub OAuth] CRITICAL ERROR in callback: {str(e)}")

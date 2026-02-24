@@ -3,10 +3,11 @@ import json
 import sys
 import gzip
 import brotli
+import traceback
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
-from fastapi import FastAPI, Request, UploadFile, File, Form
+from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -103,13 +104,10 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 app.include_router(customer_service_router)
 
 # ============================================================================
-# HEALTH CHECK & WARM-UP (لمنع Cold Starts في Replit/Vercel)
+# HEALTH CHECK & WARM-UP
 # ============================================================================
 @app.get("/api/health")
 async def health_check():
-    """
-    Ping this endpoint every 5 minutes to keep the instance warm
-    """
     return JSONResponse({
         "status": "healthy", 
         "timestamp": datetime.utcnow().isoformat(),
@@ -119,11 +117,10 @@ async def health_check():
 
 @app.get("/api/ready")
 async def readiness_check():
-    """For deployment health checks"""
     return {"ready": True}
 
 # ============================================================================
-# Static Files Debug (للتأكد من وجود الملفات)
+# Static Files Debug
 # ============================================================================
 @app.get("/debug/static-files")
 async def check_static_files():
@@ -152,7 +149,7 @@ async def check_static_files():
     }
 
 # ============================================================================
-# Template Context Helper (مُحدَّث لاستخدام الصور المحلية)
+# Template Context Helper
 # ============================================================================
 def get_template_context(request: Request, lang: str = "en"):
     try:
@@ -163,6 +160,8 @@ def get_template_context(request: Request, lang: str = "en"):
             "user_email": "",
             "user_api_key": ""
         }
+
+    context["request"] = request
 
     if lang not in ["ar", "en"]:
         lang = "en"
@@ -256,7 +255,6 @@ async def profile_page(request: Request, lang: str):
         limits, usage = get_user_limits_and_usage(email)
         context = get_template_context(request, lang)
 
-        # دمج الباقات التراكمية لوحة التحكم
         active_plans = user.get("active_plans", [])
         now = datetime.utcnow()
         valid_plans = []
@@ -292,6 +290,189 @@ async def profile_page(request: Request, lang: str):
         return templates.TemplateResponse("insights.html", context)
     except Exception as e:
         return RedirectResponse(f"/{lang}/login")
+
+# ============================================================================
+# SETTINGS PAGES (تم فصلها لصفحات مستقلة)
+# ============================================================================
+
+from github_integration import (
+    handle_github_login, handle_github_callback, handle_github_logout,
+    DeployRequest, is_github_connected, get_github_token, one_click_deploy,
+    get_github_context
+)
+
+@app.get("/settings", response_class=HTMLResponse)
+async def settings_redirect():
+    return RedirectResponse("/ar/settings/account")
+
+@app.get("/{lang}/settings", response_class=HTMLResponse)
+async def settings_lang_redirect(request: Request, lang: str):
+    """توجيه ذكي يعتمد على مسار العودة الخاص بـ GitHub"""
+    qs = request.url.query
+    if "github_connected" in qs:
+        url = f"/{lang}/settings/integrations"
+    else:
+        url = f"/{lang}/settings/account"
+    if qs: 
+        url += f"?{qs}"
+    return RedirectResponse(url)
+
+@app.get("/{lang}/settings/{tab}", response_class=HTMLResponse)
+async def settings_page_tab(request: Request, lang: str, tab: str):
+    """Settings pages mapped by tab"""
+    valid_tabs = ["account", "integrations", "notifications", "billing", "security"]
+    if tab not in valid_tabs:
+        return RedirectResponse(f"/{lang}/settings/account")
+
+    email = get_current_user_email(request)
+    if not email:
+        return RedirectResponse(f"/{lang}/login?next=/{lang}/settings/{tab}")
+
+    try:
+        user = get_user_by_email(email)
+        if not user or not isinstance(user, dict):
+            request.session.clear()
+            return RedirectResponse(f"/{lang}/login")
+
+        try:
+            sub_status = get_user_subscription_status(email)
+        except Exception:
+            sub_status = {}
+
+        active_plans = user.get("active_plans", []) if user else []
+        now = datetime.utcnow()
+        valid_plans = []
+        if isinstance(active_plans, list):
+            for p in active_plans:
+                try:
+                    if isinstance(p, dict) and "expires" in p:
+                        if datetime.fromisoformat(p["expires"]) > now:
+                            valid_plans.append(p)
+                except Exception:
+                    pass
+
+        plan_names = [p.get("name", "Unknown Plan") for p in valid_plans if isinstance(p, dict)]
+        display_plan = " + ".join(plan_names) if plan_names else "Free Tier"
+        days_left = sub_status.get("days_left", 0) if isinstance(sub_status, dict) else 0
+
+        context = get_template_context(request, lang)
+
+        context.update({
+            "active_tab": tab,
+            "plan_name": display_plan,
+            "active_plans": valid_plans,
+            "is_active_sub": bool(valid_plans),
+            "days_left": days_left,
+            "profile_first_name": user.get("first_name", ""),
+            "profile_last_name": user.get("last_name", ""),
+        })
+
+        # دمج سياق GitHub إذا كان التاب مخصص للتكاملات لتسريع الصفحة
+        if tab == "integrations":
+            context.update(get_github_context(request))
+            context["github_just_connected"] = request.query_params.get("github_connected") == "true"
+
+        return templates.TemplateResponse("settings.html", context)
+
+    except Exception as e:
+        print(f"=== [Settings Page Error] ===\n{e}")
+        traceback.print_exc()
+        fallback_context = {
+            "request": request, "lang": lang, "active_tab": tab,
+            "user_email": email, "is_logged_in": True,
+            "plan_name": "Error", "active_plans": [],
+            "profile_first_name": "", "profile_last_name": ""
+        }
+        return templates.TemplateResponse("settings.html", fallback_context)
+
+# ─── Settings API Endpoints ──────────────────────────────────────────────────
+
+class ProfileUpdateRequest(BaseModel):
+    first_name: str = ""
+    last_name: str = ""
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+class DeleteAccountRequest(BaseModel):
+    email: str
+
+@app.post("/api/settings/profile")
+async def update_profile(request: Request, data: ProfileUpdateRequest):
+    email = get_current_user_email(request)
+    if not email:
+        raise HTTPException(status_code=401, detail="غير مسجل الدخول")
+    try:
+        from database import redis as _redis
+        if _redis:
+            _redis.hset(f"user:{email}", mapping={
+                "first_name": data.first_name,
+                "last_name": data.last_name
+            })
+        return {"message": "تم حفظ الاسم بنجاح"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/settings/change-password")
+async def change_password_endpoint(request: Request, data: ChangePasswordRequest):
+    import bcrypt as _bcrypt
+    email = get_current_user_email(request)
+    if not email:
+        raise HTTPException(status_code=401, detail="غير مسجل الدخول")
+
+    user = get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+
+    try:
+        valid = _bcrypt.checkpw(
+            data.current_password.encode('utf-8'),
+            user['password'].encode('utf-8')
+        )
+    except Exception:
+        valid = False
+
+    if not valid:
+        raise HTTPException(status_code=400, detail="كلمة المرور الحالية غير صحيحة")
+
+    if len(data.new_password) < 8 or not any(c.isupper() for c in data.new_password) or not any(c.isdigit() for c in data.new_password):
+        raise HTTPException(status_code=400, detail="كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل وتحتوي على حرف كبير ورقم")
+
+    hashed = _bcrypt.hashpw(data.new_password.encode('utf-8'), _bcrypt.gensalt(12)).decode('utf-8')
+
+    try:
+        from database import redis as _redis
+        if _redis:
+            _redis.hset(f"user:{email}", "password", hashed)
+        return {"message": "تم تغيير كلمة المرور بنجاح"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/settings/delete-account")
+async def delete_account_endpoint(request: Request, data: DeleteAccountRequest):
+    email = get_current_user_email(request)
+    if not email:
+        raise HTTPException(status_code=401, detail="غير مسجل الدخول")
+    if email != data.email:
+        raise HTTPException(status_code=400, detail="البريد الإلكتروني غير مطابق")
+
+    try:
+        from database import redis as _redis
+        if _redis:
+            _redis.delete(f"user:{email}")
+            _redis.delete(f"github:{email}")
+        request.session.clear()
+        return {"message": "تم حذف الحساب بنجاح"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/auth/logout-all")
+async def logout_all_devices(request: Request):
+    request.session.clear()
+    return {"message": "تم تسجيل الخروج من جميع الأجهزة"}
+
+# ─── End Settings ────────────────────────────────────────────────────────────
 
 @app.get("/accesory", response_class=HTMLResponse)
 async def accesory_redirect(): 
@@ -337,6 +518,7 @@ async def cart_page(request: Request, lang: str):
         return templates.TemplateResponse("pricing.html", context)
     except Exception as e:
         context = {
+            "request": request,
             "lang": lang,
             "is_logged_in": False,
             "user_email": "",
@@ -387,6 +569,7 @@ async def pricing(request: Request, lang: str):
         return templates.TemplateResponse("pricing.html", context)
     except Exception as e:
         context = {
+            "request": request,
             "lang": lang,
             "is_logged_in": False,
             "user_email": "",
@@ -438,11 +621,6 @@ async def get_model_description(model_key: str, lang: str = "en"):
             )
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
-
-from github_integration import (
-    handle_github_login, handle_github_callback, handle_github_logout,
-    DeployRequest, is_github_connected, get_github_token, one_click_deploy
-)
 
 @app.get("/auth/github/login")
 async def github_login(request: Request):
@@ -905,7 +1083,6 @@ async def api_checkout_data(request: Request, data: CheckoutRequest):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
-# ─── NEW: verify payment code and activate subscription ───────────────────────
 class VerifyPaymentRequest(BaseModel):
     payment_code: str
     plan_key: str
@@ -913,16 +1090,10 @@ class VerifyPaymentRequest(BaseModel):
 
 @app.post("/api/payments/verify-and-activate")
 async def api_verify_and_activate(request: Request, data: VerifyPaymentRequest):
-    """
-    Called by the frontend after SpaceRemit's SP_SUCCESSFUL_PAYMENT callback.
-    1. Verifies the payment_code with SpaceRemit server (private key auth).
-    2. On success (status_tag A or T), activates the subscription for the logged-in user.
-    """
     email = get_current_user_email(request)
     if not email:
         return JSONResponse({"error": "Unauthorized. Please login."}, status_code=401)
 
-    # Validate plan key
     plan_name_map = {
         'deepseek': 'DeepSeek V3', 'kimi': 'Kimi k2', 'mistral': 'Mistral Large',
         'gemma': 'Gemma 3', 'llama': 'Llama 3.2', 'agents': 'Chat Agents', 'global': 'Nexus Global'
@@ -934,7 +1105,6 @@ async def api_verify_and_activate(request: Request, data: VerifyPaymentRequest):
     if data.period not in ("monthly", "yearly"):
         return JSONResponse({"error": "Invalid period. Use 'monthly' or 'yearly'."}, status_code=400)
 
-    # Verify payment with SpaceRemit API
     payment_info = await verify_spaceremit_payment(data.payment_code)
     if not payment_info:
         return JSONResponse(
@@ -942,12 +1112,6 @@ async def api_verify_and_activate(request: Request, data: VerifyPaymentRequest):
             status_code=400
         )
 
-    # Log payment details for auditing
-    print(f"[Payment] User={email} Plan={plan_name} Period={data.period} "
-          f"TxID={payment_info.get('id')} Status={payment_info.get('status_tag')} "
-          f"Amount={payment_info.get('original_amount')} {payment_info.get('currency')}")
-
-    # تفعيل الاشتراك بشكل تراكمي
     success = add_user_subscription(email, data.plan_key, plan_name, data.period)
 
     if success:
@@ -960,11 +1124,6 @@ async def api_verify_and_activate(request: Request, data: VerifyPaymentRequest):
 
 @app.post("/api/webhooks/spaceremit")
 async def spaceremit_webhook(request: Request):
-    """
-    Legacy webhook endpoint kept for compatibility.
-    The primary flow now uses /api/payments/verify-and-activate (client-side initiated).
-    This endpoint can be used if SpaceRemit adds server-to-server webhook support in future.
-    """
     try:
         payload = await request.json()
         tx_code = payload.get("spaceremit_code") or payload.get("transaction_id") or payload.get("payment_id")
@@ -977,7 +1136,6 @@ async def spaceremit_webhook(request: Request):
         if not payment_info:
             return JSONResponse({"status": "Failed", "error": "Payment not verified"}, status_code=400)
 
-        # Extract plan, period, and email from the notes field we stored at checkout
         notes = payment_info.get("notes", "")
         plan_key, period, email = "", "", ""
 
@@ -987,7 +1145,6 @@ async def spaceremit_webhook(request: Request):
             if part.startswith("user:"):   email    = part.split(":", 1)[1].strip()
 
         if not email or not plan_key or not period:
-            print(f"[Webhook] Could not parse notes: '{notes}'")
             return JSONResponse({"error": "Missing plan/period/user in notes"}, status_code=400)
 
         plan_name_map = {
@@ -996,17 +1153,14 @@ async def spaceremit_webhook(request: Request):
         }
         plan_name = plan_name_map.get(plan_key, "Free Tier")
 
-        # تفعيل الاشتراك عبر الويبهوك بالتراكم
         success = add_user_subscription(email, plan_key, plan_name, period)
 
         if success:
-            print(f"[Webhook] Activated {plan_name}/{period} for {email}")
             return JSONResponse({"status": "Success", "message": "Plan activated"})
 
         return JSONResponse({"status": "Failed", "error": "Could not activate plan"}, status_code=400)
 
     except Exception as e:
-        print(f"[Webhook] Error: {e}")
         return JSONResponse({"error": "Webhook processing failed"}, status_code=500)
 
 if __name__ == "__main__":

@@ -1,0 +1,1020 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<script>
+const SETTINGS_TRANS = {
+    ar: {
+        pageTitle: "الإعدادات",
+        pageSubtitle: "إدارة حسابك وتفضيلاتك",
+        navAccount: "معلومات الحساب",
+        navIntegrations: "التكاملات",
+        navNotifications: "الإشعارات",
+        navBilling: "الفوترة",
+        navSecurity: "الخصوصية والأمان",
+        navDanger: "حذف الحساب",
+
+        secAccountTitle: "معلومات الحساب",
+        secAccountDesc: "اعرض وعدّل بيانات ملفك الشخصي",
+        fullNameTitle: "الاسم الكامل",
+        labelFirstName: "الاسم الأول",
+        phFirstName: "أدخل اسمك الأول",
+        labelLastName: "اسم العائلة",
+        phLastName: "أدخل اسم العائلة",
+        btnSaveName: "حفظ الاسم",
+        emailTitle: "البريد الإلكتروني",
+        labelCurrentEmail: "البريد الإلكتروني الحالي",
+        emailVerified: "موثّق",
+        emailNote: "لتغيير البريد الإلكتروني، يرجى التواصل مع الدعم الفني.",
+        pwdTitle: "تغيير كلمة المرور",
+        labelCurrentPwd: "كلمة المرور الحالية",
+        labelNewPwd: "كلمة المرور الجديدة",
+        phNewPwd: "8 أحرف على الأقل مع حرف كبير ورقم",
+        labelConfirmPwd: "تأكيد كلمة المرور الجديدة",
+        phConfirmPwd: "أعد إدخال كلمة المرور الجديدة",
+        btnUpdatePwd: "تحديث كلمة المرور",
+
+        secIntTitle: "التكاملات والربط",
+        secIntDesc: "اربط حسابك بالخدمات الخارجية لتوسيع نطاق العمل",
+        ghDesc: "نشر مشاريعك مباشرة من منشئ الكود الذكي إلى مستودعاتك في GitHub.",
+        ghConnected: "مرتبط",
+        ghDisconnect: "إلغاء الربط",
+        ghConnect: "ربط GitHub",
+        comingSoon: "قريباً",
+
+        secNotifTitle: "إعدادات الإشعارات",
+        secNotifDesc: "تحكم في كيفية وموعد تلقي الإشعارات",
+        notifEmailTitle: "إشعارات البريد الإلكتروني",
+        notifAccountTitle: "تنبيهات الأمان",
+        notifAccountDesc: "تلقي إشعار عند تسجيل الدخول من جهاز جديد أو تغيير كلمة المرور",
+        notifUsageTitle: "تحديثات المنتج",
+        notifUsageDesc: "إعلامك بالميزات الجديدة والتحسينات المهمة",
+        notifNewsTitle: "الفوترة والمدفوعات",
+        notifNewsDesc: "فواتير الاشتراك وإشعارات تجديد الخطة",
+        notifPromoTitle: "العروض والترقيات",
+        notifPromoDesc: "عروض حصرية وخصومات للمستخدمين المسجلين",
+        btnSaveNotif: "حفظ الإعدادات",
+
+        secBillTitle: "الفوترة والاشتراك",
+        secBillDesc: "إدارة خطتك الحالية وسجل المدفوعات",
+        currentPlan: "خطتك الحالية",
+        daysLeft: "يوم متبقٍ",
+        planFree: "النسخة المجانية",
+        planActive: "نشطة",
+        btnUpgrade: "ترقية الخطة",
+        invoicesTitle: "سجل الفواتير",
+        thDate: "التاريخ",
+        thPlan: "الخطة",
+        thAmount: "المبلغ",
+        thStatus: "الحالة",
+        noBills: "لا توجد فواتير مسجلة حتى الآن",
+        paidBadge: "مدفوع",
+
+        secSecTitle: "الخصوصية والأمان",
+        secSecDesc: "تحكم في حماية حسابك ومشاركة البيانات",
+        sessionsTitle: "الجلسات النشطة",
+        sessionsDesc: "يمكنك تسجيل الخروج من كافة الأجهزة الأخرى",
+        btnLogoutAll: "تسجيل الخروج من كل الأجهزة",
+        currentDevice: "الجهاز الحالي",
+        currentDeviceSub: "الجلسة نشطة الآن",
+        thisDevice: "هذا الجهاز",
+        twoFATitle: "المصادقة الثنائية (2FA)",
+        twoFADesc: "طبقة حماية إضافية لحسابك",
+        twoFANote: "سيتم إطلاق ميزة المصادقة الثنائية قريباً.",
+        privacyTitle: "مشاركة البيانات",
+        privacyProduct: "تحسين المنتج",
+        privacyProductDesc: "السماح باستخدام بيانات الاستخدام المجهولة لتحسين الخدمة",
+        privacyAnalytics: "تحليلات الأداء",
+        privacyAnalyticsDesc: "قياس أداء التطبيق وتشخيص الأخطاء التقنية",
+        btnSavePrivacy: "حفظ",
+
+        dangerWarning: "تنبيه هام",
+        dangerText: "هذا الإجراء سيقوم بحذف حسابك وبياناتك بشكل نهائي وغير قابل للاسترداد.",
+        btnDelete: "حذف الحساب نهائياً",
+        deleteConfirmLabel: "اكتب بريدك الإلكتروني للتأكيد:",
+        btnConfirmDelete: "تأكيد الحذف",
+        btnCancel: "إلغاء",
+        ghConnectedBanner: "تم ربط حساب GitHub بنجاح!"
+    },
+    en: {
+        pageTitle: "Settings",
+        pageSubtitle: "Manage your account and preferences",
+        navAccount: "Account Info",
+        navIntegrations: "Integrations",
+        navNotifications: "Notifications",
+        navBilling: "Billing",
+        navSecurity: "Privacy & Security",
+        navDanger: "Delete Account",
+
+        secAccountTitle: "Account Information",
+        secAccountDesc: "View and edit your profile details",
+        fullNameTitle: "Full Name",
+        labelFirstName: "First Name",
+        phFirstName: "Enter your first name",
+        labelLastName: "Last Name",
+        phLastName: "Enter your last name",
+        btnSaveName: "Save Name",
+        emailTitle: "Email Address",
+        labelCurrentEmail: "Current Email",
+        emailVerified: "Verified",
+        emailNote: "To change your email, please contact support.",
+        pwdTitle: "Change Password",
+        labelCurrentPwd: "Current Password",
+        labelNewPwd: "New Password",
+        phNewPwd: "At least 8 chars with an uppercase and a number",
+        labelConfirmPwd: "Confirm New Password",
+        phConfirmPwd: "Re-enter your new password",
+        btnUpdatePwd: "Update Password",
+
+        secIntTitle: "Integrations",
+        secIntDesc: "Connect external services to your account",
+        ghDesc: "Deploy projects directly from the AI Code Builder to GitHub.",
+        ghConnected: "Connected",
+        ghDisconnect: "Disconnect",
+        ghConnect: "Connect GitHub",
+        comingSoon: "Coming Soon",
+
+        secNotifTitle: "Notifications",
+        secNotifDesc: "Control how you receive notifications and updates",
+        notifEmailTitle: "Email Notifications",
+        notifAccountTitle: "Security Alerts",
+        notifAccountDesc: "Login alerts and password change notifications",
+        notifUsageTitle: "Product Updates",
+        notifUsageDesc: "Notify about new features and improvements",
+        notifNewsTitle: "Billing & Payments",
+        notifNewsDesc: "Subscription invoices and renewal alerts",
+        notifPromoTitle: "Offers & Promotions",
+        notifPromoDesc: "Exclusive deals and discounts on plans",
+        btnSaveNotif: "Save Settings",
+
+        secBillTitle: "Billing & Subscription",
+        secBillDesc: "Manage your current plan and payment history",
+        currentPlan: "Current Plan",
+        daysLeft: "days left",
+        planFree: "Free",
+        planActive: "Active",
+        btnUpgrade: "Upgrade Plan",
+        invoicesTitle: "Payment History",
+        thDate: "Date",
+        thPlan: "Plan",
+        thAmount: "Amount",
+        thStatus: "Status",
+        noBills: "No invoices registered yet",
+        paidBadge: "Paid",
+
+        secSecTitle: "Privacy & Security",
+        secSecDesc: "Manage your protection and data sharing",
+        sessionsTitle: "Active Sessions",
+        sessionsDesc: "Sign out of all other devices",
+        btnLogoutAll: "Sign Out All Devices",
+        currentDevice: "Current Device",
+        currentDeviceSub: "Active session now",
+        thisDevice: "This Device",
+        twoFATitle: "Two-Factor Authentication (2FA)",
+        twoFADesc: "An extra layer of security for your account",
+        twoFANote: "Two-factor authentication will be launched soon.",
+        privacyTitle: "Data Sharing",
+        privacyProduct: "Product Improvement",
+        privacyProductDesc: "Allow anonymous usage data to improve the service",
+        privacyAnalytics: "Performance Analytics",
+        privacyAnalyticsDesc: "Measure app performance and diagnose technical issues",
+        btnSavePrivacy: "Save",
+
+        dangerWarning: "Important Warning",
+        dangerText: "This action will permanently and irrecoverably delete your account and data.",
+        btnDelete: "Delete Account Permanently",
+        deleteConfirmLabel: "Type your email to confirm:",
+        btnConfirmDelete: "Confirm Deletion",
+        btnCancel: "Cancel",
+        ghConnectedBanner: "GitHub account connected successfully!"
+    }
+};
+
+function applySettingsTranslations() {
+    const lang = window.SERVER_LANG || document.documentElement.getAttribute('lang') || 'ar';
+    const t = SETTINGS_TRANS[lang] || SETTINGS_TRANS['ar'];
+
+    const map = {
+        'pageTitle': 'pageTitle', 'pageSubtitle': 'pageSubtitle',
+        'nav-account': 'navAccount', 'nav-integrations': 'navIntegrations',
+        'nav-notifications': 'navNotifications', 'nav-billing': 'navBilling',
+        'nav-security': 'navSecurity', 'nav-danger': 'navDanger',
+        'sec-account-title': 'secAccountTitle', 'sec-account-desc': 'secAccountDesc',
+        'full-name-title': 'fullNameTitle',
+        'label-first': 'labelFirstName', 'label-last': 'labelLastName',
+        'btn-save-name': 'btnSaveName',
+        'email-title': 'emailTitle', 'label-email': 'labelCurrentEmail',
+        'email-verified': 'emailVerified', 'email-note': 'emailNote',
+        'pwd-title': 'pwdTitle',
+        'label-cur-pwd': 'labelCurrentPwd', 'label-new-pwd': 'labelNewPwd',
+        'label-confirm-pwd': 'labelConfirmPwd', 'btn-update-pwd': 'btnUpdatePwd',
+        'sec-int-title': 'secIntTitle', 'sec-int-desc': 'secIntDesc',
+        'gh-desc': 'ghDesc', 'gh-disconnect': 'ghDisconnect', 'gh-connect': 'ghConnect',
+        'sec-notif-title': 'secNotifTitle', 'sec-notif-desc': 'secNotifDesc',
+        'notif-email-title': 'notifEmailTitle',
+        'notif-account-title': 'notifAccountTitle', 'notif-account-desc': 'notifAccountDesc',
+        'notif-usage-title': 'notifUsageTitle', 'notif-usage-desc': 'notifUsageDesc',
+        'notif-news-title': 'notifNewsTitle', 'notif-news-desc': 'notifNewsDesc',
+        'notif-promo-title': 'notifPromoTitle', 'notif-promo-desc': 'notifPromoDesc',
+        'btn-save-notif': 'btnSaveNotif',
+        'sec-bill-title': 'secBillTitle', 'sec-bill-desc': 'secBillDesc',
+        'label-current-plan': 'currentPlan', 'label-days-left': 'daysLeft',
+        'btn-upgrade': 'btnUpgrade', 'invoices-title': 'invoicesTitle',
+        'th-date': 'thDate', 'th-plan': 'thPlan', 'th-amount': 'thAmount', 'th-status': 'thStatus',
+        'no-bills': 'noBills',
+        'sec-sec-title': 'secSecTitle', 'sec-sec-desc': 'secSecDesc',
+        'sessions-title': 'sessionsTitle', 'sessions-desc': 'sessionsDesc',
+        'btn-logout-all': 'btnLogoutAll',
+        'current-device': 'currentDevice', 'current-device-sub': 'currentDeviceSub',
+        'this-device': 'thisDevice',
+        'twofa-title': 'twoFATitle', 'twofa-desc': 'twoFADesc', 'twofa-note': 'twoFANote',
+        'privacy-title': 'privacyTitle',
+        'privacy-product': 'privacyProduct', 'privacy-product-desc': 'privacyProductDesc',
+        'privacy-analytics': 'privacyAnalytics', 'privacy-analytics-desc': 'privacyAnalyticsDesc',
+        'btn-save-privacy': 'btnSavePrivacy',
+        'danger-warning': 'dangerWarning', 'danger-text': 'dangerText',
+        'btn-delete': 'btnDelete', 'delete-confirm-label': 'deleteConfirmLabel',
+        'btn-confirm-delete': 'btnConfirmDelete', 'btn-cancel': 'btnCancel',
+        'gh-connected-banner': 'ghConnectedBanner'
+    };
+
+    Object.entries(map).forEach(([id, key]) => {
+        const el = document.getElementById(id);
+        if (el && t[key]) el.textContent = t[key];
+    });
+
+    const ph = {
+        'firstName': 'phFirstName', 'lastName': 'phLastName',
+        'newPassword': 'phNewPwd', 'confirmPassword': 'phConfirmPwd'
+    };
+    Object.entries(ph).forEach(([id, key]) => {
+        const el = document.getElementById(id);
+        if (el && t[key]) el.placeholder = t[key];
+    });
+
+    document.querySelectorAll('#coming-soon-badge, #coming-soon-btn').forEach(el => {
+        if (el && t['comingSoon']) el.textContent = t['comingSoon'];
+    });
+    const planBadge = document.getElementById('plan-active-badge');
+    if (planBadge && t['planActive']) planBadge.textContent = t['planActive'];
+    document.querySelectorAll('#paid-badge').forEach(el => {
+        if (t['paidBadge']) el.textContent = t['paidBadge'];
+    });
+    const ghBadge = document.getElementById('gh-connected-badge');
+    if (ghBadge && t['ghConnected']) ghBadge.textContent = t['ghConnected'];
+}
+
+window.addEventListener('DOMContentLoaded', applySettingsTranslations);
+window.addEventListener('langChange', applySettingsTranslations);
+
+// ====== إصلاح اللغة في روابط الإعدادات ======
+function updateSettingsNavLinks() {
+    const lang = window.SERVER_LANG || localStorage.getItem('lang') || document.documentElement.getAttribute('lang') || 'ar';
+    document.querySelectorAll('#settings-nav a[data-settings-tab]').forEach(function(link) {
+        const tab = link.getAttribute('data-settings-tab');
+        link.href = '/' + lang + '/settings/' + tab;
+    });
+}
+
+// تحديث الروابط عند تحميل الصفحة
+window.addEventListener('DOMContentLoaded', updateSettingsNavLinks);
+
+// تحديث الروابط عند تغيير اللغة
+window.addEventListener('langChange', updateSettingsNavLinks);
+
+// مراقبة SERVER_LANG بشكل مستمر في حالة تغيّر بعد التحميل
+(function() {
+    let _lastLang = null;
+    setInterval(function() {
+        const currentLang = window.SERVER_LANG || localStorage.getItem('lang') || 'ar';
+        if (currentLang !== _lastLang) {
+            _lastLang = currentLang;
+            updateSettingsNavLinks();
+        }
+    }, 300);
+})();
+</script>
+<style>
+    /* تنسيقات الشريط الجانبي المطورة */
+    .settings-nav-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 18px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 15px;
+        color: #6b7280;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+    html.dark .settings-nav-item { color: #9ca3af; }
+    .settings-nav-item:hover {
+        background: #f3f4f6;
+        color: #111827;
+    }
+    html.dark .settings-nav-item:hover {
+        background: #1a1a1a;
+        color: #f9fafb;
+    }
+    .settings-nav-item.active {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white !important;
+        box-shadow: 0 4px 14px rgba(99,102,241,0.3);
+    }
+
+    /* التنسيق العمودي للحقول والبطاقات */
+    .settings-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 32px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+    }
+    html.dark .settings-card {
+        background: #0a0a0a;
+        border-color: #1f1f1f;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+
+    .input-field {
+        width: 100%;
+        padding: 12px 16px;
+        border-radius: 10px;
+        border: 1.5px solid #e5e7eb;
+        background: #f9fafb;
+        font-size: 14px;
+        color: #111827;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        font-family: 'Cairo', sans-serif;
+    }
+    html.dark .input-field {
+        background: #111111;
+        border-color: #2a2a2a;
+        color: #f9fafb;
+    }
+    .input-field:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+    }
+
+    .label {
+        display: block;
+        font-size: 14px;
+        font-weight: 700;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+    html.dark .label { color: #d1d5db; }
+
+    .btn-primary {
+        padding: 12px 28px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        font-weight: 700;
+        font-size: 14px;
+        border: none;
+        cursor: pointer;
+        transition: opacity 0.2s, transform 0.15s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-danger {
+        padding: 12px 28px;
+        border-radius: 10px;
+        background: #fee2e2;
+        color: #ef4444;
+        font-weight: 700;
+        font-size: 14px;
+        border: 1.5px solid #fca5a5;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    html.dark .btn-danger {
+        background: rgba(239,68,68,0.1);
+        border-color: rgba(239,68,68,0.3);
+    }
+    .btn-danger:hover { background: #ef4444; color: white; border-color: #ef4444; }
+
+    .btn-secondary {
+        padding: 12px 28px;
+        border-radius: 10px;
+        background: transparent;
+        color: #6b7280;
+        font-weight: 700;
+        font-size: 14px;
+        border: 1.5px solid #e5e7eb;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    html.dark .btn-secondary { border-color: #2a2a2a; color: #9ca3af; }
+    .btn-secondary:hover { background: #f3f4f6; color: #111827; }
+    html.dark .btn-secondary:hover { background: #1a1a1a; color: #f9fafb; }
+
+    .toggle-switch {
+        position: relative;
+        width: 48px;
+        height: 26px;
+        background: #d1d5db;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background 0.3s;
+        border: none;
+        outline: none;
+        flex-shrink: 0;
+    }
+    .toggle-switch.on { background: #6366f1; }
+    .toggle-switch::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: white;
+        transition: transform 0.3s;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    .toggle-switch.on::after { transform: translateX(22px); }
+
+    .section-title {
+        font-size: 24px;
+        font-weight: 900;
+        margin-bottom: 8px;
+        color: #111827;
+    }
+    html.dark .section-title { color: #f9fafb; }
+
+    .section-desc {
+        font-size: 15px;
+        color: #6b7280;
+        margin-bottom: 28px;
+    }
+
+    .toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(80px);
+        background: #111827;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 14px;
+        z-index: 9999;
+        transition: transform 0.3s ease;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-left: 4px solid #22c55e; }
+    .toast.error { border-left: 4px solid #ef4444; }
+
+    /* تحسينات الموبايل للشريط الجانبي */
+    @media (max-width: 768px) {
+        .settings-layout { flex-direction: column; }
+        .settings-sidebar {
+            width: 100%;
+            flex-direction: column;
+            padding-bottom: 0;
+            margin-bottom: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 8px;
+            background: #ffffff;
+        }
+        html.dark .settings-sidebar {
+            border-color: #1f1f1f;
+            background: #0a0a0a;
+        }
+        .settings-nav-item { padding: 12px 16px; font-size: 14px; }
+
+        /* إخفاء sticky على الموبايل */
+        .settings-sidebar.sticky { position: static; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-10 min-h-[80vh]">
+
+    <div id="toast" class="toast"></div>
+
+    <div class="mb-8">
+        <h1 class="text-3xl font-black text-gray-900 dark:text-white flex items-center gap-3">
+            <i class="fa-solid fa-gear text-primary"></i>
+            <span id="pageTitle">الإعدادات</span>
+        </h1>
+        <p class="text-gray-500 mt-2 text-sm" id="pageSubtitle">إدارة حسابك وتفضيلاتك</p>
+    </div>
+
+    {% if github_just_connected %}
+    <div class="mb-6 p-4 rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 flex items-center gap-3">
+        <i class="fa-brands fa-github text-green-600 dark:text-green-400 text-xl"></i>
+        <span class="font-bold text-green-700 dark:text-green-400" id="gh-connected-banner">تم ربط حساب GitHub بنجاح!</span>
+    </div>
+    {% endif %}
+
+    <div class="flex gap-8 settings-layout">
+
+        <aside class="w-full md:w-64 flex-shrink-0">
+            <nav class="settings-sidebar flex md:flex-col gap-2 sticky top-24" id="settings-nav">
+                <a href="/{{ lang }}/settings/account" data-settings-tab="account" class="settings-nav-item {% if active_tab == 'account' %}active{% endif %}">
+                    <i class="fa-solid fa-user w-5 text-center"></i>
+                    <span id="nav-account">معلومات الحساب</span>
+                </a>
+                <a href="/{{ lang }}/settings/integrations" data-settings-tab="integrations" class="settings-nav-item {% if active_tab == 'integrations' %}active{% endif %}">
+                    <i class="fa-solid fa-plug w-5 text-center"></i>
+                    <span id="nav-integrations">التكاملات</span>
+                </a>
+                <a href="/{{ lang }}/settings/notifications" data-settings-tab="notifications" class="settings-nav-item {% if active_tab == 'notifications' %}active{% endif %}">
+                    <i class="fa-solid fa-bell w-5 text-center"></i>
+                    <span id="nav-notifications">الإشعارات</span>
+                </a>
+                <a href="/{{ lang }}/settings/billing" data-settings-tab="billing" class="settings-nav-item {% if active_tab == 'billing' %}active{% endif %}">
+                    <i class="fa-solid fa-credit-card w-5 text-center"></i>
+                    <span id="nav-billing">الفوترة</span>
+                </a>
+                <a href="/{{ lang }}/settings/security" data-settings-tab="security" class="settings-nav-item {% if active_tab == 'security' %}active{% endif %}">
+                    <i class="fa-solid fa-shield-halved w-5 text-center"></i>
+                    <span id="nav-security">الخصوصية والأمان</span>
+                </a>
+                <div class="md:mt-4 md:border-t border-gray-100 dark:border-gray-800 md:pt-4 flex-shrink-0">
+                    <button onclick="openDeleteModal()" class="settings-nav-item w-full" style="color:#ef4444;">
+                        <i class="fa-solid fa-trash w-5 text-center"></i>
+                        <span id="nav-danger">حذف الحساب</span>
+                    </button>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="flex-1 min-w-0">
+
+            {% if active_tab == 'account' %}
+            <section class="fade-in">
+                <h2 class="section-title" id="sec-account-title">معلومات الحساب</h2>
+                <p class="section-desc" id="sec-account-desc">اعرض وعدّل بيانات ملفك الشخصي</p>
+
+                <div class="settings-card">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-6" id="full-name-title">الاسم الكامل</h3>
+                    <div class="flex flex-col gap-5">
+                        <div>
+                            <label class="label" id="label-first">الاسم الأول</label>
+                            <input type="text" id="firstName" class="input-field" placeholder="أدخل اسمك الأول" value="{{ profile_first_name if profile_first_name else '' }}">
+                        </div>
+                        <div>
+                            <label class="label" id="label-last">اسم العائلة</label>
+                            <input type="text" id="lastName" class="input-field" placeholder="أدخل اسم العائلة" value="{{ profile_last_name if profile_last_name else '' }}">
+                        </div>
+                    </div>
+                    <div class="mt-6 flex justify-end">
+                        <button class="btn-primary" onclick="saveName()">
+                            <i class="fa-solid fa-floppy-disk"></i> <span id="btn-save-name">حفظ الاسم</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-6" id="email-title">البريد الإلكتروني</h3>
+                    <div class="flex flex-col gap-3">
+                        <label class="label" id="label-email">البريد الإلكتروني الحالي</label>
+                        <div class="flex gap-3 flex-wrap">
+                            <input type="email" class="input-field flex-1" value="{{ user_email }}" readonly style="background:#f3f4f6;cursor:not-allowed;" class="opacity-70">
+                            <div class="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 text-sm font-bold whitespace-nowrap">
+                                <i class="fa-solid fa-circle-check"></i> <span id="email-verified">موثّق</span>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-400 mt-1" id="email-note">لتغيير البريد الإلكتروني، يرجى التواصل مع الدعم الفني.</p>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-6" id="pwd-title">تغيير كلمة المرور</h3>
+                    <div class="flex flex-col gap-5">
+                        <div>
+                            <label class="label" id="label-cur-pwd">كلمة المرور الحالية</label>
+                            <input type="password" id="currentPassword" class="input-field" placeholder="••••••••">
+                        </div>
+                        <div>
+                            <label class="label" id="label-new-pwd">كلمة المرور الجديدة</label>
+                            <input type="password" id="newPassword" class="input-field" placeholder="8 أحرف على الأقل مع حرف كبير ورقم">
+                        </div>
+                        <div>
+                            <label class="label" id="label-confirm-pwd">تأكيد كلمة المرور الجديدة</label>
+                            <input type="password" id="confirmPassword" class="input-field" placeholder="أعد إدخال كلمة المرور الجديدة">
+                        </div>
+                    </div>
+                    <div class="mt-6 flex justify-end">
+                        <button class="btn-primary" onclick="changePassword()">
+                            <i class="fa-solid fa-lock"></i> <span id="btn-update-pwd">تحديث كلمة المرور</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            {% elif active_tab == 'integrations' %}
+            <section class="fade-in">
+                <h2 class="section-title" id="sec-int-title">التكاملات والربط</h2>
+                <p class="section-desc" id="sec-int-desc">اربط حسابك بالخدمات الخارجية لتوسيع نطاق العمل</p>
+
+                <div class="settings-card">
+                    <div class="flex flex-col gap-6">
+                        <div class="flex items-center gap-4">
+                            <div style="width:56px;height:56px;border-radius:14px;background:#24292e;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <i class="fa-brands fa-github text-white text-3xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-black text-xl text-gray-900 dark:text-white flex items-center gap-3">
+                                    GitHub
+                                    {% if github_connected %}
+                                    <span style="font-size:12px;background:#22c55e;color:white;padding:3px 10px;border-radius:999px;font-weight:700;" id="gh-connected-badge">مرتبط</span>
+                                    {% endif %}
+                                </h3>
+                                <p class="text-sm text-gray-500 mt-1" id="gh-desc">
+                                    نشر مشاريعك مباشرة من منشئ الكود الذكي إلى مستودعاتك في GitHub.
+                                </p>
+                            </div>
+                        </div>
+
+                        {% if github_connected and github_user %}
+                        <div class="p-4 bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-xl flex items-center gap-3">
+                            {% if github_user.avatar %}
+                            <img src="{{ github_user.avatar }}" alt="{{ github_user.login }}" style="width:32px;height:32px;border-radius:50%;border:2px solid #22c55e;">
+                            {% endif %}
+                            <span class="text-sm font-bold text-gray-800 dark:text-gray-200">
+                                تسجيل الدخول باسم: <span class="text-primary">@{{ github_user.login }}</span>
+                            </span>
+                        </div>
+                        {% endif %}
+
+                        <div class="flex">
+                            {% if github_connected %}
+                            <button class="btn-danger" onclick="disconnectGithub()">
+                                <i class="fa-solid fa-unlink"></i> <span id="gh-disconnect">إلغاء الربط</span>
+                            </button>
+                            {% else %}
+                            <a href="/auth/github/login" class="btn-primary">
+                                <i class="fa-brands fa-github"></i> <span id="gh-connect">ربط حساب GitHub</span>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card" style="opacity:0.6; filter: grayscale(0.5);">
+                    <div class="flex flex-col gap-6">
+                        <div class="flex items-center gap-4">
+                            <div style="width:56px;height:56px;border-radius:14px;background:#0f172a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <i class="fa-brands fa-gitlab text-orange-400 text-3xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-black text-xl text-gray-900 dark:text-white flex items-center gap-3">
+                                    GitLab
+                                    <span style="font-size:12px;background:#6366f1;color:white;padding:3px 10px;border-radius:999px;font-weight:700;" id="coming-soon-badge">قريباً</span>
+                                </h3>
+                                <p class="text-sm text-gray-500 mt-1">ربط مستودعات GitLab ونشر مشاريعك عليها.</p>
+                            </div>
+                        </div>
+                        <div class="flex">
+                            <button class="btn-secondary" disabled id="coming-soon-btn">قريباً متاح</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {% elif active_tab == 'notifications' %}
+            <section class="fade-in">
+                <h2 class="section-title" id="sec-notif-title">إعدادات الإشعارات</h2>
+                <p class="section-desc" id="sec-notif-desc">تحكم في كيفية وموعد تلقي الإشعارات</p>
+
+                <div class="settings-card">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-6" id="notif-email-title">إشعارات البريد الإلكتروني</h3>
+                    <div class="flex flex-col gap-6">
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <p class="font-bold text-base text-gray-900 dark:text-white" id="notif-account-title">تنبيهات الأمان</p>
+                                <p class="text-sm text-gray-500 mt-1" id="notif-account-desc">تلقي إشعار عند تسجيل الدخول من جهاز جديد أو تغيير كلمة المرور</p>
+                            </div>
+                            <button class="toggle-switch on" id="email_security" onclick="toggleNotification(this)"></button>
+                        </div>
+                        <div class="border-t border-gray-100 dark:border-gray-800 -mx-1"></div>
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <p class="font-bold text-base text-gray-900 dark:text-white" id="notif-usage-title">تحديثات المنتج</p>
+                                <p class="text-sm text-gray-500 mt-1" id="notif-usage-desc">إعلامك بالميزات الجديدة والتحسينات المهمة</p>
+                            </div>
+                            <button class="toggle-switch on" id="email_updates" onclick="toggleNotification(this)"></button>
+                        </div>
+                        <div class="border-t border-gray-100 dark:border-gray-800 -mx-1"></div>
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <p class="font-bold text-base text-gray-900 dark:text-white" id="notif-news-title">الفوترة والمدفوعات</p>
+                                <p class="text-sm text-gray-500 mt-1" id="notif-news-desc">فواتير الاشتراك وإشعارات تجديد الخطة</p>
+                            </div>
+                            <button class="toggle-switch on" id="email_billing" onclick="toggleNotification(this)"></button>
+                        </div>
+                        <div class="border-t border-gray-100 dark:border-gray-800 -mx-1"></div>
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <p class="font-bold text-base text-gray-900 dark:text-white" id="notif-promo-title">العروض والترقيات</p>
+                                <p class="text-sm text-gray-500 mt-1" id="notif-promo-desc">عروض حصرية وخصومات للمستخدمين المسجلين</p>
+                            </div>
+                            <button class="toggle-switch" id="email_promo" onclick="toggleNotification(this)"></button>
+                        </div>
+                    </div>
+                    <div class="mt-8 flex justify-end">
+                        <button class="btn-primary" onclick="saveNotifications()">
+                            <i class="fa-solid fa-floppy-disk"></i> <span id="btn-save-notif">حفظ الإعدادات</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            {% elif active_tab == 'billing' %}
+            <section class="fade-in">
+                <h2 class="section-title" id="sec-bill-title">الفوترة والاشتراك</h2>
+                <p class="section-desc" id="sec-bill-desc">إدارة خطتك الحالية وسجل المدفوعات</p>
+
+                <div class="settings-card">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-4" id="label-current-plan">خطتك الحالية</h3>
+                    <div class="p-6 rounded-xl bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-gray-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                        <div>
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="text-3xl font-black text-primary">{{ plan_name if plan_name else 'Free Tier' }}</span>
+                                {% if is_active_sub %}
+                                <span style="font-size:13px;background:#22c55e;color:white;padding:3px 12px;border-radius:999px;font-weight:700;" id="plan-active-badge">نشطة</span>
+                                {% endif %}
+                            </div>
+                            {% if days_left and days_left > 0 %}
+                            <p class="text-base text-gray-500 font-bold">
+                                <i class="fa-regular fa-clock me-1"></i> <strong class="text-gray-900 dark:text-white">{{ days_left }}</strong> <span id="label-days-left">يوم متبقٍ</span>
+                            </p>
+                            {% endif %}
+                        </div>
+                        <a href="/{{ lang }}/cart" class="btn-primary">
+                            <i class="fa-solid fa-arrow-up"></i> <span id="btn-upgrade">ترقية الخطة</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-6" id="invoices-title">سجل الفواتير</h3>
+                    {% if is_active_sub %}
+                    <div class="overflow-x-auto">
+                        <table style="width:100%;border-collapse:collapse;font-size:15px;text-align:left;" dir="ltr">
+                            <thead>
+                                <tr style="border-bottom:2px solid #e5e7eb;" class="dark:border-gray-800 text-gray-500 dark:text-gray-400">
+                                    <th class="py-4 px-2 font-bold" id="th-date">Date</th>
+                                    <th class="py-4 px-2 font-bold" id="th-plan">Plan</th>
+                                    <th class="py-4 px-2 font-bold" id="th-amount">Amount</th>
+                                    <th class="py-4 px-2 font-bold text-right" id="th-status">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for plan in active_plans %}
+                                <tr style="border-bottom:1px solid #f3f4f6;" class="dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-[#111111] transition">
+                                    <td class="py-4 px-2 text-gray-700 dark:text-gray-300">{{ plan.get('activated', '—')[:10] }}</td>
+                                    <td class="py-4 px-2 font-bold text-gray-900 dark:text-white">{{ plan.get('name', '—') }}</td>
+                                    <td class="py-4 px-2 text-gray-700 dark:text-gray-300">—</td>
+                                    <td class="py-4 px-2 text-right">
+                                        <span style="font-size:13px;background:#dcfce7;color:#16a34a;padding:4px 12px;border-radius:999px;font-weight:700;" id="paid-badge">مدفوع</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="flex flex-col items-center justify-center py-10 text-gray-400 bg-gray-50 dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800">
+                        <i class="fa-solid fa-file-invoice text-5xl mb-4 opacity-50"></i>
+                        <p class="text-base font-bold" id="no-bills">لا توجد فواتير مسجلة حتى الآن</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+
+            {% elif active_tab == 'security' %}
+            <section class="fade-in">
+                <h2 class="section-title" id="sec-sec-title">الخصوصية والأمان</h2>
+                <p class="section-desc" id="sec-sec-desc">تحكم في حماية حسابك ومشاركة البيانات</p>
+
+                <div class="settings-card">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
+                        <div>
+                            <h3 class="font-bold text-lg text-gray-900 dark:text-white" id="sessions-title">الجلسات النشطة</h3>
+                            <p class="text-sm text-gray-500 mt-1" id="sessions-desc">يمكنك تسجيل الخروج من كافة الأجهزة الأخرى</p>
+                        </div>
+                        <button class="btn-secondary" onclick="logoutAllDevices()">
+                            <i class="fa-solid fa-right-from-bracket"></i> <span id="btn-logout-all">تسجيل الخروج من كل الأجهزة</span>
+                        </button>
+                    </div>
+                    <div class="p-5 rounded-xl bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-gray-800 flex items-center gap-4">
+                        <div style="width:48px;height:48px;border-radius:12px;background:#6366f1;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <i class="fa-solid fa-laptop text-white text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-base text-gray-900 dark:text-white" id="current-device">الجهاز الحالي</p>
+                            <p class="text-sm text-gray-500" id="current-device-sub">الجلسة نشطة الآن</p>
+                        </div>
+                        <span style="margin-left:auto;font-size:13px;background:#dcfce7;color:#16a34a;padding:4px 12px;border-radius:999px;font-weight:700;" id="this-device">هذا الجهاز</span>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <div class="flex flex-col gap-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-lg text-gray-900 dark:text-white" id="twofa-title">المصادقة الثنائية (2FA)</h3>
+                            <span style="font-size:13px;background:#6366f1;color:white;padding:4px 12px;border-radius:999px;font-weight:700;">قريباً</span>
+                        </div>
+                        <p class="text-sm text-gray-500" id="twofa-desc">طبقة حماية إضافية لحسابك</p>
+
+                        <div class="mt-2 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-sm font-bold flex items-center gap-3">
+                            <i class="fa-solid fa-shield-heart text-lg"></i>
+                            <span id="twofa-note">سيتم إطلاق ميزة المصادقة الثنائية قريباً لتعزيز أمان المستخدمين.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-6" id="privacy-title">مشاركة البيانات</h3>
+                    <div class="flex flex-col gap-6">
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <p class="font-bold text-base text-gray-900 dark:text-white" id="privacy-product">تحسين المنتج</p>
+                                <p class="text-sm text-gray-500 mt-1" id="privacy-product-desc">السماح باستخدام بيانات الاستخدام المجهولة لتحسين الخدمة</p>
+                            </div>
+                            <button class="toggle-switch on" id="data_product" onclick="toggleNotification(this)"></button>
+                        </div>
+                        <div class="border-t border-gray-100 dark:border-gray-800 -mx-1"></div>
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <p class="font-bold text-base text-gray-900 dark:text-white" id="privacy-analytics">تحليلات الأداء</p>
+                                <p class="text-sm text-gray-500 mt-1" id="privacy-analytics-desc">قياس أداء التطبيق وتشخيص الأخطاء التقنية</p>
+                            </div>
+                            <button class="toggle-switch on" id="data_analytics" onclick="toggleNotification(this)"></button>
+                        </div>
+                    </div>
+                    <div class="mt-8 flex justify-end">
+                        <button class="btn-primary" onclick="savePrivacySettings()">
+                            <i class="fa-solid fa-floppy-disk"></i> <span id="btn-save-privacy">حفظ التغييرات</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+        </main>
+    </div>
+</div>
+
+<div id="deleteAccountModal" class="fixed inset-0 z-[200] flex items-center justify-center opacity-0 pointer-events-none transition duration-300">
+    <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeDeleteModal()"></div>
+    <div class="bg-white dark:bg-[#0a0a0a] p-8 rounded-2xl shadow-2xl w-full max-w-lg relative z-10 transform scale-95 transition-transform duration-300 border border-gray-200 dark:border-gray-800">
+        <div class="flex flex-col items-center text-center">
+            <div class="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4 border border-red-200 dark:border-red-800">
+                <i class="fa-solid fa-triangle-exclamation text-3xl text-red-500"></i>
+            </div>
+            <h3 class="text-2xl font-black text-gray-900 dark:text-white mb-2" id="danger-warning">تحذير هام</h3>
+            <p class="text-gray-600 dark:text-gray-400 mb-6 font-bold" id="danger-text">هذا الإجراء سيقوم بحذف حسابك وبياناتك بشكل نهائي وغير قابل للاسترداد.</p>
+
+            <div class="w-full text-start mb-6 bg-gray-50 dark:bg-[#111111] p-4 rounded-xl border border-gray-200 dark:border-gray-800">
+                <label class="label mb-2" id="delete-confirm-label">اكتب بريدك الإلكتروني للتأكيد:</label>
+                <code class="block font-mono bg-white dark:bg-black px-3 py-2 rounded border border-gray-200 dark:border-gray-800 text-sm mb-3 select-all">{{ user_email }}</code>
+                <input type="email" id="deleteConfirmEmail" class="input-field" placeholder="{{ user_email }}">
+            </div>
+
+            <div class="flex w-full gap-3">
+                <button class="flex-1 py-3 bg-transparent border-2 border-gray-200 dark:border-gray-700 rounded-xl font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition" onclick="closeDeleteModal()" id="btn-cancel">إلغاء</button>
+                <button class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition shadow-lg shadow-red-500/30" onclick="confirmDeleteAccount()" id="btn-confirm-delete">تأكيد الحذف</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const USER_EMAIL = {{ user_email | tojson }};
+
+function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type}`;
+    void t.offsetWidth;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function toggleNotification(btn) { btn.classList.toggle('on'); }
+
+async function saveName() {
+    const firstName = document.getElementById('firstName').value.trim();
+    const lastName  = document.getElementById('lastName').value.trim();
+    try {
+        const res = await fetch('/api/settings/profile', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ first_name: firstName, last_name: lastName })
+        });
+        showToast(res.ok ? 'تم حفظ الاسم بنجاح ✓' : 'حدث خطأ أثناء الحفظ', res.ok ? 'success' : 'error');
+    } catch { showToast('تعذّر الاتصال بالخادم', 'error'); }
+}
+
+async function changePassword() {
+    const current = document.getElementById('currentPassword').value;
+    const newPwd  = document.getElementById('newPassword').value;
+    const confirm = document.getElementById('confirmPassword').value;
+
+    if (!current || !newPwd || !confirm) { showToast('يرجى ملء جميع الحقول', 'error'); return; }
+    if (newPwd !== confirm) { showToast('كلمتا المرور غير متطابقتين', 'error'); return; }
+    if (newPwd.length < 8 || !/[A-Z]/.test(newPwd) || !/[0-9]/.test(newPwd)) {
+        showToast('كلمة المرور يجب أن تحتوي على 8 أحرف على الأقل، حرف كبير، ورقم', 'error'); return;
+    }
+    try {
+        const res = await fetch('/api/settings/change-password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ current_password: current, new_password: newPwd })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast('تم تغيير كلمة المرور بنجاح ✓', 'success');
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+        } else {
+            showToast(data.detail || 'حدث خطأ', 'error');
+        }
+    } catch { showToast('تعذّر الاتصال بالخادم', 'error'); }
+}
+
+async function disconnectGithub() {
+    if (!confirm('هل أنت متأكد من إلغاء ربط حسابك في GitHub؟')) return;
+    try {
+        const res = await fetch('/auth/github/logout', { method: 'POST' });
+        if (res.ok) {
+            showToast('تم إلغاء ربط GitHub بنجاح', 'success');
+            setTimeout(() => location.reload(), 1200);
+        } else { showToast('حدث خطأ أثناء إلغاء الربط', 'error'); }
+    } catch { showToast('تعذّر الاتصال بالخادم', 'error'); }
+}
+
+function saveNotifications() { showToast('تم حفظ إعدادات الإشعارات ✓', 'success'); }
+function savePrivacySettings() { showToast('تم حفظ إعدادات الخصوصية ✓', 'success'); }
+
+async function logoutAllDevices() {
+    if (!confirm('هل تريد تسجيل الخروج من جميع الأجهزة الأخرى؟')) return;
+    try {
+        await fetch('/auth/logout-all', { method: 'POST' });
+        showToast('تم تسجيل الخروج من كل الأجهزة بنجاح ✓', 'success');
+    } catch { showToast('تعذّر الاتصال بالخادم', 'error'); }
+}
+
+function openDeleteModal() {
+    const modal = document.getElementById('deleteAccountModal');
+    modal.classList.remove('opacity-0', 'pointer-events-none');
+    modal.querySelector('div.relative').classList.remove('scale-95');
+}
+
+function closeDeleteModal() {
+    const modal = document.getElementById('deleteAccountModal');
+    modal.classList.add('opacity-0', 'pointer-events-none');
+    modal.querySelector('div.relative').classList.add('scale-95');
+    document.getElementById('deleteConfirmEmail').value = '';
+}
+
+async function confirmDeleteAccount() {
+    const inputEmail = document.getElementById('deleteConfirmEmail').value.trim();
+    if (inputEmail !== USER_EMAIL) {
+        showToast('البريد الإلكتروني غير مطابق', 'error'); return;
+    }
+    if (!confirm('هذا الإجراء نهائي. هل تريد المتابعة وحذف الحساب نهائياً؟')) return;
+    try {
+        const res = await fetch('/api/settings/delete-account', {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email: inputEmail })
+        });
+        if (res.ok) {
+            showToast('تم حذف الحساب. يتم تحويلك للموقع...', 'success');
+            setTimeout(() => window.location.href = '/', 2000);
+        } else {
+            const data = await res.json();
+            showToast(data.detail || 'حدث خطأ أثناء الحذف', 'error');
+        }
+    } catch { showToast('تعذّر الاتصال بالخادم', 'error'); }
+}
+</script>
+{% endblock %}

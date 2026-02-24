@@ -1,3 +1,4 @@
+
 run = "python main.py"
 entrypoint = "main.py"
 modules = ["web", "python-3.12", "nodejs-20"]
@@ -7,17 +8,13 @@ channel = "stable-25_05"
 packages = ["cargo", "freetype", "glibcLocales", "lcms2", "libiconv", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "psmisc", "rustc", "tcl", "tk", "zlib"]
 
 [deployment]
-run = ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000"]
+run = ["python", "main.py"]
 build = ["pip", "install", "-r", "requirements.txt"]
 deploymentTarget = "autoscale"
 
 [[ports]]
-localPort = 8080
-externalPort = 80
-
-[[ports]]
 localPort = 5000
-externalPort = 80
+externalPort = 80  # ← أضف هذا السطر المهم!
 
 [agent]
 expertMode = true
@@ -40,7 +37,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python main.py"
+args = "python main.py"  # ← يبقى كما هو لأن main.py يشغل uvicorn
 waitForPort = 5000
 
 [workflows.workflow.metadata]
