@@ -24,7 +24,8 @@ from services.auth import (
     get_current_user_email, get_auth_context
 )
 from database import (
-    get_user_by_email, get_user_by_api_key, get_global_stats, add_user_subscription
+    get_user_by_email, get_user_by_api_key, get_global_stats, add_user_subscription,
+    get_subscription_history
 )
 from services.subscriptions import get_user_subscription_status
 from services.limits import get_user_limits_and_usage, check_trial_allowance
@@ -357,6 +358,12 @@ async def settings_page_tab(request: Request, lang: str, tab: str):
 
         context = get_template_context(request, lang)
 
+        # سجل الاشتراكات الكامل
+        try:
+            sub_history = get_subscription_history(email)
+        except Exception:
+            sub_history = []
+
         context.update({
             "active_tab": tab,
             "plan_name": display_plan,
@@ -365,6 +372,8 @@ async def settings_page_tab(request: Request, lang: str, tab: str):
             "days_left": days_left,
             "profile_first_name": user.get("first_name", ""),
             "profile_last_name": user.get("last_name", ""),
+            "subscription_history": sub_history,
+            "now": datetime.utcnow(),
         })
 
         # دمج سياق GitHub إذا كان التاب مخصص للتكاملات لتسريع الصفحة
@@ -380,8 +389,10 @@ async def settings_page_tab(request: Request, lang: str, tab: str):
         fallback_context = {
             "request": request, "lang": lang, "active_tab": tab,
             "user_email": email, "is_logged_in": True,
-            "plan_name": "Error", "active_plans": [],
-            "profile_first_name": "", "profile_last_name": ""
+            "plan_name": "Free Tier", "active_plans": [],
+            "is_active_sub": False, "days_left": 0,
+            "profile_first_name": "", "profile_last_name": "",
+            "subscription_history": []
         }
         return templates.TemplateResponse("settings.html", fallback_context)
 
@@ -926,12 +937,21 @@ async def process_code_endpoint(
     return StreamingResponse(event_generator(), media_type="application/x-ndjson")
 
 @app.post("/api/generate-key")
-async def get_my_key(request: Request):
+async def regenerate_my_key(request: Request):
+    """توليد مفتاح API جديد وحفظه في قاعدة البيانات"""
     email = get_current_user_email(request)
-    if not email: 
+    if not email:
         return JSONResponse({"error": "Unauthorized"}, 401)
-    user = get_user_by_email(email)
-    return {"key": user.get("api_key")} if user else JSONResponse({"error": "Not found"}, 404)
+    try:
+        from services.auth import generate_nexus_key
+        from database import update_api_key as _update_key
+        new_key = generate_nexus_key()
+        success = _update_key(email, new_key)
+        if success:
+            return JSONResponse({"key": new_key, "ok": True})
+        return JSONResponse({"error": "Failed to save new key"}, status_code=500)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 from telegram_bot import notify_contact_form, notify_enterprise_form
 

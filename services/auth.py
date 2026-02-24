@@ -114,6 +114,141 @@ async def verify_turnstile_token(token: str, remote_ip: str = None) -> bool:
 # EMAIL SERVICE
 # ============================================================================
 
+def _send_email_raw(to_email: str, subject: str, html_content: str) -> bool:
+    """Low-level SMTP email sender."""
+    if not all([SMTP_EMAIL, SMTP_PASSWORD]):
+        print(f"[DEV MODE] Email to {to_email}: {subject}")
+        return True
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"Orgteh Infra <{SMTP_EMAIL}>"
+        msg['To'] = to_email
+        msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, to_email, msg.as_string())
+        return True
+    except Exception as e:
+        print(f"[Auth] Email send error: {e}")
+        return False
+
+def send_security_alert_email(to_email: str, event: str = "new_login", extra: str = "") -> bool:
+    """Send security notification email (login from new device, password change)."""
+    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    if event == "password_change":
+        subject = "🔒 Password Changed | تم تغيير كلمة المرور - Orgteh Infra"
+        event_en = "Your password was changed"
+        event_ar = "تم تغيير كلمة المرور الخاصة بك"
+    else:
+        subject = "🔐 New Login Detected | تسجيل دخول جديد - Orgteh Infra"
+        event_en = "A new login was detected on your account"
+        event_ar = "تم اكتشاف تسجيل دخول جديد لحسابك"
+
+    html = f"""<!DOCTYPE html><html dir="ltr"><head><meta charset="UTF-8">
+    <style>body{{font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;margin:0;padding:20px;}}
+    .card{{background:#111;border:1px solid #333;border-radius:16px;max-width:520px;margin:0 auto;padding:32px;}}
+    .logo{{color:#7c3aed;font-size:22px;font-weight:bold;margin-bottom:24px;}}
+    .alert{{background:#1f1033;border:1px solid #7c3aed44;border-radius:10px;padding:16px;margin:16px 0;}}
+    .meta{{color:#888;font-size:13px;margin-top:16px;}} .cta{{display:inline-block;margin-top:20px;
+    padding:12px 24px;background:#7c3aed;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;}}
+    </style></head><body><div class="card">
+    <div class="logo">⚡ Orgteh Infra</div>
+    <h2 style="color:#f3f4f6">Security Alert | تنبيه أمان</h2>
+    <div class="alert">
+        <p style="margin:0"><strong>EN:</strong> {event_en}</p>
+        <p style="margin:8px 0 0"><strong>AR:</strong> {event_ar}</p>
+        {f'<p style="color:#aaa;margin:8px 0 0;font-size:13px">Details: {extra}</p>' if extra else ''}
+    </div>
+    <div class="meta">Time: {now}<br>Account: {to_email}</div>
+    <p style="color:#888;font-size:12px;margin-top:24px">If this wasn't you, please change your password immediately.<br>
+    إذا لم تكن أنت، يرجى تغيير كلمة المرور فوراً.</p>
+    <a href="https://orgteh.com/ar/settings/account" class="cta">Secure Account | تأمين الحساب</a>
+    </div></body></html>"""
+    return _send_email_raw(to_email, subject, html)
+
+def send_subscription_email(to_email: str, plan_name: str, expires_date: str, event: str = "new") -> bool:
+    """Send billing/subscription notification email."""
+    if event == "expiry_soon":
+        subject = f"⚠️ Subscription Expiring Soon | اشتراكك ينتهي قريباً - Orgteh Infra"
+        title_en = f"Your {plan_name} plan expires on {expires_date}"
+        title_ar = f"خطتك {plan_name} تنتهي بتاريخ {expires_date}"
+        cta_text = "Renew Subscription | تجديد الاشتراك"
+        cta_url = "https://orgteh.com/ar/cart"
+    else:
+        subject = f"🎉 Subscription Activated | تم تفعيل اشتراكك - Orgteh Infra"
+        title_en = f"Your {plan_name} plan is now active!"
+        title_ar = f"خطتك {plan_name} مفعّلة الآن!"
+        cta_text = "View Dashboard | لوحة التحكم"
+        cta_url = "https://orgteh.com/ar/profile"
+
+    html = f"""<!DOCTYPE html><html dir="ltr"><head><meta charset="UTF-8">
+    <style>body{{font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;margin:0;padding:20px;}}
+    .card{{background:#111;border:1px solid #333;border-radius:16px;max-width:520px;margin:0 auto;padding:32px;}}
+    .logo{{color:#7c3aed;font-size:22px;font-weight:bold;margin-bottom:24px;}}
+    .info{{background:#0f1f0f;border:1px solid #22c55e44;border-radius:10px;padding:16px;margin:16px 0;}}
+    .cta{{display:inline-block;margin-top:20px;padding:12px 24px;background:#22c55e;
+    color:#000;border-radius:8px;text-decoration:none;font-weight:bold;}}
+    </style></head><body><div class="card">
+    <div class="logo">⚡ Orgteh Infra</div>
+    <h2 style="color:#f3f4f6">Billing Update | تحديث الفاتورة</h2>
+    <div class="info">
+        <p style="margin:0;color:#22c55e"><strong>EN:</strong> {title_en}</p>
+        <p style="margin:8px 0 0;color:#22c55e"><strong>AR:</strong> {title_ar}</p>
+        <p style="color:#888;margin:8px 0 0;font-size:13px">Expires: {expires_date}</p>
+    </div>
+    <p style="color:#888;font-size:12px">Account: {to_email}</p>
+    <a href="{cta_url}" class="cta">{cta_text}</a>
+    </div></body></html>"""
+    return _send_email_raw(to_email, subject, html)
+
+def send_product_update_email(to_email: str, update_title: str, update_body: str) -> bool:
+    """Send product update / discount notification email."""
+    html = f"""<!DOCTYPE html><html dir="ltr"><head><meta charset="UTF-8">
+    <style>body{{font-family:Arial,sans-serif;background:#0a0a0a;color:#fff;margin:0;padding:20px;}}
+    .card{{background:#111;border:1px solid #333;border-radius:16px;max-width:520px;margin:0 auto;padding:32px;}}
+    .logo{{color:#7c3aed;font-size:22px;font-weight:bold;margin-bottom:24px;}}
+    .body{{color:#d1d5db;line-height:1.7;margin:16px 0;}}
+    .cta{{display:inline-block;margin-top:20px;padding:12px 24px;background:#7c3aed;
+    color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;}}
+    .unsub{{color:#555;font-size:11px;margin-top:24px;}}
+    </style></head><body><div class="card">
+    <div class="logo">⚡ Orgteh Infra</div>
+    <h2 style="color:#f3f4f6">{update_title}</h2>
+    <div class="body">{update_body}</div>
+    <a href="https://orgteh.com" class="cta">Explore Now | استكشف الآن</a>
+    <p class="unsub">To unsubscribe from product updates, go to Settings → Notifications.</p>
+    </div></body></html>"""
+    return _send_email_raw(to_email, f"✨ {update_title} - Orgteh Infra", html)
+
+def get_user_notification_prefs(email: str) -> dict:
+    """Get notification preferences for user (stored in Redis)."""
+    if not redis:
+        return {"security": True, "product_updates": True, "billing": True, "promotions": True}
+    try:
+        key = f"notif_prefs:{email}"
+        data = redis.get(key)
+        if data:
+            import json
+            return json.loads(data) if isinstance(data, str) else data
+    except Exception:
+        pass
+    return {"security": True, "product_updates": True, "billing": True, "promotions": True}
+
+def save_user_notification_prefs(email: str, prefs: dict) -> bool:
+    """Save notification preferences for user."""
+    if not redis:
+        return False
+    try:
+        import json
+        redis.set(f"notif_prefs:{email}", json.dumps(prefs))
+        return True
+    except Exception as e:
+        print(f"[Auth] Notif prefs save error: {e}")
+        return False
+
 def send_verification_email(to_email: str, code: str) -> bool:
     """
     Send verification code via email using SMTP
@@ -497,6 +632,16 @@ async def handle_login(request: Request, data: LoginRequest) -> dict:
 
     # Set session
     request.session["user_email"] = data.email
+
+    # Send security notification if enabled
+    try:
+        prefs = get_user_notification_prefs(data.email)
+        if prefs.get("security", True):
+            ip = request.headers.get("X-Forwarded-For", getattr(request.client, 'host', ''))
+            ua = request.headers.get("User-Agent", "")[:80]
+            send_security_alert_email(data.email, "new_login", f"IP: {ip} | {ua}")
+    except Exception:
+        pass
 
     print(f"[Auth] User logged in: {data.email}")
     return {"message": "تم تسجيل الدخول بنجاح"}

@@ -51,26 +51,20 @@
         html:not(.dark) .dark-logo { display:none !important; }
         html:not(.dark) .light-logo { display:block !important; }
 
-        /* ✨✨✨ إصلاح أيقونة Kimi البيضاء بذكاء ✨✨✨ */
+        /* ✨✨✨ إصلاح شعار Kimi - حل نهائي يعمل بغض النظر عن overflow:hidden ✨✨✨ 
+           المشكلة: الشعار أبيض اللون → يختفي في الوضع النهاري
+           الحل: filter:invert(1) في النهاري يحوّله لأسود مرئي
+                  filter:drop-shadow في الليلي يضيف توهجاً
+           لماذا هذا الحل؟ filter يعمل على عنصر img نفسه ولا يتأثر
+           بأي overflow:hidden أو border-radius على العنصر الأب
+        */
         html:not(.dark) img[src*="kimi"] {
-            /* في الوضع النهاري: خلفية داكنة أنيقة تبرز الشعار الأبيض وتصغره قليلاً بالحشوة */
-            background-color: #1f2937 !important;
-            padding: 10px !important;
-            border-radius: 14px !important;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15) !important;
-            filter: none !important;
+            filter: invert(0.92) sepia(0.05) saturate(0.8) !important;
             opacity: 1 !important;
-            object-fit: contain !important;
         }
         html.dark img[src*="kimi"] {
-            /* في الوضع الليلي: خلفية شفافة لأن الشعار أبيض والخلفية أصلاً داكنة مع إضافة توهج */
-            background-color: transparent !important;
-            padding: 0 !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4)) !important;
+            filter: drop-shadow(0 0 6px rgba(160, 180, 255, 0.5)) brightness(1.1) !important;
             opacity: 1 !important;
-            object-fit: contain !important;
         }
 
         .theme-switch-thumb {
@@ -349,6 +343,7 @@
                 "nav_policy": "Policy", 
                 "nav_dashboard": "Dashboard",
                 "nav_performance": "Performance",
+                "nav_settings": "Settings",
                 "sidebar_lang": "Language",
                 "sidebar_theme_dark": "Dark Mode",
                 "sidebar_theme_light": "Light Mode",
@@ -370,6 +365,7 @@
                 "nav_policy": "سياسة الاستخدام",
                 "nav_dashboard": "لوحة التحكم",
                 "nav_performance": "الأداء",
+                "nav_settings": "الإعدادات",
                 "sidebar_lang": "اللغة",
                 "sidebar_theme_dark": "الوضع الداكن",
                 "sidebar_theme_light": "الوضع الفاتح",

@@ -211,7 +211,11 @@
             'dash_resets': 'Resets at 00:00 UTC',
             'dash_breakdown_title': 'Usage Breakdown',
             'dash_extra': 'Extra Credit',
-            'dash_copied': 'Key Copied!'
+            'dash_copied': 'Key Copied!',
+            'regen_title': 'Regenerate API Key?',
+            'regen_desc': 'Your current key will be permanently invalidated. Any apps using it will stop working.',
+            'regen_cancel': 'Cancel',
+            'regen_confirm': 'Yes, Regenerate'
         },
         'ar': {
             'dash_welcome': 'لوحة التحكم',
@@ -226,7 +230,11 @@
             'dash_resets': 'يتجدد 00:00 UTC',
             'dash_breakdown_title': 'تفاصيل الاستهلاك',
             'dash_extra': 'رصيد إضافي',
-            'dash_copied': 'تم نسخ المفتاح!'
+            'dash_copied': 'تم نسخ المفتاح!',
+            'regen_title': 'تجديد مفتاح API؟',
+            'regen_desc': 'سيتم إلغاء مفتاحك الحالي نهائياً. أي تطبيق يستخدمه سيتوقف عن العمل.',
+            'regen_cancel': 'إلغاء',
+            'regen_confirm': 'نعم، تجديد المفتاح'
         }
     };
 
@@ -248,12 +256,68 @@
         });
     }
 
-    async function regenerateKey() {
-        if (!confirm("Regenerate Key?")) return;
+    function regenerateKey() {
+        // Show modern confirmation modal
+        document.getElementById('regenModal').classList.remove('opacity-0', 'pointer-events-none');
+        document.getElementById('regenModal').querySelector('.regen-content').classList.remove('scale-95');
+        document.getElementById('regenModal').querySelector('.regen-content').classList.add('scale-100');
+    }
+
+    function closeRegenModal() {
+        document.getElementById('regenModal').classList.add('opacity-0', 'pointer-events-none');
+        document.getElementById('regenModal').querySelector('.regen-content').classList.remove('scale-100');
+        document.getElementById('regenModal').querySelector('.regen-content').classList.add('scale-95');
+    }
+
+    async function confirmRegenKey() {
+        closeRegenModal();
+        const spinIcon = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>';
+        const regenBtn = document.querySelector('[onclick="regenerateKey()"]');
+        if (regenBtn) { regenBtn.innerHTML = spinIcon; regenBtn.disabled = true; }
         try {
-            const res = await fetch('/api/generate-key', { method: 'POST' }); 
-            if (res.ok) window.location.reload();
-        } catch (e) { alert("Error"); }
+            const res = await fetch('/api/generate-key', { method: 'POST' });
+            const data = await res.json();
+            if (res.ok && data.key) {
+                // ✅ تحديث المفتاح في الواجهة مباشرة بدون إعادة تحميل
+                const keyInput = document.querySelector('input[type="text"][readonly]');
+                if (keyInput) keyInput.value = data.key;
+                // تحديث زر النسخ ليحمل المفتاح الجديد
+                const copyBtn = document.querySelector('[onclick^="copyKey("]');
+                if (copyBtn) copyBtn.setAttribute('onclick', `copyKey('${data.key}')`);
+                // إظهار رسالة نجاح
+                showRegenSuccess();
+            } else {
+                alert(data.error || 'Error regenerating key');
+            }
+        } catch (e) { alert("Connection error"); }
+        finally {
+            if (regenBtn) {
+                regenBtn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
+                regenBtn.disabled = false;
+            }
+        }
+    }
+
+    function showRegenSuccess() {
+        const lang = localStorage.getItem('lang') || 'ar';
+        // Flash effect on the key input
+        const keyInput = document.querySelector('input[type="text"][readonly]');
+        if (keyInput) {
+            keyInput.style.borderColor = '#22c55e';
+            keyInput.style.boxShadow = '0 0 0 3px rgba(34,197,94,0.2)';
+            setTimeout(() => {
+                keyInput.style.borderColor = '';
+                keyInput.style.boxShadow = '';
+            }, 2000);
+        }
+        // Toast message
+        const msg = lang === 'ar' ? '✅ تم تجديد المفتاح بنجاح!' : '✅ API key regenerated!';
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111;color:#22c55e;padding:12px 24px;border-radius:12px;font-weight:700;font-size:14px;z-index:9999;border-left:4px solid #22c55e;box-shadow:0 8px 32px rgba(0,0,0,0.4);transition:all 0.3s';
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.style.opacity = '0', 2500);
+        setTimeout(() => toast.remove(), 3000);
     }
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -261,4 +325,24 @@
         window.addEventListener('langChange', applyDashboardTranslations);
     });
 </script>
+
+<!-- ===== Modern API Key Regeneration Modal ===== -->
+<div id="regenModal" class="fixed inset-0 z-[200] flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" onclick="closeRegenModal()"></div>
+    <div class="regen-content relative z-10 bg-white dark:bg-[#0d0d0d] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-8 transform scale-95 transition-transform duration-300 text-center">
+        <div class="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fa-solid fa-rotate text-2xl text-red-500"></i>
+        </div>
+        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2" data-i18n="regen_title">Regenerate API Key?</h3>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mb-6 leading-relaxed" data-i18n="regen_desc">Your current key will be permanently invalidated. Any apps using it will stop working.</p>
+        <div class="flex gap-3">
+            <button onclick="closeRegenModal()" class="flex-1 py-3 rounded-xl font-bold border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                <span data-i18n="regen_cancel">Cancel</span>
+            </button>
+            <button onclick="confirmRegenKey()" class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition shadow-lg shadow-red-500/20">
+                <i class="fa-solid fa-rotate mr-1"></i> <span data-i18n="regen_confirm">Yes, Regenerate</span>
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}

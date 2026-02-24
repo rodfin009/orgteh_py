@@ -749,59 +749,139 @@ window.addEventListener('langChange', updateSettingsNavLinks);
                 <h2 class="section-title" id="sec-bill-title">الفوترة والاشتراك</h2>
                 <p class="section-desc" id="sec-bill-desc">إدارة خطتك الحالية وسجل المدفوعات</p>
 
+                <!-- ═══ الخطة الحالية ═══ -->
                 <div class="settings-card">
                     <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-4" id="label-current-plan">خطتك الحالية</h3>
-                    <div class="p-6 rounded-xl bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-gray-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                        <div>
-                            <div class="flex items-center gap-3 mb-2">
-                                <span class="text-3xl font-black text-primary">{{ plan_name if plan_name else 'Free Tier' }}</span>
-                                {% if is_active_sub %}
-                                <span style="font-size:13px;background:#22c55e;color:white;padding:3px 12px;border-radius:999px;font-weight:700;" id="plan-active-badge">نشطة</span>
-                                {% endif %}
+                    {% if is_active_sub and active_plans %}
+                        {% for plan in active_plans %}
+                        <div class="p-5 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-[#0f0f1a] dark:to-[#111120] border border-gray-200 dark:border-primary/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 mb-3">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/30">
+                                    <i class="fa-solid fa-crown text-white text-lg"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="text-xl font-black text-primary">{{ plan.get('name', plan_name) }}</span>
+                                        <span style="font-size:12px;background:#22c55e;color:white;padding:2px 10px;border-radius:999px;font-weight:700;" id="plan-active-badge">نشطة</span>
+                                        <span style="font-size:12px;background:#3b82f6;color:white;padding:2px 10px;border-radius:999px;font-weight:700;">
+                                            {% if plan.get('period') == 'yearly' %}سنوي{% else %}شهري{% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
+                                        {% if plan.get('activated') %}
+                                        <span><i class="fa-regular fa-calendar-check text-green-500 me-1"></i>
+                                            <span class="font-bold text-gray-600 dark:text-gray-300">بدأت:</span> {{ plan.get('activated','')[:10] }}</span>
+                                        {% endif %}
+                                        <span><i class="fa-regular fa-calendar-xmark text-red-400 me-1"></i>
+                                            <span class="font-bold text-gray-600 dark:text-gray-300">تنتهي:</span> {{ plan.get('expires','')[:10] }}</span>
+                                        {% if days_left and days_left > 0 %}
+                                        <span class="flex items-center gap-1">
+                                            <i class="fa-regular fa-clock text-yellow-500"></i>
+                                            <strong class="text-gray-800 dark:text-white">{{ days_left }}</strong>
+                                            <span id="label-days-left">يوم متبقٍ</span>
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </div>
-                            {% if days_left and days_left > 0 %}
-                            <p class="text-base text-gray-500 font-bold">
-                                <i class="fa-regular fa-clock me-1"></i> <strong class="text-gray-900 dark:text-white">{{ days_left }}</strong> <span id="label-days-left">يوم متبقٍ</span>
-                            </p>
-                            {% endif %}
+                            <a href="/{{ lang }}/cart" class="btn-primary whitespace-nowrap">
+                                <i class="fa-solid fa-arrow-up"></i> <span id="btn-upgrade">ترقية الخطة</span>
+                            </a>
                         </div>
-                        <a href="/{{ lang }}/cart" class="btn-primary">
-                            <i class="fa-solid fa-arrow-up"></i> <span id="btn-upgrade">ترقية الخطة</span>
+                        {% endfor %}
+                    {% else %}
+                    <div class="p-5 rounded-xl bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-gray-800 flex flex-col md:flex-row items-center justify-between gap-5">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-xl bg-gray-200 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+                                <i class="fa-solid fa-user text-gray-400 text-lg"></i>
+                            </div>
+                            <div>
+                                <p class="font-black text-xl text-gray-500 dark:text-gray-400">Free Tier</p>
+                                <p class="text-sm text-gray-400 mt-0.5">لا يوجد اشتراك نشط حالياً</p>
+                            </div>
+                        </div>
+                        <a href="/{{ lang }}/cart" class="btn-primary whitespace-nowrap">
+                            <i class="fa-solid fa-arrow-up"></i> <span>ترقية الخطة</span>
                         </a>
                     </div>
+                    {% endif %}
                 </div>
 
+                <!-- ═══ سجل الاشتراكات الكامل ═══ -->
                 <div class="settings-card">
-                    <h3 class="font-bold text-lg text-gray-900 dark:text-white mb-6" id="invoices-title">سجل الفواتير</h3>
-                    {% if is_active_sub %}
-                    <div class="overflow-x-auto">
-                        <table style="width:100%;border-collapse:collapse;font-size:15px;text-align:left;" dir="ltr">
-                            <thead>
-                                <tr style="border-bottom:2px solid #e5e7eb;" class="dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                                    <th class="py-4 px-2 font-bold" id="th-date">Date</th>
-                                    <th class="py-4 px-2 font-bold" id="th-plan">Plan</th>
-                                    <th class="py-4 px-2 font-bold" id="th-amount">Amount</th>
-                                    <th class="py-4 px-2 font-bold text-right" id="th-status">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for plan in active_plans %}
-                                <tr style="border-bottom:1px solid #f3f4f6;" class="dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-[#111111] transition">
-                                    <td class="py-4 px-2 text-gray-700 dark:text-gray-300">{{ plan.get('activated', '—')[:10] }}</td>
-                                    <td class="py-4 px-2 font-bold text-gray-900 dark:text-white">{{ plan.get('name', '—') }}</td>
-                                    <td class="py-4 px-2 text-gray-700 dark:text-gray-300">—</td>
-                                    <td class="py-4 px-2 text-right">
-                                        <span style="font-size:13px;background:#dcfce7;color:#16a34a;padding:4px 12px;border-radius:999px;font-weight:700;" id="paid-badge">مدفوع</span>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="font-bold text-lg text-gray-900 dark:text-white" id="invoices-title">سجل الاشتراكات الكامل</h3>
+                        {% if subscription_history %}
+                        <span class="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full font-bold">
+                            {{ subscription_history|length }} اشتراك
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    {% if subscription_history %}
+                    <div class="flex flex-col gap-3">
+                        {% for sub in subscription_history %}
+                        {% set is_active = sub.get('expires', '') > now.isoformat() if sub.get('expires') else False %}
+                        <div class="p-4 rounded-xl border {% if is_active %}border-green-200 dark:border-green-800/50 bg-green-50/50 dark:bg-green-900/10{% else %}border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#111111]{% endif %} transition hover:border-primary/30">
+                            <div class="flex items-start justify-between gap-4 flex-wrap">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg {% if is_active %}bg-green-100 dark:bg-green-900/40{% else %}bg-gray-200 dark:bg-gray-800{% endif %} flex items-center justify-center flex-shrink-0">
+                                        <i class="fa-solid {% if is_active %}fa-circle-check text-green-500{% else %}fa-circle-xmark text-gray-400{% endif %} text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="font-black text-gray-900 dark:text-white">{{ sub.get('name', '—') }}</span>
+                                            {% if is_active %}
+                                            <span style="font-size:11px;background:#22c55e;color:white;padding:2px 8px;border-radius:999px;font-weight:700;">نشط</span>
+                                            {% else %}
+                                            <span style="font-size:11px;background:#6b7280;color:white;padding:2px 8px;border-radius:999px;font-weight:700;">منتهي</span>
+                                            {% endif %}
+                                            {% if sub.get('type') == 'renewal' %}
+                                            <span style="font-size:11px;background:#6366f1;color:white;padding:2px 8px;border-radius:999px;font-weight:700;">تجديد</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-500">
+                                            <span class="flex items-center gap-1">
+                                                <i class="fa-regular fa-calendar-check text-green-500"></i>
+                                                <span class="font-bold">بدأ:</span>
+                                                <span dir="ltr">{{ sub.get('activated', '—')[:10] }}</span>
+                                            </span>
+                                            <span class="text-gray-300 dark:text-gray-700">|</span>
+                                            <span class="flex items-center gap-1">
+                                                <i class="fa-regular fa-calendar-xmark {% if is_active %}text-orange-400{% else %}text-red-400{% endif %}"></i>
+                                                <span class="font-bold">{% if is_active %}ينتهي{% else %}انتهى{% endif %}:</span>
+                                                <span dir="ltr">{{ sub.get('expires', '—')[:10] }}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right flex flex-col items-end gap-1">
+                                    <span class="text-xs font-bold px-2 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                                        {% if sub.get('period') == 'yearly' %}
+                                        <i class="fa-solid fa-rotate text-primary me-1"></i>سنوي
+                                        {% else %}
+                                        <i class="fa-solid fa-rotate text-blue-500 me-1"></i>شهري
+                                        {% endif %}
+                                    </span>
+                                    {% if is_active %}
+                                    {% set days_rem = ((sub.get('expires','')[:10] | string) ) %}
+                                    <span class="text-xs text-green-600 dark:text-green-400 font-bold">
+                                        <i class="fa-regular fa-clock me-1"></i>{{ days_left }} يوم متبقٍ
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
                     {% else %}
-                    <div class="flex flex-col items-center justify-center py-10 text-gray-400 bg-gray-50 dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800">
-                        <i class="fa-solid fa-file-invoice text-5xl mb-4 opacity-50"></i>
-                        <p class="text-base font-bold" id="no-bills">لا توجد فواتير مسجلة حتى الآن</p>
+                    <div class="flex flex-col items-center justify-center py-12 text-gray-400 bg-gray-50 dark:bg-[#111111] rounded-xl border border-dashed border-gray-200 dark:border-gray-800">
+                        <i class="fa-solid fa-receipt text-5xl mb-4 opacity-30"></i>
+                        <p class="text-base font-bold" id="no-bills">لا توجد سجلات اشتراك حتى الآن</p>
+                        <p class="text-sm text-gray-400 mt-2">ستظهر هنا جميع اشتراكاتك بعد أول عملية دفع</p>
+                        <a href="/{{ lang }}/cart" class="mt-4 btn-primary text-sm py-2.5">
+                            <i class="fa-solid fa-arrow-up me-1"></i> اشترك الآن
+                        </a>
                     </div>
                     {% endif %}
                 </div>

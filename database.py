@@ -102,6 +102,7 @@ def create_user_record(email, password_hash, api_key):
         "created_at": datetime.utcnow().isoformat(), "plan": "Free Tier",
         "subscription_end": None,
         "active_plans": [], # المصفوفة الجديدة لدعم الباقات التراكمية
+        "subscription_history": [], # سجل كامل لجميع الاشتراكات
         "limits": default_limits, 
         "usage": {
             "date": str(datetime.utcnow().date()),
@@ -135,14 +136,15 @@ def add_user_subscription(email, plan_key, plan_name, period):
 
     now = datetime.utcnow()
 
+    if "subscription_history" not in user:
+        user["subscription_history"] = []
+
     if existing_plan:
         try:
             current_exp = datetime.fromisoformat(existing_plan["expires"])
             if current_exp > now:
-                # تمديد المدة المتبقية
                 new_exp = current_exp + timedelta(days=days_to_add)
             else:
-                # تجديد من اليوم لأنها انتهت
                 new_exp = now + timedelta(days=days_to_add)
         except:
             new_exp = now + timedelta(days=days_to_add)
@@ -156,9 +158,20 @@ def add_user_subscription(email, plan_key, plan_name, period):
             "plan_key": plan_key,
             "name": plan_name,
             "period": period,
+            "activated": now.isoformat(),
             "expires": new_exp.isoformat(),
             "limits": limits_dict
         })
+
+    # ✅ تسجيل في سجل الاشتراكات الكامل (يُضاف دائماً بغض النظر عن التمديد)
+    user["subscription_history"].append({
+        "plan_key": plan_key,
+        "name": plan_name,
+        "period": period,
+        "activated": now.isoformat(),
+        "expires": new_exp.isoformat(),
+        "type": "renewal" if existing_plan else "new"
+    })
 
     # توافق رجعي للأنظمة القديمة في الواجهة
     active_names = [p["name"] for p in user["active_plans"] if datetime.fromisoformat(p["expires"]) > now]
@@ -236,6 +249,27 @@ def update_api_key(email, new_key):
         redis.set(f"user:{email}", json.dumps(user))
         return True
     except: return False
+
+def get_subscription_history(email):
+    """إرجاع سجل الاشتراكات الكامل للمستخدم (نشطة + منتهية)"""
+    user = get_user_by_email(email)
+    if not user:
+        return []
+    # نعيد السجل الكامل مرتباً من الأحدث للأقدم
+    history = user.get("subscription_history", [])
+    # إذا لم يكن السجل موجوداً (مستخدمون قدامى)، نبنيه من active_plans
+    if not history:
+        history = []
+        for p in user.get("active_plans", []):
+            history.append({
+                "plan_key": p.get("plan_key", ""),
+                "name": p.get("name", ""),
+                "period": p.get("period", ""),
+                "activated": p.get("activated", p.get("expires", "")),
+                "expires": p.get("expires", ""),
+                "type": "new"
+            })
+    return sorted(history, key=lambda x: x.get("activated", ""), reverse=True)
 
 def create_enterprise_lead(data):
     if not redis: return False
