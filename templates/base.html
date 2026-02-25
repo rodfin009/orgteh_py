@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- في قسم <head> -->
     <meta name="spaceremit-verification" content="LS27RIQEO4CH1GYCVWBCO0BPNUEQNQPYCFFQMUZSGAWBLGYTG6">
 
     <title>Orgteh Infra</title>
@@ -26,9 +25,6 @@
     <style>
         /* ===================================================
            🔤 خط Cairo محلي - مُحسَّن: ملفان فقط بدل 4
-           Regular  → يغطي: 400 (النص العادي)
-           Bold     → يغطي: 600, 700, 900 (العناوين والـ font-bold)
-           تأكد أن الملفات موجودة في: /static/fonts/
         =================================================== */
         @font-face {
             font-family: 'Cairo';
@@ -50,22 +46,6 @@
         html.dark .light-logo { display:none !important; }
         html:not(.dark) .dark-logo { display:none !important; }
         html:not(.dark) .light-logo { display:block !important; }
-
-        /* ✨✨✨ إصلاح شعار Kimi - حل نهائي يعمل بغض النظر عن overflow:hidden ✨✨✨ 
-           المشكلة: الشعار أبيض اللون → يختفي في الوضع النهاري
-           الحل: filter:invert(1) في النهاري يحوّله لأسود مرئي
-                  filter:drop-shadow في الليلي يضيف توهجاً
-           لماذا هذا الحل؟ filter يعمل على عنصر img نفسه ولا يتأثر
-           بأي overflow:hidden أو border-radius على العنصر الأب
-        */
-        html:not(.dark) img[src*="kimi"] {
-            filter: invert(0.92) sepia(0.05) saturate(0.8) !important;
-            opacity: 1 !important;
-        }
-        html.dark img[src*="kimi"] {
-            filter: drop-shadow(0 0 6px rgba(160, 180, 255, 0.5)) brightness(1.1) !important;
-            opacity: 1 !important;
-        }
 
         .theme-switch-thumb {
             top: 2px;
@@ -635,7 +615,9 @@
                 updateThemeUI();
                 applyGlobalTranslations();
             }, 100);
+
         });
+
     </script>
 </div></body>
 </html>
