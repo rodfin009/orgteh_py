@@ -2,6 +2,7 @@ import os
 import json
 import sys
 import gzip
+import asyncio
 import brotli
 import traceback
 from pathlib import Path
@@ -12,7 +13,6 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Stre
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
@@ -28,7 +28,7 @@ from database import (
     get_subscription_history
 )
 from services.subscriptions import get_user_subscription_status
-from services.limits import get_user_limits_and_usage, check_trial_allowance
+from services.limits import get_user_limits_and_usage, check_trial_allowance, has_active_paid_subscription
 from services.providers import MODELS_METADATA, HIDDEN_MODELS, smart_chat_stream, acquire_provider_slot
 from services.request_router import handle_chat_request
 from customer_service import router as customer_service_router
@@ -60,32 +60,54 @@ class OptimizedStaticFiles(StaticFiles):
         return response
 
 # 🔥 Security & Performance Headers Middleware
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
+# ✅ ASGI-native middleware — لا يستخدم BaseHTTPMiddleware لتجنب buffering الـ streaming
+from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.datastructures import MutableHeaders
 
-        # Security Headers
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "ALLOWALL"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+class SecurityHeadersMiddleware:
+    """Pure ASGI middleware — zero buffering, safe for streaming responses."""
+    def __init__(self, app: ASGIApp):
+        self.app = app
 
-        # 🔥 Preconnect للمصادر الخارجية (تحسين LCP/FCP)
-        links = [
-            "<https://fonts.gstatic.com>; rel=preconnect",
-            "<https://cdnjs.cloudflare.com>; rel=preconnect",
-            "<https://fonts.googleapis.com>; rel=preconnect"
-        ]
-        response.headers["Link"] = ", ".join(links)
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
-        return response
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                # Security Headers
+                headers["X-Content-Type-Options"] = "nosniff"
+                headers["X-Frame-Options"] = "ALLOWALL"
+                headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+                headers["Permissions-Policy"] = (
+                    "accelerometer=(), camera=(), geolocation=(), "
+                    "gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+                )
+                headers["Link"] = (
+                    "<https://fonts.gstatic.com>; rel=preconnect, "
+                    "<https://cdnjs.cloudflare.com>; rel=preconnect, "
+                    "<https://fonts.googleapis.com>; rel=preconnect"
+                )
+                # 🔥 منع nginx وأي proxy من تبافر الـ streaming responses
+                content_type = headers.get("content-type", "")
+                if any(x in content_type for x in ["ndjson", "event-stream", "octet-stream", "text/plain"]):
+                    headers["X-Accel-Buffering"] = "no"
+                    headers["Cache-Control"] = "no-cache, no-transform"
+                    headers["Transfer-Encoding"] = "chunked"
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
 
 app = FastAPI(title="Orgteh Infra", docs_url=None, redoc_url=None)
 
-# 🔥 تفعيل Gzip Compression (يقلل TTFB بنسبة 70%)
-app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=6)
+# ⚠️  GZipMiddleware تم حذفه نهائياً:
+# يحجز http.response.start في الذاكرة حتى يستلم أول body chunk، مما يكسر
+# الـ streaming بالكامل بغض النظر عن Content-Encoding: identity.
+# الضغط يمكن تطبيقه على مستوى nginx/CDN للملفات الثابتة فقط.
 
-# 🔥 إضافة Security Headers
+# SecurityHeaders — pure ASGI لا يؤثر على الـ streaming
 app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -688,6 +710,38 @@ async def get_user_repos(request: Request):
 app.include_router(tools_router, prefix="/api") 
 app.include_router(tools_router, prefix="/v1")
 
+# ============================================================================
+# PREMIUM TOOLS MIDDLEWARE — حماية أدوات OCR و RAG
+# الأدوات المدفوعة تعمل فقط لمشتركي الباقات المدفوعة (أي باقة ليست مجانية)
+# ============================================================================
+PREMIUM_TOOL_IDS = {"nexus-ocr", "orgteh-ocr", "nexus-rag", "orgteh-rag"}
+
+@app.middleware("http")
+async def premium_tools_guard(request: Request, call_next):
+    path = request.url.path
+    # نتحقق فقط من مسارات تنفيذ الأدوات
+    if "/tools/execute/" in path:
+        # استخراج tool_id من المسار
+        parts = path.split("/tools/execute/")
+        if len(parts) == 2:
+            tool_id = parts[1].strip("/").split("/")[0]
+            if tool_id in PREMIUM_TOOL_IDS:
+                email = get_current_user_email(request)
+                if not email:
+                    return JSONResponse(
+                        {"error": "يجب تسجيل الدخول لاستخدام هذه الأداة. / Login required to use this tool."},
+                        status_code=401
+                    )
+                if not has_active_paid_subscription(email):
+                    return JSONResponse(
+                        {
+                            "error": "هذه الأداة متاحة للمشتركين فقط. يرجى الاشتراك في إحدى باقاتنا. / This tool requires an active paid subscription.",
+                            "upgrade_url": "/cart"
+                        },
+                        status_code=403
+                    )
+    return await call_next(request)
+
 @app.get("/tools", response_class=HTMLResponse)
 async def tools_legacy_redirect(): 
     return RedirectResponse("/en/accesory")
@@ -933,8 +987,18 @@ async def process_code_endpoint(
         async for event in process_code_merge_stream(instruction, files_data, user_api_key, target_model, history_list, target_tools, chat_mode):
             if event['type'] in ['thinking', 'code', 'error']:
                 yield json.dumps({"type": event['type'], "content": event['content']}, ensure_ascii=False).encode('utf-8') + b"\n"
+                # 🔥 إجبار event loop على إرسال الـ chunk فوراً بدون انتظار
+                await asyncio.sleep(0)
 
-    return StreamingResponse(event_generator(), media_type="application/x-ndjson")
+    return StreamingResponse(
+        event_generator(),
+        media_type="application/x-ndjson",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache, no-transform",
+            "Content-Encoding": "identity",
+        }
+    )
 
 @app.post("/api/generate-key")
 async def regenerate_my_key(request: Request):

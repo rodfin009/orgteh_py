@@ -1,6 +1,6 @@
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="[https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js](https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js)"></script>
+<script src="[https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js](https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js)"></script>
+<script src="[https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js](https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js)"></script>
 
 <div style="display: none !important;">
     <iframe id="sandbox-frame"></iframe>
@@ -45,10 +45,11 @@
                 "google/gemma-3n-e4b-it": { name: "Gemma 3n", desc: "Balanced performance.", badge: "New" }
             },
             tools: {
-                "nexus-finance-rss": { name: "Global Market Pulse", desc: "Real-time financial news." },
-                "nexus-news-general": { name: "World News", desc: "Global news coverage." },
-                "nexus-vision-ocr": { name: "OCR Vision", desc: "Extract text from images." },
-                "nexus-semantic-embed": { name: "Semantic Core", desc: "Vector embeddings." }
+                "orgteh-finance-rss": { name: "Global Market Pulse", desc: "Real-time financial news." },
+                "orgteh-news-general": { name: "World News", desc: "Global news coverage." },
+                "orgteh-vision-ocr": { name: "OCR Vision", desc: "Extract text from images." },
+                "orgteh-semantic-embed": { name: "Semantic Core", desc: "Vector embeddings." },
+                "orgteh-web-scraper": { name: "Orgteh Web Extractor", desc: "Extract structured data from any web page." }
             }
         },
         ar: {
@@ -85,10 +86,11 @@
                 "google/gemma-3n-e4b-it": { name: "Gemma 3n", desc: "أداء متوازن.", badge: "جديد" }
             },
             tools: {
-                "nexus-finance-rss": { name: "نبض الأسواق المالية", desc: "أخبار مالية لحظية." },
-                "nexus-news-general": { name: "أخبار العالم", desc: "تغطية شاملة للأخبار." },
-                "nexus-vision-ocr": { name: "محرك الرؤية (OCR)", desc: "استخراج النصوص من الصور." },
-                "nexus-semantic-embed": { name: "المحرك الدلالي", desc: "توليد متجهات للبحث." }
+                "orgteh-finance-rss": { name: "نبض الأسواق المالية", desc: "أخبار مالية لحظية." },
+                "orgteh-news-general": { name: "أخبار العالم", desc: "تغطية شاملة للأخبار." },
+                "orgteh-vision-ocr": { name: "محرك الرؤية (OCR)", desc: "استخراج النصوص من الصور." },
+                "orgteh-semantic-embed": { name: "المحرك الدلالي", desc: "توليد متجهات للبحث." },
+                "orgteh-web-scraper": { name: "محرك استخراج الويب", desc: "استخراج بيانات منظمة من أي صفحة ويب." }
             }
         }
     };
@@ -97,7 +99,6 @@
     let chatHistory = [];
     let currentFiles = {};
     let filesBuffer = {}; 
-    // FIXED: Initialize empty to force user selection or default fallback, NOT hardcoded Kimi
     let selectedItems = { models: [], tools: [] };
     let isPreviewDirty = false;
     let currentPreviewFile = "index.html";
@@ -107,8 +108,6 @@
 
     // --- [3] INITIALIZATION & LOCALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
-        // ── Sync JS lang with server/URL lang ────────────────────────────
-        // The server renders pages at /ar/... or /en/... — use that as source of truth.
         const serverLang = (window.SERVER_LANG
             || document.documentElement.getAttribute('lang')
             || (location.pathname.startsWith('/ar/') ? 'ar' : location.pathname.startsWith('/en/') ? 'en' : null)
@@ -120,7 +119,6 @@
 
         applyIdeTranslations();
 
-        // DEFAULT MODEL SELECTION LOGIC
         const firstModelCard = document.querySelector('#model-list-container .option-card');
         if (firstModelCard) {
             const onclickAttr = firstModelCard.getAttribute('onclick');
@@ -151,7 +149,6 @@
         updateCardsContent('model-list-container', 'models', t.models);
         updateCardsContent('tool-list-container', 'tools', t.tools);
 
-        // Render Welcome Message
         const welcomeContainer = document.getElementById('welcome-message-container');
         if (chatHistory.length === 0 && welcomeContainer) {
             const title = t.welcome_title;
@@ -201,7 +198,6 @@
 
     function selectMode(mode, isManual) {
         currentMode = mode;
-        // Track whether user manually picked a mode from the dropdown
         if (isManual !== undefined) window._manualModeSet = isManual;
 
         var icons = { auto: 'fa-wand-magic-sparkles', build: 'fa-hammer', chat: 'fa-comments' };
@@ -228,17 +224,16 @@
         var input = document.getElementById('prompt-input');
         if (input) {
             if (mode === 'build') {
-                input.placeholder = (lang === 'ar') ? 'اطلب من Nexus بناء مشروع...' : 'Ask Nexus to build something...';
+                input.placeholder = (lang === 'ar') ? 'اطلب من Orgteh بناء مشروع...' : 'Ask Orgteh to build something...';
             } else if (mode === 'chat') {
                 input.placeholder = (lang === 'ar') ? 'استفسر أو اطرح سؤالك...' : 'Ask a question or discuss...';
             } else {
                 var t = getTrans();
-                input.placeholder = t.input_placeholder || 'Ask Nexus...';
+                input.placeholder = t.input_placeholder || 'Ask Orgteh...';
             }
         }
     }
 
-    // Close mode dropdown when clicking outside
     document.addEventListener('click', function(evt) {
         var wrapper = document.querySelector('.mode-toggle-wrapper');
         if (wrapper && !wrapper.contains(evt.target)) {
@@ -260,17 +255,13 @@
 
         var t = getTrans();
 
-        // ── Capture mode BEFORE any side effects ──────────────────────────
-        // CRITICAL: must read currentMode here, before clearFloatingChip resets it
-        var resolvedMode = currentMode; // 'auto' | 'build' | 'chat'
+        var resolvedMode = currentMode;
 
-        // Inject pending file context (floating chip)
         if (window._pendingFileContext) {
             var fc = window._pendingFileContext;
             text = text + '\n\n[File context: ' + fc.name + ']\n' + fc.content;
-            // File inquiry → ALWAYS chat, regardless of selected mode
             resolvedMode = 'chat';
-            clearFloatingChipSilent(); // clear visual only, don't change currentMode
+            clearFloatingChipSilent();
         }
 
         let displayMsg = input.value.trim().replace(/\n/g, '<br>');
@@ -280,14 +271,11 @@
 
         addMessageUI('user', displayMsg);
         chatHistory.push({ role: 'user', content: text });
-        // Don't reset currentPreviewFile here — keep the last known HTML file
-        // It gets updated properly in handleV1Stream after parsing new files
         input.value = ''; input.style.height = 'auto';
         filesBuffer = {};
         isPreviewDirty = true;
         switchView('chat');
 
-        // Route: 'chat' → handleChatStream | 'build'/'auto' → handleV1Stream
         if (resolvedMode === 'chat') {
             await handleChatStream(text, fileInput.files);
         } else {
@@ -298,17 +286,6 @@
         updateFileBadge();
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // [5] SMART STREAM HANDLER  (build + auto)
-    //
-    //  GUARANTEED LOGIC:
-    //  • 'build' mode  → always treat response as files
-    //  • 'auto'  mode  → peek at first content chunk:
-    //      - starts with "###" → building  → progress bar + files
-    //      - anything else     → chatting  → chat bubble, NO files ever
-    //
-    //  parseFilesStrict never creates code.txt fallback.
-    // ─────────────────────────────────────────────────────────────────────
     async function handleV1Stream(text, files, mode) {
         mode = mode || 'build';
         var feed = document.getElementById('chat-container');
@@ -326,7 +303,6 @@
         formData.append('chat_mode', mode);
         for (var fi = 0; fi < files.length; fi++) formData.append('files', files[fi]);
 
-        // Build the shared container row
         var row = document.createElement('div');
         row.className = 'msg-row ai v1-msg-row';
         row.innerHTML =
@@ -353,7 +329,7 @@
 
         var fullText     = '';
         var thinkingDone = false;
-        var renderPath   = null; // 'build' | 'chat' — decided on FIRST content chunk
+        var renderPath   = null;
 
         function markThinkingDone() {
             if (thinkingDone) return;
@@ -391,14 +367,12 @@
 
                     fullText += data.content;
 
-                    // ── Decide render path on FIRST content chunk ──────────
                     if (renderPath === null) {
                         markThinkingDone();
                         var trimmed = fullText.trimStart();
                         if (mode === 'build' || trimmed.startsWith('###')) {
                             renderPath = 'build';
                             progressBox.classList.remove('hidden');
-                            progressFill.style.width = '30%';
                         } else {
                             renderPath = 'chat';
                             chatBubble.style.display = 'block';
@@ -408,13 +382,14 @@
                     if (renderPath === 'chat') {
                         chatBubble.innerHTML = chatMarkdown(fullText);
                     } else {
-                        progressFill.style.width = '60%';
+                        // Dynamic Progress Bar updates
+                        let currentProgress = Math.min(30 + (fullText.length / 100), 95);
+                        progressFill.style.width = currentProgress + '%';
                     }
                     feed.scrollTop = feed.scrollHeight;
                 }
             }
 
-            // ── Post-stream ────────────────────────────────────────────────
             markThinkingDone();
 
             if (renderPath === 'build' || (mode === 'build' && renderPath === null)) {
@@ -423,21 +398,13 @@
                     var newFiles = parseFilesStrict(fullText);
                     if (Object.keys(newFiles).length > 0) {
                         Object.assign(currentFiles, newFiles);
-                        // ── Update currentPreviewFile to the actual HTML file produced ──
-                        // This is critical: if model returns "public/index.html", we must
-                        // point currentPreviewFile to it, not keep stale "index.html"
                         updateCurrentPreviewFile(newFiles);
                         chatHistory.push({ role: 'assistant', content: fullText });
                         Object.keys(newFiles).forEach(function(f) { renderArtifactBadge(row, f); });
                         renderDownloadAllBtn(row);
-                        // ── Always render preview with updated content ──────────────
-                        // Whether preview tab is active or not, update the iframe now
-                        // so switching to it shows the latest version immediately
                         isPreviewDirty = false;
                         renderPreview(currentPreviewFile);
                     } else {
-                        // Model was supposed to build but produced no ### files
-                        // → show as chat instead of creating code.txt
                         chatBubble.style.display = 'block';
                         chatBubble.innerHTML = chatMarkdown(fullText);
                         chatHistory.push({ role: 'assistant', content: fullText });
@@ -445,7 +412,6 @@
                     }
                 }
             } else {
-                // chat path (or auto that chose chat)
                 if (fullText.trim()) {
                     chatBubble.style.display = 'block';
                     chatBubble.innerHTML = chatMarkdown(fullText);
@@ -460,8 +426,6 @@
         }
     }
 
-    // parseFilesStrict — ONLY returns files when ### separators exist.
-    // NEVER creates a code.txt fallback. That was the root cause of the bug.
     function parseFilesStrict(text) {
         var cleanText = text.replace(/```\w+\n/g, '').replace(/```/g, '');
         var regex = /###\s*([\w\.\-\/]+)(?:\s*###)?\s*\n([\s\S]*?)(?=###\s*[\w\.\-\/]|$)/g;
@@ -475,18 +439,13 @@
         return files;
     }
 
-    // updateCurrentPreviewFile — called after every build to keep currentPreviewFile
-    // pointing at the correct HTML entry point in the latest set of files.
-    // Handles paths like "public/index.html", "src/index.html", "index.html" etc.
     function updateCurrentPreviewFile(newFiles) {
         var allHtml = Object.keys(currentFiles).filter(function(f) { return f.endsWith('.html'); });
-        if (allHtml.length === 0) return; // no html files in project at all
+        if (allHtml.length === 0) return; 
 
-        // Prefer files from the newly received batch
         var newHtml = Object.keys(newFiles).filter(function(f) { return f.endsWith('.html'); });
         var pool = newHtml.length > 0 ? newHtml : allHtml;
 
-        // Priority: file containing 'index', then 'home', then first .html
         var best = pool.find(function(f) { return f.replace(/.*\//, '').toLowerCase() === 'index.html'; })
             || pool.find(function(f) { return f.toLowerCase().includes('index'); })
             || pool.find(function(f) { return f.toLowerCase().includes('home'); })
@@ -498,7 +457,6 @@
         }
     }
 
-    // --- [5b] CHAT MODE STREAM — no progress bar, direct streaming text ---
     async function handleChatStream(text, files) {
         const feed = document.getElementById('chat-container');
         const t = getTrans();
@@ -588,26 +546,19 @@
     }
 
     function chatMarkdown(text) {
-        // code blocks
         var html = text.replace(/```(\w*)\n?([\s\S]*?)```/g, function(_, lang, code) {
             return '<pre><code>' + code.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</code></pre>';
         });
-        // inline code
         html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-        // bold
         html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-        // newlines
         html = html.replace(/\n/g, '<br>');
         return html;
     }
 
-    // --- [6] UI UTILITIES ---
     function toggleThinking(el) {
         const wrapper = el.closest('.thinking-wrapper');
         if (wrapper) wrapper.classList.toggle('open');
     }
-
-    // processStream removed — handleV1Stream now handles all streaming directly
 
     function addMessageUI(role, html) {
         const feed = document.getElementById('chat-container');
@@ -639,7 +590,6 @@
         return row;
     }
 
-    // parseFiles: kept for any legacy references, delegates to parseFilesStrict (no code.txt fallback)
     function parseFiles(text) {
         return parseFilesStrict(text);
     }
@@ -683,7 +633,6 @@
         }
     }
 
-    // --- File Editor Modal ---
     function openFileEditor(filename) {
         const content = currentFiles[filename] || '';
         let modal = document.getElementById('file-editor-modal');
@@ -722,7 +671,6 @@
         document.getElementById('editor-filename').textContent = filename;
         const ta = document.getElementById('editor-textarea');
         ta.value = content;
-        // Save handler — always refresh preview immediately
         document.getElementById('editor-save-btn').onclick = () => {
             currentFiles[filename] = ta.value;
             isPreviewDirty = false;
@@ -736,14 +684,11 @@
         const content = currentFiles[filename] || '';
         const lang = localStorage.getItem('lang') || 'ar';
 
-        // Store file context
         window._pendingFileContext = { name: filename, content: content.slice(0, 3000) };
 
-        // Auto-switch to chat mode (mark as NOT manually set so it resets after)
         window._manualModeSet = false;
         selectMode('chat');
 
-        // Show floating chip
         showFloatingChip(filename);
 
         const input = document.getElementById('prompt-input');
@@ -771,17 +716,13 @@
             '</div>';
     }
 
-    // clearFloatingChip: called by X button — resets mode to auto
     function clearFloatingChip() {
         clearFloatingChipSilent();
-        // Reset mode to auto only if it was auto-switched (not manually set)
         if (currentMode === 'chat' && !window._manualModeSet) {
             selectMode('auto');
         }
     }
 
-    // clearFloatingChipSilent: clears UI only, does NOT change currentMode
-    // Used by sendMessage so mode isn't reset before routing logic
     function clearFloatingChipSilent() {
         window._pendingFileContext = null;
         var area = document.getElementById('floating-file-area');
@@ -789,7 +730,7 @@
         var input = document.getElementById('prompt-input');
         if (input) {
             var t = getTrans();
-            input.placeholder = t.input_placeholder || 'Ask Nexus...';
+            input.placeholder = t.input_placeholder || 'Ask Orgteh...';
         }
     }
 
@@ -826,15 +767,13 @@
     function downloadAll() {
         const zip = new JSZip();
         Object.keys(currentFiles).forEach(f => zip.file(f, currentFiles[f]));
-        zip.generateAsync({type:"blob"}).then(c => saveAs(c, "nexus-project.zip"));
+        zip.generateAsync({type:"blob"}).then(c => saveAs(c, "orgteh-project.zip"));
     }
 
     function switchView(view) {
-        // Update main view sections
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById(`view-${view}`).classList.add('active');
 
-        // Update main bottom-bar tabs (chat page)
         const mainTabChat = document.getElementById('tab-chat');
         const mainTabPreview = document.getElementById('tab-preview');
         if (mainTabChat) mainTabChat.classList.toggle('active', view === 'chat');
@@ -849,7 +788,6 @@
             if (bottomControls) bottomControls.style.display = 'none';
             showPreviewNav();
 
-            // Set correct active tab in preview nav
             const pTabChat = document.getElementById('preview-tab-chat');
             const pTabPreview = document.getElementById('preview-tab-preview');
             if (pTabChat) pTabChat.classList.remove('active');
@@ -879,10 +817,6 @@
                 background: linear-gradient(to top, var(--bg-body) 70%, transparent);
                 transition: opacity 0.3s ease;
             `;
-            // ترتيب الـ tabs يطابق الشريط الرئيسي بصرياً:
-            // الشريط الرئيسي في HTML: [المحادثة | المعاينة]
-            // في RTL: المحادثة تظهر يميناً، المعاينة يساراً.
-            // نحافظ على نفس الترتيب هنا.
             pNav.innerHTML = `
                 <div class="nav-container" style="pointer-events:auto;">
                     <div onclick="togglePreviewNavVisibility()" class="visibility-btn" id="preview-visibility-btn" title="إخفاء/إظهار الشريط">
@@ -905,13 +839,11 @@
                 </div>`;
             document.body.appendChild(pNav);
         } else {
-            // Nav already exists — just make sure active state is correct
             const pTabChat = document.getElementById('preview-tab-chat');
             const pTabPreview = document.getElementById('preview-tab-preview');
             if (pTabChat) pTabChat.classList.remove('active');
             if (pTabPreview) pTabPreview.classList.add('active');
         }
-        // Reset visibility state on show
         const pill = pNav.querySelector('#preview-tab-pill');
         const menuBtn = pNav.querySelector('#preview-menu-btn');
         const eyeIcon = pNav.querySelector('#eye-icon-preview');
@@ -1001,11 +933,9 @@
         Object.keys(currentFiles).forEach(fname => {
             if (fname === htmlFileName) return;
             const content = cleanCodeFence(currentFiles[fname]);
-            // baseName: handle paths like "public/styles.css" → "styles.css"
             const baseName = fname.includes('/') ? fname.split('/').pop() : fname;
 
             if(fname.endsWith('.css')) {
-                 // Match by full path OR base filename in html
                  const cssRef = html.includes(fname) ? fname : (html.includes(baseName) ? baseName : null);
                  if(cssRef) {
                      const cssRegex = new RegExp(`<link[^>]+href=["']${cssRef.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}["'][^>]*>`, 'i');
@@ -1073,7 +1003,6 @@
     function switchModal(c, o) { closeSpecificModal(c); setTimeout(() => openSpecificModal(o), 100); }
 
     function selectItem(category, itemId, elemId) {
-        // Clear previous selection for single-choice (models)
         if (category === 'models') {
              const allCards = document.querySelectorAll('#model-list-container .option-card');
              allCards.forEach(c => {
@@ -1087,7 +1016,6 @@
              return;
         }
 
-        // Multi-choice for tools
         const list = selectedItems[category]; 
         const index = list.indexOf(itemId); 
         const elem = document.getElementById(elemId);
@@ -1102,18 +1030,15 @@
         }
     }
 
-    // --- [7] AUTO RESIZE TEXTAREA ---
     function autoResize(el) {
         el.style.height = 'auto';
         el.style.height = Math.min(el.scrollHeight, 120) + 'px';
     }
 
-    // --- [8] GITHUB DEPLOY ---
     function openGitHubDeployModal() {
         const modal = document.getElementById('github-deploy-modal');
         if (!modal) return;
 
-        // Reset all states
         ['gh-not-connected','gh-no-files','gh-deploy-form','gh-import-form','gh-loading','gh-success'].forEach(id => {
             document.getElementById(id)?.classList.add('hidden');
         });
@@ -1122,7 +1047,6 @@
 
         const files = Object.keys(currentFiles);
 
-        // Auto generate repo name
         const repoInput = document.getElementById('gh-repo-name');
         if (repoInput && !repoInput.value) {
             repoInput.value = 'orgteh-project-' + Date.now().toString(36);
@@ -1162,7 +1086,6 @@
         if (tab === 'deploy') {
             if (deployBtn) { deployBtn.style.background = 'var(--bg-card)'; deployBtn.style.color = 'var(--text-primary)'; deployBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'; }
             if (importBtn) { importBtn.style.background = 'transparent'; importBtn.style.color = 'var(--text-secondary)'; importBtn.style.boxShadow = 'none'; }
-            // Show deploy form if files exist, else no-files notice
             if (importForm) importForm.classList.add('hidden');
             const files = Object.keys(currentFiles);
             if (files.length > 0) {
@@ -1208,18 +1131,15 @@
             loading?.classList.add('hidden');
 
             if (result.success && result.files) {
-                // Load imported files into editor
                 Object.assign(currentFiles, result.files);
                 isPreviewDirty = true;
                 closeSpecificModal('github-deploy-modal');
 
-                // Show success in chat
                 addMessageUI('ai', `<div style="padding:12px 16px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;">
                     <div style="font-weight:bold;margin-bottom:6px;color:#22c55e;"><i class="fab fa-github mr-2"></i> تم الاستيراد بنجاح!</div>
                     <div style="font-size:0.85rem;color:var(--text-secondary);">تم تحميل ${Object.keys(result.files).length} ملف من <code>${repoUrl}</code>. يمكنك الآن تعديلها أو طلب تحسينات.</div>
                 </div>`);
 
-                // Render preview if html files exist
                 if (Object.keys(result.files).some(f => f.endsWith('.html'))) {
                     renderPreview('index.html');
                 }
@@ -1240,7 +1160,6 @@
             return; 
         }
 
-        // Build files array
         const filesArr = Object.entries(currentFiles).map(([path, content]) => ({ path, content }));
 
         ['gh-deploy-form'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
@@ -1289,4 +1208,17 @@
 <style>
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
+
+    /* Ensure tool icons remain visible in dark mode */
+    .text-emerald-500 { color: #10b981; }
+    .text-blue-500 { color: #3b82f6; }
+    .text-green-500 { color: #22c55e; }
+    .text-purple-500 { color: #a855f7; }
+    .text-orange-500 { color: #f97316; }
+
+    html.dark .text-emerald-500 { color: #34d399; }
+    html.dark .text-blue-500 { color: #60a5fa; }
+    html.dark .text-green-500 { color: #4ade80; }
+    html.dark .text-purple-500 { color: #c084fc; }
+    html.dark .text-orange-500 { color: #fb923c; }
 </style>

@@ -76,13 +76,13 @@ async def process_code_merge_stream(
         tools_list = target_tools.split(',')
         if tools_list:
             tools_context = "\n\n[ENABLED TOOLS DOCUMENTATION]\n"
-            tools_context += "The user has explicitly enabled the following tools. You SHOULD use them if the request requires it:\n"
+            tools_context += "The user has explicitly enabled the following tools. You MUST use them if the request requires it:\n"
             for t_id in tools_list:
                 tool = TOOLS_DB.get(t_id.strip())
                 if tool:
                     tools_context += f"\n--- TOOL: {tool.get('name_en')} (ID: {t_id}) ---\n"
                     tools_context += f"Description: {tool.get('desc_en')}\n"
-                    tools_context += "Usage Note: This API accepts FORM DATA only. Do NOT use JSON body.\n"
+                    tools_context += "Usage Note: Follow the EXACT payload format (JSON or FormData) as shown in the Python Usage below.\n"
                     tools_context += f"Python Usage:\n{tool.get('usage_python')}\n"
 
     # 3. Construct System Prompt — مبني على chat_mode الصريح من الفرونتند
@@ -92,7 +92,7 @@ async def process_code_merge_stream(
     if is_inquiry:
         # ── وضع المحادثة: استفسار طبيعي ──────────────────────────────────
         system_prompt = f"""
-You are 'Nexus AI', a helpful AI assistant specialized in code review and explanation.
+You are 'Orgteh AI', a helpful AI assistant specialized in code review and explanation.
 
 The user is in CHAT MODE — asking a question or discussing code. Do NOT generate new project files.
 Answer naturally and conversationally in the SAME language the user uses (Arabic or English).
@@ -104,7 +104,7 @@ NEVER output file separators like ### filename.ext ###.
         # ── الوضع التلقائي: النموذج يقرر بنفسه ──────────────────────────
         active_model = embedding_model_id.split(",")[0] if embedding_model_id else "deepseek-ai/deepseek-v3.2"
         system_prompt = f"""
-You are 'Nexus AI', an expert AI assistant and Full-Stack Developer.
+You are 'Orgteh AI', an expert AI assistant and Full-Stack Developer.
 
 IMPORTANT — YOU DECIDE THE RESPONSE TYPE:
 
@@ -132,11 +132,11 @@ const res = await fetch("{PROJECT_HOST_URL}/v1/chat/completions", {{
     body: JSON.stringify({{model: "{active_model}", messages: [...], stream: false}})
 }});
 
-Tools endpoint: {PROJECT_HOST_URL}/v1/tools/execute/{{TOOL_ID}} (POST with FormData, NOT JSON)
+Tools endpoint: {PROJECT_HOST_URL}/api/tools/execute/{{TOOL_ID}}
 {tools_context}
 ════════════════════════════════════════════════
 [DESIGN RULES when building]
-- Tailwind CSS via CDN (https://cdn.tailwindcss.com)
+- Tailwind CSS via CDN ([https://cdn.tailwindcss.com](https://cdn.tailwindcss.com))
 - Dark theme by default, mobile responsive, modern animations
 """
 
@@ -144,7 +144,7 @@ Tools endpoint: {PROJECT_HOST_URL}/v1/tools/execute/{{TOOL_ID}} (POST with FormD
         # ── وضع البناء الصريح: توليد ملفات دائماً ───────────────────────
         active_model = embedding_model_id.split(",")[0] if embedding_model_id else "deepseek-ai/deepseek-v3.2"
         system_prompt = f"""
-You are 'Nexus AI', an expert Full-Stack Web Developer and Architect.
+You are 'Orgteh AI', an expert Full-Stack Web Developer and Architect.
 
 YOUR ONLY JOB: Build complete, working web applications and output them as code files.
 You MUST ALWAYS output code files using the separator format below — no exceptions.
@@ -178,12 +178,12 @@ const response = await fetch("{PROJECT_HOST_URL}/v1/chat/completions", {{
 const data = await response.json();
 const reply = data.choices[0].message.content;
 
-Tools: POST to {PROJECT_HOST_URL}/v1/tools/execute/{{TOOL_ID}} with FormData (NOT JSON)
+Tools: POST to {PROJECT_HOST_URL}/api/tools/execute/{{TOOL_ID}}
 {tools_context}
 ════════════════════════════════
 
 [DESIGN RULES]
-- Tailwind CSS via CDN (https://cdn.tailwindcss.com)
+- Tailwind CSS via CDN ([https://cdn.tailwindcss.com](https://cdn.tailwindcss.com))
 - Dark theme by default, modern UI, mobile responsive, smooth animations
 """
 
@@ -216,7 +216,7 @@ Tools: POST to {PROJECT_HOST_URL}/v1/tools/execute/{{TOOL_ID}} with FormData (NO
     log_debug(f"Messages prepared. Count: {len(messages)}")
 
     # 5. Call API
-    http_client = httpx.AsyncClient(timeout=120.0)
+    http_client = httpx.AsyncClient(timeout=httpx.Timeout(connect=15.0, read=120.0, write=30.0, pool=10.0))
     client = AsyncOpenAI(
         base_url=NVIDIA_BASE_URL, 
         api_key=NVIDIA_API_KEY,
@@ -224,12 +224,12 @@ Tools: POST to {PROJECT_HOST_URL}/v1/tools/execute/{{TOOL_ID}} with FormData (NO
     )
 
     try:
-        log_debug(">>> ATTEMPT 1: Initiating DeepSeek (Primary) with STRICT 3s TIMEOUT...")
+        log_debug(">>> ATTEMPT 1: Initiating DeepSeek Terminus (Primary) with 5s TIMEOUT...")
 
         async def connect_and_get_first_chunk():
             log_debug("   -> Sending API Request...")
             stream = await client.chat.completions.create(
-                model="deepseek-ai/deepseek-v3.1-terminus", 
+                model="deepseek-ai/deepseek-v3.1-terminus",
                 messages=messages,
                 temperature=0.1, 
                 top_p=0.5,
@@ -243,25 +243,42 @@ Tools: POST to {PROJECT_HOST_URL}/v1/tools/execute/{{TOOL_ID}} with FormData (NO
             return iterator, first_chunk
 
         try:
-            chunk_iterator, first_chunk = await asyncio.wait_for(connect_and_get_first_chunk(), timeout=3.0)
+            chunk_iterator, first_chunk = await asyncio.wait_for(connect_and_get_first_chunk(), timeout=5.0)
             log_debug("!!! CONNECTION ESTABLISHED & FIRST CHUNK RECEIVED !!!")
 
         except asyncio.TimeoutError:
-            log_debug("❌ TIMEOUT: Connection or First Byte took > 3s.")
-            raise Exception("Timeout: DeepSeek Primary is unresponsive")
+            log_debug("❌ TIMEOUT: Connection or First Byte took > 5s.")
+            raise Exception("Timeout: DeepSeek Terminus is unresponsive")
 
         except Exception as e:
             log_debug(f"❌ ERROR during connection: {str(e)}")
             raise e
 
         # --- PROCESSING THE STREAM (If successful) ---
+        is_thinking_block = False
+
+        # Process first chunk
         delta = first_chunk.choices[0].delta
         reasoning = getattr(delta, "reasoning_content", None) or \
                     (delta.model_extra and delta.model_extra.get("reasoning_content"))
 
-        if reasoning: yield {"type": "thinking", "content": reasoning}
-        elif delta.content: yield {"type": "code", "content": delta.content}
+        if reasoning:
+            yield {"type": "thinking", "content": reasoning}
+        elif delta.content:
+            text = delta.content
+            if "<think>" in text:
+                is_thinking_block = True
+                text = text.replace("<think>", "")
+            if "</think>" in text:
+                is_thinking_block = False
+                parts = text.split("</think>")
+                if parts[0]: yield {"type": "thinking", "content": parts[0]}
+                if len(parts) > 1 and parts[1]: yield {"type": "code", "content": parts[1]}
+            else:
+                if is_thinking_block: yield {"type": "thinking", "content": text}
+                else: yield {"type": "code", "content": text}
 
+        # Process remaining chunks
         async for chunk in chunk_iterator:
             if not getattr(chunk, "choices", None): continue
             delta = chunk.choices[0].delta
@@ -273,13 +290,30 @@ Tools: POST to {PROJECT_HOST_URL}/v1/tools/execute/{{TOOL_ID}} with FormData (NO
                 yield {"type": "thinking", "content": reasoning}
 
             if delta.content:
-                yield {"type": "code", "content": delta.content}
+                text = delta.content
+                # Intercept <think> tags if reasoning comes in main content stream
+                if "<think>" in text:
+                    is_thinking_block = True
+                    text = text.replace("<think>", "")
+                if "</think>" in text:
+                    is_thinking_block = False
+                    parts = text.split("</think>")
+                    if parts[0]:
+                        yield {"type": "thinking", "content": parts[0]}
+                    if len(parts) > 1 and parts[1]:
+                        yield {"type": "code", "content": parts[1]}
+                    continue
+
+                if is_thinking_block:
+                    yield {"type": "thinking", "content": text}
+                else:
+                    yield {"type": "code", "content": text}
 
         log_debug("DeepSeek Primary Stream Completed Successfully ✅")
 
     except Exception as e:
         log_debug(f"⚠️ FALLBACK TRIGGERED! Reason: {str(e)}")
-        log_debug(">>> ATTEMPT 2: Switching to DeepSeek v3.1 (Standard Fallback)...")
+        log_debug(">>> ATTEMPT 2: Switching to DeepSeek v3.1 (Emergency Fallback)...")
 
         try:
             backup_completion = await client.chat.completions.create(
@@ -293,6 +327,7 @@ Tools: POST to {PROJECT_HOST_URL}/v1/tools/execute/{{TOOL_ID}} with FormData (NO
             )
 
             log_debug("DeepSeek v3.2 Fallback Connection Established. Streaming...")
+            is_thinking_block = False
 
             async for chunk in backup_completion:
                 if not getattr(chunk, "choices", None): continue
@@ -305,7 +340,21 @@ Tools: POST to {PROJECT_HOST_URL}/v1/tools/execute/{{TOOL_ID}} with FormData (NO
                      yield {"type": "thinking", "content": reasoning}
 
                 if delta.content:
-                    yield {"type": "code", "content": delta.content}
+                    text = delta.content
+                    if "<think>" in text:
+                        is_thinking_block = True
+                        text = text.replace("<think>", "")
+                    if "</think>" in text:
+                        is_thinking_block = False
+                        parts = text.split("</think>")
+                        if parts[0]: yield {"type": "thinking", "content": parts[0]}
+                        if len(parts) > 1 and parts[1]: yield {"type": "code", "content": parts[1]}
+                        continue
+
+                    if is_thinking_block:
+                        yield {"type": "thinking", "content": text}
+                    else:
+                        yield {"type": "code", "content": text}
 
             log_debug("DeepSeek v3.2 Fallback Stream Completed ✅")
 

@@ -13,7 +13,7 @@ PLAN_CONFIGS = {
         "overdraft": {"monthly": 750, "yearly": 2000}
     },
     "nexus_global": {
-        "daily_limits": {"deepseek": 150, "kimi": 100, "mistral": 50, "llama": 0, "gemma": 0},
+        "daily_limits": {"deepseek": 150, "kimi": 100, "mistral": 50, "llama": 100, "gemma": 120},
         "overdraft": {"monthly": 200, "yearly": 500}
     },
     "deepseek": {
@@ -145,6 +145,28 @@ async def check_trial_allowance(email, model_id):
         update_user_usage_struct(email, usage)
         return True
     return False
+
+def has_active_paid_subscription(email: str) -> bool:
+    """
+    Returns True if the user has at least one active non-free subscription.
+    Used to gate access to premium tools (OCR, RAG).
+    """
+    user = get_user_by_email(email)
+    if not user:
+        return False
+    active_plans = user.get("active_plans", [])
+    now = datetime.utcnow()
+    for p in active_plans:
+        try:
+            exp_date = datetime.fromisoformat(p["expires"])
+            if exp_date > now:
+                plan_key = p.get("key", "")
+                if plan_key != "free_tier":
+                    return True
+        except:
+            pass
+    return False
+
 
 def get_limits_for_new_subscription(plan_key, period="monthly"):
     config = PLAN_CONFIGS.get(plan_key)

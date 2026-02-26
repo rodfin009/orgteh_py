@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block content %}
@@ -62,6 +63,31 @@
         background: #1e1e1e;
         border-radius: 8px;
         overflow: hidden;
+    }
+
+    /* ── Custom Select Dropdown ─────────────────────────────────────────────── */
+    .custom-select-wrapper { position: relative; }
+
+    .custom-select-btn {
+        text-align: left;
+        background: transparent;
+    }
+    html[dir="rtl"] .custom-select-btn { text-align: right; }
+
+    .custom-select-panel {
+        animation: dropDown 0.15s ease-out;
+    }
+    @keyframes dropDown {
+        from { opacity: 0; transform: translateY(-6px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .custom-select-btn.open {
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 2px rgba(79,70,229,0.2);
+    }
+    .custom-select-btn.open .custom-select-chevron {
+        transform: rotate(180deg);
     }
 </style>
 
@@ -130,25 +156,49 @@
                                         </label>
 
                                         {% if param.type == 'select' %}
-                                        <div class="relative">
-                                            <select name="{{ param.name }}" class="w-full bg-gray-50 dark:bg-darkbg border border-gray-200 dark:border-gray-700 rounded-xl p-3 dark:text-white focus:ring-2 focus:ring-primary outline-none appearance-none cursor-pointer">
+                                        <div class="custom-select-wrapper relative" data-name="{{ param.name }}" data-value="{{ param.default }}">
+                                            <input type="hidden" name="{{ param.name }}" value="{{ param.default }}">
+                                            <button type="button"
+                                                class="custom-select-btn w-full flex items-center justify-between bg-gray-50 dark:bg-darkbg border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none cursor-pointer transition hover:border-primary"
+                                                onclick="toggleCustomSelect(this)">
+                                                <span class="custom-select-label font-medium">{{ param.default }}</span>
+                                                <i class="fa-solid fa-chevron-down text-xs text-gray-400 custom-select-chevron transition-transform duration-200"></i>
+                                            </button>
+                                            <div class="custom-select-panel hidden absolute z-50 top-full mt-1 left-0 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
                                                 {% for opt in param.options %}
-                                                    <option value="{{ opt }}" {% if opt == param.default %}selected{% endif %}>{{ opt }}</option>
+                                                <div class="custom-select-option-wrapper">
+                                                    <button type="button"
+                                                        class="custom-select-option w-full text-left rtl:text-right px-4 py-2 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center justify-between {% if opt == param.default %}text-primary font-bold{% endif %}"
+                                                        data-value="{{ opt }}"
+                                                        onclick="selectOption(this)">
+                                                        <span>{{ opt }}</span>
+                                                        {% if opt == param.default %}<i class="fa-solid fa-check text-xs text-primary"></i>{% endif %}
+                                                    </button>
+                                                    {% if param.option_descriptions and param.option_descriptions|length > loop.index0 %}
+                                                    <div class="px-4 pb-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                                                        <span class="lang-ar">
+                                                            {% if "option_descriptions_ar" in param and param.option_descriptions_ar %}
+                                                                {{ param.option_descriptions_ar[loop.index0] }}
+                                                            {% else %}
+                                                                {{ param.option_descriptions[loop.index0] }}
+                                                            {% endif %}
+                                                        </span>
+                                                        <span class="lang-en">{{ param.option_descriptions[loop.index0] }}</span>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
                                                 {% endfor %}
-                                            </select>
-                                            <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500 rtl:right-auto rtl:left-0">
-                                                <i class="fa-solid fa-chevron-down text-xs"></i>
                                             </div>
                                         </div>
 
                                         {% elif param.type == 'number' %}
-                                        <input type="number" name="{{ param.name }}" value="{{ param.default }}" class="w-full bg-gray-50 dark:bg-darkbg border border-gray-200 dark:border-gray-700 rounded-xl p-3 dark:text-white focus:ring-2 focus:ring-primary outline-none">
+                                        <input type="number" name="{{ param.name }}" value="{{ param.default }}" class="w-full bg-gray-50 dark:bg-darkbg border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none">
 
                                         {% elif param.type == 'file' %}
-                                        <input type="file" name="{{ param.name }}" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 bg-gray-50 dark:bg-darkbg rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer">
+                                        <input type="file" name="{{ param.name }}" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 bg-gray-50 dark:bg-darkbg rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer text-gray-900 dark:text-white">
 
                                         {% else %}
-                                        <input type="text" name="{{ param.name }}" class="w-full bg-gray-50 dark:bg-darkbg border border-gray-200 dark:border-gray-700 rounded-xl p-3 dark:text-white focus:ring-2 focus:ring-primary outline-none">
+                                        <input type="text" name="{{ param.name }}" class="w-full bg-gray-50 dark:bg-darkbg border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none">
                                         {% endif %}
                                     </div>
                                 {% endfor %}
@@ -189,7 +239,7 @@
                         {% if active_tool.is_paid %}
                             <div class="text-amber-500 font-bold flex items-center gap-2">
                                 <i class="fa-solid fa-coins"></i>
-                                <span class="lang-ar">يتم خصم نقاط لكل طلب</span><span class="lang-en">Points deducted per request</span>
+                                <span class="lang-ar">يتم تفعيلها عند الاشتراك</span><span class="lang-en">Activated with subscription</span>
                             </div>
                         {% else %}
                             <div class="text-green-600 font-bold flex items-center gap-2">
@@ -495,17 +545,6 @@ curl -X POST https://orgteh.com/v1/chat/completions \
 </div>
 
 <script>
-    // 1. Force Language Logic
-    (function() {
-        if (!localStorage.getItem('lang')) {
-            localStorage.setItem('lang', 'ar');
-        }
-        const savedLang = localStorage.getItem('lang');
-        document.documentElement.setAttribute('lang', savedLang);
-        document.documentElement.setAttribute('dir', savedLang === 'ar' ? 'rtl' : 'ltr');
-    })();
-
-    // 2. Scoped Tab Switching Logic
     function switchTab(section, lang) {
         const targetContent = document.getElementById(section + '-' + lang);
         if(!targetContent) return;
@@ -526,10 +565,8 @@ curl -X POST https://orgteh.com/v1/chat/completions \
         event.target.classList.remove('text-gray-500');
     }
 
-    // 3. ULTIMATE Copy Function - Guaranteed to work
     async function copyToClipboard(elementId, btn) {
         try {
-            // Find the element
             const element = document.getElementById(elementId);
             if (!element) {
                 console.error('Element not found:', elementId);
@@ -537,24 +574,19 @@ curl -X POST https://orgteh.com/v1/chat/completions \
                 return;
             }
 
-            // Get text content - using innerText for better compatibility
             let text = element.innerText;
 
-            // Fallback if innerText is empty
             if (!text || text.trim() === '') {
                 text = element.textContent;
             }
 
-            // Final fallback
             if (!text) {
                 text = element.innerHTML;
             }
 
-            // Copy using modern API
             if (navigator.clipboard && window.isSecureContext) {
                 await navigator.clipboard.writeText(text);
             } else {
-                // Fallback for older browsers
                 const textArea = document.createElement('textarea');
                 textArea.value = text;
                 textArea.style.position = 'fixed';
@@ -572,7 +604,6 @@ curl -X POST https://orgteh.com/v1/chat/completions \
                 }
             }
 
-            // Success feedback
             const originalHTML = btn.innerHTML;
             btn.classList.add('copied');
             btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>تم النسخ!</span>';
@@ -588,7 +619,6 @@ curl -X POST https://orgteh.com/v1/chat/completions \
         }
     }
 
-    // 4. Playground Form Logic
     const form = document.getElementById('playgroundForm');
     if (form) {
         form.addEventListener('submit', async (e) => {
@@ -624,6 +654,63 @@ curl -X POST https://orgteh.com/v1/chat/completions \
             }
         });
     }
+
+    function toggleCustomSelect(btn) {
+        const wrapper = btn.closest('.custom-select-wrapper');
+        const panel   = wrapper.querySelector('.custom-select-panel');
+        const isOpen  = !panel.classList.contains('hidden');
+
+        document.querySelectorAll('.custom-select-panel').forEach(p => {
+            p.classList.add('hidden');
+            p.previousElementSibling && p.previousElementSibling.classList.remove('open');
+        });
+
+        if (!isOpen) {
+            panel.classList.remove('hidden');
+            btn.classList.add('open');
+        }
+    }
+
+    function selectOption(optionBtn) {
+        const wrapper = optionBtn.closest('.custom-select-wrapper');
+        const panel   = wrapper.querySelector('.custom-select-panel');
+        const trigger = wrapper.querySelector('.custom-select-btn');
+        const label   = wrapper.querySelector('.custom-select-label');
+        const hidden  = wrapper.querySelector('input[type="hidden"]');
+        const val     = optionBtn.dataset.value;
+
+        label.textContent = val;
+        hidden.value = val;
+
+        wrapper.querySelectorAll('.custom-select-option').forEach(o => {
+            const check = o.querySelector('.fa-check');
+            if (o.dataset.value === val) {
+                o.classList.add('text-primary', 'font-bold');
+                if (!check) {
+                    const icon = document.createElement('i');
+                    icon.className = 'fa-solid fa-check text-xs text-primary';
+                    o.appendChild(icon);
+                }
+            } else {
+                o.classList.remove('text-primary', 'font-bold');
+                if (check) check.remove();
+            }
+        });
+
+        panel.classList.add('hidden');
+        trigger.classList.remove('open');
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.custom-select-wrapper')) {
+            document.querySelectorAll('.custom-select-panel').forEach(p => {
+                p.classList.add('hidden');
+            });
+            document.querySelectorAll('.custom-select-btn.open').forEach(b => {
+                b.classList.remove('open');
+            });
+        }
+    });
 
     function copyOutput() {
         const text = document.getElementById('jsonOutput').textContent;

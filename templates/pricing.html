@@ -154,8 +154,18 @@
                     </div>
 
                     {% if current_plan == 'DeepSeek V3' %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_ds_1">300 req/day DeepSeek V3</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_ds_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_ds_3">RAG Tool (Premium)</span></li>
+                        </ul>
                         <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
                     {% else %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_ds_1">300 req/day DeepSeek V3</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_ds_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_ds_3">RAG Tool (Premium)</span></li>
+                        </ul>
                         <button onclick="initiateCheckout('deepseek', document.querySelector('#period-deepseek .bg-white, #period-deepseek .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-primary/30" data-i18n="pricing.btn_subscribe">Subscribe</button>
                     {% endif %}
                 </div>
@@ -189,8 +199,18 @@
                     </div>
 
                     {% if current_plan == 'Kimi k2' %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_kimi_1">200 req/day Kimi k2</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_kimi_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_kimi_3">RAG Tool (Premium)</span></li>
+                        </ul>
                         <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
                     {% else %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_kimi_1">200 req/day Kimi k2</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_kimi_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_kimi_3">RAG Tool (Premium)</span></li>
+                        </ul>
                         <button onclick="initiateCheckout('kimi', document.querySelector('#period-kimi .bg-white, #period-kimi .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold rounded-xl transition" data-i18n="pricing.btn_subscribe">Subscribe</button>
                     {% endif %}
                 </div>
@@ -230,8 +250,18 @@
                     </div>
 
                     {% if current_plan == 'Mistral Large' %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_mistral_1">100 req/day Mistral Large</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_mistral_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_mistral_3">RAG Tool (Premium)</span></li>
+                        </ul>
                         <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
                     {% else %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_mistral_1">100 req/day Mistral Large</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_mistral_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_mistral_3">RAG Tool (Premium)</span></li>
+                        </ul>
                         <button onclick="initiateCheckout('mistral', document.querySelector('#period-mistral .bg-white, #period-mistral .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-gradient-to-r from-yellow-700 via-yellow-500 to-yellow-400 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
                     {% endif %}
                 </div>
@@ -265,8 +295,18 @@
                     </div>
 
                     {% if current_plan == 'Gemma 3' %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_gemma_1">500 req/day Gemma 3</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_gemma_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_gemma_3">RAG Tool (Premium)</span></li>
+                        </ul>
                         <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
                     {% else %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_gemma_1">500 req/day Gemma 3</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_gemma_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_gemma_3">RAG Tool (Premium)</span></li>
+                        </ul>
                         <button onclick="initiateCheckout('gemma', document.querySelector('#period-gemma .bg-white, #period-gemma .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
                     {% endif %}
                 </div>
@@ -300,8 +340,18 @@
                     </div>
 
                     {% if current_plan == 'Llama 3.2' %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_llama_1">400 req/day Llama 3.2</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_llama_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_llama_3">RAG Tool (Premium)</span></li>
+                        </ul>
                         <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
                     {% else %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_llama_1">400 req/day Llama 3.2</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_llama_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_llama_3">RAG Tool (Premium)</span></li>
+                        </ul>
                         <button onclick="initiateCheckout('llama', document.querySelector('#period-llama .bg-white, #period-llama .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
                     {% endif %}
                 </div>
@@ -421,6 +471,8 @@
                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_agents_1">High volume Gemma</span></li>
                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_agents_2">Optimized for Chat</span></li>
                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_agents_3">Unified Backup</span></li>
+                        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_agents_4">OCR Tool (Premium)</span></li>
+                        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_agents_5">RAG Tool (Premium)</span></li>
                     </ul>
 
                     {% if current_plan == 'Chat Agents' %}
@@ -475,6 +527,14 @@
                             <div class="text-lg font-bold text-primary">50</div>
                             <div class="text-xs text-gray-500">Mistral</div>
                         </div>
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                            <div class="text-lg font-bold text-primary">120</div>
+                            <div class="text-xs text-gray-500">Gemma 3</div>
+                        </div>
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center col-span-2">
+                            <div class="text-lg font-bold text-primary">100</div>
+                            <div class="text-xs text-gray-500">Llama 3.2</div>
+                        </div>
                     </div>
 
                     <div class="mb-4 relative overflow-hidden rounded-xl border-2 border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 via-yellow-400/20 to-yellow-500/10 p-4">
@@ -493,6 +553,8 @@
                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_global_2">Seamless switching</span></li>
                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_global_3">Unified extra credit</span></li>
                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_global_4">Priority support</span></li>
+                        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_global_5">OCR Tool (Premium)</span></li>
+                        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_global_6">RAG Tool (Premium)</span></li>
                     </ul>
 
                     {% if current_plan == 'Nexus Global' %}
@@ -614,6 +676,25 @@
             "feat_global_2": "Seamless switching",
             "feat_global_3": "Unified extra credit",
             "feat_global_4": "Priority support",
+            "feat_global_5": "🔐 OCR Tool (Premium)",
+            "feat_global_6": "🔐 RAG Tool (Premium)",
+            "feat_agents_4": "🔐 OCR Tool (Premium)",
+            "feat_agents_5": "🔐 RAG Tool (Premium)",
+            "feat_ds_1": "300 req/day · DeepSeek V3",
+            "feat_ds_2": "🔐 OCR Tool (Premium)",
+            "feat_ds_3": "🔐 RAG Tool (Premium)",
+            "feat_kimi_1": "200 req/day · Kimi k2",
+            "feat_kimi_2": "🔐 OCR Tool (Premium)",
+            "feat_kimi_3": "🔐 RAG Tool (Premium)",
+            "feat_mistral_1": "100 req/day · Mistral Large",
+            "feat_mistral_2": "🔐 OCR Tool (Premium)",
+            "feat_mistral_3": "🔐 RAG Tool (Premium)",
+            "feat_gemma_1": "500 req/day · Gemma 3",
+            "feat_gemma_2": "🔐 OCR Tool (Premium)",
+            "feat_gemma_3": "🔐 RAG Tool (Premium)",
+            "feat_llama_1": "400 req/day · Llama 3.2",
+            "feat_llama_2": "🔐 OCR Tool (Premium)",
+            "feat_llama_3": "🔐 RAG Tool (Premium)",
             "modal.title":       "Complete Payment",
             "modal.loading":     "Initializing payment gateway...",
             "modal.verifying":   "Verifying payment...",
@@ -672,6 +753,25 @@
             "feat_global_2": "تبديل سلس بين النماذج",
             "feat_global_3": "رصيد إضافي موحد للطوارئ",
             "feat_global_4": "أولوية قصوى في الدعم الفني",
+            "feat_global_5": "🔐 أداة OCR (مدفوعة)",
+            "feat_global_6": "🔐 أداة RAG (مدفوعة)",
+            "feat_agents_4": "🔐 أداة OCR (مدفوعة)",
+            "feat_agents_5": "🔐 أداة RAG (مدفوعة)",
+            "feat_ds_1": "300 طلب/يوم · DeepSeek V3",
+            "feat_ds_2": "🔐 أداة OCR (مدفوعة)",
+            "feat_ds_3": "🔐 أداة RAG (مدفوعة)",
+            "feat_kimi_1": "200 طلب/يوم · Kimi k2",
+            "feat_kimi_2": "🔐 أداة OCR (مدفوعة)",
+            "feat_kimi_3": "🔐 أداة RAG (مدفوعة)",
+            "feat_mistral_1": "100 طلب/يوم · Mistral Large",
+            "feat_mistral_2": "🔐 أداة OCR (مدفوعة)",
+            "feat_mistral_3": "🔐 أداة RAG (مدفوعة)",
+            "feat_gemma_1": "500 طلب/يوم · Gemma 3",
+            "feat_gemma_2": "🔐 أداة OCR (مدفوعة)",
+            "feat_gemma_3": "🔐 أداة RAG (مدفوعة)",
+            "feat_llama_1": "400 طلب/يوم · Llama 3.2",
+            "feat_llama_2": "🔐 أداة OCR (مدفوعة)",
+            "feat_llama_3": "🔐 أداة RAG (مدفوعة)",
             "modal.title":       "إتمام الدفع",
             "modal.loading":     "جاري تهيئة بوابة الدفع...",
             "modal.verifying":   "جاري التحقق من الدفع...",
