@@ -1,0 +1,25 @@
+name: Database Sync Cron
+
+on:
+  schedule:
+    # يعمل عند الدقيقة 0 من كل ساعة
+    - cron: '0 * * * *'
+  # هذا الخيار يسمح لك بتشغيل المنبه يدوياً من زر في موقع جيت هاب متى شئت
+  workflow_dispatch: 
+
+jobs:
+  sync-redis-to-tidb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Sync Endpoint
+        run: |
+          echo "Starting Database Sync..."
+          # استبدل yourdomain.com برابط موقعك الفعلي
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET "https://orgteh.com/api/admin/sync-db")
+          
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "✅ Sync successful! (Status: $HTTP_STATUS)"
+          else
+            echo "❌ Sync failed! (Status: $HTTP_STATUS)"
+            exit 1
+          fi
