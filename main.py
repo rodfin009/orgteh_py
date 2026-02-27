@@ -21,7 +21,8 @@ from pydantic import BaseModel
 from services.auth import (
     LoginRequest, SendVerificationRequest, RegisterRequest,
     handle_send_verification, handle_register, handle_login, handle_logout,
-    get_current_user_email, get_auth_context
+    get_current_user_email, get_auth_context,
+    handle_google_login, handle_google_callback
 )
 from database import (
     get_user_by_email, get_user_by_api_key, get_global_stats, add_user_subscription,
@@ -102,12 +103,6 @@ class SecurityHeadersMiddleware:
 
 app = FastAPI(title="Orgteh Infra", docs_url=None, redoc_url=None)
 
-# ⚠️  GZipMiddleware تم حذفه نهائياً:
-# يحجز http.response.start في الذاكرة حتى يستلم أول body chunk، مما يكسر
-# الـ streaming بالكامل بغض النظر عن Content-Encoding: identity.
-# الضغط يمكن تطبيقه على مستوى nginx/CDN للملفات الثابتة فقط.
-
-# SecurityHeaders — pure ASGI لا يؤثر على الـ streaming
 app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -655,6 +650,10 @@ async def get_model_description(model_key: str, lang: str = "en"):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+# ============================================================================
+# OAUTH ROUTES (GitHub & Google)
+# ============================================================================
+
 @app.get("/auth/github/login")
 async def github_login(request: Request):
     return await handle_github_login(request)
@@ -666,6 +665,14 @@ async def github_callback(request: Request, code: str, state: str):
 @app.post("/auth/github/logout")
 async def github_logout(request: Request):
     return await handle_github_logout(request)
+
+@app.get("/auth/google/login")
+async def google_login(request: Request):
+    return await handle_google_login(request)
+
+@app.get("/auth/google/callback")
+async def google_callback(request: Request, code: str, state: str):
+    return await handle_google_callback(request, code, state)
 
 @app.post("/api/deploy/github")
 async def deploy_to_github(request: Request, deploy_data: DeployRequest):
@@ -827,6 +834,10 @@ async def dash_redirect():
 async def dashboard_page(request: Request, lang: str):
     return RedirectResponse(f"/{lang}/profile")
 
+# ============================================================================
+# API ENDPOINTS
+# ============================================================================
+
 @app.post("/auth/send-verification")
 async def send_verification(request: Request, data: SendVerificationRequest):
     return await handle_send_verification(request, data)
@@ -987,7 +998,6 @@ async def process_code_endpoint(
         async for event in process_code_merge_stream(instruction, files_data, user_api_key, target_model, history_list, target_tools, chat_mode):
             if event['type'] in ['thinking', 'code', 'error']:
                 yield json.dumps({"type": event['type'], "content": event['content']}, ensure_ascii=False).encode('utf-8') + b"\n"
-                # 🔥 إجبار event loop على إرسال الـ chunk فوراً بدون انتظار
                 await asyncio.sleep(0)
 
     return StreamingResponse(
@@ -1145,6 +1155,24 @@ async def api_enterprise_contact(request: Request):
         return JSONResponse({"ok": True})
     except Exception as e:
         return JSONResponse({"detail": "خطأ في الخادم."}, status_code=500)
+
+# ============================================================================
+# مسارات مزامنة قاعدة البيانات (DB Synchronization)
+# ============================================================================
+@app.get("/api/admin/sync-db")
+async def trigger_db_sync(request: Request):
+    """
+    نقطة نهاية لمزامنة الـ Usage و العدادات من Redis إلى TiDB بشكل جماعي.
+    يفضل ربطها بـ Cron Job ليقوم باستدعائها كل ساعة مثلاً.
+    """
+    # في بيئة الإنتاج يفضل إضافة التحقق من توكن خاص بالأدمن
+    # admin_token = request.headers.get("X-Admin-Token")
+    # if admin_token != os.environ.get("ADMIN_TOKEN"):
+    #     raise HTTPException(status_code=403, detail="Forbidden")
+
+    from database import sync_all_usage_to_db
+    result = sync_all_usage_to_db()
+    return JSONResponse(result)
 
 # ============================================================================
 # مسارات بوابة الدفع (SpaceRemit)

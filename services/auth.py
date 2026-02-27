@@ -254,21 +254,18 @@ def send_verification_email(to_email: str, code: str) -> bool:
     Send verification code via email using SMTP
     Returns True if sent successfully, False otherwise
     """
-    # Development mode: print to console if SMTP not configured
     if not all([SMTP_EMAIL, SMTP_PASSWORD]):
-        print(f"\\n{'='*60}")
+        print(f"\n{'='*60}")
         print(f"[DEV MODE] Verification code for {to_email}: {code}")
-        print(f"{'='*60}\\n")
+        print(f"{'='*60}\n")
         return True
 
     try:
-        # Create message
         msg = MIMEMultipart('alternative')
         msg['Subject'] = 'رمز التحقق - Orgteh Infra | Verification Code'
         msg['From'] = f"Orgteh Infra <{SMTP_EMAIL}>"
         msg['To'] = to_email
 
-        # Arabic/English HTML email template
         html_content = f"""
         <!DOCTYPE html>
         <html dir="rtl" lang="ar">
@@ -417,7 +414,6 @@ def send_verification_email(to_email: str, code: str) -> bool:
 
         msg.attach(MIMEText(html_content, 'html', 'utf-8'))
 
-        # Send email
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
@@ -435,10 +431,6 @@ def send_verification_email(to_email: str, code: str) -> bool:
 # ============================================================================
 
 def store_verification_code(email: str, code: str, expiry_seconds: int = 600) -> bool:
-    """
-    Store verification code in Redis with expiry
-    Default: 10 minutes (600 seconds)
-    """
     if not redis:
         print("[Auth] Warning: Redis not available, code not stored")
         return False
@@ -452,7 +444,6 @@ def store_verification_code(email: str, code: str, expiry_seconds: int = 600) ->
         return False
 
 def get_verification_code(email: str) -> str | None:
-    """Retrieve verification code from Redis"""
     if not redis:
         return None
 
@@ -466,7 +457,6 @@ def get_verification_code(email: str) -> str | None:
         return None
 
 def delete_verification_code(email: str) -> bool:
-    """Delete verification code from Redis"""
     if not redis:
         return False
 
@@ -482,10 +472,6 @@ def delete_verification_code(email: str) -> bool:
 # ============================================================================
 
 def validate_password(password: str) -> tuple[bool, str]:
-    """
-    Validate password strength
-    Returns: (is_valid: bool, error_message: str)
-    """
     if len(password) < 6:
         return False, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"
 
@@ -502,25 +488,17 @@ def validate_password(password: str) -> tuple[bool, str]:
 # ============================================================================
 
 async def handle_send_verification(request: Request, data: SendVerificationRequest) -> dict:
-    """
-    Handle sending verification code
-    Returns success message or raises HTTPException
-    """
-    # Verify Turnstile token
     client_ip = request.headers.get("X-Forwarded-For", request.client.host)
     is_valid = await verify_turnstile_token(data.turnstile_token, client_ip)
 
     if not is_valid:
         raise HTTPException(status_code=400, detail="فشل التحقق من الكابتشا. يرجى المحاولة مرة أخرى.")
 
-    # Gmail only validation
     if not data.email.lower().endswith('@gmail.com'):
         raise HTTPException(status_code=400, detail="يُقبل فقط البريد الإلكتروني من Gmail (@gmail.com)")
 
-    # Check if email already exists
     existing_user = get_user_by_email(data.email)
     if existing_user:
-        # Check if this account was created via GitHub OAuth
         if redis and redis.exists(f"github:{data.email}"):
             raise HTTPException(
                 status_code=400,
@@ -531,16 +509,10 @@ async def handle_send_verification(request: Request, data: SendVerificationReque
             detail="البريد الإلكتروني مستخدم بالفعل. يمكنك تسجيل الدخول مباشرةً."
         )
 
-    # Mark turnstile as verified for this email in session
     request.session["turnstile_verified_email"] = data.email
-
-    # Generate verification code
     code = generate_verification_code()
-
-    # Store in Redis (10 minutes expiry)
     store_verification_code(data.email, code, 600)
 
-    # Send email
     success = send_verification_email(data.email, code)
     if not success:
         raise HTTPException(status_code=500, detail="فشل إرسال البريد الإلكتروني. يرجى المحاولة لاحقاً.")
@@ -548,50 +520,32 @@ async def handle_send_verification(request: Request, data: SendVerificationReque
     return {"message": "تم إرسال رمز التحقق", "email": data.email}
 
 async def handle_register(request: Request, data: RegisterRequest) -> dict:
-    """
-    Handle user registration
-    Returns success message with API key or raises HTTPException
-    """
-    # NOTE: Turnstile token was already verified in send_verification step.
-    # Re-verifying the same token will always fail because Cloudflare tokens
-    # are single-use. We validate the session flag instead.
     verified_email = request.session.get("turnstile_verified_email")
     if verified_email != data.email:
         raise HTTPException(status_code=400, detail="لم يتم إكمال التحقق من الكابتشا. يرجى المحاولة مرة أخرى.")
 
-    # Check if email exists
     if get_user_by_email(data.email):
         raise HTTPException(status_code=400, detail="البريد الإلكتروني مستخدم بالفعل")
 
-    # Verify code from Redis
     stored_code = get_verification_code(data.email)
 
     if not stored_code or stored_code != data.verification_code:
         raise HTTPException(status_code=400, detail="رمز التحقق غير صحيح أو منتهي الصلاحية")
 
-    # Validate password
     is_valid_password, error_msg = validate_password(data.password)
     if not is_valid_password:
         raise HTTPException(status_code=400, detail=error_msg)
 
-    # Hash password
     hashed = bcrypt.hashpw(
         data.password.encode('utf-8'), 
         bcrypt.gensalt(rounds=12)
     ).decode('utf-8')
 
-    # Generate API key
     new_key = generate_nexus_key()
 
-    # Create user record
     if create_user_record(data.email, hashed, new_key):
-        # Delete verification code
         delete_verification_code(data.email)
-
-        # Clear turnstile session flag
         request.session.pop("turnstile_verified_email", None)
-
-        # Set session
         request.session["user_email"] = data.email
 
         print(f"[Auth] New user registered: {data.email}")
@@ -603,11 +557,6 @@ async def handle_register(request: Request, data: RegisterRequest) -> dict:
     raise HTTPException(status_code=500, detail="خطأ في قاعدة البيانات. يرجى المحاولة لاحقاً.")
 
 async def handle_login(request: Request, data: LoginRequest) -> dict:
-    """
-    Handle user login
-    Returns success message or raises HTTPException
-    """
-    # Verify Turnstile token
     client_ip = request.headers.get("X-Forwarded-For", request.client.host)
     is_valid = await verify_turnstile_token(data.turnstile_token, client_ip)
     if not is_valid:
@@ -618,7 +567,6 @@ async def handle_login(request: Request, data: LoginRequest) -> dict:
     if not user:
         raise HTTPException(status_code=401, detail="بيانات الدخول غير صحيحة")
 
-    # Verify password
     try:
         is_valid = bcrypt.checkpw(
             data.password.encode('utf-8'), 
@@ -630,10 +578,8 @@ async def handle_login(request: Request, data: LoginRequest) -> dict:
     if not is_valid:
         raise HTTPException(status_code=401, detail="بيانات الدخول غير صحيحة")
 
-    # Set session
     request.session["user_email"] = data.email
 
-    # Send security notification if enabled
     try:
         prefs = get_user_notification_prefs(data.email)
         if prefs.get("security", True):
@@ -647,7 +593,6 @@ async def handle_login(request: Request, data: LoginRequest) -> dict:
     return {"message": "تم تسجيل الدخول بنجاح"}
 
 async def handle_logout(request: Request) -> dict:
-    """Handle user logout"""
     email = get_current_user_email(request)
     request.session.clear()
 
@@ -661,10 +606,6 @@ async def handle_logout(request: Request) -> dict:
 # ============================================================================
 
 def get_auth_context(request: Request) -> dict:
-    """
-    Get authentication context for templates
-    Returns dict with user info
-    """
     from database import get_user_by_api_key
     from services.providers import MODELS_METADATA, HIDDEN_MODELS
 
@@ -684,8 +625,9 @@ def get_auth_context(request: Request) -> dict:
         "models_metadata": [m for m in MODELS_METADATA if m["id"] not in HIDDEN_MODELS],
         "turnstile_site_key": TURNSTILE_SITE_KEY
     }
+
 # ============================================================================
-# GITHUB OAUTH INTEGRATION (Add to auth.py)
+# GITHUB OAUTH INTEGRATION
 # ============================================================================
 
 from github_integration import (
@@ -699,10 +641,7 @@ from github_integration import (
 )
 
 async def handle_github_login(request: Request):
-    """Initiate GitHub OAuth flow"""
     from fastapi.responses import RedirectResponse
-
-    # Generate state for CSRF protection
     import secrets
     state = secrets.token_urlsafe(32)
     request.session["oauth_state"] = state
@@ -711,81 +650,59 @@ async def handle_github_login(request: Request):
     return RedirectResponse(auth_url)
 
 async def handle_github_callback(request: Request, code: str, state: str):
-    """Handle GitHub OAuth callback"""
     from fastapi.responses import RedirectResponse
     from database import get_user_by_email, create_user_record, redis
 
-    # Verify state
     saved_state = request.session.get("oauth_state")
     if not saved_state or saved_state != state:
         raise HTTPException(status_code=400, detail="Invalid OAuth state")
 
-    # Exchange code for token
     token_data = await exchange_code_for_token(code)
     access_token = token_data.get("access_token")
 
     if not access_token:
         raise HTTPException(status_code=400, detail="Failed to get access token")
 
-    # Get GitHub user info
     github_user = await get_github_user(access_token)
-
-    # Check if user exists with this GitHub email
     email = github_user.email or f"{github_user.login}@github.user"
     existing_user = get_user_by_email(email)
 
     if existing_user:
-        # Link GitHub to existing account
         request.session["user_email"] = email
         store_github_token(request, token_data)
 
-        # Store GitHub info in Redis for later use
         if redis:
             redis.hset(f"github:{email}", mapping={
                 "login": github_user.login,
                 "avatar": github_user.avatar_url,
                 "token": access_token
             })
-
         return RedirectResponse("/dashboard?github_connected=true")
-
     else:
-        # Create new user with GitHub
         new_key = generate_nexus_key()
-
-        # Generate random password (user can reset later)
         import bcrypt
         temp_password = secrets.token_urlsafe(16)
-        hashed = bcrypt.hashpw(
-            temp_password.encode('utf-8'), 
-            bcrypt.gensalt(rounds=12)
-        ).decode('utf-8')
+        hashed = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt(rounds=12)).decode('utf-8')
 
         if create_user_record(email, hashed, new_key):
             request.session["user_email"] = email
             store_github_token(request, token_data)
 
-            # Store GitHub info
             if redis:
                 redis.hset(f"github:{email}", mapping={
                     "login": github_user.login,
                     "avatar": github_user.avatar_url,
                     "token": access_token
                 })
-
             return RedirectResponse("/dashboard?github_connected=true&new_user=true")
-
         raise HTTPException(status_code=500, detail="Failed to create user")
 
 async def handle_github_logout(request: Request):
-    """Disconnect GitHub account"""
     from fastapi.responses import JSONResponse
-
     clear_github_session(request)
     return JSONResponse({"message": "GitHub disconnected successfully"})
 
 def get_github_context(request: Request) -> dict:
-    """Get GitHub connection status for templates"""
     token = get_github_token(request)
     is_connected = bool(token)
 
@@ -801,8 +718,102 @@ def get_github_context(request: Request) -> dict:
             gh_info = redis.hgetall(f"github:{email}")
             if gh_info:
                 context["github_user"] = {
-                    "login": gh_info.get(b"login", b"").decode(),
-                    "avatar": gh_info.get(b"avatar", b"").decode()
+                    "login": gh_info.get(b"login", b"").decode() if isinstance(gh_info.get(b"login"), bytes) else gh_info.get("login", ""),
+                    "avatar": gh_info.get(b"avatar", b"").decode() if isinstance(gh_info.get(b"avatar"), bytes) else gh_info.get("avatar", "")
                 }
 
     return context
+
+# ============================================================================
+# GOOGLE OAUTH INTEGRATION
+# ============================================================================
+
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "https://orgteh.com/auth/google/callback")
+
+async def handle_google_login(request: Request):
+    from fastapi.responses import RedirectResponse
+    import urllib.parse
+    import secrets
+
+    state = secrets.token_urlsafe(32)
+    request.session["oauth_state"] = state
+
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "access_type": "offline",
+        "prompt": "consent"
+    }
+    auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
+    return RedirectResponse(auth_url)
+
+async def handle_google_callback(request: Request, code: str, state: str):
+    from fastapi.responses import RedirectResponse
+    import httpx
+    import bcrypt
+    from database import get_user_by_email, create_user_record, redis
+
+    saved_state = request.session.get("oauth_state")
+    if not saved_state or saved_state != state:
+        return RedirectResponse("/auth?google_error=token_failed")
+
+    try:
+        # 1. Exchange Code for Token
+        async with httpx.AsyncClient() as client:
+            token_res = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "code": code,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": GOOGLE_REDIRECT_URI
+                }
+            )
+            token_data = token_res.json()
+            access_token = token_data.get("access_token")
+
+            if not access_token:
+                return RedirectResponse("/auth?google_error=token_failed")
+
+            # 2. Get User Info
+            user_res = await client.get(
+                "https://www.googleapis.com/oauth2/v2/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            user_info = user_res.json()
+            email = user_info.get("email")
+
+            if not email:
+                return RedirectResponse("/auth?google_error=no_user_info")
+
+        # 3. Handle User in Database
+        existing_user = get_user_by_email(email)
+
+        if existing_user:
+            request.session["user_email"] = email
+            return RedirectResponse("/profile?google_connected=true")
+        else:
+            new_key = generate_nexus_key()
+            temp_password = secrets.token_urlsafe(16)
+            hashed = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt(rounds=12)).decode('utf-8')
+
+            if create_user_record(email, hashed, new_key):
+                request.session["user_email"] = email
+                first_name = user_info.get("given_name", "")
+                last_name = user_info.get("family_name", "")
+                if redis:
+                    redis.hset(f"user:{email}", mapping={"first_name": first_name, "last_name": last_name})
+
+                return RedirectResponse("/profile?google_connected=true&new_user=true")
+
+            return RedirectResponse("/auth?google_error=token_failed")
+
+    except Exception as e:
+        print(f"[Auth] Google login error: {e}")
+        return RedirectResponse("/auth?google_error=token_failed")

@@ -176,13 +176,11 @@
 {% endblock %}
 
 {% block content %}
-<!-- Toast Notification -->
 <div id="toast">
     <i id="toast-icon" class="fas fa-info-circle text-blue-400 text-lg"></i>
     <span id="toast-message" class="font-semibold text-sm text-gray-900 dark:text-white"></span>
 </div>
 
-<!-- Background Floating Shapes -->
 <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
     <div class="floating-shape w-96 h-96 bg-purple-600 top-0 right-0" style="animation-delay:0s;"></div>
     <div class="floating-shape w-80 h-80 bg-purple-500 bottom-0 left-0" style="animation-delay:2s;"></div>
@@ -192,7 +190,6 @@
 <div class="min-h-screen flex items-center justify-center p-4 pt-24 pb-8 relative z-10">
     <div class="w-full max-w-md">
 
-        <!-- Logo / Title -->
         <div class="text-center mb-8 animate-fade-in">
             <h1 class="text-3xl font-black mb-1">
                 <span class="gradient-text">Orgteh Infra</span>
@@ -200,10 +197,8 @@
             <p class="text-gray-500 dark:text-gray-400 text-sm">منصة الذكاء الاصطناعي المتكاملة</p>
         </div>
 
-        <!-- Auth Card -->
         <div class="glass-card rounded-3xl p-8">
 
-            <!-- Tabs -->
             <div class="flex mb-8 border-b border-black/10 dark:border-white/10">
                 <button onclick="switchTab('login')" id="tab-login" class="tab-btn active flex-1 pb-4 text-lg font-bold text-center">
                     تسجيل الدخول
@@ -213,7 +208,6 @@
                 </button>
             </div>
 
-            <!-- ====== LOGIN FORM ====== -->
             <form id="loginForm" class="space-y-6">
                 <div class="space-y-2">
                     <label class="block text-sm font-semibold text-gray-500 dark:text-gray-400">البريد الإلكتروني</label>
@@ -242,7 +236,6 @@
                     <a href="#" class="text-purple-500 hover:text-purple-400 transition font-medium">نسيت كلمة المرور؟</a>
                 </div>
 
-                <!-- Turnstile Captcha for Login -->
                 <div class="flex justify-center">
                     <div class="cf-turnstile"
                          id="loginTurnstile"
@@ -259,9 +252,7 @@
                 </button>
             </form>
 
-            <!-- ====== REGISTER FORM ====== -->
             <form id="registerForm" class="space-y-6 hidden">
-                <!-- Step Indicators -->
                 <div class="flex items-center justify-between mb-6">
                     <div class="step-indicator active w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold" data-step="1">1</div>
                     <div class="flex-1 h-1 mx-2 bg-gray-800 dark:bg-gray-800 rounded-full overflow-hidden">
@@ -274,7 +265,6 @@
                     <div class="step-indicator w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold" data-step="3">3</div>
                 </div>
 
-                <!-- Step 1: Basic Info -->
                 <div id="step1" class="space-y-4">
                     <div class="space-y-2">
                         <label class="block text-sm font-semibold text-gray-500 dark:text-gray-400">البريد الإلكتروني</label>
@@ -320,7 +310,6 @@
                     </button>
                 </div>
 
-                <!-- Step 2: Captcha -->
                 <div id="step2" class="space-y-6 hidden">
                     <div class="text-center mb-4">
                         <i class="fas fa-shield-alt text-4xl text-purple-500 mb-2"></i>
@@ -347,7 +336,6 @@
                     </div>
                 </div>
 
-                <!-- Step 3: Email Verification -->
                 <div id="step3" class="space-y-6 hidden">
                     <div class="text-center mb-4">
                         <i class="fas fa-envelope-open-text text-4xl text-purple-500 mb-2"></i>
@@ -386,27 +374,19 @@
                 </div>
             </form>
 
-            <!-- Social Login -->
             <div class="mt-8 pt-6 border-t border-black/10 dark:border-white/10">
                 <p class="text-center text-sm text-gray-500 dark:text-gray-400 mb-4">أو سجل الدخول باستخدام</p>
                 <div class="flex gap-3 justify-center">
-                    <!-- Google -->
-                    <button class="social-btn" title="Google (قريباً)">
+                    <button onclick="loginWithGoogle()" class="social-btn" title="Google">
                         <i class="fab fa-google text-xl text-red-500"></i>
                     </button>
-                    <!-- GitHub -->
                     <button onclick="loginWithGitHub()" class="social-btn" title="GitHub">
                         <i class="fab fa-github text-xl text-gray-900 dark:text-white"></i>
-                    </button>
-                    <!-- Microsoft -->
-                    <button class="social-btn" title="Microsoft (قريباً)">
-                        <i class="fab fa-microsoft text-xl text-blue-500"></i>
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- Footer note -->
         <div class="text-center mt-6 text-sm text-gray-500 dark:text-gray-400">
             <p>بالتسجيل، أنت توافق على <a href="/policy" class="text-purple-500 hover:text-purple-400 transition">شروط الاستخدام</a></p>
         </div>
@@ -420,26 +400,22 @@
     let verificationCode = '';
     let countdownInterval;
 
-    // ── Auto Language Detection (Problem 3) ──────────────────────────────────
+    // ── Auto Language Detection ──────────────────────────────────
     (function detectAndRedirectLang() {
         const currentLang = window.SERVER_LANG || '{{ lang }}';
-        // Check if user has set a preferred lang via cookie (set by toggleLang or us)
         const getCookie = (name) => {
             const match = document.cookie.match(new RegExp('(?:^|;)\\s*' + name + '=([^;]*)'));
             return match ? decodeURIComponent(match[1]) : null;
         };
         const langCookie = getCookie('preferred_lang');
         if (langCookie && langCookie !== currentLang && (langCookie === 'ar' || langCookie === 'en')) {
-            // User has a saved preference different from current - redirect
             const newUrl = window.location.pathname.replace('/' + currentLang + '/', '/' + langCookie + '/') + window.location.search;
             window.location.replace(newUrl);
             return;
         }
         if (!langCookie) {
-            // First visit - detect from browser/phone language and save preference
             const browserLang = (navigator.language || navigator.userLanguage || 'en').split('-')[0].toLowerCase();
             const preferredLang = browserLang === 'ar' ? 'ar' : 'en';
-            // Save to cookie so we remember next time
             document.cookie = 'preferred_lang=' + preferredLang + '; max-age=' + (60*60*24*365) + '; path=/; samesite=lax';
             if (preferredLang !== currentLang) {
                 const newUrl = window.location.pathname.replace('/' + currentLang + '/', '/' + preferredLang + '/') + window.location.search;
@@ -508,7 +484,6 @@
             el.classList.remove('text-gray-400', 'text-red-500', 'req-shake');
             if (icon) { icon.classList.remove('fa-circle', 'fa-times'); icon.classList.add('fa-check'); }
         } else {
-            // On typing: stay gray (not red — red only triggered by Next button)
             el.classList.remove('text-green-500', 'text-red-500', 'req-shake');
             el.classList.add('text-gray-400');
             if (icon) { icon.classList.remove('fa-check', 'fa-times'); icon.classList.add('fa-circle'); }
@@ -537,19 +512,16 @@
             }
             if (pw !== conf) { showToast('كلمتا المرور غير متطابقتين', 'error'); return; }
 
-            // Validate password requirements — show red + shake if not met
             const hasLength = pw.length >= 6;
             const hasUpper = /[A-Z]/.test(pw);
             const hasNumber = /[0-9]/.test(pw);
             if (!hasLength || !hasUpper || !hasNumber) {
                 markRequirementErrors(hasLength, hasUpper, hasNumber);
                 showToast('كلمة المرور لا تلبي المتطلبات', 'error');
-                // Haptic feedback on mobile
                 if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
                 return;
             }
 
-            // ── Real-time email duplicate check ─────────────────────────
             const checkBtn = document.querySelector('#step1 button[type="button"]');
             if (checkBtn) { checkBtn.disabled = true; checkBtn.innerHTML = '<div class="loading-spinner" style="margin:auto"></div>'; }
             try {
@@ -565,7 +537,6 @@
                     return;
                 }
             } catch (e) {
-                // Network error — continue; server will catch it later
             }
             if (checkBtn) { checkBtn.disabled = false; checkBtn.innerHTML = 'التالي <i class="fas fa-arrow-left mr-2"></i>'; }
         }
@@ -602,9 +573,8 @@
                 el.classList.remove('text-green-500', 'text-gray-500');
                 el.classList.add('text-red-500');
                 if (icon) icon.className = 'fas fa-times text-[6px]';
-                // Trigger shake animation
                 el.classList.remove('req-shake');
-                void el.offsetWidth; // reflow
+                void el.offsetWidth;
                 el.classList.add('req-shake');
             }
         });
@@ -655,11 +625,10 @@
             this.select();
         });
 
-        // Use keyup instead of input to avoid Android double-fire
         input.addEventListener('keyup', function(e) {
             if (e.key === 'Backspace' || e.key === 'Delete') return;
             const val = this.value.replace(/[^0-9]/g, '');
-            this.value = val.slice(-1); // keep only last digit
+            this.value = val.slice(-1);
             if (this.value && index < 5) {
                 document.querySelector(`.verification-input[data-index="${index+1}"]`).focus();
             }
@@ -667,10 +636,8 @@
         });
 
         input.addEventListener('input', function() {
-            // Handle multi-char input (Android paste via keyboard)
             const val = this.value.replace(/[^0-9]/g, '');
             if (val.length > 1) {
-                // Distribute across boxes
                 const inputs = document.querySelectorAll('.verification-input');
                 for (let i = 0; i < val.length && index + i < 6; i++) {
                     inputs[index + i].value = val[i];
@@ -678,7 +645,6 @@
                 const nextIndex = Math.min(index + val.length, 5);
                 inputs[nextIndex].focus();
                 updateVerificationCode();
-                // Auto-submit if 6 digits filled
                 if (getFullCode().length === 6) {
                     setTimeout(() => {
                         const btn = document.getElementById('registerBtn');
@@ -743,6 +709,9 @@
 
     function loginWithGitHub() { window.location.href = '/auth/github/login'; }
 
+    // ربط جوجل
+    function loginWithGoogle() { window.location.href = '/auth/google/login'; }
+
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         if (!loginTurnstileToken) {
@@ -769,7 +738,6 @@
             } else {
                 const data = await response.json();
                 showToast(data.detail || 'بيانات الدخول غير صحيحة', 'error');
-                // Reset turnstile on failure
                 loginTurnstileToken = null;
                 if (window.turnstile) window.turnstile.reset();
                 btn.disabled = false; btn.innerHTML = orig;
@@ -812,32 +780,30 @@
         showToast(message, 'error');
         window.history.replaceState({}, document.title, window.location.pathname);
     }
-    // GitHub OAuth error handling
+
+    // Google OAuth error handling
+    if (urlParams.get('google_error')) {
+        const errCode = urlParams.get('google_error');
+        const lang = document.documentElement.getAttribute('lang') || 'ar';
+        const msgs = {
+            'token_failed': '⚠️ فشل ربط Google: يرجى التحقق من المفاتيح أو إعادة المحاولة.',
+            'no_user_info': '⚠️ تعذر الوصول لبيانات Google الخاصة بك.'
+        };
+        showToast(msgs[errCode] || '⚠️ خطأ في ربط Google.', 'error', 8000);
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     if (urlParams.get('github_error')) {
         const errCode = urlParams.get('github_error');
         const lang = document.documentElement.getAttribute('lang') || 'ar';
-        const githubErrors = {
-            ar: {
-                'token_exchange_failed': '⚠️ فشل ربط GitHub: مفاتيح OAuth غير صحيحة. يرجى التحقق من GITHUB_CLIENT_SECRET في إعدادات Vercel.',
-                'check_env_vars': 'تحقق من متغيرات البيئة في Vercel: GITHUB_CLIENT_ID و GITHUB_CLIENT_SECRET',
-                'not_configured': '⚠️ GitHub OAuth غير مُعد. يرجى إضافة GITHUB_CLIENT_ID و GITHUB_CLIENT_SECRET في Vercel.',
-                'no_access_token': '⚠️ لم يتم الحصول على رمز الوصول من GitHub.',
-                'user_info_failed': '⚠️ فشل جلب معلومات مستخدم GitHub.',
-                'server_error': '⚠️ خطأ في الخادم أثناء ربط GitHub.',
-                'callback_error': '⚠️ خطأ في معالجة رد GitHub.'
-            },
-            en: {
-                'token_exchange_failed': '⚠️ GitHub link failed: OAuth keys are incorrect. Check GITHUB_CLIENT_SECRET in Vercel settings.',
-                'not_configured': '⚠️ GitHub OAuth not configured. Add GITHUB_CLIENT_ID & GITHUB_CLIENT_SECRET in Vercel.',
-                'no_access_token': '⚠️ No access token received from GitHub.',
-                'user_info_failed': '⚠️ Failed to fetch GitHub user info.',
-                'server_error': '⚠️ Server error while connecting GitHub.',
-                'callback_error': '⚠️ Error processing GitHub response.'
-            }
+        const msgs = {
+            'token_exchange_failed': '⚠️ فشل ربط GitHub: مفاتيح OAuth غير صحيحة.',
+            'check_env_vars': 'تحقق من متغيرات البيئة في Vercel',
+            'not_configured': '⚠️ GitHub OAuth غير مُعد.',
+            'no_access_token': '⚠️ لم يتم الحصول على رمز الوصول من GitHub.',
+            'user_info_failed': '⚠️ فشل جلب معلومات مستخدم GitHub.'
         };
-        const msgs = githubErrors[lang] || githubErrors['ar'];
-        const msg = msgs[errCode] || (lang === 'ar' ? '⚠️ خطأ في ربط GitHub.' : '⚠️ GitHub connection error.');
-        showToast(msg, 'error', 8000);
+        showToast(msgs[errCode] || '⚠️ خطأ في ربط GitHub.', 'error', 8000);
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
@@ -846,56 +812,12 @@
         ar: {
             tab_login: 'تسجيل الدخول',
             tab_register: 'إنشاء حساب',
-            email_label: 'البريد الإلكتروني',
-            password_label: 'كلمة المرور',
-            confirm_password_label: 'تأكيد كلمة المرور',
-            remember_me: 'تذكرني',
-            forgot_password: 'نسيت كلمة المرور؟',
-            login_btn: 'تسجيل الدخول',
-            next_btn: 'التالي',
-            back_btn: 'رجوع',
-            step2_title: 'التحقق من الأمان',
-            step2_desc: 'يرجى إكمال التحقق أدناه للمتابعة',
-            step3_title: 'التحقق من البريد',
-            step3_desc: 'أدخل الرمز المكون من 6 أرقام المرسل إلى',
-            resend: 'لم تستلم الرمز؟ إعادة الإرسال',
-            create_account_btn: 'إنشاء الحساب',
-            req_length: '6 أحرف على الأقل',
-            req_upper: 'حرف كبير (A-Z)',
-            req_number: 'رقم (0-9)',
-            password_match_error: 'كلمتا المرور غير متطابقتين',
-            or_login_with: 'أو سجل الدخول باستخدام',
-            terms: 'بالتسجيل، أنت توافق على',
-            terms_link: 'شروط الاستخدام',
             subtitle: 'منصة الذكاء الاصطناعي المتكاملة',
-            gmail_only: 'يُقبل فقط Gmail (@gmail.com)',
         },
         en: {
             tab_login: 'Sign In',
             tab_register: 'Create Account',
-            email_label: 'Email Address',
-            password_label: 'Password',
-            confirm_password_label: 'Confirm Password',
-            remember_me: 'Remember me',
-            forgot_password: 'Forgot password?',
-            login_btn: 'Sign In',
-            next_btn: 'Next',
-            back_btn: 'Back',
-            step2_title: 'Security Check',
-            step2_desc: 'Please complete the verification below to continue',
-            step3_title: 'Email Verification',
-            step3_desc: 'Enter the 6-digit code sent to',
-            resend: "Didn't receive the code? Resend",
-            create_account_btn: 'Create Account',
-            req_length: 'At least 6 characters',
-            req_upper: 'One uppercase letter (A-Z)',
-            req_number: 'One number (0-9)',
-            password_match_error: 'Passwords do not match',
-            or_login_with: 'Or sign in with',
-            terms: 'By registering, you agree to our',
-            terms_link: 'Terms of Use',
             subtitle: 'Integrated AI Platform',
-            gmail_only: 'Only Gmail accounts are accepted (@gmail.com)',
         }
     };
 
@@ -903,30 +825,16 @@
         const lang = window.SERVER_LANG || document.documentElement.lang || 'ar';
         const t = authTranslations[lang] || authTranslations['ar'];
 
-        // Tab buttons
         const tabLogin = document.getElementById('tab-login');
         const tabRegister = document.getElementById('tab-register');
         if (tabLogin) tabLogin.textContent = t.tab_login;
         if (tabRegister) tabRegister.textContent = t.tab_register;
 
-        // Labels (login)
-        document.querySelectorAll('[data-auth-i18n]').forEach(el => {
-            const key = el.getAttribute('data-auth-i18n');
-            if (t[key]) {
-                if (el.tagName === 'INPUT') el.placeholder = t[key];
-                else el.textContent = t[key];
-            }
-        });
-
-        // Subtitle
         const subtitle = document.querySelector('.gradient-text + p');
         if (subtitle) subtitle.textContent = t.subtitle;
     }
 
-    // Apply on load
     applyAuthTranslations();
-
-    // Re-apply when language changes
     window.addEventListener('langChange', applyAuthTranslations);
 </script>
 {% endblock %}

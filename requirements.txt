@@ -19,6 +19,7 @@ PyGithub
 python-jose[cryptography]
 trafilatura
 feedparser
+pymysql
 gnews
 httpx
 itsdangerous

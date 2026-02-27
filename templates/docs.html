@@ -804,6 +804,30 @@ Content-Type: application/json
                             <code class="text-xs text-gray-600 dark:text-gray-400">POST /api/tools/execute/orgteh-semantic-embed</code>
                         </div>
                     </div>
+
+                    <div class="tool-card">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 text-xl">
+                                <i class="fa-solid fa-spider"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 dark:text-white">Orgteh Web Extractor</h4>
+                                <span class="text-xs text-gray-500 font-mono">orgteh-web-scraper</span>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 mb-4" data-i18n="tools_scraper_desc">
+                            An advanced web extraction engine capable of converting raw HTML into structured, AI-ready data. Features dual modes: 'Smart' and 'Stealth' to bypass modern anti-bot protections. Automatically cleanses DOM noise to optimize token usage for LLM ingestion.
+                        </p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded">Web Scraping</span>
+                            <span class="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded">Stealth Mode</span>
+                            <span class="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded">Data Extraction</span>
+                        </div>
+                        <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
+                            <code class="text-xs text-gray-600 dark:text-gray-400">POST /api/tools/execute/orgteh-web-scraper</code>
+                        </div>
+                    </div>
+
                 </div>
 
                 <div class="bg-indigo-50 dark:bg-indigo-900/20 border-l-4 border-indigo-500 p-4 rounded-r-lg mt-8">
@@ -1097,6 +1121,9 @@ Content-Type: application/json
             "tools_code_title": "Integration Example",
             "tools_code_desc": "All tools can be integrated into your applications with simple HTTP requests. Visit the Tools Hub for interactive documentation and code examples.",
 
+            // --- الإضافات الإنجليزية لمحرك الاستخراج ---
+            "tools_scraper_desc": "An advanced web extraction engine capable of converting raw HTML into structured, AI-ready data (Markdown, clean text, metadata). Features dual modes: 'Smart' for rapid extraction, and 'Stealth' to bypass modern anti-bot protections. Automatically cleanses DOM noise (scripts, styles, navs) to significantly optimize token usage for LLM ingestion. Essential for autonomous research agents and dynamic RAG pipelines.",
+
             "integ_title": "AI Code Builder",
             "integ_intro": "The AI Code Builder (Code Hub) is a comprehensive development environment directly within your browser. It enables you to generate full projects from scratch, intelligently integrate AI capabilities into uploaded files, and preview applications instantly in a secure sandbox.",
             "cb_feat_scratch": "Build from Scratch",
@@ -1156,7 +1183,7 @@ Content-Type: application/json
             "auth_security_1": "احفظ مفاتيح API في متغيرات البيئة، ليس في الكود",
             "auth_security_2": "استخدم مفاتيح مختلفة للتطوير والإنتاج",
             "auth_security_3": "دوّر المفاتيح بانتظام من لوحة التحكم",
-            "auth_security_4": "لا تشارك مفتاح API مع أحد",
+            "auth_security_4": "لا مشارك مفتاح API مع أحد",
             "auth_p4": "ندعم تدوير المفاتيح (Rotation). إذا شككت بتسرب مفتاحك، قم بتوليد مفتاح جديد فوراً من لوحة التحكم لإبطال القديم.",
 
             "endpoints_title": "نقاط الاتصال والنماذج",
@@ -1212,6 +1239,9 @@ Content-Type: application/json
             "tools_embed_desc": "تضمينات متجهية عالية الأبعاد تلتقط المعنى الدلالي العميق. ابنِ محركات بحث ذكية، أو أنظمة توصية، أو ذاكرة طويلة المدى لروبوتات الدردشة.",
             "tools_code_title": "مثال على التكامل",
             "tools_code_desc": "يمكن دمج جميع الأدوات في تطبيقاتك بطلبات HTTP بسيطة. قم بزيارة مركز الأدوات للحصول على توثيق تفاعلي وأمثلة على الكود.",
+
+            // --- الإضافات العربية لمحرك الاستخراج ---
+            "tools_scraper_desc": "محرك استخراج ويب متقدم قادر على تحويل لغة HTML الخام إلى بيانات منظمة جاهزة للذكاء الاصطناعي (Markdown، نص نظيف، بيانات وصفية). يتميز بوضعين: 'الذكي' للاستخراج السريع القياسي، و 'التخفي' (Stealth) لتجاوز حمايات الحظر (Anti-bot) الحديثة. يقوم تلقائياً بتنظيف شجرة الـ DOM من الضوضاء البرمجية (السكربتات، الأنماط، القوائم الجانبية) لتقليل وتقليص استهلاك الرموز (Tokens) بشكل كبير عند التغذية للنماذج اللغوية (LLMs). يعتبر أداة برمجية أساسية لوكلاء البحث المستقلين وأنظمة RAG الديناميكية التي تتطلب بيانات حية ودقيقة.",
 
             "integ_title": "منشئ الكود الذكي (AI Code Builder)",
             "integ_intro": "منشئ الكود الذكي (Code Hub) هو بيئة تطوير متكاملة داخل المتصفح. تتيح لك هذه الأداة بناء مشاريع برمجية كاملة من الصفر، أو دمج قدرات الذكاء الاصطناعي بذكاء في ملفاتك الحالية، مع إمكانية معاينة التطبيقات وتشغيلها فوراً في بيئة آمنة.",
