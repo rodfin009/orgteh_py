@@ -27,12 +27,6 @@
       "dest": "main.py"
     }
   ],
-  "crons": [
-    {
-      "path": "/api/admin/sync-db",
-      "schedule": "0 * * * *"
-    }
-  ],
   "env": {
     "PYTHON_VERSION": "3.9"
   }
