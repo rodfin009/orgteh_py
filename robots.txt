@@ -1,21 +1,14 @@
-# robots.txt - Temporary: Block all indexing during development
-# Last updated: 2026-02-19
-
 User-agent: *
-Disallow: /
+Allow: /
 
-# Block specific bots explicitly
-User-agent: Googlebot
-Disallow: /
+# منع عناكب البحث من أرشفة المسارات الحساسة
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /*/settings/
+Disallow: /*/profile
+Disallow: /debug/
 
-User-agent: Bingbot
-Disallow: /
-
-User-agent: Slurp
-Disallow: /
-
-User-agent: DuckDuckBot
-Disallow: /
-
-# Sitemap (comment out until site is ready)
-# Sitemap: https://yourdomain.com/sitemap.xml
+# توجيه عناكب البحث لخريطة الموقع الخاصة بك
+Sitemap: https://orgteh.com/sitemap.xml

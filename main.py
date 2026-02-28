@@ -1678,6 +1678,43 @@ async def trigger_db_sync(request: Request):
     result = sync_all_usage_to_db()
     return JSONResponse(result)
 
+#--------------------------------------------------------------------------
+# ─── SEO: مسار خريطة الموقع الديناميكية (Sitemap) ───────────────────────────
+# ----------------------------------------------------------------------------
+
+@app.get("/sitemap.xml", include_in_schema=False)
+async def get_sitemap():
+    """
+    توليد خريطة الموقع لمحركات البحث (Google, Bing) للمساعدة في الأرشفة
+    """
+    from datetime import datetime
+    from fastapi import Response
+
+    # تاريخ اليوم بالصيغة القياسية لمحركات البحث
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+
+    # الروابط التي نريد من محركات البحث أرشفتها
+    urls = [
+        {"loc": "https://orgteh.com/", "changefreq": "daily", "priority": "1.0"},
+        {"loc": "https://orgteh.com/login", "changefreq": "monthly", "priority": "0.8"},
+        {"loc": "https://orgteh.com/register", "changefreq": "monthly", "priority": "0.8"},
+    ]
+
+    # بناء هيكل ملف الـ XML
+    xml_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+
+    for url in urls:
+        xml_content += "  <url>\n"
+        xml_content += f"    <loc>{url['loc']}</loc>\n"
+        xml_content += f"    <lastmod>{today}</lastmod>\n"
+        xml_content += f"    <changefreq>{url['changefreq']}</changefreq>\n"
+        xml_content += f"    <priority>{url['priority']}</priority>\n"
+        xml_content += "  </url>\n"
+
+    xml_content += '</urlset>'
+
+    return Response(content=xml_content, media_type="application/xml")
 # ============================================================================
 # ENTRY POINT
 # ============================================================================

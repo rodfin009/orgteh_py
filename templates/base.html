@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html class="dark" lang="{{ lang }}" dir="{% if lang == 'ar' %}rtl{% else %}ltr{% endif %}">
+<html class="dark" lang="{{ lang }}" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -472,7 +472,9 @@
         function applyGlobalTranslations() {
             const lang = window.SERVER_LANG || localStorage.getItem('lang') || 'en';
             document.documentElement.setAttribute('lang', lang);
-            document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+
+            // تم التعديل هنا لتثبيت الاتجاه دائماً على ltr
+            document.documentElement.setAttribute('dir', 'ltr');
 
             updateLangCheckmarks(lang);
 
