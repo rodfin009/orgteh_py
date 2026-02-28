@@ -123,13 +123,13 @@
                 </button>
 
                 <div class="hidden md:flex items-center gap-6 lg:gap-8">
-                    <a href="javascript:void(0)" onclick="navigateWithLang('')" class="font-bold hover:text-primary transition" data-i18n="nav_home">الرئيسية</a>
-                    <a href="javascript:void(0)" onclick="navigateWithLang('models')" class="font-bold hover:text-primary transition" data-i18n="nav_models">النماذج</a>
-                    <a href="javascript:void(0)" onclick="navigateWithLang('accesory')" class="font-bold hover:text-primary transition" data-i18n="nav_tools">الأدوات</a>
-                    <a href="javascript:void(0)" onclick="navigateWithLang('code-hub')" class="font-bold hover:text-primary transition" style="display:flex;align-items:center;gap:5px;"><span data-i18n="nav_code_builder">منشئ الكود الذكي</span><span data-i18n="nav_beta" style="font-size:10px;background:#22c55e;color:white;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap;">تجريبي</span></a>
-                    <a href="javascript:void(0)" onclick="navigateWithLang('cart')" class="font-bold hover:text-primary transition" data-i18n="nav_pricing">الأسعار</a>
-                    <a href="javascript:void(0)" onclick="navigateWithLang('contacts')" class="font-bold hover:text-primary transition" data-i18n="nav_contacts">تواصل معنا</a>
-                    <a href="javascript:void(0)" onclick="navigateWithLang('docs')" class="font-bold hover:text-primary transition" data-i18n="nav_docs">التوثيق</a>
+                    <a href="/{{ lang }}/" class="font-bold hover:text-primary transition" data-i18n="nav_home">الرئيسية</a>
+                    <a href="/{{ lang }}/models" class="font-bold hover:text-primary transition" data-i18n="nav_models">النماذج</a>
+                    <a href="/{{ lang }}/accesory" class="font-bold hover:text-primary transition" data-i18n="nav_tools">الأدوات</a>
+                    <a href="/{{ lang }}/code-hub" class="font-bold hover:text-primary transition" style="display:flex;align-items:center;gap:5px;"><span data-i18n="nav_code_builder">منشئ الكود الذكي</span><span data-i18n="nav_beta" style="font-size:10px;background:#22c55e;color:white;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap;">تجريبي</span></a>
+                    <a href="/{{ lang }}/cart" class="font-bold hover:text-primary transition" data-i18n="nav_pricing">الأسعار</a>
+                    <a href="/{{ lang }}/contacts" class="font-bold hover:text-primary transition" data-i18n="nav_contacts">تواصل معنا</a>
+                    <a href="/{{ lang }}/docs" class="font-bold hover:text-primary transition" data-i18n="nav_docs">التوثيق</a>
                 </div>
 
                 <div class="hidden md:flex items-center gap-4">
@@ -143,7 +143,7 @@
                     {% if is_logged_in %}
                     <div class="flex items-center gap-4">
                         <span class="text-sm font-bold text-gray-500 hidden lg:inline">{{ user_email }}</span>
-                        <a href="javascript:void(0)" onclick="navigateWithLang('settings')" class="px-4 py-2 rounded-lg font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition flex items-center gap-2 text-sm" aria-label="الإعدادات">
+                        <a href="/{{ lang }}/settings" class="px-4 py-2 rounded-lg font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition flex items-center gap-2 text-sm" aria-label="الإعدادات">
                             <i class="fa-solid fa-gear" aria-hidden="true"></i>
                             <span class="hidden lg:inline" data-i18n="nav_settings">الإعدادات</span>
                         </a>
@@ -154,14 +154,14 @@
                     </div>
                     {% else %}
                     <div class="flex items-center gap-4">
-                        <a href="/auth" class="px-5 py-2 rounded-lg font-bold hover:bg-gray-100 dark:bg-[#111111] transition">دخول</a>
-                        <a href="/auth?tab=register" class="px-5 py-2 bg-primary text-gray-900 dark:text-white rounded-lg font-bold hover:opacity-90 transition shadow-lg shadow-primary/30">تسجيل</a>
+                        <a href="/{{ lang }}/login" class="px-5 py-2 rounded-lg font-bold hover:bg-gray-100 dark:bg-[#111111] transition">دخول</a>
+                        <a href="/{{ lang }}/register" class="px-5 py-2 bg-primary text-gray-900 dark:text-white rounded-lg font-bold hover:opacity-90 transition shadow-lg shadow-primary/30">تسجيل</a>
                     </div>
                     {% endif %}
                 </div>
             </div>
 
-            <a href="javascript:void(0)" onclick="navigateWithLang('')" style="display:flex;align-items:stretch;align-self:stretch;margin-left:auto;" aria-label="الصفحة الرئيسية - Orgteh">
+            <a href="/{{ lang }}/" style="display:flex;align-items:stretch;align-self:stretch;margin-left:auto;" aria-label="الصفحة الرئيسية - Orgteh">
                 <img src="/static/logo_dark.webp" alt="Orgteh Infra" width="160" height="48" class="dark-logo" style="height:100%;width:auto;object-fit:contain;padding:4px 0;" fetchpriority="high" decoding="async">
                 <img src="/static/logo_light.webp" alt="Orgteh Infra" width="160" height="48" class="light-logo" style="height:100%;width:auto;object-fit:contain;padding:4px 0;" fetchpriority="high" decoding="async">
             </a>
@@ -181,24 +181,24 @@
         </div>
 
         <div class="flex flex-col gap-6 text-start">
-            <a href="javascript:void(0)" onclick="navigateWithLang(''); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-home w-6" aria-hidden="true"></i> <span data-i18n="nav_home">الرئيسية</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('models'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-layer-group w-6" aria-hidden="true"></i> <span data-i18n="nav_models">النماذج</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('accesory'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-screwdriver-wrench w-6" aria-hidden="true"></i> <span data-i18n="nav_tools">الأدوات</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('code-hub'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3 transition"><i class="fa-solid fa-code-branch w-6" aria-hidden="true"></i><span data-i18n="nav_code_builder">منشئ الكود الذكي</span><span data-i18n="nav_beta" style="font-size:10px;background:#22c55e;color:white;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap;">تجريبي</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('cart'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-tags w-6" aria-hidden="true"></i> <span data-i18n="nav_pricing">الأسعار</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('contacts'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-envelope w-6" aria-hidden="true"></i> <span data-i18n="nav_contacts">تواصل معنا</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('enterprise'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-building w-6" aria-hidden="true"></i> <span data-i18n="nav_custom_solutions">حلول مخصصة</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('docs'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-book w-6" aria-hidden="true"></i> <span data-i18n="nav_docs">التوثيق</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('policy'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-shield-halved w-6" aria-hidden="true"></i> <span data-i18n="nav_policy">سياسة الاستخدام</span></a>
-            <a href="javascript:void(0)" onclick="navigateWithLang('performance'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-chart-line w-6" aria-hidden="true"></i> <span data-i18n="nav_performance">الأداء</span></a>
+            <a href="/{{ lang }}/" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-home w-6" aria-hidden="true"></i> <span data-i18n="nav_home">الرئيسية</span></a>
+            <a href="/{{ lang }}/models" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-layer-group w-6" aria-hidden="true"></i> <span data-i18n="nav_models">النماذج</span></a>
+            <a href="/{{ lang }}/accesory" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-screwdriver-wrench w-6" aria-hidden="true"></i> <span data-i18n="nav_tools">الأدوات</span></a>
+            <a href="/{{ lang }}/code-hub" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3 transition"><i class="fa-solid fa-code-branch w-6" aria-hidden="true"></i><span data-i18n="nav_code_builder">منشئ الكود الذكي</span><span data-i18n="nav_beta" style="font-size:10px;background:#22c55e;color:white;font-weight:700;padding:2px 7px;border-radius:999px;white-space:nowrap;">تجريبي</span></a>
+            <a href="/{{ lang }}/cart" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-tags w-6" aria-hidden="true"></i> <span data-i18n="nav_pricing">الأسعار</span></a>
+            <a href="/{{ lang }}/contacts" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-envelope w-6" aria-hidden="true"></i> <span data-i18n="nav_contacts">تواصل معنا</span></a>
+            <a href="/{{ lang }}/enterprise" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-building w-6" aria-hidden="true"></i> <span data-i18n="nav_custom_solutions">حلول مخصصة</span></a>
+            <a href="/{{ lang }}/docs" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-book w-6" aria-hidden="true"></i> <span data-i18n="nav_docs">التوثيق</span></a>
+            <a href="/{{ lang }}/policy" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-shield-halved w-6" aria-hidden="true"></i> <span data-i18n="nav_policy">سياسة الاستخدام</span></a>
+            <a href="/{{ lang }}/performance" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-chart-line w-6" aria-hidden="true"></i> <span data-i18n="nav_performance">الأداء</span></a>
 
             <hr class="border-gray-200 dark:border-gray-800">
 
             {% if is_logged_in %}
-                <a href="javascript:void(0)" onclick="navigateWithLang('profile'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-gauge w-6" aria-hidden="true"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span></a>
-                <a href="javascript:void(0)" onclick="navigateWithLang('settings'); toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-gear w-6" aria-hidden="true"></i> <span data-i18n="nav_settings">الإعدادات</span></a>
+                <a href="/{{ lang }}/profile" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-gauge w-6" aria-hidden="true"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span></a>
+                <a href="/{{ lang }}/settings" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-gear w-6" aria-hidden="true"></i> <span data-i18n="nav_settings">الإعدادات</span></a>
                 {% if user_email == 'rodfin0202@gmail.com' %}
-                <a href="javascript:void(0)" onclick="navigateWithLang('admin'); toggleSidebar();" class="font-bold flex items-center gap-3 px-3 py-2 rounded-xl text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 transition" aria-label="لوحة الإدارة">
+                <a href="/{{ lang }}/admin" onclick="toggleSidebar();" class="font-bold flex items-center gap-3 px-3 py-2 rounded-xl text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 transition" aria-label="لوحة الإدارة">
                     <i class="fa-solid fa-shield-halved w-6" aria-hidden="true"></i>
                     <span>لوحة الإدارة</span>
                     <span style="font-size:9px;background:#f59e0b;color:#000;font-weight:800;padding:2px 6px;border-radius:999px;white-space:nowrap;margin-right:auto;">ADMIN</span>
@@ -208,11 +208,11 @@
                     <i class="fa-solid fa-sign-out-alt w-6" aria-hidden="true"></i> <span data-i18n="sidebar_logout">تسجيل الخروج</span>
                 </button>
             {% else %}
-                <a href="javascript:void(0)" onclick="navigateWithLang('login'); toggleSidebar();" class="font-bold text-gray-500 hover:text-primary flex items-center gap-3">
+                <a href="/{{ lang }}/login" onclick="toggleSidebar();" class="font-bold text-gray-500 hover:text-primary flex items-center gap-3">
                     <i class="fa-solid fa-gauge w-6" aria-hidden="true"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span> <i class="fa-solid fa-lock text-xs text-primary/50" aria-hidden="true"></i>
                 </a>
-                <a href="javascript:void(0)" onclick="navigateWithLang('login'); toggleSidebar();" class="w-full py-3 rounded-lg border border-gray-200 dark:border-gray-800 font-bold hover:bg-gray-100 dark:bg-[#111111] text-center block mt-3"><span data-i18n="sidebar_login">تسجيل الدخول</span></a>
-                <a href="javascript:void(0)" onclick="navigateWithLang('register'); toggleSidebar();" class="w-full py-3 bg-primary text-gray-900 dark:text-white rounded-lg font-bold hover:opacity-90 text-center block mt-3"><span data-i18n="sidebar_register">إنشاء حساب جديد</span></a>
+                <a href="/{{ lang }}/login" onclick="toggleSidebar();" class="w-full py-3 rounded-lg border border-gray-200 dark:border-gray-800 font-bold hover:bg-gray-100 dark:bg-[#111111] text-center block mt-3"><span data-i18n="sidebar_login">تسجيل الدخول</span></a>
+                <a href="/{{ lang }}/register" onclick="toggleSidebar();" class="w-full py-3 bg-primary text-gray-900 dark:text-white rounded-lg font-bold hover:opacity-90 text-center block mt-3"><span data-i18n="sidebar_register">إنشاء حساب جديد</span></a>
             {% endif %}
         </div>
 
