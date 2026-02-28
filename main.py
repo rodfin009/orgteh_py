@@ -1679,28 +1679,60 @@ async def trigger_db_sync(request: Request):
     return JSONResponse(result)
 
 #--------------------------------------------------------------------------
-# ─── SEO: مسار خريطة الموقع الديناميكية (Sitemap) ───────────────────────────
-# ----------------------------------------------------------------------------
+from fastapi import Response
+from datetime import datetime
+
+# ─── SEO: مسار خريطة الموقع الديناميكية ──────────────────────────────────────────
 
 @app.get("/sitemap.xml", include_in_schema=False)
 async def get_sitemap():
     """
-    توليد خريطة الموقع لمحركات البحث (Google, Bing) للمساعدة في الأرشفة
+    يقوم بتوليد خريطة الموقع لمحركات البحث تلقائياً لجميع اللغات والصفحات
     """
-    from datetime import datetime
-    from fastapi import Response
-
     # تاريخ اليوم بالصيغة القياسية لمحركات البحث
     today = datetime.utcnow().strftime("%Y-%m-%d")
 
-    # الروابط التي نريد من محركات البحث أرشفتها
-    urls = [
-        {"loc": "https://orgteh.com/", "changefreq": "daily", "priority": "1.0"},
-        {"loc": "https://orgteh.com/login", "changefreq": "monthly", "priority": "0.8"},
-        {"loc": "https://orgteh.com/register", "changefreq": "monthly", "priority": "0.8"},
+    # قائمة بالصفحات الأساسية وخصائصها بدون تحديد اللغة
+    base_pages = [
+        {"path": "", "changefreq": "daily", "priority": "1.0"},              # الرئيسية
+        {"path": "models", "changefreq": "weekly", "priority": "0.9"},       # النماذج
+        {"path": "pricing", "changefreq": "weekly", "priority": "0.9"},      # الأسعار
+        {"path": "enterprise", "changefreq": "monthly", "priority": "0.8"},  # الشركات
+        {"path": "docs", "changefreq": "weekly", "priority": "0.8"},         # التوثيق
+        {"path": "code-hub", "changefreq": "weekly", "priority": "0.8"},     # مركز الأكواد
+        {"path": "accesory", "changefreq": "weekly", "priority": "0.8"},     # الملحقات
+        {"path": "performance", "changefreq": "daily", "priority": "0.7"},   # الأداء
+        {"path": "contacts", "changefreq": "monthly", "priority": "0.6"},    # التواصل
+        {"path": "policy", "changefreq": "yearly", "priority": "0.5"},       # السياسات
+        {"path": "login", "changefreq": "monthly", "priority": "0.8"},       # تسجيل الدخول
+        {"path": "register", "changefreq": "monthly", "priority": "0.8"},    # إنشاء حساب
     ]
 
-    # بناء هيكل ملف الـ XML
+    urls = []
+
+    # 1. إضافة الرابط الرئيسي المجرد (Domain Root)
+    urls.append({
+        "loc": "https://orgteh.com/", 
+        "changefreq": "daily", 
+        "priority": "1.0"
+    })
+
+    # 2. توليد الروابط للنسختين العربية والإنجليزية لجميع الصفحات
+    for page in base_pages:
+        for lang in ["ar", "en"]:
+            # إذا كان المسار فارغاً (يعني الصفحة الرئيسية)، نكتفي برمز اللغة
+            if page["path"] == "":
+                loc = f"https://orgteh.com/{lang}"
+            else:
+                loc = f"https://orgteh.com/{lang}/{page['path']}"
+
+            urls.append({
+                "loc": loc,
+                "changefreq": page["changefreq"],
+                "priority": page["priority"]
+            })
+
+    # 3. بناء هيكل ملف الـ XML
     xml_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
 
@@ -1714,6 +1746,7 @@ async def get_sitemap():
 
     xml_content += '</urlset>'
 
+    # إرجاع الاستجابة بصيغة XML ليقرأها جوجل كملف
     return Response(content=xml_content, media_type="application/xml")
 # ============================================================================
 # ENTRY POINT
