@@ -1748,6 +1748,22 @@ async def get_sitemap():
 
     # إرجاع الاستجابة بصيغة XML ليقرأها جوجل كملف
     return Response(content=xml_content, media_type="application/xml")
+    # ─── SEO: مسار ملف الروبوتات ──────────────────────────────────────────
+
+@app.get("/robots.txt", include_in_schema=False)
+async def get_robots_txt():
+    """
+    يقوم بتقديم ملف robots.txt لمحركات البحث
+    """
+    robots_path = BASE_DIR / "robots.txt"
+    
+    # التأكد من وجود الملف ثم إرجاعه كنص خام
+    if robots_path.exists():
+        return FileResponse(str(robots_path), media_type="text/plain")
+        
+    # في حال لم يجد الملف لسبب ما، يُرجع إعدادات الأرشفة الافتراضية
+    fallback_content = "User-agent: *\nAllow: /\n"
+    return Response(content=fallback_content, media_type="text/plain")
 # ============================================================================
 # ENTRY POINT
 # ============================================================================

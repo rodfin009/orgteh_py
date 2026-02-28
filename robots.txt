@@ -1,7 +1,7 @@
 User-agent: *
 Allow: /
 
-# منع عناكب البحث من أرشفة المسارات الحساسة
+# منع عناكب البحث من أرشفة مسارات واجهة برمجة التطبيقات ولوحات التحكم
 Disallow: /api/
 Disallow: /v1/
 Disallow: /admin/
@@ -10,5 +10,5 @@ Disallow: /*/settings/
 Disallow: /*/profile
 Disallow: /debug/
 
-# توجيه عناكب البحث لخريطة الموقع الخاصة بك
+# توجيه عناكب البحث لخريطة الموقع الشاملة الخاصة بك
 Sitemap: https://orgteh.com/sitemap.xml
