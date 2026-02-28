@@ -3,6 +3,10 @@ from datetime import datetime
 from database import get_user_by_email, update_user_usage_struct
 from services.providers import MODEL_MAPPING
 
+# ─── Admin Configuration ──────────────────────────────────────────────────────
+# المسؤول يحصل على صلاحيات غير محدودة في جميع النماذج والأدوات
+ADMIN_EMAIL = "rodfin0202@gmail.com"
+
 PLAN_CONFIGS = {
     "free_tier": {
         "daily_limits": {"llama": 10, "kimi": 5, "deepseek": 0, "mistral": 0, "gemma": 0},
@@ -105,6 +109,10 @@ def get_user_limits_and_usage(email):
     return final_limits, usage
 
 async def check_request_allowance(email, model_id):
+    # ─── الأدمن: وصول غير محدود ──────────────────────────────
+    if email == ADMIN_EMAIL:
+        return True, True  # مسموح، أولوية عالية
+
     user = get_user_by_email(email)
     if not user: return False, False
 
@@ -134,6 +142,10 @@ async def check_request_allowance(email, model_id):
     return False, False
 
 async def check_trial_allowance(email, model_id):
+    # ─── الأدمن: وصول غير محدود ──────────────────────────────
+    if email == ADMIN_EMAIL:
+        return True
+
     _, usage = get_user_limits_and_usage(email)
     internal_key = MODEL_MAPPING.get(model_id, "unknown")
     trial_counts = usage.get("trial_counts", {})
@@ -151,6 +163,10 @@ def has_active_paid_subscription(email: str) -> bool:
     Returns True if the user has at least one active non-free subscription.
     Used to gate access to premium tools (OCR, RAG).
     """
+    # ─── الأدمن: وصول غير محدود لجميع الأدوات ───────────────
+    if email == ADMIN_EMAIL:
+        return True
+
     user = get_user_by_email(email)
     if not user:
         return False
@@ -160,8 +176,9 @@ def has_active_paid_subscription(email: str) -> bool:
         try:
             exp_date = datetime.fromisoformat(p["expires"])
             if exp_date > now:
-                plan_key = p.get("key", "")
-                if plan_key != "free_tier":
+                # ✅ إصلاح: المفتاح الصحيح هو "plan_key" وليس "key"
+                plan_key = p.get("plan_key", "")
+                if plan_key and plan_key != "free_tier":
                     return True
         except:
             pass
@@ -170,7 +187,11 @@ def has_active_paid_subscription(email: str) -> bool:
 
 def get_limits_for_new_subscription(plan_key, period="monthly"):
     config = PLAN_CONFIGS.get(plan_key)
-    if not config: return PLAN_CONFIGS["free_tier"]["daily_limits"].copy(), 0
+    if not config:
+        # ✅ إصلاح: كان يُعيد tuple، الآن يُعيد dict دائماً
+        limits = PLAN_CONFIGS["free_tier"]["daily_limits"].copy()
+        limits["unified_extra"] = 0
+        return limits
 
     limits = config["daily_limits"].copy()
     overdraft = config["overdraft"].get(period, 0)
