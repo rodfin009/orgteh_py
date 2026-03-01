@@ -17,6 +17,21 @@
     <meta name="twitter:description" content="Enterprise-grade infrastructure providing instant access to global AI models.">
     <meta name="twitter:image" content="https://orgteh.com/static/logo_dark.webp">
 
+    {% if request %}
+        {% set path = request.url.path | string %}
+        {% set clean_path = path.replace('/ar/', '/').replace('/en/', '/').replace('/ar', '').replace('/en', '') %}
+        {% set final_path = clean_path if clean_path.startswith('/') else '/' + clean_path %}
+        {% set final_path = '' if final_path == '/' else final_path %}
+
+        <link rel="alternate" hreflang="ar" href="https://orgteh.com/ar{{ final_path }}">
+        <link rel="alternate" hreflang="en" href="https://orgteh.com/en{{ final_path }}">
+        <link rel="alternate" hreflang="x-default" href="https://orgteh.com/en{{ final_path }}">
+    {% else %}
+        <link rel="alternate" hreflang="ar" href="https://orgteh.com/ar/">
+        <link rel="alternate" hreflang="en" href="https://orgteh.com/en/">
+        <link rel="alternate" hreflang="x-default" href="https://orgteh.com/en/">
+    {% endif %}
+
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
