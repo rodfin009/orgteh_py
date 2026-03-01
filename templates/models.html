@@ -18,7 +18,6 @@
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <link rel="canonical" href="{{ canonical_url }}">
 
-<!-- Open Graph -->
 <meta property="og:type" content="website">
 <meta property="og:url" content="{{ canonical_url }}">
 <meta property="og:title" content="{{ page_title }}">
@@ -27,18 +26,15 @@
 <meta property="og:locale" content="{{ 'ar_AR' if lang == 'ar' else 'en_US' }}">
 <meta property="og:site_name" content="Orgteh Infra">
 
-<!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ page_title }}">
 <meta name="twitter:description" content="{{ page_desc }}">
 <meta name="twitter:image" content="https://orgteh.com/static/orgteh-full-logo.webp">
 
-<!-- Alternate Languages -->
 <link rel="alternate" hreflang="ar" href="https://orgteh.com/ar/models">
 <link rel="alternate" hreflang="en" href="https://orgteh.com/en/models">
 <link rel="alternate" hreflang="x-default" href="https://orgteh.com/en/models">
 
-<!-- JSON-LD Structured Data: ItemList of AI Models -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -61,7 +57,6 @@
 }
 </script>
 
-<!-- JSON-LD: SoftwareApplication for the API service -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -83,11 +78,9 @@
   }
 }
 </script>
-<!-- Preload first model image (LCP element) -->
 {% if models %}
 <link rel="preload" as="image" href="{{ models[0].image }}" fetchpriority="high">
 {% endif %}
-<!-- Preconnect to CDN for fast image loading -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 {% endblock %}
@@ -286,7 +279,6 @@
                 <div onclick="openModelDetails('{{ model.id }}', '{{ short_name }}')" onmouseenter="_prefetchDescription('{{ short_name }}')" class="group bg-white dark:bg-[#1e293b] rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col cursor-pointer min-h-[200px]">
                     <div class="p-6 flex items-start justify-between border-b border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/30">
                         <div class="flex items-center gap-4">
-                            <!-- ✅ تعديل أبعاد الصورة لتتناسب مع الحجم الحقيقي 84x84 -->
                             <img 
                                 src="{{ model.image }}" 
                                 alt="{{ model.provider }}" 
@@ -294,7 +286,7 @@
                                 loading="{{ 'eager' if loop.index <= 2 else 'lazy' }}"
                                 fetchpriority="{{ 'high' if loop.index == 1 else 'auto' }}"
                                 decoding="{{ 'sync' if loop.index == 1 else 'async' }}"
-                                class="w-14 h-14 rounded-lg shadow-md bg-white p-1 object-contain">
+                                class="w-14 h-14 rounded-lg shadow-md {% if 'kimi' in short_name %}bg-gray-900{% else %}bg-white{% endif %} p-1 object-contain">
                             <div>
                                 <h2 class="font-bold text-lg text-gray-900 dark:text-white leading-tight group-hover:text-primary transition model-name-target" data-key="{{ short_name }}"></h2>
                                 <span class="text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/40 px-2 py-0.5 rounded-full">{{ model.provider }}</span>
@@ -321,7 +313,6 @@
                 <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-600"></div>
                 <div class="flex flex-col md:flex-row gap-8">
                     <div class="flex-shrink-0">
-                        <!-- ✅ تعديل أبعاد صورة التفاصيل -->
                         <img id="detail-image" src="" alt="" width="84" height="84" decoding="async" class="w-24 h-24 rounded-2xl shadow-md bg-white p-2 object-contain border border-gray-100 dark:border-gray-600">
                     </div>
                     <div class="flex-1">
@@ -495,7 +486,18 @@
         if (!modelBasic) return;
 
         document.getElementById('detail-id').textContent = modelId;
-        document.getElementById('detail-image').src = modelBasic.image;
+
+        // ✅ تحديث الصورة في نافذة التفاصيل وضبط خلفية أيقونة Kimi
+        const detailImg = document.getElementById('detail-image');
+        detailImg.src = modelBasic.image;
+        if (shortKey === 'kimi') {
+            detailImg.classList.remove('bg-white');
+            detailImg.classList.add('bg-gray-900');
+        } else {
+            detailImg.classList.remove('bg-gray-900');
+            detailImg.classList.add('bg-white');
+        }
+
         const contentArea = document.getElementById('detail-content-area');
         contentArea.innerHTML = '<span class="animate-pulse text-gray-400">Loading description...</span>';
 
