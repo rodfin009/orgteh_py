@@ -224,7 +224,7 @@
             {% if is_logged_in %}
                 <a href="/{{ lang }}/profile" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-gauge w-6" aria-hidden="true"></i> <span data-i18n="nav_dashboard">لوحة التحكم</span></a>
                 <a href="/{{ lang }}/settings" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-gear w-6" aria-hidden="true"></i> <span data-i18n="nav_settings">الإعدادات</span></a>
-                {% if user_email == '<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e99b868d8f8087d9dbd9dba98e84888085c78a8684">[email&#160;protected]</a>' %}
+                {% if is_admin %}
                 <a href="/{{ lang }}/admin" onclick="toggleSidebar();" class="font-bold flex items-center gap-3 px-3 py-2 rounded-xl text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 transition" aria-label="لوحة الإدارة">
                     <i class="fa-solid fa-shield-halved w-6" aria-hidden="true"></i>
                     <span>لوحة الإدارة</span>
