@@ -30,7 +30,16 @@
 
         <div class="input-row" id="main-input-row">
 
-            <!-- Mode Selector Button -->
+            <div class="relative">
+                <button onclick="document.getElementById('file-input').click()" class="action-btn">
+                    <i class="fa-solid fa-paperclip"></i>
+                </button>
+                <input type="file" id="file-input" multiple class="hidden" onchange="updateFileBadge()">
+                <div id="file-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center hidden">0</div>
+            </div>
+            <textarea id="prompt-input" rows="1" data-i18n-ide="input_placeholder" placeholder="Ask Nexus..." oninput="autoResize(this)"></textarea>
+
+            <!-- Mode Selector Button (moved before send button) -->
             <div class="mode-toggle-wrapper">
                 <button class="mode-btn" id="mode-btn" onclick="toggleModeDropdown(event)">
                     <i class="fa-solid fa-wand-magic-sparkles" id="mode-icon"></i>
@@ -61,14 +70,6 @@
                 </div>
             </div>
 
-            <div class="relative">
-                <button onclick="document.getElementById('file-input').click()" class="action-btn">
-                    <i class="fa-solid fa-paperclip"></i>
-                </button>
-                <input type="file" id="file-input" multiple class="hidden" onchange="updateFileBadge()">
-                <div id="file-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center hidden">0</div>
-            </div>
-            <textarea id="prompt-input" rows="1" data-i18n-ide="input_placeholder" placeholder="Ask Nexus..." oninput="autoResize(this)" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
             <button onclick="sendMessage()" class="send-btn flex items-center justify-center transition">
                 <i class="fa-solid fa-arrow-up"></i>
             </button>
