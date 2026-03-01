@@ -274,115 +274,6 @@ html.dark .preview-bubble.bot { background: #1a1a1a; color: #f3f4f6; }
     border-radius: 16px 16px 4px 16px;
 }
 
-/* ─── Widget Live Preview (floating) ─── */
-.live-preview-widget {
-    position: fixed;
-    bottom: 90px;
-    width: 340px;
-    height: 480px;
-    background: #fff;
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-    display: none;
-    flex-direction: column;
-    z-index: 9000;
-    overflow: hidden;
-    border: 1px solid #e5e7eb;
-}
-html.dark .live-preview-widget {
-    background: #0d0d0d;
-    border-color: #1a1a1a;
-}
-.live-preview-widget.active { display: flex; }
-.live-preview-widget.right-pos { right: 24px; }
-.live-preview-widget.left-pos { left: 24px; }
-.lp-header {
-    padding: 14px 16px;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 700;
-    font-size: 14px;
-    flex-shrink: 0;
-}
-.lp-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-.lp-input-row {
-    padding: 12px;
-    border-top: 1px solid #e5e7eb;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-shrink: 0;
-}
-html.dark .lp-input-row { border-color: #1a1a1a; }
-.lp-input {
-    flex: 1;
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 20px;
-    font-size: 13px;
-    font-family: 'Cairo', sans-serif;
-    background: #f9fafb;
-    color: #111;
-}
-html.dark .lp-input {
-    background: #111;
-    border-color: #333;
-    color: #f3f4f6;
-}
-.lp-input:focus { outline: none; }
-.lp-send {
-    width: 36px; height: 36px;
-    border-radius: 50%;
-    color: #fff;
-    border: none;
-    cursor: pointer;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: opacity 0.2s;
-    flex-shrink: 0;
-}
-.lp-send:hover { opacity: 0.85; }
-.lp-branding {
-    text-align: center;
-    font-size: 10px;
-    color: #9ca3af;
-    padding: 4px 0;
-    flex-shrink: 0;
-}
-.lp-branding a { color: var(--w-purple); text-decoration: none; }
-
-/* ─── Floating toggle ─── */
-.live-toggle-btn {
-    position: fixed;
-    bottom: 24px;
-    width: 56px; height: 56px;
-    border-radius: 50%;
-    color: #fff;
-    border: none;
-    cursor: pointer;
-    font-size: 22px;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-    z-index: 9001;
-    transition: transform 0.2s;
-}
-.live-toggle-btn:hover { transform: scale(1.08); }
-.live-toggle-btn.right-pos { right: 24px; }
-.live-toggle-btn.left-pos { left: 24px; }
-
 /* ─── Buttons ─── */
 .btn-primary {
     background: var(--w-purple);
@@ -547,6 +438,289 @@ html.dark #widgetToast { background: #f3f4f6; color: #111; }
     position: relative;
 }
 html.dark .w-modal-box { background: #111; }
+
+/* ─── Fix: Hide site's own chat button on this page ─── */
+.fab-chat { display: none !important; }
+
+/* ─── Fix: Dark mode white boxes ─── */
+.branding-row { background: #f9fafb; border-radius: 12px; }
+html.dark .branding-row { background: #1a1a1a !important; }
+html.dark .branding-row div[style*="color:#9ca3af"],
+html.dark .branding-row .text-gray { color: #6b7280 !important; }
+
+/* ─── Widget Shape Mode Grid (3 columns) ─── */
+.mode-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+/* ─── Preview Modal ─── */
+.preview-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 99990;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.preview-modal-overlay.show { display: flex; }
+.preview-modal-box {
+    background: #16213e;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 620px;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.07);
+}
+.preview-modal-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+.preview-modal-body {
+    padding: 20px;
+    overflow: auto;
+    flex: 1;
+}
+.browser-mockup {
+    background: #f3f4f6;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    min-height: 420px;
+    display: flex;
+    flex-direction: column;
+}
+html.dark .browser-mockup { background: #1e1e2e; }
+.browser-bar {
+    background: #e5e7eb;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+html.dark .browser-bar { background: #111; }
+.browser-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.browser-url {
+    flex: 1;
+    background: #fff;
+    border-radius: 6px;
+    height: 22px;
+    margin-right: 8px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 11px;
+    color: #6b7280;
+}
+html.dark .browser-url { background: #1a1a1a; }
+.browser-content {
+    flex: 1;
+    padding: 18px;
+    position: relative;
+    min-height: 370px;
+}
+.browser-line {
+    height: 8px;
+    background: #d1d5db;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+html.dark .browser-line { background: #2a2a2a; }
+
+/* ─── Widget preview trigger (icon/bubble/fullchat launcher) ─── */
+.widget-preview-trigger {
+    position: absolute;
+    cursor: pointer;
+    bottom: 16px;
+    transition: transform 0.2s;
+}
+.widget-preview-trigger:hover { transform: scale(1.07); }
+.widget-preview-trigger.pos-right { right: 16px; }
+.widget-preview-trigger.pos-left  { left: 16px; }
+
+.widget-preview-icon-btn {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.widget-preview-icon-btn.size-small  { width: 40px; height: 40px; font-size: 17px; }
+.widget-preview-icon-btn.size-large  { width: 64px; height: 64px; font-size: 26px; }
+
+.widget-bubble-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+.widget-bubble-wrapper.pos-left { align-items: flex-start; }
+.widget-bubble-msg {
+    background: #fff;
+    color: #111;
+    padding: 9px 14px;
+    border-radius: 16px 16px 4px 16px;
+    font-size: 11px;
+    line-height: 1.5;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    max-width: 170px;
+    animation: bubblePop 0.3s ease;
+}
+@keyframes bubblePop { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+/* ─── Inline fullchat panel (embedded in page center) ─── */
+.inline-chat-panel {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    height: 360px;
+    border-radius: 16px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    animation: chatSlideIn 0.3s ease;
+    z-index: 10;
+}
+.inline-chat-panel.size-small  { width: 260px; height: 310px; }
+.inline-chat-panel.size-large  { width: 340px; height: 420px; }
+html.dark .inline-chat-panel { background: #0d0d0d; border-color: #1a1a1a; }
+
+/* ─── Embedded chat panel (inside browser mockup) ─── */
+.embedded-chat {
+    position: absolute;
+    width: 280px;
+    height: 340px;
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    bottom: 80px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    animation: chatSlideIn 0.25s ease;
+    z-index: 10;
+}
+.embedded-chat.size-small  { width: 240px; height: 290px; }
+.embedded-chat.size-large  { width: 320px; height: 400px; }
+.embedded-chat.pos-right { right: 16px; }
+.embedded-chat.pos-left  { left: 16px; }
+.embedded-chat.is-fullchat { bottom: 16px; }
+html.dark .embedded-chat { background: #0d0d0d; border-color: #1a1a1a; }
+@keyframes chatSlideIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+.embedded-chat-header {
+    padding: 11px 12px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+.embedded-chat-close {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    margin-right: auto;
+    flex-shrink: 0;
+}
+.embedded-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: inherit;
+}
+.embedded-chat-bubble {
+    max-width: 80%;
+    padding: 8px 11px;
+    border-radius: 12px;
+    font-size: 11px;
+    line-height: 1.5;
+}
+.embedded-chat-bubble.bot {
+    background: #f3f4f6;
+    color: #111;
+    align-self: flex-start;
+    border-radius: 4px 12px 12px 12px;
+}
+html.dark .embedded-chat-bubble.bot { background: #1a1a1a; color: #f3f4f6; }
+.embedded-chat-bubble.user {
+    color: #fff;
+    align-self: flex-end;
+    border-radius: 12px 12px 4px 12px;
+}
+.embedded-chat-branding {
+    text-align: center;
+    font-size: 9px;
+    color: #9ca3af;
+    padding: 4px 0;
+    flex-shrink: 0;
+}
+.embedded-chat-branding a { color: #7c3aed; text-decoration: none; }
+.embedded-chat-input-row {
+    padding: 8px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
+}
+html.dark .embedded-chat-input-row { border-color: #1a1a1a; }
+.embedded-chat-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 20px;
+    font-size: 11px;
+    font-family: 'Cairo', sans-serif;
+    background: #f9fafb;
+    color: #111;
+    outline: none;
+}
+html.dark .embedded-chat-input { background: #111; border-color: #333; color: #f3f4f6; }
+.embedded-chat-send {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
 </style>
 {% endblock %}
 
@@ -746,17 +920,47 @@ html.dark .w-modal-box { background: #111; }
                         </div>
                     </div>
 
-                    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:#f9fafb;border-radius:12px;margin-bottom:16px;" class="dark:bg-[#111]">
+                    <div style="margin-bottom:16px;">
+                        <label class="w-label" id="widget-style-label">🎭 شكل الودجت</label>
+                        <div class="mode-grid-3">
+                            <div class="mode-card" id="wstyle-icon" onclick="selectWidgetStyle('icon')">
+                                <i class="fa-solid fa-comment-dots"></i>
+                                <div class="mode-title" id="wstyle-icon-title">أيقونة</div>
+                                <div class="mode-sub">زر دائري</div>
+                            </div>
+                            <div class="mode-card" id="wstyle-bubble" onclick="selectWidgetStyle('bubble')">
+                                <i class="fa-solid fa-message"></i>
+                                <div class="mode-title" id="wstyle-bubble-title">فقاعة</div>
+                                <div class="mode-sub">رسالة + زر</div>
+                            </div>
+                            <div class="mode-card" id="wstyle-fullchat" onclick="selectWidgetStyle('fullchat')">
+                                <i class="fa-solid fa-window-maximize"></i>
+                                <div class="mode-title" id="wstyle-fullchat-title">محادثة</div>
+                                <div class="mode-sub">مُضمَّنة في الصفحة</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <label class="w-label" id="widget-size-label">📐 حجم الودجت</label>
+                        <div style="display:flex;gap:10px;">
+                            <button class="personality-btn" id="wsize-small" onclick="selectWidgetSize('small')" style="flex:1;font-size:11px;"><span id="wsize-small-label">صغير</span></button>
+                            <button class="personality-btn" id="wsize-medium" onclick="selectWidgetSize('medium')" style="flex:1;font-size:11px;"><span id="wsize-medium-label">متوسط</span></button>
+                            <button class="personality-btn" id="wsize-large" onclick="selectWidgetSize('large')" style="flex:1;font-size:11px;"><span id="wsize-large-label">كبير</span></button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;border-radius:12px;margin-bottom:16px;" class="branding-row">
                         <div>
-                            <div style="font-size:13px;font-weight:700;" id="branding-label">Powered by Orgteh</div>
-                            <div style="font-size:11px;color:#9ca3af;" id="branding-note">مجاني دائماً</div>
+                            <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;" id="branding-label"><i class="fa-solid fa-lock" style="font-size:11px;color:#9ca3af;"></i> Powered by Orgteh</div>
+                            <div style="font-size:11px;color:#9ca3af;" id="branding-note">مجاني دائماً — لا يمكن إزالته</div>
                         </div>
                         <span class="status-badge active-badge" id="branding-free-badge">مجاني</span>
                     </div>
 
                     <div style="display:flex;gap:10px;">
                         <button class="btn-primary" onclick="saveAppearance()" style="flex:1;" id="save-appearance-btn">💾 حفظ المظهر</button>
-                        <button class="btn-ghost" onclick="toggleLivePreview()" id="preview-btn">👁 معاينة</button>
+                        <button class="btn-ghost" onclick="openPreviewModal()" id="preview-btn">👁 معاينة</button>
                     </div>
                 </div>
 
@@ -869,28 +1073,71 @@ html.dark .w-modal-box { background: #111; }
 </div>
 
 {# ══════════════════════════════════════════════════════════
-   🧩 Live Preview Widget (Floating)
+   🧩 Widget Preview Modal
 ══════════════════════════════════════════════════════════ #}
-<div class="live-preview-widget" id="livePreviewWidget">
-    <div class="lp-header" id="lpHeader" style="background:#7c3aed;">
-        <div style="width:32px;height:32px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🤖</div>
-        <span id="lpTitle" style="flex:1;">مساعد ذكي</span>
-        <button onclick="toggleLivePreview()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:16px;"><i class="fa-solid fa-times"></i></button>
-    </div>
-    <div class="lp-messages" id="lpMessages">
-        <div class="preview-bubble bot" id="lpWelcome">مرحباً! كيف يمكنني مساعدتك اليوم؟</div>
-    </div>
-    <div class="lp-branding"><a href="https://orgteh.com" target="_blank">Powered by Orgteh</a></div>
-    <div class="lp-input-row">
-        <input type="text" class="lp-input" id="lpInput" placeholder="اكتب سؤالك..." onkeydown="if(event.key==='Enter')sendPreviewMsg()">
-        <button class="lp-send" id="lpSend" style="background:#7c3aed;" onclick="sendPreviewMsg()">
-            <i class="fa-solid fa-paper-plane"></i>
-        </button>
+<div class="preview-modal-overlay" id="previewModal">
+    <div class="preview-modal-box">
+        <div class="preview-modal-header">
+            <div style="color:#fff;font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px;">
+                <span>👁</span> <span id="preview-modal-title">معاينة الودجت</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:11px;color:rgba(255,255,255,0.5);" id="preview-hint-label">اضغط على الودجت للتفاعل</span>
+                <button onclick="closePreviewModal()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;cursor:pointer;font-size:14px;border-radius:8px;padding:6px 12px;font-weight:700;">✕ إغلاق</button>
+            </div>
+        </div>
+        <div class="preview-modal-body">
+            <div class="browser-mockup">
+                <div class="browser-bar">
+                    <div class="browser-dot" style="background:#ef4444;"></div>
+                    <div class="browser-dot" style="background:#f59e0b;"></div>
+                    <div class="browser-dot" style="background:#22c55e;"></div>
+                    <div class="browser-url">
+                        <i class="fa-solid fa-lock" style="font-size:9px;color:#9ca3af;margin-left:4px;"></i>
+                        yourwebsite.com
+                    </div>
+                </div>
+                <div class="browser-content">
+                    <!-- Fake page content -->
+                    <div class="browser-line" style="width:55%;"></div>
+                    <div class="browser-line" style="width:80%;opacity:0.6;"></div>
+                    <div class="browser-line" style="width:70%;opacity:0.4;"></div>
+                    <div class="browser-line" style="width:90%;opacity:0.3;"></div>
+                    <div class="browser-line" style="width:65%;opacity:0.2;"></div>
+                    <div class="browser-line" style="width:50%;opacity:0.15;margin-top:16px;"></div>
+                    <div class="browser-line" style="width:78%;opacity:0.1;"></div>
+
+                    <!-- Widget trigger: rendered by renderWidgetStylePreview() -->
+                    <div id="widgetStylePreview"></div>
+
+                    <!-- Embedded chat (opens/closes on widget click, inside browser) -->
+                    <div id="embeddedChat" style="display:none;">
+                        <div class="embedded-chat-header" id="embChatHeader">
+                            <div style="width:26px;height:26px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">🤖</div>
+                            <span id="embChatTitle" style="flex:1;">مساعد ذكي</span>
+                            <button class="embedded-chat-close" onclick="toggleEmbeddedChat()">✕</button>
+                        </div>
+                        <div class="embedded-chat-messages" id="embChatMessages">
+                            <div class="embedded-chat-bubble bot" id="embChatWelcome">مرحباً! كيف يمكنني مساعدتك اليوم؟</div>
+                        </div>
+                        <div class="embedded-chat-branding">
+                            <a href="https://orgteh.com" target="_blank">Powered by Orgteh</a>
+                        </div>
+                        <div class="embedded-chat-input-row">
+                            <input type="text" class="embedded-chat-input" id="embChatInput"
+                                placeholder="اكتب سؤالك..."
+                                onkeydown="if(event.key==='Enter')sendEmbedMsg()">
+                            <button class="embedded-chat-send" id="embChatSend" onclick="sendEmbedMsg()">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p style="color:rgba(255,255,255,0.35);font-size:11px;text-align:center;margin-top:12px;" id="preview-modal-note">هذه معاينة تجريبية — الودجت سيظهر في موقعك بعد نسخ الكود وإضافته</p>
+        </div>
     </div>
 </div>
-<button class="live-toggle-btn right-pos" id="liveToggleBtn" style="background:#7c3aed;" onclick="toggleLivePreview()">
-    <i class="fa-solid fa-comment-dots"></i>
-</button>
 
 {# ══════════════════════════════════════════════════════════
    Create Modal
@@ -985,8 +1232,19 @@ const TRANS = {
         "pos-right-label": "يمين",
         "pos-left-label": "يسار",
         "branding-label": "Powered by Orgteh",
-        "branding-note": "مجاني دائماً",
+        "branding-note": "مجاني دائماً — لا يمكن إزالته",
         "branding-free-badge": "مجاني",
+        "widget-style-label": "🎭 شكل الودجت",
+        "wstyle-icon-title": "أيقونة",
+        "wstyle-bubble-title": "فقاعة",
+        "wstyle-fullchat-title": "محادثة",
+        "widget-size-label": "📐 حجم الودجت",
+        "wsize-small-label": "صغير",
+        "wsize-medium-label": "متوسط",
+        "wsize-large-label": "كبير",
+        "preview-modal-title": "معاينة الودجت",
+        "preview-modal-note": "هذه معاينة تجريبية — الودجت سيظهر في موقعك بعد نسخ الكود وإضافته",
+        "preview-hint-label": "اضغط على الودجت للتفاعل",
         "save-appearance-btn": "💾 حفظ المظهر",
         "preview-btn": "👁 معاينة",
         "code-instruction": "الصق هذا الكود قبل إغلاق وسم </body> في موقعك",
@@ -1085,8 +1343,19 @@ const TRANS = {
         "pos-right-label": "Right",
         "pos-left-label": "Left",
         "branding-label": "Powered by Orgteh",
-        "branding-note": "Always free",
+        "branding-note": "Always free — cannot be removed",
         "branding-free-badge": "Free",
+        "widget-style-label": "🎭 Widget Style",
+        "wstyle-icon-title": "Icon",
+        "wstyle-bubble-title": "Bubble",
+        "wstyle-fullchat-title": "Full Chat",
+        "widget-size-label": "📐 Widget Size",
+        "wsize-small-label": "Small",
+        "wsize-medium-label": "Medium",
+        "wsize-large-label": "Large",
+        "preview-modal-title": "Widget Preview",
+        "preview-modal-note": "This is a preview — the widget will appear on your site after adding the code",
+        "preview-hint-label": "Click the widget to interact",
         "save-appearance-btn": "💾 Save Appearance",
         "preview-btn": "👁 Preview",
         "code-instruction": "Paste this code before the closing </body> tag on your site",
@@ -1142,19 +1411,20 @@ const T = TRANS[USER_LANG] || TRANS.en;
 const tr = k => T[k] || (TRANS.en)[k] || k;
 
 // Apply translations
-function applyTranslations() {
-    Object.keys(T).forEach(id => {
+function applyTranslations(lang) {
+    lang = lang || USER_LANG;
+    const t = TRANS[lang] || TRANS.en;
+    Object.keys(t).forEach(id => {
         const el = document.getElementById(id);
         if (el && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') {
-            // Only set text for span/div/label/button, not inputs
             if (['SPAN','DIV','LABEL','BUTTON','P','H1','H2','H3','A'].includes(el.tagName)) {
-                el.textContent = T[id];
+                el.textContent = t[id];
             }
         }
     });
     // placeholder
-    const lpInput = document.getElementById('lpInput');
-    if (lpInput) lpInput.placeholder = tr('lp_placeholder');
+    const embInput = document.getElementById('embChatInput');
+    if (embInput) embInput.placeholder = (t['lp_placeholder'] || (TRANS.en['lp_placeholder']));
 }
 
 // ── State ──────────────────────────────────────────────────
@@ -1164,8 +1434,19 @@ let currentColor  = "#7c3aed";
 let currentMode   = "manual";
 let currentPersonality = "friendly";
 let currentPosition = "right";
+let currentWidgetStyle = "icon";
+let currentWidgetSize  = "medium";
 let previewOpen   = false;
 let lpHistory = [];
+
+// ── Language state persistence ─────────────────────────────
+// USER_LANG comes from server template - authoritative for this page load
+// When base.html changes language (without reload), re-apply widget translations
+window.addEventListener('langChange', function() {
+    const newLang = window.SERVER_LANG || USER_LANG;
+    applyTranslations(newLang);
+    updateLivePreview();
+});
 
 // ══════════════════════════════════════════════════════════
 //  API
@@ -1185,6 +1466,11 @@ async function loadWidgets() {
         const data = await apiCall("GET", "/api/widget/list");
         widgets = data.widgets || [];
         renderWidgetsList();
+        // Restore last selected widget
+        const lastId = localStorage.getItem('orgteh_last_widget');
+        if (lastId && widgets.find(w => w.id === lastId)) {
+            selectWidget(lastId);
+        }
     } catch(e) {
         const container = document.getElementById("widgetsList");
         if (container) container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-exclamation-circle"></i>${tr('error_load')}</div>`;
@@ -1226,7 +1512,8 @@ function selectWidget(id) {
         loadWidgetEditor(currentWidget);
         document.getElementById("editorPanel").style.display = "block";
         document.getElementById("noWidgetPanel").style.display = "none";
-        document.getElementById("liveToggleBtn").style.display = "flex";
+        // Save last selected widget to localStorage
+        localStorage.setItem('orgteh_last_widget', id);
     }
 }
 
@@ -1258,6 +1545,10 @@ function loadWidgetEditor(w) {
     currentColor    = w.color || "#7c3aed";
     currentPosition = w.position || "right";
     selectPosition(currentPosition, false);
+    currentWidgetStyle = w.widget_style || "icon";
+    selectWidgetStyle(currentWidgetStyle, false);
+    currentWidgetSize  = w.widget_size  || "medium";
+    selectWidgetSize(currentWidgetSize, false);
     updateColorUI();
 
     const cid = document.getElementById("codeWidgetId");
@@ -1387,7 +1678,25 @@ function selectPosition(pos, _persist = true) {
         const el = document.getElementById(`pos-${p}`);
         if (el) el.classList.toggle("selected", p === pos);
     });
-    updateLivePreview();
+    renderWidgetStylePreview();
+}
+
+function selectWidgetStyle(style, _persist = true) {
+    currentWidgetStyle = style;
+    ["icon","bubble","fullchat"].forEach(s => {
+        const el = document.getElementById(`wstyle-${s}`);
+        if (el) el.classList.toggle("selected", s === style);
+    });
+    renderWidgetStylePreview();
+}
+
+function selectWidgetSize(size, _persist = true) {
+    currentWidgetSize = size;
+    ["small","medium","large"].forEach(s => {
+        const el = document.getElementById(`wsize-${s}`);
+        if (el) el.classList.toggle("selected", s === size);
+    });
+    renderWidgetStylePreview();
 }
 
 async function saveAppearance() {
@@ -1403,6 +1712,8 @@ async function saveAppearance() {
         welcome_en:        wEn  ? wEn.value  : "",
         color:             currentColor,
         position:          currentPosition,
+        widget_style:      currentWidgetStyle,
+        widget_size:       currentWidgetSize,
     };
     const data = await apiCall("PUT", `/api/widget/${currentWidget.id}`, updates);
     if (data.ok) {
@@ -1415,78 +1726,196 @@ async function saveAppearance() {
 }
 
 // ══════════════════════════════════════════════════════════
-//  Live Preview
+//  Live Preview (Interactive single-pane)
 // ══════════════════════════════════════════════════════════
+let embChatOpen = false;
+let embHistory  = [];
+
+function _effectiveLang() {
+    return window.SERVER_LANG || USER_LANG;
+}
+
+function renderWidgetStylePreview() {
+    const container = document.getElementById("widgetStylePreview");
+    if (!container) return;
+
+    const lang    = _effectiveLang();
+    const posClass = currentPosition === 'left' ? 'pos-left' : 'pos-right';
+    const sizeClass = `size-${currentWidgetSize}`;
+    const col     = currentColor;
+    const title   = lang === 'ar'
+        ? (currentWidget?.assistant_name_ar || 'مساعد ذكي')
+        : (currentWidget?.assistant_name_en || 'Smart Assistant');
+    const welcome = lang === 'ar'
+        ? (currentWidget?.welcome_ar || 'مرحباً!')
+        : (currentWidget?.welcome_en || 'Hello!');
+
+    // Also update embedded chat header/welcome to match
+    const embTitle = document.getElementById('embChatTitle');
+    const embWel   = document.getElementById('embChatWelcome');
+    const embHdr   = document.getElementById('embChatHeader');
+    const embSend  = document.getElementById('embChatSend');
+    if (embTitle) embTitle.textContent = title;
+    if (embWel && embWel.dataset.userMsg !== '1') embWel.textContent = welcome;
+    if (embHdr)  embHdr.style.background = col;
+    if (embSend) embSend.style.background = col;
+
+    // Re-position embedded chat panel
+    const embChat = document.getElementById('embeddedChat');
+    if (embChat) {
+        embChat.className = `embedded-chat ${sizeClass} ${posClass}${currentWidgetStyle === 'fullchat' ? ' is-fullchat' : ''}`;
+    }
+
+    // Build trigger HTML
+    let html = '';
+    if (currentWidgetStyle === 'icon') {
+        html = `<div class="widget-preview-trigger ${posClass}" onclick="toggleEmbeddedChat()" title="اضغط لتجربة المحادثة">
+            <div class="widget-preview-icon-btn ${sizeClass}" style="background:${col};">
+                <i class="fa-solid fa-comment-dots"></i>
+            </div>
+        </div>`;
+    } else if (currentWidgetStyle === 'bubble') {
+        const alignStyle = currentPosition === 'left' ? 'align-items:flex-start;' : 'align-items:flex-end;';
+        html = `<div class="widget-preview-trigger ${posClass}" onclick="toggleEmbeddedChat()" title="اضغط لتجربة المحادثة">
+            <div class="widget-bubble-wrapper ${posClass}" style="${alignStyle}">
+                <div class="widget-bubble-msg">${welcome}</div>
+                <div class="widget-preview-icon-btn ${sizeClass}" style="background:${col};">
+                    <i class="fa-solid fa-comment-dots"></i>
+                </div>
+            </div>
+        </div>`;
+    } else if (currentWidgetStyle === 'fullchat') {
+        // fullchat = لوحة محادثة مُضمَّنة ثابتة في وسط الصفحة (ليست زراً عائماً)
+        // تظهر مباشرة في المعاينة بدون حاجة للضغط
+        html = `<div class="inline-chat-panel ${sizeClass}" id="inlineChatPanel">
+            <div class="embedded-chat-header" style="background:${col};">
+                <div style="width:26px;height:26px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">🤖</div>
+                <span style="flex:1;">${title}</span>
+                <div style="font-size:10px;opacity:0.7;display:flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;background:#22c55e;border-radius:50%;display:inline-block;"></span>متصل</div>
+            </div>
+            <div style="flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px;background:inherit;">
+                <div class="embedded-chat-bubble bot">${welcome}</div>
+            </div>
+            <div class="embedded-chat-branding"><a href="https://orgteh.com" target="_blank">Powered by Orgteh</a></div>
+            <div class="embedded-chat-input-row">
+                <input type="text" class="embedded-chat-input" placeholder="اكتب سؤالك..." style="pointer-events:none;">
+                <button class="embedded-chat-send" style="background:${col};pointer-events:none;"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>`;
+        // hide the floating embeddedChat panel for fullchat mode
+        const embChat = document.getElementById('embeddedChat');
+        if (embChat) embChat.style.display = 'none';
+    }
+
+    container.innerHTML = html;
+
+    // For fullchat, hide the floating widget trigger/chat - not needed
+    if (currentWidgetStyle === 'fullchat') {
+        const embChat = document.getElementById('embeddedChat');
+        if (embChat) embChat.style.display = 'none';
+    }
+}
+
+function toggleEmbeddedChat() {
+    embChatOpen = !embChatOpen;
+    const chat = document.getElementById('embeddedChat');
+    const trigger = document.querySelector('.widget-preview-trigger');
+    if (chat) chat.style.display = embChatOpen ? 'flex' : 'none';
+    if (chat) chat.style.flexDirection = 'column';
+    // For fullchat style, hide/show trigger
+    if (currentWidgetStyle === 'fullchat' && trigger) {
+        trigger.style.display = embChatOpen ? 'none' : 'block';
+    }
+    if (embChatOpen) {
+        setTimeout(() => {
+            const inp = document.getElementById('embChatInput');
+            if (inp) inp.focus();
+        }, 100);
+    }
+}
+
 function updateLivePreview() {
-    const lpH   = document.getElementById("lpHeader");
-    const lpS   = document.getElementById("lpSend");
-    const toggle = document.getElementById("liveToggleBtn");
-    if (lpH)     lpH.style.background = currentColor;
-    if (lpS)     lpS.style.background = currentColor;
-    if (toggle)  toggle.style.background = currentColor;
-
-    const widget = document.getElementById("livePreviewWidget");
-    if (!widget) return;
-
-    if (previewOpen) widget.classList.add("active");
-    else widget.classList.remove("active");
-
-    widget.classList.remove("right-pos","left-pos");
-    toggle?.classList.remove("right-pos","left-pos");
-    if (currentPosition === "left") {
-        widget.classList.add("left-pos");
-        toggle?.classList.add("left-pos");
-    } else {
-        widget.classList.add("right-pos");
-        toggle?.classList.add("right-pos");
+    const lang = _effectiveLang();
+    if (currentWidget) {
+        const title   = lang === 'ar' ? (currentWidget.assistant_name_ar || "مساعد ذكي") : (currentWidget.assistant_name_en || "Smart Assistant");
+        const welcome = lang === 'ar' ? (currentWidget.welcome_ar || "مرحباً!") : (currentWidget.welcome_en || "Hello!");
+        const embTitle = document.getElementById('embChatTitle');
+        const embWel   = document.getElementById('embChatWelcome');
+        if (embTitle) embTitle.textContent = title;
+        if (embWel && embWel.dataset.userMsg !== '1') embWel.textContent = welcome;
     }
-
-    const titleEl = document.getElementById("lpTitle");
-    const welEl   = document.getElementById("lpWelcome");
-    if (titleEl && currentWidget) {
-        titleEl.textContent = USER_LANG === 'ar' ? (currentWidget.assistant_name_ar || "مساعد ذكي") : (currentWidget.assistant_name_en || "Smart Assistant");
-    }
-    if (welEl && currentWidget) {
-        welEl.textContent = USER_LANG === 'ar' ? (currentWidget.welcome_ar || "مرحباً!") : (currentWidget.welcome_en || "Hello!");
-    }
+    renderWidgetStylePreview();
 }
 
 function toggleLivePreview() {
-    previewOpen = !previewOpen;
-    updateLivePreview();
+    const modal = document.getElementById("previewModal");
+    if (!modal) return;
+    modal.classList.contains("show") ? closePreviewModal() : openPreviewModal();
 }
 
-async function sendPreviewMsg() {
+function openPreviewModal() {
+    const modal = document.getElementById("previewModal");
+    if (!modal || !currentWidget) return;
+    embChatOpen = false;
+    embHistory  = [];
+    // Reset embedded chat messages
+    const msgs = document.getElementById('embChatMessages');
+    const lang = _effectiveLang();
+    const welcome = lang === 'ar' ? (currentWidget.welcome_ar || "مرحباً!") : (currentWidget.welcome_en || "Hello!");
+    if (msgs) msgs.innerHTML = `<div class="embedded-chat-bubble bot" id="embChatWelcome">${welcome}</div>`;
+    const chat = document.getElementById('embeddedChat');
+    if (chat) chat.style.display = 'none';
+    modal.classList.add("show");
+    updateLivePreview();
+    previewOpen = true;
+}
+
+function closePreviewModal() {
+    const modal = document.getElementById("previewModal");
+    if (!modal) return;
+    modal.classList.remove("show");
+    embChatOpen = false;
+    previewOpen = false;
+}
+
+// Close preview modal on backdrop click
+document.getElementById("previewModal")?.addEventListener("click", function(e) {
+    if (e.target === this) closePreviewModal();
+});
+
+async function sendEmbedMsg() {
     if (!currentWidget) return;
-    const input = document.getElementById("lpInput");
+    const input = document.getElementById("embChatInput");
     const msg = input ? input.value.trim() : "";
     if (!msg) return;
     if (input) input.value = "";
 
-    const msgs = document.getElementById("lpMessages");
+    const msgs = document.getElementById("embChatMessages");
     if (!msgs) return;
+
+    const lang = _effectiveLang();
 
     // User bubble
     const userBubble = document.createElement("div");
-    userBubble.className = "preview-bubble user";
+    userBubble.className = "embedded-chat-bubble user";
     userBubble.style.background = currentColor;
     userBubble.textContent = msg;
     msgs.appendChild(userBubble);
 
-    // Bot bubble
+    // Bot bubble (loading)
     const botBubble = document.createElement("div");
-    botBubble.className = "preview-bubble bot";
-    botBubble.innerHTML = '<span class="spinner-sm"></span>';
+    botBubble.className = "embedded-chat-bubble bot";
+    botBubble.innerHTML = '<span class="spinner-sm" style="width:12px;height:12px;border-width:2px;"></span>';
     msgs.appendChild(botBubble);
     msgs.scrollTop = msgs.scrollHeight;
 
-    lpHistory.push({ role: "user", content: msg });
+    embHistory.push({ role: "user", content: msg });
 
     try {
         const res = await fetch(`/api/widget/${currentWidget.id}/chat`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: msg, history: lpHistory.slice(-6), lang: USER_LANG }),
+            body: JSON.stringify({ message: msg, history: embHistory.slice(-6), lang }),
         });
         if (!res.ok || !res.body) throw new Error("Network error");
         const reader = res.body.getReader();
@@ -1510,10 +1939,11 @@ async function sendPreviewMsg() {
                 } catch {}
             }
         }
-        lpHistory.push({ role: "assistant", content: full });
+        embHistory.push({ role: "assistant", content: full });
     } catch {
         botBubble.textContent = tr('error_network');
     }
+    msgs.scrollTop = msgs.scrollHeight;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1559,7 +1989,7 @@ function closeDeleteModal() {
 }
 
 document.addEventListener("keydown", e => {
-    if (e.key === "Escape") { closeCreateModal(); closeDeleteModal(); }
+    if (e.key === "Escape") { closeCreateModal(); closeDeleteModal(); closePreviewModal(); }
 });
 
 async function createWidget() {
@@ -1586,11 +2016,9 @@ async function deleteWidget() {
         renderWidgetsList();
         document.getElementById("editorPanel").style.display = "none";
         document.getElementById("noWidgetPanel").style.display = "flex";
-        const lp = document.getElementById("livePreviewWidget");
-        if (lp) lp.classList.remove("active");
-        const toggle = document.getElementById("liveToggleBtn");
-        if (toggle) toggle.style.display = "none";
+        closePreviewModal();
         previewOpen = false;
+        localStorage.removeItem('orgteh_last_widget');
         closeDeleteModal();
         showToast(tr('deleted_ok'));
     }
@@ -1651,7 +2079,7 @@ function showToast(msg) {
 // ══════════════════════════════════════════════════════════
 //  Init
 // ══════════════════════════════════════════════════════════
-applyTranslations();
+applyTranslations(USER_LANG);
 {% if is_logged_in %}
 loadWidgets();
 {% endif %}

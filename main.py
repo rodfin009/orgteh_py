@@ -843,8 +843,10 @@ async def docs_page(request: Request, lang: str):
 # ============================================================================
 
 @app.get("/widget", response_class=HTMLResponse)
-async def widget_redirect():
-    return RedirectResponse("/en/widget")
+async def widget_redirect(request: Request):
+    lang_cookie = request.cookies.get("preferred_lang")
+    lang = lang_cookie if lang_cookie in ["ar", "en"] else "en"
+    return RedirectResponse(f"/{lang}/widget")
 
 @app.get("/{lang}/widget", response_class=HTMLResponse)
 async def widget_page(request: Request, lang: str):

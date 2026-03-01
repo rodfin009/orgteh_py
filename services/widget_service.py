@@ -35,6 +35,8 @@ def _default_widget(owner_email: str, name: str = "مساعدي الذكي") -> 
         "welcome_ar":      "مرحباً! كيف يمكنني مساعدتك اليوم؟",
         "welcome_en":      "Hello! How can I help you today?",
         "position":        "right",    # right | left
+        "widget_style":    "icon",     # icon | bubble | fullchat
+        "widget_size":     "medium",   # small | medium | large
         "show_branding":   True,
         "daily_usage":     0,
         "total_usage":     0,
@@ -123,7 +125,8 @@ def update_widget(widget_id: str, owner_email: str, updates: dict) -> Optional[d
     allowed = {
         "name", "knowledge_mode", "manual_content", "urls",
         "personality", "color", "assistant_name_ar", "assistant_name_en",
-        "welcome_ar", "welcome_en", "position", "active"
+        "welcome_ar", "welcome_en", "position", "active",
+        "widget_style", "widget_size"
     }
     for k, v in updates.items():
         if k in allowed:

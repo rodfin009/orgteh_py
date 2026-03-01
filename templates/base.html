@@ -489,6 +489,14 @@
                 window.history.replaceState({}, '', '/' + lang + '/');
             }
 
+            // ── تحديث روابط التنقل بعد تغيير اللغة ──
+            document.querySelectorAll('a[href]').forEach(function(a) {
+                var href = a.getAttribute('href');
+                if (href && /^\/(ar|en)(\/|$)/.test(href)) {
+                    a.setAttribute('href', href.replace(/^\/(ar|en)/, '/' + lang));
+                }
+            });
+
             updateLangCheckmarks(lang);
             applyGlobalTranslations();
         }
