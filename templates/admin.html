@@ -148,11 +148,6 @@
     .period-btn:hover  { border-color: #f59e0b; color: #f59e0b; }
     .period-btn.active { background: #f59e0b; border-color: #f59e0b; color: #000; }
 
-    /* ── بطاقة الزوار ───────────────────── */
-    .visitor-source-bar {
-        height: 8px; border-radius: 4px; background: linear-gradient(90deg,#f59e0b,#ef4444);
-        transition: width 0.5s;
-    }
     .gmail-badge {
         display: inline-flex; align-items: center; gap: 6px;
         background: #d1fae5; color: #065f46; font-size: 11px; font-weight: 800;
@@ -220,16 +215,16 @@
     </div>
 
     {# ─── صف: الزوار + الرسوم البيانية ───────────────────────────────────── #}
-    <div style="display:grid;grid-template-columns:320px 1fr;gap:20px;margin-bottom:20px;align-items:start;" class="visitors-grid">
+    <div style="display:grid;grid-template-columns:360px 1fr;gap:20px;margin-bottom:20px;align-items:start;" class="visitors-grid">
     <style>
     @media(max-width:900px){.visitors-grid{grid-template-columns:1fr!important;}}
     </style>
 
-        {# ── بطاقة الزوار ─ #}
+        {# ── بطاقة الزوار الموسعة للـ IPs والدول ─ #}
         <div class="admin-card">
             <div class="admin-card-header">
                 <span style="font-weight:800;font-size:15px;">
-                    <i class="fa-solid fa-globe" style="color:#f59e0b;margin-left:8px;"></i>إحصائيات الزوار
+                    <i class="fa-solid fa-globe" style="color:#f59e0b;margin-left:8px;"></i>إحصائيات الزوار الدقيقة
                 </span>
             </div>
             <div style="padding:20px;" id="visitorStatsContainer">
@@ -440,11 +435,10 @@ let currentModalEmail = '';
 let requestsChart    = null;
 let plansChart       = null;
 let modelsChart      = null;
-let currentPeriod    = '24h';     // الفترة الافتراضية
+let currentPeriod    = '24h';
 
 const ADMIN_TOKEN    = '{{ admin_token }}';
 
-// ── Toast ────────────────────────────────────────────────────
 function showToast(msg, isError = false) {
     const t = document.getElementById('admin-toast');
     t.textContent = msg;
@@ -453,7 +447,6 @@ function showToast(msg, isError = false) {
     setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// ── فلتر الوقت ───────────────────────────────────────────────
 function setPeriod(p) {
     currentPeriod = p;
     document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
@@ -461,14 +454,12 @@ function setPeriod(p) {
     refreshAll();
 }
 
-// ── Refresh All ──────────────────────────────────────────────
 async function refreshAll() {
     document.getElementById('updateTime').textContent = new Date().toLocaleTimeString('ar-SA');
     await Promise.all([loadStats(), loadUsers(), loadSysStats()]);
     showToast('✅ تم تحديث البيانات');
 }
 
-// ── Load Stats ───────────────────────────────────────────────
 async function loadStats() {
     try {
         const res  = await fetch(`/api/admin/dashboard-stats?period=${currentPeriod}`, {
@@ -484,7 +475,6 @@ async function loadStats() {
     }
 }
 
-// ── Render Stat Cards ─────────────────────────────────────────
 function renderStats(d) {
     const periodLabel = { '1h': 'آخر ساعة', '24h': 'آخر 24 ساعة', '1m': 'آخر شهر', '1y': 'آخر سنة' }[currentPeriod] || '';
     const grid = document.getElementById('statsGrid');
@@ -505,7 +495,7 @@ function renderStats(d) {
             icon: 'fa-globe', color: '#22c55e', bg: '#d1fae5',
             label: 'زوار الموقع',
             value: (d.visitor_stats?.total_visits || 0).toLocaleString('ar-SA'),
-            sub: `آخر زيارة: ${d.visitor_stats?.last_visit ? fmtDate(d.visitor_stats.last_visit) : '—'}`
+            sub: `فريدون: ${d.visitor_stats?.unique_visits || 0}`
         },
         {
             icon: 'fa-bolt', color: '#8b5cf6', bg: '#ede9fe',
@@ -539,48 +529,84 @@ function renderStats(d) {
     `).join('');
 }
 
-// ── Render Visitor Stats ──────────────────────────────────────
 function renderVisitorStats(vs) {
     const c = document.getElementById('visitorStatsContainer');
-    const total   = vs.total_visits || 0;
-    const last    = vs.last_visit ? fmtDate(vs.last_visit) : '—';
-    const sources = vs.sources   || {};
-    const maxSrc  = Math.max(1, ...Object.values(sources));
+    const total     = vs.total_visits || 0;
+    const unique    = vs.unique_visits || 0;
+    const last      = vs.last_visit ? fmtDate(vs.last_visit) : '—';
+    const sources   = vs.sources || {};
+    const countries = vs.countries || {};
+    const recent    = vs.recent_visitors || [];
 
-    const sourceRows = Object.entries(sources)
-        .sort((a,b) => b[1] - a[1])
-        .slice(0, 8)
-        .map(([src, cnt]) => {
-            const pct = Math.round(cnt / maxSrc * 100);
-            return `
-            <div style="margin-bottom:14px;">
-                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                    <span style="font-size:12px;font-weight:700;">${src}</span>
-                    <span style="font-size:12px;color:#9ca3af;">${cnt.toLocaleString('ar-SA')}</span>
-                </div>
-                <div style="background:#f3f4f6;border-radius:4px;height:8px;" class="dark:bg-[#1a1a1a]">
-                    <div style="width:${pct}%;height:8px;border-radius:4px;background:linear-gradient(90deg,#f59e0b,#ef4444);transition:width 0.5s;"></div>
-                </div>
-            </div>`;
-        }).join('') || '<p style="color:#9ca3af;font-size:12px;text-align:center;padding:12px;">لا توجد بيانات بعد</p>';
+    const sourceRows = Object.entries(sources).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([src,cnt]) => `
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+            <span style="font-weight:600;">${src}</span><span style="color:#9ca3af">${cnt.toLocaleString('ar-SA')}</span>
+        </div>
+    `).join('');
+
+    const countryRows = Object.entries(countries).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([ctry,cnt]) => `
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+            <span style="font-weight:600;">${ctry}</span><span style="color:#9ca3af">${cnt.toLocaleString('ar-SA')}</span>
+        </div>
+    `).join('');
+
+    const recentRows = recent.map(r => `
+        <tr style="border-bottom:1px solid #f3f4f6;" class="dark:border-[#1a1a1a]">
+            <td style="padding:8px 6px;font-size:11px;font-family:monospace;font-weight:bold;">${r.ip}</td>
+            <td style="padding:8px 6px;font-size:11px;">
+                <span style="background:#e0e7ff;color:#4338ca;padding:2px 6px;border-radius:4px;" class="dark:bg-[#1e1b4b] dark:text-[#a5b4fc]">${r.country}</span>
+            </td>
+            <td style="padding:8px 6px;font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" dir="ltr">${r.path}</td>
+            <td style="padding:8px 6px;font-size:10px;color:#9ca3af;">${fmtDate(r.time)}</td>
+        </tr>
+    `).join('');
 
     c.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;">
             <div style="background:#f9fafb;border-radius:10px;padding:12px;text-align:center;" class="dark:bg-[#111]">
-                <div style="font-size:28px;font-weight:900;color:#f59e0b;">${total.toLocaleString('ar-SA')}</div>
-                <div style="font-size:11px;color:#9ca3af;margin-top:2px;">إجمالي الزيارات</div>
+                <div style="font-size:22px;font-weight:900;color:#f59e0b;">${total.toLocaleString('ar-SA')}</div>
+                <div style="font-size:10px;color:#9ca3af;margin-top:2px;">إجمالي الزيارات</div>
             </div>
             <div style="background:#f9fafb;border-radius:10px;padding:12px;text-align:center;" class="dark:bg-[#111]">
-                <div style="font-size:13px;font-weight:700;color:#22c55e;word-break:break-all;">${last}</div>
-                <div style="font-size:11px;color:#9ca3af;margin-top:2px;">آخر زيارة</div>
+                <div style="font-size:22px;font-weight:900;color:#3b82f6;">${unique.toLocaleString('ar-SA')}</div>
+                <div style="font-size:10px;color:#9ca3af;margin-top:2px;">زوار فريدون (IPs)</div>
+            </div>
+            <div style="background:#f9fafb;border-radius:10px;padding:12px;text-align:center;" class="dark:bg-[#111]">
+                <div style="font-size:11px;font-weight:800;color:#22c55e;word-break:break-all;margin-top:6px;">${last}</div>
+                <div style="font-size:10px;color:#9ca3af;margin-top:2px;">آخر زيارة</div>
             </div>
         </div>
-        <div style="font-size:12px;font-weight:800;color:#6b7280;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;">مصادر الزيارات</div>
-        ${sourceRows}
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px;">
+            <div>
+                <div style="font-size:11px;font-weight:800;color:#6b7280;margin-bottom:8px;text-transform:uppercase;">مصادر الزيارات</div>
+                ${sourceRows || '<div style="font-size:11px;color:#9ca3af;">لا توجد بيانات</div>'}
+            </div>
+            <div>
+                <div style="font-size:11px;font-weight:800;color:#6b7280;margin-bottom:8px;text-transform:uppercase;">الدول (Geolocation)</div>
+                ${countryRows || '<div style="font-size:11px;color:#9ca3af;">لا توجد بيانات</div>'}
+            </div>
+        </div>
+
+        <div style="font-size:11px;font-weight:800;color:#6b7280;margin-bottom:8px;text-transform:uppercase;">سجل الزيارات الدقيق وتتبع الـ IPs</div>
+        <div style="max-height:180px;overflow-y:auto;border:1px solid #f3f4f6;border-radius:8px;" class="dark:border-[#1a1a1a]">
+            <table style="width:100%;border-collapse:collapse;text-align:right;">
+                <thead style="background:#f9fafb;position:sticky;top:0;" class="dark:bg-[#111]">
+                    <tr>
+                        <th style="padding:8px 6px;font-size:10px;color:#9ca3af;">IP Address</th>
+                        <th style="padding:8px 6px;font-size:10px;color:#9ca3af;">الدولة</th>
+                        <th style="padding:8px 6px;font-size:10px;color:#9ca3af;">الصفحة</th>
+                        <th style="padding:8px 6px;font-size:10px;color:#9ca3af;">الوقت</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${recentRows || '<tr><td colspan="4" style="text-align:center;padding:10px;font-size:11px;color:#9ca3af;">لا توجد زيارات حديثة</td></tr>'}
+                </tbody>
+            </table>
+        </div>
     `;
 }
 
-// ── Format Helpers ────────────────────────────────────────────
 function formatNum(n) {
     if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
     if (n >= 1000)    return (n/1000).toFixed(1)    + 'K';
@@ -593,13 +619,11 @@ function fmtDate(iso) {
     } catch { return iso; }
 }
 
-// ── Render Charts ─────────────────────────────────────────────
 function renderCharts(d) {
     const isDark    = document.documentElement.classList.contains('dark');
     const gridColor = isDark ? '#1a1a1a' : '#f3f4f6';
     const textColor = isDark ? '#6b7280' : '#9ca3af';
 
-    // Chart 1: Daily Requests
     const reqCtx = document.getElementById('requestsChart');
     if (requestsChart) requestsChart.destroy();
     const days = d.daily_requests || [];
@@ -626,7 +650,6 @@ function renderCharts(d) {
         }
     });
 
-    // Chart 2: Plans
     const planCtx = document.getElementById('plansChart');
     if (plansChart) plansChart.destroy();
     const plans = d.plan_distribution || {};
@@ -648,7 +671,6 @@ function renderCharts(d) {
         }
     });
 
-    // Chart 3: Models
     const modelCtx = document.getElementById('modelsChart');
     if (modelsChart) modelsChart.destroy();
     const models = d.model_usage || {};
@@ -673,7 +695,6 @@ function renderCharts(d) {
     });
 }
 
-// ── Load System Stats ─────────────────────────────────────────
 async function loadSysStats() {
     const container = document.getElementById('sysStatsContainer');
     try {
@@ -722,7 +743,6 @@ function loadRecentSubs(subs) {
     `).join('');
 }
 
-// ── Load Users (Gmail فقط، مرتّبة بأحدث تسجيل) ───────────────
 async function loadUsers() {
     const wrapper = document.getElementById('usersTableWrapper');
     wrapper.innerHTML = '<div style="display:flex;justify-content:center;padding:40px;"><div class="spinner"></div></div>';
@@ -800,7 +820,6 @@ function renderUserRow(u) {
     `;
 }
 
-// ── Filter Users ──────────────────────────────────────────────
 function filterUsers(q) {
     const planFilter   = document.getElementById('filterPlan').value;
     const statusFilter = document.getElementById('filterStatus').value;
@@ -821,7 +840,6 @@ function filterUsers(q) {
     renderUsersTable(filtered);
 }
 
-// ── View User ─────────────────────────────────────────────────
 async function viewUser(email) {
     currentModalEmail = email;
     document.getElementById('modalUserEmail').textContent = email;
@@ -894,7 +912,6 @@ async function viewUser(email) {
 }
 function closeUserModal()  { document.getElementById('userModal').classList.remove('open'); }
 
-// ── Grant Modal ───────────────────────────────────────────────
 function openGrantModal(email) {
     document.getElementById('grantEmail').value = email;
     document.getElementById('grantModal').classList.add('open');
@@ -928,7 +945,6 @@ async function executeGrant() {
     } catch(e) { showToast('خطأ في الاتصال', true); }
 }
 
-// ── Revoke ────────────────────────────────────────────────────
 async function revokeAllPlans(email) {
     if (!confirm(`هل أنت متأكد من إلغاء جميع اشتراكات ${email}؟`)) return;
     try {
@@ -942,7 +958,6 @@ async function revokeAllPlans(email) {
     } catch(e) { showToast('خطأ في الاتصال', true); }
 }
 
-// ── Reset Usage ───────────────────────────────────────────────
 async function resetUsage(email) {
     if (!confirm(`إعادة تعيين إحصائيات الاستخدام لـ ${email}؟`)) return;
     try {
@@ -956,7 +971,6 @@ async function resetUsage(email) {
     } catch(e) { showToast('خطأ في الاتصال', true); }
 }
 
-// ── DB Sync ───────────────────────────────────────────────────
 async function triggerSync() {
     try {
         const res  = await fetch('/api/admin/sync-db', {
@@ -967,7 +981,6 @@ async function triggerSync() {
     } catch(e) { showToast('خطأ في المزامنة', true); }
 }
 
-// ── Export CSV (Gmail فقط) ────────────────────────────────────
 function exportUsers() {
     if (!allUsers.length) { showToast('لا يوجد بيانات للتصدير', true); return; }
     const now  = new Date();
@@ -991,13 +1004,10 @@ function exportUsers() {
     showToast('✅ تم تصدير بيانات Gmail');
 }
 
-// ── Close modals on outside click ────────────────────────────
 document.getElementById('userModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeUserModal(); });
 document.getElementById('grantModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeGrantModal(); });
 
-// ── Init ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    // تعيين الفترة الافتراضية: 24 ساعة
     setPeriod('24h');
 });
 </script>

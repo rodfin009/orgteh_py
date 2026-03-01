@@ -1301,33 +1301,51 @@ async def spaceremit_webhook(request: Request):
     except Exception:
         return JSONResponse({"error": "Webhook processing failed"}, status_code=500)
 
-# ─── SEO: مسار خريطة الموقع الديناميكية ─────────────────────────────────────
+# ─── SEO: مسار خريطة الموقع الديناميكية (التحديث التلقائي الشامل) ─────────────
 
 @app.get("/sitemap.xml", include_in_schema=False)
 async def get_sitemap():
     today = datetime.utcnow().strftime("%Y-%m-%d")
-
-    base_pages = [
-        {"path": "",            "changefreq": "daily",   "priority": "1.0"},
-        {"path": "models",      "changefreq": "weekly",  "priority": "0.9"},
-        {"path": "pricing",     "changefreq": "weekly",  "priority": "0.9"},
-        {"path": "enterprise",  "changefreq": "monthly", "priority": "0.8"},
-        {"path": "docs",        "changefreq": "weekly",  "priority": "0.8"},
-        {"path": "code-hub",    "changefreq": "weekly",  "priority": "0.8"},
-        {"path": "accesory",    "changefreq": "weekly",  "priority": "0.8"},
-        {"path": "performance", "changefreq": "daily",   "priority": "0.7"},
-        {"path": "contacts",    "changefreq": "monthly", "priority": "0.6"},
-        {"path": "policy",      "changefreq": "yearly",  "priority": "0.5"},
-        {"path": "login",       "changefreq": "monthly", "priority": "0.8"},
-        {"path": "register",    "changefreq": "monthly", "priority": "0.8"},
-    ]
-
     urls = [{"loc": "https://orgteh.com/", "changefreq": "daily", "priority": "1.0"}]
+    added_locs = set(["https://orgteh.com/"])
 
-    for page in base_pages:
-        for lang in ["ar", "en"]:
-            loc = f"https://orgteh.com/{lang}" if page["path"] == "" else f"https://orgteh.com/{lang}/{page['path']}"
-            urls.append({"loc": loc, "changefreq": page["changefreq"], "priority": page["priority"]})
+    from services.providers import MODELS_METADATA
+    from tools.registry import TOOLS_DB
+
+    for route in app.routes:
+        if hasattr(route, "methods") and "GET" in route.methods:
+            path = route.path
+            if "{lang}" in path:
+                paths_to_add = []
+
+                # التعامل مع المسارات التي تحتوي متغيرات معروفة
+                if "{tab}" in path:
+                    for tab in ["account", "integrations", "notifications", "billing", "security"]:
+                        paths_to_add.append(path.replace("{tab}", tab))
+                elif "{model_key}" in path:
+                    for m in MODELS_METADATA:
+                        short_key = m.get("short_key")
+                        if short_key:
+                            paths_to_add.append(path.replace("{model_key}", short_key))
+                elif "{tool_id}" in path:
+                    for tid in TOOLS_DB.keys():
+                        paths_to_add.append(path.replace("{tool_id}", tid))
+                # إضافة المسارات الأساسية التي لا تحوي متغيرات إضافية سوى اللغة
+                elif "{" not in path.replace("{lang}", ""):
+                    paths_to_add.append(path)
+
+                # توليد النسخ (عربي / انجليزي) وتسجيلها
+                for p in paths_to_add:
+                    for lang in ["ar", "en"]:
+                        final_path = p.replace("{lang}", lang)
+                        loc = f"https://orgteh.com{final_path}"
+                        if loc not in added_locs:
+                            urls.append({
+                                "loc": loc, 
+                                "changefreq": "weekly" if "models" in loc or "accesory" in loc else "monthly", 
+                                "priority": "0.9" if "models" in loc else "0.8"
+                            })
+                            added_locs.add(loc)
 
     xml_content  = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'

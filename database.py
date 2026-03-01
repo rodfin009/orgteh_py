@@ -2,6 +2,7 @@ import os
 import json
 import ssl
 import pymysql
+import urllib.request
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
@@ -76,7 +77,6 @@ def init_db():
     finally:
         conn.close()
 
-# تشغيل التهيئة عند بدء تشغيل السيرفر
 init_db()
 
 # ============================================================================
@@ -84,7 +84,7 @@ init_db()
 # ============================================================================
 
 def init_visitors_table():
-    """ينشئ جدول site_visits في TiDB إن لم يكن موجوداً."""
+    """ينشئ جدول site_visits في TiDB إن لم يكن موجوداً مع دعم الدول للزوار."""
     conn = get_db_connection()
     if not conn:
         print("⚠️ Skipping visitors table init: No DB connection")
@@ -96,19 +96,24 @@ def init_visitors_table():
                 id             BIGINT AUTO_INCREMENT PRIMARY KEY,
                 visited_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 ip_address     VARCHAR(50),
+                country        VARCHAR(100)  DEFAULT 'غير معروف',
                 referer        VARCHAR(500),
                 referer_domain VARCHAR(100),
                 user_agent     VARCHAR(500),
                 path           VARCHAR(500)
             )
             """)
-            # فهرس للاستعلام السريع على التاريخ
             try:
-                cur.execute(
-                    "CREATE INDEX idx_visited_at ON site_visits (visited_at)"
-                )
+                cur.execute("CREATE INDEX idx_visited_at ON site_visits (visited_at)")
             except Exception:
-                pass  # الفهرس موجود بالفعل — تجاهل الخطأ
+                pass
+
+            # محاولة الإضافة لو كان الجدول قديماً (بصمت في حال كانت موجودة مسبقاً)
+            try:
+                cur.execute("ALTER TABLE site_visits ADD COLUMN country VARCHAR(100) DEFAULT 'غير معروف'")
+            except Exception:
+                pass
+
         print("✅ site_visits table initialized.")
     except Exception as e:
         print(f"❌ Visitors Table Init Error: {e}")
@@ -170,7 +175,6 @@ def get_global_stats():
 # USER OPERATIONS (Cache-Aside & Write-Through)
 # ============================================================================
 def get_user_by_email(email):
-    """(Cache-Aside) قراءة من Redis، وإن لم يوجد من TiDB"""
     if redis:
         try:
             user_json = redis.get(f"user:{email}")
@@ -195,7 +199,6 @@ def get_user_by_email(email):
     return None
 
 def create_user_record(email, password_hash, api_key):
-    """(Write-Through) حفظ في TiDB أولاً ثم Redis لضمان عدم ضياع الحساب"""
     from services.limits import get_limits_for_new_subscription
     default_limits = get_limits_for_new_subscription("free_tier")
 
@@ -234,7 +237,6 @@ def create_user_record(email, password_hash, api_key):
     return True
 
 def get_user_by_api_key(api_key):
-    """(Cache-Aside) قراءة عبر مفتاح الـ API"""
     if redis:
         try:
             email = redis.get(f"api_key:{api_key}")
@@ -258,7 +260,6 @@ def get_user_by_api_key(api_key):
     return None
 
 def update_api_key(email, new_key):
-    """(Write-Through) تغيير مفتاح الـ API"""
     user = get_user_by_email(email)
     if not user: return False
     old_key = user.get("api_key")
@@ -349,7 +350,6 @@ def activate_subscription(email, plan_name, days, limits_dict):
     return add_user_subscription(email, plan_key, plan_name, period)
 
 def get_subscription_history(email):
-    """إرجاع سجل الاشتراكات الكامل للمستخدم (نشطة + منتهية)"""
     user = get_user_by_email(email)
     if not user: return []
 
@@ -413,12 +413,7 @@ def track_request_metrics(email, latency_ms, tokens, model_key=None, is_error=Fa
 # BACKGROUND SYNC (Redis -> TiDB)
 # ============================================================================
 def sync_all_usage_to_db():
-    """
-    تقوم هذه الدالة بجلب كل بيانات المستخدمين من Redis (بما فيها الاستهلاك المحدث)
-    وتحفظها في TiDB لضمان عدم ضياعها. يتم استدعاؤها عبر /api/admin/sync-db
-    """
     if not redis: return {"status": "error", "message": "Redis not connected"}
-
     conn = get_db_connection()
     if not conn: return {"status": "error", "message": "TiDB not connected"}
 
@@ -456,11 +451,33 @@ def create_enterprise_lead(data):
     except: return False
 
 # ============================================================================
-# VISITOR TRACKING — تتبع زوار الموقع
+# VISITOR TRACKING & GEOLOCATION
 # ============================================================================
 
+def get_country_from_ip(ip: str) -> str:
+    """تجلب الدولة التابعة لـ IP بسرعة من API أو Cache"""
+    if not ip or ip in ["127.0.0.1", "localhost", "::1"] or ip.startswith("192.168.") or ip.startswith("10."):
+        return "محلية (Local)"
+
+    cache_key = f"geoip:{ip}"
+    if redis:
+        try:
+            cached = redis.get(cache_key)
+            if cached: return cached.decode('utf-8') if isinstance(cached, bytes) else cached
+        except: pass
+
+    try:
+        # استخدام urllib لسرعة التنفيذ بدون مكتبات خارجية ثقيلة
+        req = urllib.request.Request(f"http://ip-api.com/json/{ip}?fields=country")
+        with urllib.request.urlopen(req, timeout=2.0) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            country = data.get("country", "غير معروف")
+            if redis: redis.setex(cache_key, 30 * 24 * 3600, country)  # تخزين لمدة شهر لتخفيف الضغط
+            return country
+    except Exception:
+        return "غير معروف"
+
 def _extract_referer_domain(referer: str) -> str:
-    """يستخرج اسم النطاق من رابط المُحيل ويُصنّفه."""
     if not referer:
         return "مباشر"
     try:
@@ -469,21 +486,11 @@ def _extract_referer_domain(referer: str) -> str:
         if not domain:
             return "مباشر"
         source_map = {
-            "google.":      "Google",
-            "bing.com":     "Bing",
-            "yahoo.com":    "Yahoo",
-            "t.co":         "Twitter/X",
-            "twitter.com":  "Twitter/X",
-            "x.com":        "Twitter/X",
-            "facebook.com": "Facebook",
-            "instagram.com":"Instagram",
-            "linkedin.com": "LinkedIn",
-            "youtube.com":  "YouTube",
-            "reddit.com":   "Reddit",
-            "tiktok.com":   "TikTok",
-            "snapchat.com": "Snapchat",
-            "telegram.org": "Telegram",
-            "whatsapp.com": "WhatsApp",
+            "google.":      "Google", "bing.com":     "Bing", "yahoo.com":    "Yahoo",
+            "t.co":         "Twitter/X", "twitter.com":  "Twitter/X", "x.com":        "Twitter/X",
+            "facebook.com": "Facebook", "instagram.com":"Instagram", "linkedin.com": "LinkedIn",
+            "youtube.com":  "YouTube", "reddit.com":   "Reddit", "tiktok.com":   "TikTok",
+            "snapchat.com": "Snapchat", "telegram.org": "Telegram", "whatsapp.com": "WhatsApp",
         }
         for key, label in source_map.items():
             if key in domain:
@@ -495,30 +502,36 @@ def _extract_referer_domain(referer: str) -> str:
 
 def record_visit(ip: str, referer: str, user_agent: str, path: str = "/"):
     """
-    يُسجّل زيارة صفحة واحدة:
-      - Redis  → تحديث إحصائيات اليوم (سريع، للقراءة الفورية)
-      - TiDB   → إدراج سجل دائم (لا يُحذف عند إعادة تشغيل السيرفر)
+    يُسجّل زيارة صفحة واحدة متضمناً الدولة وتمييز الفريد.
     """
     now            = datetime.utcnow()
     today_str      = str(now.date())
     referer_domain = _extract_referer_domain(referer)
+    country        = get_country_from_ip(ip)
 
-    # ─── Redis: إحصائيات اليوم ──────────────────────────────────────────────
+    # ─── Redis: إحصائيات سريعة ──────────────────────────────────────────────
     if redis:
         try:
             visits_key = f"visits:{today_str}"
-            raw        = redis.get(visits_key)
+            unique_key = f"unique_ips:{today_str}"
+
+            raw = redis.get(visits_key)
             stats: dict = {}
             if raw:
-                try:
-                    stats = json.loads(raw) if isinstance(raw, str) else raw
-                except Exception:
-                    stats = {}
-            if not isinstance(stats, dict):
-                stats = {}
+                try: stats = json.loads(raw) if isinstance(raw, str) else raw
+                except Exception: stats = {}
+            if not isinstance(stats, dict): stats = {}
 
             stats["total"]      = stats.get("total", 0) + 1
             stats["last_visit"] = now.isoformat()
+
+            # تحديد هل IP جديد اليوم (فريد)
+            is_new_ip = redis.sadd(unique_key, ip)
+            if is_new_ip:
+                stats["unique"] = stats.get("unique", 0) + 1
+
+            # تحديث انتهاء الصلاحية
+            redis.expire(unique_key, 7 * 24 * 3600)
 
             # مصادر الزيارة
             sources: dict = stats.get("sources", {})
@@ -531,7 +544,7 @@ def record_visit(ip: str, referer: str, user_agent: str, path: str = "/"):
             hourly[hour_key] = hourly.get(hour_key, 0) + 1
             stats["hourly"] = hourly
 
-            redis.setex(visits_key, 7 * 24 * 3600, json.dumps(stats))  # TTL: 7 أيام
+            redis.setex(visits_key, 7 * 24 * 3600, json.dumps(stats))
         except Exception as e:
             print(f"⚠️ Redis visit record error: {e}")
 
@@ -542,16 +555,10 @@ def record_visit(ip: str, referer: str, user_agent: str, path: str = "/"):
             with conn.cursor() as cur:
                 cur.execute(
                     """INSERT INTO site_visits
-                       (visited_at, ip_address, referer, referer_domain, user_agent, path)
-                       VALUES (%s, %s, %s, %s, %s, %s)""",
-                    (
-                        now,
-                        ip[:50]          if ip          else "",
-                        referer[:500]    if referer     else "",
-                        referer_domain[:100],
-                        user_agent[:500] if user_agent  else "",
-                        path[:500]       if path        else "/",
-                    ),
+                       (visited_at, ip_address, country, referer, referer_domain, user_agent, path)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                    (now, ip[:50] if ip else "", country[:100], referer[:500] if referer else "",
+                     referer_domain[:100], user_agent[:500] if user_agent else "", path[:500] if path else "/"),
                 )
         except Exception as e:
             print(f"⚠️ TiDB visit insert error: {e}")
@@ -560,75 +567,72 @@ def record_visit(ip: str, referer: str, user_agent: str, path: str = "/"):
 
 
 def get_visitor_stats(period: str = "24h") -> dict:
-    """
-    يُعيد إحصائيات الزوار مُفلتَرة حسب النافذة الزمنية:
-      period: "1h" | "24h" | "1m" | "1y"
-    """
     now = datetime.utcnow()
     period_map = {
-        "1h":  now - timedelta(hours=1),
-        "24h": now - timedelta(hours=24),
-        "1m":  now - timedelta(days=30),
-        "1y":  now - timedelta(days=365),
+        "1h":  now - timedelta(hours=1), "24h": now - timedelta(hours=24),
+        "1m":  now - timedelta(days=30), "1y":  now - timedelta(days=365),
     }
     since = period_map.get(period, now - timedelta(hours=24))
 
-    total_visits  = 0
-    last_visit    = None
-    sources: dict = {}
-    daily_trend: list = []
+    total_visits    = 0
+    unique_visits   = 0
+    last_visit      = None
+    sources         = {}
+    countries       = {}
+    daily_trend     = []
+    recent_visitors = []
 
-    # ─── TiDB: المصدر الدائم الأساسي ────────────────────────────────────────
     conn = get_db_connection()
     if conn:
         try:
             with conn.cursor() as cur:
-                # إجمالي الزوار + آخر زيارة
                 cur.execute(
-                    "SELECT COUNT(*) as cnt, MAX(visited_at) as last_v "
-                    "FROM site_visits WHERE visited_at >= %s",
-                    (since,),
+                    "SELECT COUNT(*) as cnt, COUNT(DISTINCT ip_address) as ucnt, MAX(visited_at) as last_v "
+                    "FROM site_visits WHERE visited_at >= %s", (since,)
                 )
                 row = cur.fetchone()
                 if row:
-                    total_visits = row["cnt"] or 0
-                    last_visit   = str(row["last_v"]) if row["last_v"] else None
+                    total_visits  = row["cnt"] or 0
+                    unique_visits = row["ucnt"] or 0
+                    last_visit    = str(row["last_v"]) if row["last_v"] else None
 
-                # مصادر الزيارة
                 cur.execute(
-                    """SELECT referer_domain, COUNT(*) as cnt
-                       FROM site_visits
-                       WHERE visited_at >= %s
-                       GROUP BY referer_domain
-                       ORDER BY cnt DESC
-                       LIMIT 15""",
-                    (since,),
+                    "SELECT referer_domain, COUNT(*) as cnt FROM site_visits WHERE visited_at >= %s "
+                    "GROUP BY referer_domain ORDER BY cnt DESC LIMIT 15", (since,)
                 )
                 for r in cur.fetchall():
                     sources[r["referer_domain"] or "مباشر"] = r["cnt"]
 
-                # تريند يومي (آخر 30 يوم كحد أقصى للعرض)
-                trend_since = max(since, now - timedelta(days=30))
                 cur.execute(
-                    """SELECT DATE(visited_at) as day, COUNT(*) as cnt
-                       FROM site_visits
-                       WHERE visited_at >= %s
-                       GROUP BY DATE(visited_at)
-                       ORDER BY day ASC""",
-                    (trend_since,),
+                    "SELECT country, COUNT(*) as cnt FROM site_visits WHERE visited_at >= %s "
+                    "GROUP BY country ORDER BY cnt DESC LIMIT 15", (since,)
                 )
                 for r in cur.fetchall():
-                    daily_trend.append({
-                        "date":   str(r["day"]),
-                        "visits": r["cnt"],
+                    countries[r["country"]] = r["cnt"]
+
+                cur.execute(
+                    "SELECT ip_address, country, visited_at, path FROM site_visits "
+                    "ORDER BY visited_at DESC LIMIT 20"
+                )
+                for r in cur.fetchall():
+                    recent_visitors.append({
+                        "ip": r["ip_address"], "country": r["country"],
+                        "time": str(r["visited_at"]), "path": r["path"]
                     })
+
+                trend_since = max(since, now - timedelta(days=30))
+                cur.execute(
+                    "SELECT DATE(visited_at) as day, COUNT(*) as cnt FROM site_visits "
+                    "WHERE visited_at >= %s GROUP BY DATE(visited_at) ORDER BY day ASC", (trend_since,)
+                )
+                for r in cur.fetchall():
+                    daily_trend.append({"date": str(r["day"]), "visits": r["cnt"]})
 
         except Exception as e:
             print(f"⚠️ Visitor stats DB error: {e}")
         finally:
             conn.close()
 
-    # ─── Redis fallback (للإحصائيات اللحظية إذا كانت TiDB فارغة) ───────────
     if total_visits == 0 and redis:
         try:
             today_str = str(now.date())
@@ -637,15 +641,20 @@ def get_visitor_stats(period: str = "24h") -> dict:
                 stats_r = json.loads(raw) if isinstance(raw, str) else raw
                 if isinstance(stats_r, dict):
                     total_visits = stats_r.get("total", 0)
+                    unique_visits= stats_r.get("unique", 0)
                     last_visit   = stats_r.get("last_visit")
                     sources      = stats_r.get("sources", {})
+                    countries    = stats_r.get("countries", {})
         except Exception:
             pass
 
     return {
-        "total_visits": total_visits,
-        "last_visit":   last_visit,
-        "sources":      sources,
-        "daily_trend":  daily_trend,
-        "period":       period,
+        "total_visits":    total_visits,
+        "unique_visits":   unique_visits,
+        "last_visit":      last_visit,
+        "sources":         sources,
+        "countries":       countries,
+        "daily_trend":     daily_trend,
+        "recent_visitors": recent_visitors,
+        "period":          period,
     }
