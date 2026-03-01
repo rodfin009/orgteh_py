@@ -647,4 +647,18 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const lang = window.SERVER_LANG || localStorage.getItem('lang') || '
+            const lang = window.SERVER_LANG || localStorage.getItem('lang') || 'en';
+
+            // تطبيق الترجمات والثيم عند تحميل الصفحة
+            applyGlobalTranslations();
+            updateThemeUI();
+
+            // التأكد من أن الـ Sidebar مغلق في البداية
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar && !sidebar.classList.contains('sidebar-open')) {
+                sidebar.classList.add('sidebar-closed');
+            }
+        });
+    </script>
+</body>
+</html>
