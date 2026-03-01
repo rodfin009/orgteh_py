@@ -3,6 +3,7 @@ import json
 import ssl
 import pymysql
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 # ============================================================================
 # REDIS CONFIGURATION
@@ -47,7 +48,7 @@ def get_db_connection():
             database=TIDB_NAME,
             cursorclass=pymysql.cursors.DictCursor,
             autocommit=True,
-            ssl={"ssl_cert_reqs": ssl.CERT_NONE}  # ضروري لتخطي مشاكل شهادات SSL في Serverless
+            ssl={"ssl_cert_reqs": ssl.CERT_NONE}
         )
     except Exception as e:
         print(f"❌ TiDB Connection Error: {e}")
@@ -56,7 +57,7 @@ def get_db_connection():
 def init_db():
     """إنشاء الجداول الأساسية إذا لم تكن موجودة"""
     conn = get_db_connection()
-    if not conn: 
+    if not conn:
         print("⚠️ Skipping DB init: No connection")
         return
     try:
@@ -79,6 +80,44 @@ def init_db():
 init_db()
 
 # ============================================================================
+# VISITORS TABLE INIT — جدول تتبع الزوار (دائم لا يُحذف عند إعادة التشغيل)
+# ============================================================================
+
+def init_visitors_table():
+    """ينشئ جدول site_visits في TiDB إن لم يكن موجوداً."""
+    conn = get_db_connection()
+    if not conn:
+        print("⚠️ Skipping visitors table init: No DB connection")
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS site_visits (
+                id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+                visited_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ip_address     VARCHAR(50),
+                referer        VARCHAR(500),
+                referer_domain VARCHAR(100),
+                user_agent     VARCHAR(500),
+                path           VARCHAR(500)
+            )
+            """)
+            # فهرس للاستعلام السريع على التاريخ
+            try:
+                cur.execute(
+                    "CREATE INDEX idx_visited_at ON site_visits (visited_at)"
+                )
+            except Exception:
+                pass  # الفهرس موجود بالفعل — تجاهل الخطأ
+        print("✅ site_visits table initialized.")
+    except Exception as e:
+        print(f"❌ Visitors Table Init Error: {e}")
+    finally:
+        conn.close()
+
+init_visitors_table()
+
+# ============================================================================
 # GLOBAL STATS (Write-Behind -> Redis Only)
 # ============================================================================
 def update_global_stats(latency_ms, tokens, model_key=None, is_error=False, is_internal=False, is_blocked=False):
@@ -87,13 +126,13 @@ def update_global_stats(latency_ms, tokens, model_key=None, is_error=False, is_i
     global_key = f"global_stats:{today_str}"
     try:
         stats = redis.get(global_key)
-        if stats: 
+        if stats:
             stats = json.loads(stats) if isinstance(stats, str) else stats
         else:
             stats = {
-                "total_requests": 0, "total_tokens": 0, 
+                "total_requests": 0, "total_tokens": 0,
                 "latency_sum": 0, "errors": 0, "blocked": 0, "internal_ops": 0,
-                "models": {} 
+                "models": {}
             }
 
         if "blocked" not in stats: stats["blocked"] = 0
@@ -115,7 +154,7 @@ def update_global_stats(latency_ms, tokens, model_key=None, is_error=False, is_i
                 stats["models"][model_key] = m_stats
 
         redis.set(global_key, json.dumps(stats))
-    except Exception as e: 
+    except Exception as e:
         print(f"⚠️ Global Stats Update Error: {e}")
 
 def get_global_stats():
@@ -135,11 +174,10 @@ def get_user_by_email(email):
     if redis:
         try:
             user_json = redis.get(f"user:{email}")
-            if user_json: 
+            if user_json:
                 return json.loads(user_json) if isinstance(user_json, str) else user_json
         except: pass
 
-    # الجلب من TiDB
     conn = get_db_connection()
     if conn:
         try:
@@ -150,22 +188,22 @@ def get_user_by_email(email):
                     user_data = json.loads(row['data']) if isinstance(row['data'], str) else row['data']
                     if redis: redis.set(f"user:{email}", json.dumps(user_data))
                     return user_data
-        except Exception as e: 
+        except Exception as e:
             print(f"❌ DB Read Error: {e}")
-        finally: 
+        finally:
             conn.close()
     return None
 
 def create_user_record(email, password_hash, api_key):
     """(Write-Through) حفظ في TiDB أولاً ثم Redis لضمان عدم ضياع الحساب"""
-    from services.limits import get_limits_for_new_subscription 
+    from services.limits import get_limits_for_new_subscription
     default_limits = get_limits_for_new_subscription("free_tier")
 
     user_data = {
         "email": email, "password": password_hash, "api_key": api_key,
         "created_at": datetime.utcnow().isoformat(), "plan": "Free Tier",
         "subscription_end": None, "active_plans": [], "subscription_history": [],
-        "limits": default_limits, 
+        "limits": default_limits,
         "usage": {
             "date": str(datetime.utcnow().date()),
             "deepseek": 0, "kimi": 0, "mistral": 0, "llama": 0, "gemma": 0, "unified_extra": 0,
@@ -173,7 +211,6 @@ def create_user_record(email, password_hash, api_key):
         }
     }
 
-    # 1. Write to TiDB
     conn = get_db_connection()
     if conn:
         try:
@@ -183,13 +220,12 @@ def create_user_record(email, password_hash, api_key):
                     "ON DUPLICATE KEY UPDATE data = %s, api_key = %s, password_hash = %s",
                     (email, password_hash, api_key, json.dumps(user_data), json.dumps(user_data), api_key, password_hash)
                 )
-        except Exception as e: 
+        except Exception as e:
             print(f"❌ TiDB Write Error: {e}")
             return False
-        finally: 
+        finally:
             conn.close()
 
-    # 2. Write to Redis
     if redis:
         try:
             redis.set(f"user:{email}", json.dumps(user_data))
@@ -202,25 +238,22 @@ def get_user_by_api_key(api_key):
     if redis:
         try:
             email = redis.get(f"api_key:{api_key}")
-            if email: 
+            if email:
                 decoded_email = email.decode('utf-8') if isinstance(email, bytes) else email
                 return get_user_by_email(decoded_email)
         except: pass
 
-    # الجلب من TiDB
     conn = get_db_connection()
     if conn:
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT email FROM users WHERE api_key = %s", (api_key,))
+                cur.execute("SELECT data FROM users WHERE api_key = %s", (api_key,))
                 row = cur.fetchone()
-                if row:
-                    email = row['email']
-                    if redis: redis.set(f"api_key:{api_key}", email)
-                    return get_user_by_email(email)
-        except Exception as e: 
-            print(f"❌ DB API Key Fetch Error: {e}")
-        finally: 
+                if row and row['data']:
+                    return json.loads(row['data']) if isinstance(row['data'], str) else row['data']
+        except Exception as e:
+            print(f"❌ DB API Key Read Error: {e}")
+        finally:
             conn.close()
     return None
 
@@ -231,20 +264,18 @@ def update_api_key(email, new_key):
     old_key = user.get("api_key")
     user["api_key"] = new_key
 
-    # 1. TiDB Update
     conn = get_db_connection()
     if conn:
         try:
             with conn.cursor() as cur:
-                cur.execute("UPDATE users SET api_key = %s, data = %s WHERE email = %s", 
+                cur.execute("UPDATE users SET api_key = %s, data = %s WHERE email = %s",
                             (new_key, json.dumps(user), email))
         except Exception as e:
             print(f"❌ TiDB Key Update Error: {e}")
             return False
-        finally: 
+        finally:
             conn.close()
 
-    # 2. Redis Update
     if redis:
         try:
             if old_key: redis.delete(f"api_key:{old_key}")
@@ -273,7 +304,7 @@ def add_user_subscription(email, plan_key, plan_name, period):
         try:
             current_exp = datetime.fromisoformat(existing_plan["expires"])
             new_exp = current_exp + timedelta(days=days_to_add) if current_exp > now else now + timedelta(days=days_to_add)
-        except: 
+        except:
             new_exp = now + timedelta(days=days_to_add)
         existing_plan["expires"] = new_exp.isoformat()
         existing_plan["period"] = period
@@ -296,7 +327,6 @@ def add_user_subscription(email, plan_key, plan_name, period):
     expirations = [p["expires"] for p in user["active_plans"] if datetime.fromisoformat(p["expires"]) > now]
     user["subscription_end"] = max(expirations) if expirations else None
 
-    # 1. Update TiDB
     conn = get_db_connection()
     if conn:
         try:
@@ -305,10 +335,9 @@ def add_user_subscription(email, plan_key, plan_name, period):
         except Exception as e:
             print(f"❌ TiDB Sub Update Error: {e}")
             return False
-        finally: 
+        finally:
             conn.close()
 
-    # 2. Update Redis
     if redis:
         try: redis.set(f"user:{email}", json.dumps(user))
         except: pass
@@ -343,7 +372,7 @@ def update_user_usage_struct(email, usage_data):
     user = get_user_by_email(email)
     if user:
         user["usage"] = usage_data
-        try: 
+        try:
             redis.set(f"user:{email}", json.dumps(user))
             return True
         except: return False
@@ -361,7 +390,7 @@ def track_request_metrics(email, latency_ms, tokens, model_key=None, is_error=Fa
 
     if usage.get("date") != today_str:
         usage = {
-            "date": today_str, "deepseek": 0, "kimi": 0, "mistral": 0, "llama": 0, "gemma": 0, 
+            "date": today_str, "deepseek": 0, "kimi": 0, "mistral": 0, "llama": 0, "gemma": 0,
             "unified_extra": usage.get("unified_extra", 0),
             "total_requests": 0, "total_tokens": 0, "latency_sum": 0, "errors": 0, "internal_ops": 0
         }
@@ -375,7 +404,7 @@ def track_request_metrics(email, latency_ms, tokens, model_key=None, is_error=Fa
     if is_internal: usage["internal_ops"] = usage.get("internal_ops", 0) + 1
 
     user["usage"] = usage
-    try: 
+    try:
         redis.set(f"user:{email}", json.dumps(user))
         return True
     except: return False
@@ -425,3 +454,198 @@ def create_enterprise_lead(data):
         redis.lpush("enterprise_leads", lead_id)
         return True
     except: return False
+
+# ============================================================================
+# VISITOR TRACKING — تتبع زوار الموقع
+# ============================================================================
+
+def _extract_referer_domain(referer: str) -> str:
+    """يستخرج اسم النطاق من رابط المُحيل ويُصنّفه."""
+    if not referer:
+        return "مباشر"
+    try:
+        parsed = urlparse(referer)
+        domain = parsed.netloc.lower().replace("www.", "")
+        if not domain:
+            return "مباشر"
+        source_map = {
+            "google.":      "Google",
+            "bing.com":     "Bing",
+            "yahoo.com":    "Yahoo",
+            "t.co":         "Twitter/X",
+            "twitter.com":  "Twitter/X",
+            "x.com":        "Twitter/X",
+            "facebook.com": "Facebook",
+            "instagram.com":"Instagram",
+            "linkedin.com": "LinkedIn",
+            "youtube.com":  "YouTube",
+            "reddit.com":   "Reddit",
+            "tiktok.com":   "TikTok",
+            "snapchat.com": "Snapchat",
+            "telegram.org": "Telegram",
+            "whatsapp.com": "WhatsApp",
+        }
+        for key, label in source_map.items():
+            if key in domain:
+                return label
+        return domain
+    except Exception:
+        return "أخرى"
+
+
+def record_visit(ip: str, referer: str, user_agent: str, path: str = "/"):
+    """
+    يُسجّل زيارة صفحة واحدة:
+      - Redis  → تحديث إحصائيات اليوم (سريع، للقراءة الفورية)
+      - TiDB   → إدراج سجل دائم (لا يُحذف عند إعادة تشغيل السيرفر)
+    """
+    now            = datetime.utcnow()
+    today_str      = str(now.date())
+    referer_domain = _extract_referer_domain(referer)
+
+    # ─── Redis: إحصائيات اليوم ──────────────────────────────────────────────
+    if redis:
+        try:
+            visits_key = f"visits:{today_str}"
+            raw        = redis.get(visits_key)
+            stats: dict = {}
+            if raw:
+                try:
+                    stats = json.loads(raw) if isinstance(raw, str) else raw
+                except Exception:
+                    stats = {}
+            if not isinstance(stats, dict):
+                stats = {}
+
+            stats["total"]      = stats.get("total", 0) + 1
+            stats["last_visit"] = now.isoformat()
+
+            # مصادر الزيارة
+            sources: dict = stats.get("sources", {})
+            sources[referer_domain] = sources.get(referer_domain, 0) + 1
+            stats["sources"] = sources
+
+            # إحصائيات ساعة بساعة
+            hour_key = now.strftime("%H")
+            hourly: dict = stats.get("hourly", {})
+            hourly[hour_key] = hourly.get(hour_key, 0) + 1
+            stats["hourly"] = hourly
+
+            redis.setex(visits_key, 7 * 24 * 3600, json.dumps(stats))  # TTL: 7 أيام
+        except Exception as e:
+            print(f"⚠️ Redis visit record error: {e}")
+
+    # ─── TiDB: سجل دائم ─────────────────────────────────────────────────────
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO site_visits
+                       (visited_at, ip_address, referer, referer_domain, user_agent, path)
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (
+                        now,
+                        ip[:50]          if ip          else "",
+                        referer[:500]    if referer     else "",
+                        referer_domain[:100],
+                        user_agent[:500] if user_agent  else "",
+                        path[:500]       if path        else "/",
+                    ),
+                )
+        except Exception as e:
+            print(f"⚠️ TiDB visit insert error: {e}")
+        finally:
+            conn.close()
+
+
+def get_visitor_stats(period: str = "24h") -> dict:
+    """
+    يُعيد إحصائيات الزوار مُفلتَرة حسب النافذة الزمنية:
+      period: "1h" | "24h" | "1m" | "1y"
+    """
+    now = datetime.utcnow()
+    period_map = {
+        "1h":  now - timedelta(hours=1),
+        "24h": now - timedelta(hours=24),
+        "1m":  now - timedelta(days=30),
+        "1y":  now - timedelta(days=365),
+    }
+    since = period_map.get(period, now - timedelta(hours=24))
+
+    total_visits  = 0
+    last_visit    = None
+    sources: dict = {}
+    daily_trend: list = []
+
+    # ─── TiDB: المصدر الدائم الأساسي ────────────────────────────────────────
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                # إجمالي الزوار + آخر زيارة
+                cur.execute(
+                    "SELECT COUNT(*) as cnt, MAX(visited_at) as last_v "
+                    "FROM site_visits WHERE visited_at >= %s",
+                    (since,),
+                )
+                row = cur.fetchone()
+                if row:
+                    total_visits = row["cnt"] or 0
+                    last_visit   = str(row["last_v"]) if row["last_v"] else None
+
+                # مصادر الزيارة
+                cur.execute(
+                    """SELECT referer_domain, COUNT(*) as cnt
+                       FROM site_visits
+                       WHERE visited_at >= %s
+                       GROUP BY referer_domain
+                       ORDER BY cnt DESC
+                       LIMIT 15""",
+                    (since,),
+                )
+                for r in cur.fetchall():
+                    sources[r["referer_domain"] or "مباشر"] = r["cnt"]
+
+                # تريند يومي (آخر 30 يوم كحد أقصى للعرض)
+                trend_since = max(since, now - timedelta(days=30))
+                cur.execute(
+                    """SELECT DATE(visited_at) as day, COUNT(*) as cnt
+                       FROM site_visits
+                       WHERE visited_at >= %s
+                       GROUP BY DATE(visited_at)
+                       ORDER BY day ASC""",
+                    (trend_since,),
+                )
+                for r in cur.fetchall():
+                    daily_trend.append({
+                        "date":   str(r["day"]),
+                        "visits": r["cnt"],
+                    })
+
+        except Exception as e:
+            print(f"⚠️ Visitor stats DB error: {e}")
+        finally:
+            conn.close()
+
+    # ─── Redis fallback (للإحصائيات اللحظية إذا كانت TiDB فارغة) ───────────
+    if total_visits == 0 and redis:
+        try:
+            today_str = str(now.date())
+            raw = redis.get(f"visits:{today_str}")
+            if raw:
+                stats_r = json.loads(raw) if isinstance(raw, str) else raw
+                if isinstance(stats_r, dict):
+                    total_visits = stats_r.get("total", 0)
+                    last_visit   = stats_r.get("last_visit")
+                    sources      = stats_r.get("sources", {})
+        except Exception:
+            pass
+
+    return {
+        "total_visits": total_visits,
+        "last_visit":   last_visit,
+        "sources":      sources,
+        "daily_trend":  daily_trend,
+        "period":       period,
+    }

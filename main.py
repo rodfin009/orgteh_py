@@ -40,17 +40,16 @@ from tools.registry import TOOLS_DB
 from code_processor import process_code_merge_stream, CODE_HUB_MODELS_INFO
 from services.payments import generate_payment_link, verify_spaceremit_payment
 
+# ── استيراد لوحة الأدمن المنفصلة ──────────────────────────────────────────────
+from services.admin import router as admin_router, track_page_visit, ADMIN_TOKEN, ADMIN_EMAIL
+
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 
 SECRET_KEY   = os.environ.get("SESSION_SECRET_KEY", "super-secret-key-change-in-production")
 
-# ─── Admin ───────────────────────────────────────────────────────────────────
-ADMIN_EMAIL  = "rodfin0202@gmail.com"
-ADMIN_TOKEN  = os.environ.get("ADMIN_TOKEN", secrets.token_urlsafe(32))
-
-# ─── SpaceRemit Webhook IP Whitelist (اختياري — اتركه فارغاً إذا غير معروف) ─
+# ─── SpaceRemit Webhook IP Whitelist ─────────────────────────────────────────
 SPACEREMIT_WEBHOOK_IPS = [
     ip.strip() for ip in os.environ.get("SPACEREMIT_WEBHOOK_IPS", "").split(",") if ip.strip()
 ]
@@ -91,7 +90,6 @@ class SecurityHeadersMiddleware:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
                 headers["X-Content-Type-Options"] = "nosniff"
-                # ✅ FIX: ALLOWALL غير صالح في أي متصفح — استبدلناه بـ SAMEORIGIN
                 headers["X-Frame-Options"] = "SAMEORIGIN"
                 headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
                 headers["Permissions-Policy"] = (
@@ -131,7 +129,19 @@ if not TEMPLATES_DIR.exists(): TEMPLATES_DIR.mkdir()
 app.mount("/static", OptimizedStaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
+# ── تضمين الراوترات ────────────────────────────────────────────────────────────
 app.include_router(customer_service_router)
+app.include_router(admin_router)          # ← لوحة الأدمن المنفصلة
+
+# ============================================================================
+# VISITOR TRACKING MIDDLEWARE — يُسجّل كل زيارة صفحة في Redis + TiDB
+# ============================================================================
+
+@app.middleware("http")
+async def visitor_tracking_middleware(request: Request, call_next):
+    """يُسجّل زيارات صفحات الموقع بشكل تلقائي (يتجاهل API والملفات الثابتة)."""
+    await track_page_visit(request)
+    return await call_next(request)
 
 # ============================================================================
 # HEALTH CHECK & WARM-UP
@@ -174,24 +184,6 @@ async def check_static_files():
     }
 
 # ============================================================================
-# ADMIN HELPER — التحقق من صلاحيات الأدمن
-# ============================================================================
-def verify_admin_request(request: Request) -> str:
-    """
-    يقبل الطلب إذا:
-      - الجلسة النشطة هي لـ ADMIN_EMAIL
-      - أو الـ Header يحمل X-Admin-Token الصحيح
-    """
-    email = get_current_user_email(request)
-    if email == ADMIN_EMAIL:
-        return email
-    token = request.headers.get("X-Admin-Token", "")
-    if token and token == ADMIN_TOKEN:
-        return ADMIN_EMAIL
-    raise HTTPException(status_code=403, detail="Admin access required")
-
-
-# ============================================================================
 # TEMPLATE CONTEXT HELPER
 # ============================================================================
 def get_template_context(request: Request, lang: str = "en"):
@@ -209,7 +201,7 @@ def get_template_context(request: Request, lang: str = "en"):
     context["user_email"]  = context.get("user_email", "")
     context["is_logged_in"] = context.get("is_logged_in", False)
 
-    # ✅ Admin token — يُرسَل للقالب فقط للمسؤول
+    # Admin token — يُرسَل للقالب فقط للمسؤول
     user_email = context.get("user_email", "")
     context["admin_token"] = ADMIN_TOKEN if user_email == ADMIN_EMAIL else ""
     context["is_admin"]    = (user_email == ADMIN_EMAIL)
@@ -443,11 +435,6 @@ class DeleteAccountRequest(BaseModel):
 
 @app.post("/api/settings/profile")
 async def update_profile(request: Request, data: ProfileUpdateRequest):
-    """
-    ✅ FIX: كان يستخدم redis.hset() الذي ينشئ نوع بيانات مختلف (Hash) ويُفسد
-    cache المستخدم. الآن يقرأ البيانات كاملة ثم يحدثها كـ JSON string في
-    كل من Redis وTiDB.
-    """
     email = get_current_user_email(request)
     if not email:
         raise HTTPException(status_code=401, detail="غير مسجل الدخول")
@@ -459,7 +446,6 @@ async def update_profile(request: Request, data: ProfileUpdateRequest):
     user["first_name"] = data.first_name
     user["last_name"]  = data.last_name
 
-    # 1. Update TiDB
     conn = get_db_connection()
     if conn:
         try:
@@ -473,7 +459,6 @@ async def update_profile(request: Request, data: ProfileUpdateRequest):
         finally:
             conn.close()
 
-    # 2. Update Redis (كـ JSON string — نفس النوع الذي يقرأه get_user_by_email)
     from database import redis as _redis
     if _redis:
         try:
@@ -486,11 +471,6 @@ async def update_profile(request: Request, data: ProfileUpdateRequest):
 
 @app.post("/api/settings/change-password")
 async def change_password_endpoint(request: Request, data: ChangePasswordRequest):
-    """
-    ✅ FIX 1: كان يستخدم redis.hset() — أصبح يكتب JSON string كامل.
-    ✅ FIX 2: توحيد قواعد التحقق من كلمة المرور مع auth.py.
-    ✅ FIX 3: يحدث TiDB أيضاً وليس Redis فقط.
-    """
     import bcrypt as _bcrypt
     email = get_current_user_email(request)
     if not email:
@@ -500,7 +480,6 @@ async def change_password_endpoint(request: Request, data: ChangePasswordRequest
     if not user:
         raise HTTPException(status_code=404, detail="المستخدم غير موجود")
 
-    # التحقق من الباسورد الحالي
     try:
         valid = _bcrypt.checkpw(
             data.current_password.encode("utf-8"),
@@ -512,7 +491,6 @@ async def change_password_endpoint(request: Request, data: ChangePasswordRequest
     if not valid:
         raise HTTPException(status_code=400, detail="كلمة المرور الحالية غير صحيحة")
 
-    # ✅ FIX: استخدام validate_password الموحّدة من auth.py
     is_valid_pw, error_msg = _validate_password(data.new_password)
     if not is_valid_pw:
         raise HTTPException(status_code=400, detail=error_msg)
@@ -520,7 +498,6 @@ async def change_password_endpoint(request: Request, data: ChangePasswordRequest
     hashed     = _bcrypt.hashpw(data.new_password.encode("utf-8"), _bcrypt.gensalt(12)).decode("utf-8")
     user["password"] = hashed
 
-    # 1. Update TiDB
     conn = get_db_connection()
     if conn:
         try:
@@ -534,7 +511,6 @@ async def change_password_endpoint(request: Request, data: ChangePasswordRequest
         finally:
             conn.close()
 
-    # 2. Update Redis (كـ JSON string كامل)
     from database import redis as _redis
     if _redis:
         try:
@@ -547,21 +523,15 @@ async def change_password_endpoint(request: Request, data: ChangePasswordRequest
 
 @app.delete("/api/settings/delete-account")
 async def delete_account_endpoint(request: Request, data: DeleteAccountRequest):
-    """
-    ✅ FIX: كان يحذف من Redis فقط — الآن يحذف من TiDB أولاً ثم Redis،
-    ويزيل مفتاح API القديم.
-    """
     email = get_current_user_email(request)
     if not email:
         raise HTTPException(status_code=401, detail="غير مسجل الدخول")
     if email != data.email:
         raise HTTPException(status_code=400, detail="البريد الإلكتروني غير مطابق")
 
-    # جلب بيانات المستخدم لنعرف مفتاح API القديم
     user    = get_user_by_email(email)
     old_key = user.get("api_key") if user else None
 
-    # 1. Delete from TiDB
     conn = get_db_connection()
     if conn:
         try:
@@ -572,7 +542,6 @@ async def delete_account_endpoint(request: Request, data: DeleteAccountRequest):
         finally:
             conn.close()
 
-    # 2. Delete from Redis (user + github + api_key index)
     from database import redis as _redis
     if _redis:
         try:
@@ -1083,10 +1052,6 @@ from telegram_bot import notify_contact_form, notify_enterprise_form
 
 @app.post("/api/support/chat")
 async def support_chat(request: Request):
-    """
-    ✅ FIX: أُضيف Rate Limiting — 10 رسائل في الدقيقة لكل IP لمنع
-    استنزاف حصة NVIDIA API من قِبل أي طرف خارجي.
-    """
     try:
         # ─── Rate Limiting ────────────────────────────────────────
         from database import redis as _redis
@@ -1233,10 +1198,6 @@ class VerifyPaymentRequest(BaseModel):
 
 @app.post("/api/payments/verify-and-activate")
 async def api_verify_and_activate(request: Request, data: VerifyPaymentRequest):
-    """
-    ✅ FIX: أُضيف فحص إعادة استخدام كود الدفع — يمنع المستخدم من استخدام
-    نفس payment_code أكثر من مرة لتفعيل اشتراكات متعددة مجاناً.
-    """
     email = get_current_user_email(request)
     if not email:
         return JSONResponse({"error": "Unauthorized. Please login."}, status_code=401)
@@ -1253,7 +1214,6 @@ async def api_verify_and_activate(request: Request, data: VerifyPaymentRequest):
     if data.period not in ("monthly", "yearly"):
         return JSONResponse({"error": "Invalid period. Use 'monthly' or 'yearly'."}, status_code=400)
 
-    # ✅ FIX: تحقق من أن الكود لم يُستخدم من قبل
     from database import redis as _redis
     if _redis:
         used_key = f"used_payment:{data.payment_code}"
@@ -1270,7 +1230,6 @@ async def api_verify_and_activate(request: Request, data: VerifyPaymentRequest):
             status_code=400
         )
 
-    # ✅ تسجيل الكود كمستخدم (يُحفظ لمدة سنة)
     if _redis:
         try:
             _redis.setex(f"used_payment:{data.payment_code}", 365 * 24 * 3600, email)
@@ -1288,25 +1247,19 @@ async def api_verify_and_activate(request: Request, data: VerifyPaymentRequest):
 
 @app.post("/api/webhooks/spaceremit")
 async def spaceremit_webhook(request: Request):
-    """
-    ✅ FIX 1: أُضيف IP whitelist اختياري للـ webhook.
-    ✅ FIX 2: أُضيف فحص إعادة استخدام الكود لمنع التفعيل المزدوج.
-    """
     try:
-        # ─── IP Whitelist (اختياري) ───────────────────────────────
         if SPACEREMIT_WEBHOOK_IPS:
             client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip() \
                         or getattr(request.client, "host", "")
             if client_ip not in SPACEREMIT_WEBHOOK_IPS:
                 return JSONResponse({"error": "Forbidden"}, status_code=403)
 
-        payload = await request.json()
-        tx_code = payload.get("spaceremit_code") or payload.get("transaction_id") or payload.get("payment_id")
+        payload  = await request.json()
+        tx_code  = payload.get("spaceremit_code") or payload.get("transaction_id") or payload.get("payment_id")
 
         if not tx_code:
             return JSONResponse({"error": "No transaction code provided"}, status_code=400)
 
-        # ✅ FIX: تحقق من أن الكود لم يُعالَج من قبل
         from database import redis as _redis
         if _redis:
             used_key = f"used_payment:{tx_code}"
@@ -1336,7 +1289,6 @@ async def spaceremit_webhook(request: Request):
         success   = add_user_subscription(email, plan_key, plan_name, period)
 
         if success:
-            # ✅ تسجيل الكود كمستخدم
             if _redis:
                 try:
                     _redis.setex(f"used_payment:{tx_code}", 365 * 24 * 3600, email)
@@ -1349,393 +1301,36 @@ async def spaceremit_webhook(request: Request):
     except Exception:
         return JSONResponse({"error": "Webhook processing failed"}, status_code=500)
 
-# ============================================================================
-# ████████████████████████████████████████████████████████████████████████████
-# ADMIN SECTION — لوحة الإدارة (rodfin0202@gmail.com فقط)
-# ████████████████████████████████████████████████████████████████████████████
-# ============================================================================
-
-# ─── Admin Page Routes ────────────────────────────────────────────────────────
-
-@app.get("/admin", response_class=HTMLResponse)
-async def admin_redirect():
-    return RedirectResponse("/en/admin")
-
-
-@app.get("/{lang}/admin", response_class=HTMLResponse)
-async def admin_page(request: Request, lang: str):
-    """صفحة لوحة الإدارة — متاحة فقط لـ rodfin0202@gmail.com"""
-    email = get_current_user_email(request)
-    if not email:
-        return RedirectResponse(f"/{lang}/login?next=/{lang}/admin")
-    if email != ADMIN_EMAIL:
-        return HTMLResponse(
-            "<html><body style='font-family:sans-serif;text-align:center;padding:100px;'>"
-            "<h1 style='color:#ef4444;'>🔒 وصول مرفوض</h1>"
-            "<p>هذه الصفحة متاحة للمسؤول فقط.</p>"
-            "<a href='/'>← العودة للرئيسية</a></body></html>",
-            status_code=403
-        )
-    context = get_template_context(request, lang)
-    context["admin_token"] = ADMIN_TOKEN
-    return templates.TemplateResponse("admin.html", context)
-
-
-# ─── Admin API: Dashboard Stats ──────────────────────────────────────────────
-
-def _is_plan_active(plan: dict) -> bool:
-    try:
-        return datetime.fromisoformat(plan.get("expires", "")) > datetime.utcnow()
-    except Exception:
-        return False
-
-
-@app.get("/api/admin/dashboard-stats")
-async def admin_dashboard_stats(request: Request):
-    verify_admin_request(request)
-
-    from database import redis as _redis
-
-    now       = datetime.utcnow()
-    today_str = str(now.date())
-
-    # ─── Global Stats Today ───
-    global_stats = {}
-    if _redis:
-        try:
-            raw = _redis.get(f"global_stats:{today_str}")
-            if raw:
-                global_stats = json.loads(raw) if isinstance(raw, str) else raw
-        except Exception:
-            pass
-
-    total_reqs = global_stats.get("total_requests", 0)
-    errors     = global_stats.get("errors", 0)
-    avg_latency = round(global_stats["latency_sum"] / total_reqs) \
-        if total_reqs > 0 and global_stats.get("latency_sum", 0) > 0 else 0
-    success_rate = round((1 - errors / total_reqs) * 100, 1) if total_reqs > 0 else 100
-
-    # ─── Read All Users ───
-    all_users_data   = []
-    active_paid_count = 0
-    new_today        = 0
-    plan_distribution = {}
-    recent_subs      = []
-
-    if _redis:
-        try:
-            keys = _redis.keys("user:*")
-            for key in keys:
-                raw = _redis.get(key)
-                if not raw:
-                    continue
-                u = json.loads(raw) if isinstance(raw, str) else raw
-                if not isinstance(u, dict) or not u.get("email"):
-                    continue
-                all_users_data.append(u)
-                active_plans = [p for p in u.get("active_plans", []) if _is_plan_active(p)]
-                if active_plans:
-                    active_paid_count += 1
-                    for p in active_plans:
-                        pk = p.get("name", p.get("plan_key", "Unknown"))
-                        plan_distribution[pk] = plan_distribution.get(pk, 0) + 1
-                        recent_subs.append({
-                            "email":     u.get("email"),
-                            "plan_key":  p.get("plan_key"),
-                            "plan_name": p.get("name"),
-                            "period":    p.get("period"),
-                            "activated": p.get("activated", "")
-                        })
-                else:
-                    plan_distribution["Free Tier"] = plan_distribution.get("Free Tier", 0) + 1
-                if today_str in u.get("created_at", ""):
-                    new_today += 1
-        except Exception as e:
-            print(f"[Admin] Redis read error: {e}")
-
-    total_users = len(all_users_data)
-    if total_users == 0:
-        conn = get_db_connection()
-        if conn:
-            try:
-                with conn.cursor() as cur:
-                    cur.execute("SELECT COUNT(*) as cnt FROM users")
-                    row = cur.fetchone()
-                    total_users = row["cnt"] if row else 0
-            except Exception:
-                pass
-            finally:
-                conn.close()
-
-    # ─── Daily Requests (7 days) ───
-    daily_requests = []
-    for i in range(6, -1, -1):
-        day     = now - timedelta(days=i)
-        day_str = str(day.date())
-        day_stats = {}
-        if _redis:
-            try:
-                raw = _redis.get(f"global_stats:{day_str}")
-                if raw:
-                    day_stats = json.loads(raw) if isinstance(raw, str) else raw
-            except Exception:
-                pass
-        daily_requests.append({"date": day.strftime("%m/%d"), "requests": day_stats.get("total_requests", 0)})
-
-    week_requests = sum(d["requests"] for d in daily_requests)
-
-    # ─── Model Usage ───
-    model_name_map = {"deepseek": "DeepSeek", "kimi": "Kimi", "mistral": "Mistral",
-                      "llama": "Llama", "gemma": "Gemma", "unknown": "Other"}
-    model_usage = {}
-    for k, v in global_stats.get("models", {}).items():
-        label = model_name_map.get(k, k)
-        model_usage[label] = v.get("reqs", 0) if isinstance(v, dict) else 0
-
-    recent_subs.sort(key=lambda x: x.get("activated", ""), reverse=True)
-
-    return JSONResponse({
-        "total_users":      total_users,
-        "active_paid_subs": active_paid_count,
-        "new_today":        new_today,
-        "today_requests":   total_reqs,
-        "today_errors":     errors,
-        "today_tokens":     global_stats.get("total_tokens", 0),
-        "avg_latency":      avg_latency,
-        "blocked_today":    global_stats.get("blocked", 0),
-        "success_rate":     success_rate,
-        "week_requests":    week_requests,
-        "week_tokens":      global_stats.get("total_tokens", 0),
-        "plan_distribution": plan_distribution,
-        "daily_requests":   daily_requests,
-        "model_usage":      model_usage,
-        "global_stats":     global_stats,
-        "recent_subs":      recent_subs[:10]
-    })
-
-
-# ─── Admin API: Users List ────────────────────────────────────────────────────
-
-@app.get("/api/admin/users")
-async def admin_get_users(request: Request):
-    verify_admin_request(request)
-
-    from database import redis as _redis
-    users = []
-
-    if _redis:
-        try:
-            keys = _redis.keys("user:*")
-            for key in keys:
-                raw = _redis.get(key)
-                if raw:
-                    u = json.loads(raw) if isinstance(raw, str) else raw
-                    if isinstance(u, dict) and u.get("email"):
-                        users.append({k: v for k, v in u.items() if k != "password"})
-        except Exception as e:
-            print(f"[Admin] Users load error: {e}")
-
-    if not users:
-        conn = get_db_connection()
-        if conn:
-            try:
-                with conn.cursor() as cur:
-                    cur.execute("SELECT data FROM users LIMIT 500")
-                    for row in cur.fetchall():
-                        if row and row.get("data"):
-                            u = json.loads(row["data"]) if isinstance(row["data"], str) else row["data"]
-                            if isinstance(u, dict) and u.get("email"):
-                                users.append({k: v for k, v in u.items() if k != "password"})
-            except Exception as e:
-                print(f"[Admin] TiDB users load error: {e}")
-            finally:
-                conn.close()
-
-    users.sort(
-        key=lambda u: -len([p for p in u.get("active_plans", []) if _is_plan_active(p)])
-    )
-    return JSONResponse(users)
-
-
-# ─── Admin API: Grant Plan ────────────────────────────────────────────────────
-
-class AdminGrantRequest(BaseModel):
-    email:     str
-    plan_key:  str
-    plan_name: str
-    period:    str
-
-
-@app.post("/api/admin/grant-plan")
-async def admin_grant_plan(request: Request, data: AdminGrantRequest):
-    verify_admin_request(request)
-
-    if data.period not in ("monthly", "yearly"):
-        return JSONResponse({"error": "Invalid period"}, status_code=400)
-
-    valid_plans = {"deepseek", "kimi", "mistral", "gemma", "llama",
-                   "agents", "global", "nexus_global", "chat_agents", "free_tier"}
-    if data.plan_key not in valid_plans:
-        return JSONResponse({"error": f"Unknown plan: {data.plan_key}"}, status_code=400)
-
-    success = add_user_subscription(data.email, data.plan_key, data.plan_name, data.period)
-    if success:
-        return JSONResponse({"status": "success", "message": f"Plan '{data.plan_name}' granted to {data.email}"})
-    return JSONResponse({"error": "User not found or DB error"}, status_code=400)
-
-
-# ─── Admin API: Revoke Plans ──────────────────────────────────────────────────
-
-class AdminEmailRequest(BaseModel):
-    email: str
-
-
-@app.post("/api/admin/revoke-plans")
-async def admin_revoke_plans(request: Request, data: AdminEmailRequest):
-    verify_admin_request(request)
-
-    from database import redis as _redis
-
-    user = get_user_by_email(data.email)
-    if not user:
-        return JSONResponse({"error": "User not found"}, status_code=404)
-
-    user["active_plans"]     = []
-    user["plan"]             = "Free Tier"
-    user["subscription_end"] = None
-
-    conn = get_db_connection()
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                cur.execute("UPDATE users SET data = %s WHERE email = %s",
-                            (json.dumps(user), data.email))
-        except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=500)
-        finally:
-            conn.close()
-
-    if _redis:
-        try:
-            _redis.set(f"user:{data.email}", json.dumps(user))
-        except Exception:
-            pass
-
-    return JSONResponse({"status": "success", "message": f"All plans revoked for {data.email}"})
-
-
-# ─── Admin API: Reset Usage ───────────────────────────────────────────────────
-
-@app.post("/api/admin/reset-usage")
-async def admin_reset_usage(request: Request, data: AdminEmailRequest):
-    verify_admin_request(request)
-
-    from database import redis as _redis
-
-    user = get_user_by_email(data.email)
-    if not user:
-        return JSONResponse({"error": "User not found"}, status_code=404)
-
-    user["usage"] = {
-        "date": str(datetime.utcnow().date()),
-        "deepseek": 0, "kimi": 0, "mistral": 0, "llama": 0, "gemma": 0,
-        "unified_extra": 0, "trial_counts": {},
-        "total_requests": 0, "total_tokens": 0,
-        "latency_sum": 0, "errors": 0, "internal_ops": 0
-    }
-
-    conn = get_db_connection()
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                cur.execute("UPDATE users SET data = %s WHERE email = %s",
-                            (json.dumps(user), data.email))
-        except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=500)
-        finally:
-            conn.close()
-
-    if _redis:
-        try:
-            _redis.set(f"user:{data.email}", json.dumps(user))
-        except Exception:
-            pass
-
-    return JSONResponse({"status": "success"})
-
-
-# ─── Admin API: DB Sync (محمي الآن) ──────────────────────────────────────────
-
-@app.get("/api/admin/sync-db")
-async def trigger_db_sync(request: Request):
-    """
-    ✅ FIX: كان هذا المسار بلا مصادقة — الآن يتطلب Admin Token.
-    يمكن ربطه بـ Cron Job:
-      curl -H "X-Admin-Token: $ADMIN_TOKEN" https://yourdomain.com/api/admin/sync-db
-    """
-    verify_admin_request(request)
-    from database import sync_all_usage_to_db
-    result = sync_all_usage_to_db()
-    return JSONResponse(result)
-
-#--------------------------------------------------------------------------
-from fastapi import Response
-from datetime import datetime
-
-# ─── SEO: مسار خريطة الموقع الديناميكية ──────────────────────────────────────────
+# ─── SEO: مسار خريطة الموقع الديناميكية ─────────────────────────────────────
 
 @app.get("/sitemap.xml", include_in_schema=False)
 async def get_sitemap():
-    """
-    يقوم بتوليد خريطة الموقع لمحركات البحث تلقائياً لجميع اللغات والصفحات
-    """
-    # تاريخ اليوم بالصيغة القياسية لمحركات البحث
     today = datetime.utcnow().strftime("%Y-%m-%d")
 
-    # قائمة بالصفحات الأساسية وخصائصها بدون تحديد اللغة
     base_pages = [
-        {"path": "", "changefreq": "daily", "priority": "1.0"},              # الرئيسية
-        {"path": "models", "changefreq": "weekly", "priority": "0.9"},       # النماذج
-        {"path": "pricing", "changefreq": "weekly", "priority": "0.9"},      # الأسعار
-        {"path": "enterprise", "changefreq": "monthly", "priority": "0.8"},  # الشركات
-        {"path": "docs", "changefreq": "weekly", "priority": "0.8"},         # التوثيق
-        {"path": "code-hub", "changefreq": "weekly", "priority": "0.8"},     # مركز الأكواد
-        {"path": "accesory", "changefreq": "weekly", "priority": "0.8"},     # الملحقات
-        {"path": "performance", "changefreq": "daily", "priority": "0.7"},   # الأداء
-        {"path": "contacts", "changefreq": "monthly", "priority": "0.6"},    # التواصل
-        {"path": "policy", "changefreq": "yearly", "priority": "0.5"},       # السياسات
-        {"path": "login", "changefreq": "monthly", "priority": "0.8"},       # تسجيل الدخول
-        {"path": "register", "changefreq": "monthly", "priority": "0.8"},    # إنشاء حساب
+        {"path": "",            "changefreq": "daily",   "priority": "1.0"},
+        {"path": "models",      "changefreq": "weekly",  "priority": "0.9"},
+        {"path": "pricing",     "changefreq": "weekly",  "priority": "0.9"},
+        {"path": "enterprise",  "changefreq": "monthly", "priority": "0.8"},
+        {"path": "docs",        "changefreq": "weekly",  "priority": "0.8"},
+        {"path": "code-hub",    "changefreq": "weekly",  "priority": "0.8"},
+        {"path": "accesory",    "changefreq": "weekly",  "priority": "0.8"},
+        {"path": "performance", "changefreq": "daily",   "priority": "0.7"},
+        {"path": "contacts",    "changefreq": "monthly", "priority": "0.6"},
+        {"path": "policy",      "changefreq": "yearly",  "priority": "0.5"},
+        {"path": "login",       "changefreq": "monthly", "priority": "0.8"},
+        {"path": "register",    "changefreq": "monthly", "priority": "0.8"},
     ]
 
-    urls = []
+    urls = [{"loc": "https://orgteh.com/", "changefreq": "daily", "priority": "1.0"}]
 
-    # 1. إضافة الرابط الرئيسي المجرد (Domain Root)
-    urls.append({
-        "loc": "https://orgteh.com/", 
-        "changefreq": "daily", 
-        "priority": "1.0"
-    })
-
-    # 2. توليد الروابط للنسختين العربية والإنجليزية لجميع الصفحات
     for page in base_pages:
         for lang in ["ar", "en"]:
-            # إذا كان المسار فارغاً (يعني الصفحة الرئيسية)، نكتفي برمز اللغة
-            if page["path"] == "":
-                loc = f"https://orgteh.com/{lang}"
-            else:
-                loc = f"https://orgteh.com/{lang}/{page['path']}"
+            loc = f"https://orgteh.com/{lang}" if page["path"] == "" else f"https://orgteh.com/{lang}/{page['path']}"
+            urls.append({"loc": loc, "changefreq": page["changefreq"], "priority": page["priority"]})
 
-            urls.append({
-                "loc": loc,
-                "changefreq": page["changefreq"],
-                "priority": page["priority"]
-            })
-
-    # 3. بناء هيكل ملف الـ XML
-    xml_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml_content  = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-
     for url in urls:
         xml_content += "  <url>\n"
         xml_content += f"    <loc>{url['loc']}</loc>\n"
@@ -1743,27 +1338,20 @@ async def get_sitemap():
         xml_content += f"    <changefreq>{url['changefreq']}</changefreq>\n"
         xml_content += f"    <priority>{url['priority']}</priority>\n"
         xml_content += "  </url>\n"
-
     xml_content += '</urlset>'
 
-    # إرجاع الاستجابة بصيغة XML ليقرأها جوجل كملف
     return Response(content=xml_content, media_type="application/xml")
-    # ─── SEO: مسار ملف الروبوتات ──────────────────────────────────────────
+
+# ─── SEO: مسار ملف الروبوتات ─────────────────────────────────────────────────
 
 @app.get("/robots.txt", include_in_schema=False)
 async def get_robots_txt():
-    """
-    يقوم بتقديم ملف robots.txt لمحركات البحث
-    """
     robots_path = BASE_DIR / "robots.txt"
-    
-    # التأكد من وجود الملف ثم إرجاعه كنص خام
     if robots_path.exists():
         return FileResponse(str(robots_path), media_type="text/plain")
-        
-    # في حال لم يجد الملف لسبب ما، يُرجع إعدادات الأرشفة الافتراضية
     fallback_content = "User-agent: *\nAllow: /\n"
     return Response(content=fallback_content, media_type="text/plain")
+
 # ============================================================================
 # ENTRY POINT
 # ============================================================================

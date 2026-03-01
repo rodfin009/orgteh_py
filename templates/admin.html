@@ -3,40 +3,23 @@
 {% block head_extra %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-    /* ======================================
-       Admin Dashboard Styles
-    ====================================== */
     :root {
         --admin-gold: #f59e0b;
         --admin-gold-light: #fef3c7;
         --admin-gold-dark: #78350f;
     }
-
-    /* Admin-only glow badge */
     .admin-badge {
         background: linear-gradient(135deg, #f59e0b, #ef4444);
-        color: #000;
-        font-size: 10px;
-        font-weight: 900;
-        padding: 2px 8px;
-        border-radius: 999px;
-        letter-spacing: 1px;
+        color: #000; font-size: 10px; font-weight: 900;
+        padding: 2px 8px; border-radius: 999px; letter-spacing: 1px;
     }
-
-    /* Stat cards */
     .stat-card {
-        background: #ffffff;
-        border: 1px solid #f3f4f6;
-        border-radius: 16px;
-        padding: 24px;
+        background: #ffffff; border: 1px solid #f3f4f6;
+        border-radius: 16px; padding: 24px;
         transition: transform 0.2s, box-shadow 0.2s;
-        position: relative;
-        overflow: hidden;
+        position: relative; overflow: hidden;
     }
-    html.dark .stat-card {
-        background: #0d0d0d;
-        border-color: #1a1a1a;
-    }
+    html.dark .stat-card { background: #0d0d0d; border-color: #1a1a1a; }
     .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
     html.dark .stat-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
     .stat-card .stat-icon {
@@ -44,26 +27,16 @@
         display: flex; align-items: center; justify-content: center;
         font-size: 20px; margin-bottom: 16px;
     }
-
-    /* Admin section card */
     .admin-card {
-        background: #ffffff;
-        border: 1px solid #f3f4f6;
-        border-radius: 16px;
-        overflow: hidden;
+        background: #ffffff; border: 1px solid #f3f4f6;
+        border-radius: 16px; overflow: hidden;
     }
-    html.dark .admin-card {
-        background: #0d0d0d;
-        border-color: #1a1a1a;
-    }
+    html.dark .admin-card { background: #0d0d0d; border-color: #1a1a1a; }
     .admin-card-header {
-        padding: 20px 24px;
-        border-bottom: 1px solid #f3f4f6;
+        padding: 20px 24px; border-bottom: 1px solid #f3f4f6;
         display: flex; align-items: center; justify-content: space-between;
     }
     html.dark .admin-card-header { border-color: #1a1a1a; }
-
-    /* Table styles */
     .admin-table { width: 100%; border-collapse: collapse; }
     .admin-table th {
         font-size: 11px; font-weight: 700; text-transform: uppercase;
@@ -79,32 +52,23 @@
     html.dark .admin-table td { border-color: #111; }
     .admin-table tr:hover td { background: #f9fafb; }
     html.dark .admin-table tr:hover td { background: #111; }
-
-    /* Plan badges */
     .plan-badge {
         font-size: 11px; font-weight: 700; padding: 3px 10px;
         border-radius: 999px; white-space: nowrap;
     }
-    .plan-free { background: #f3f4f6; color: #6b7280; }
+    .plan-free  { background: #f3f4f6; color: #6b7280; }
     html.dark .plan-free { background: #1a1a1a; color: #6b7280; }
-    .plan-paid { background: #d1fae5; color: #065f46; }
+    .plan-paid  { background: #d1fae5; color: #065f46; }
     html.dark .plan-paid { background: #064e3b; color: #6ee7b7; }
     .plan-global { background: #ddd6fe; color: #4c1d95; }
     html.dark .plan-global { background: #2e1065; color: #c4b5fd; }
-
-    /* Search input */
     .admin-search {
         padding: 10px 16px; border-radius: 10px; font-size: 14px;
         border: 1px solid #e5e7eb; outline: none; width: 100%;
-        background: #f9fafb; color: #111;
-        transition: border-color 0.2s;
+        background: #f9fafb; color: #111; transition: border-color 0.2s;
     }
-    html.dark .admin-search {
-        background: #111; border-color: #1a1a1a; color: #fff;
-    }
+    html.dark .admin-search { background: #111; border-color: #1a1a1a; color: #fff; }
     .admin-search:focus { border-color: #f59e0b; }
-
-    /* Action buttons */
     .btn-grant {
         font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 8px;
         background: #22c55e; color: #000; cursor: pointer; border: none; transition: opacity 0.2s;
@@ -119,60 +83,40 @@
         font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 8px;
         background: #3b82f6; color: #fff; cursor: pointer; border: none; transition: opacity 0.2s;
     }
-
-    /* Loading spinner */
     .spinner {
         width: 32px; height: 32px; border: 3px solid #f3f4f6;
         border-top-color: #f59e0b; border-radius: 50%;
         animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Toast notification */
     #admin-toast {
         position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
         background: #111; color: #fff; padding: 12px 24px; border-radius: 12px;
         font-size: 14px; font-weight: 600; z-index: 9999; box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-        opacity: 0; transition: opacity 0.3s; pointer-events: none;
-        border: 1px solid #333;
+        opacity: 0; transition: opacity 0.3s; pointer-events: none; border: 1px solid #333;
     }
     #admin-toast.show { opacity: 1; }
-
-    /* Status dot */
     .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    .status-active { background: #22c55e; }
+    .status-active  { background: #22c55e; }
     .status-expired { background: #ef4444; }
-    .status-free { background: #9ca3af; }
-
-    /* User modal */
-    #userModal {
+    .status-free    { background: #9ca3af; }
+    #userModal, #grantModal {
         position: fixed; inset: 0; z-index: 500;
         background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
         display: flex; align-items: center; justify-content: center;
         opacity: 0; pointer-events: none; transition: opacity 0.2s;
     }
-    #userModal.open { opacity: 1; pointer-events: all; }
+    #userModal.open, #grantModal.open { opacity: 1; pointer-events: all; }
     #userModal .modal-content {
         background: #fff; border-radius: 20px; width: 90%; max-width: 560px;
         padding: 32px; position: relative; max-height: 85vh; overflow-y: auto;
     }
     html.dark #userModal .modal-content { background: #0d0d0d; border: 1px solid #1a1a1a; }
-
-    /* Grant modal */
-    #grantModal {
-        position: fixed; inset: 0; z-index: 500;
-        background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
-        display: flex; align-items: center; justify-content: center;
-        opacity: 0; pointer-events: none; transition: opacity 0.2s;
-    }
-    #grantModal.open { opacity: 1; pointer-events: all; }
     #grantModal .modal-content {
         background: #fff; border-radius: 20px; width: 90%; max-width: 440px;
         padding: 32px; position: relative;
     }
     html.dark #grantModal .modal-content { background: #0d0d0d; border: 1px solid #1a1a1a; }
-
-    /* Admin select/input */
     .admin-input {
         width: 100%; padding: 10px 14px; border-radius: 10px;
         border: 1px solid #e5e7eb; background: #f9fafb; color: #111;
@@ -181,11 +125,7 @@
     }
     html.dark .admin-input { background: #111; border-color: #1a1a1a; color: #fff; }
     .admin-input:focus { border-color: #f59e0b; }
-
-    /* Charts container */
     .chart-wrapper { position: relative; height: 220px; }
-
-    /* Quick action cards */
     .quick-action {
         padding: 16px; border-radius: 12px; cursor: pointer;
         border: 1px solid #f3f4f6; transition: all 0.2s;
@@ -194,17 +134,36 @@
     }
     html.dark .quick-action { background: #111; border-color: #1a1a1a; }
     .quick-action:hover { border-color: #f59e0b; transform: translateY(-1px); }
-
-    /* Scrollbar for tables */
     .table-scroll { overflow-x: auto; }
     .table-scroll::-webkit-scrollbar { height: 4px; }
     .table-scroll::-webkit-scrollbar-thumb { background: #f59e0b; border-radius: 4px; }
+
+    /* ── فلتر الوقت ─────────────────────── */
+    .period-btn {
+        padding: 7px 18px; border-radius: 9px; font-size: 13px; font-weight: 700;
+        border: 2px solid #f3f4f6; background: transparent; cursor: pointer;
+        transition: all 0.18s; font-family: 'Cairo', sans-serif; color: #374151;
+    }
+    html.dark .period-btn { border-color: #1a1a1a; color: #d1d5db; }
+    .period-btn:hover  { border-color: #f59e0b; color: #f59e0b; }
+    .period-btn.active { background: #f59e0b; border-color: #f59e0b; color: #000; }
+
+    /* ── بطاقة الزوار ───────────────────── */
+    .visitor-source-bar {
+        height: 8px; border-radius: 4px; background: linear-gradient(90deg,#f59e0b,#ef4444);
+        transition: width 0.5s;
+    }
+    .gmail-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: #d1fae5; color: #065f46; font-size: 11px; font-weight: 800;
+        padding: 3px 10px; border-radius: 999px;
+    }
+    html.dark .gmail-badge { background: #064e3b; color: #6ee7b7; }
 </style>
 {% endblock %}
 
 {% block content %}
 
-{# ====== Admin Access Guard ====== #}
 {% if user_email != 'rodfin0202@gmail.com' %}
 <div style="min-height:80vh;display:flex;align-items:center;justify-content:center;">
     <div style="text-align:center;padding:40px;">
@@ -215,152 +174,144 @@
 </div>
 {% else %}
 
-{# ======================================
-   ADMIN DASHBOARD — MAIN CONTENT
-====================================== #}
 <div style="min-height:100vh;background:linear-gradient(135deg,#fffbeb 0%,#ffffff 50%,#fef3c7 100%);" class="dark:!bg-none" id="admin-bg">
-<style>
-html.dark #admin-bg { background: linear-gradient(135deg,#0a0500 0%,#000000 50%,#0a0500 100%) !important; }
-</style>
+<style>html.dark #admin-bg { background: linear-gradient(135deg,#0a0500 0%,#000000 50%,#0a0500 100%) !important; }</style>
 
 <div style="max-width:1400px;margin:0 auto;padding:32px 20px;" dir="rtl">
 
-    {# ===== ADMIN HEADER ===== #}
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:16px;">
-        <div>
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
-                <div style="width:44px;height:44px;background:linear-gradient(135deg,#f59e0b,#ef4444);border-radius:12px;display:flex;align-items:center;justify-content:center;">
-                    <i class="fa-solid fa-shield-halved" style="color:#000;font-size:20px;"></i>
-                </div>
-                <div>
-                    <h1 style="font-size:24px;font-weight:900;margin:0;line-height:1.2;">لوحة الإدارة</h1>
-                    <div style="font-size:12px;color:#6b7280;">مرحباً، <strong style="color:#f59e0b;">{{ user_email }}</strong></div>
-                </div>
-                <span class="admin-badge">SUPER ADMIN</span>
+    {# ─── HEADER ─────────────────────────────────────────────────────────── #}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:44px;height:44px;background:linear-gradient(135deg,#f59e0b,#ef4444);border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                <i class="fa-solid fa-shield-halved" style="color:#000;font-size:20px;"></i>
             </div>
+            <div>
+                <h1 style="font-size:24px;font-weight:900;margin:0;line-height:1.2;">لوحة الإدارة</h1>
+                <div style="font-size:12px;color:#6b7280;">مرحباً، <strong style="color:#f59e0b;">{{ user_email }}</strong></div>
+            </div>
+            <span class="admin-badge">SUPER ADMIN</span>
         </div>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <div style="font-size:12px;color:#9ca3af;" id="lastUpdate">
+            <div style="font-size:12px;color:#9ca3af;">
                 <i class="fa-solid fa-clock" style="margin-left:4px;"></i>
                 آخر تحديث: <span id="updateTime">--</span>
             </div>
-            <button onclick="refreshAll()" style="padding:10px 20px;border-radius:10px;background:#f59e0b;color:#000;font-weight:800;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;" class="hover:opacity-90 transition">
+            <button onclick="refreshAll()" style="padding:10px 20px;border-radius:10px;background:#f59e0b;color:#000;font-weight:800;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;">
                 <i class="fa-solid fa-rotate-right"></i> تحديث البيانات
             </button>
-            <button onclick="triggerSync()" style="padding:10px 20px;border-radius:10px;background:#111;color:#fff;font-weight:700;font-size:13px;border:1px solid #333;cursor:pointer;" class="dark:bg-white dark:text-black hover:opacity-80 transition">
+            <button onclick="triggerSync()" style="padding:10px 20px;border-radius:10px;background:#111;color:#fff;font-weight:700;font-size:13px;border:1px solid #333;cursor:pointer;" class="dark:bg-white dark:text-black">
                 <i class="fa-solid fa-database" style="margin-left:6px;"></i> مزامنة DB
             </button>
         </div>
     </div>
 
-    {# ===== STATS CARDS ===== #}
+    {# ─── فلتر الوقت ─────────────────────────────────────────────────────── #}
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:700;color:#6b7280;"><i class="fa-solid fa-filter" style="margin-left:6px;"></i>عرض البيانات:</span>
+        <button class="period-btn active" onclick="setPeriod('1h')"  id="btn-1h">آخر ساعة</button>
+        <button class="period-btn"        onclick="setPeriod('24h')" id="btn-24h">آخر 24 ساعة</button>
+        <button class="period-btn"        onclick="setPeriod('1m')"  id="btn-1m">آخر شهر</button>
+        <button class="period-btn"        onclick="setPeriod('1y')"  id="btn-1y">آخر سنة</button>
+    </div>
+
+    {# ─── STAT CARDS ──────────────────────────────────────────────────────── #}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:28px;" id="statsGrid">
-        <!-- stat cards injected by JS -->
-        <div style="display:flex;justify-content:center;align-items:center;height:120px;grid-column:1/-1;">
-            <div class="spinner"></div>
-        </div>
+        <div style="display:flex;justify-content:center;align-items:center;padding:40px;grid-column:1/-1;"><div class="spinner"></div></div>
     </div>
 
-    {# ===== CHARTS + QUICK ACTIONS ===== #}
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:28px;" id="chartsRow">
+    {# ─── صف: الزوار + الرسوم البيانية ───────────────────────────────────── #}
+    <div style="display:grid;grid-template-columns:320px 1fr;gap:20px;margin-bottom:20px;align-items:start;" class="visitors-grid">
+    <style>
+    @media(max-width:900px){.visitors-grid{grid-template-columns:1fr!important;}}
+    </style>
 
-        {# Chart: Daily Requests #}
+        {# ── بطاقة الزوار ─ #}
         <div class="admin-card">
             <div class="admin-card-header">
-                <span style="font-weight:800;font-size:15px;"><i class="fa-solid fa-chart-line" style="color:#f59e0b;margin-left:8px;"></i>الطلبات اليومية (7 أيام)</span>
-                <span style="font-size:12px;color:#9ca3af;" id="totalRequests7d">--</span>
+                <span style="font-weight:800;font-size:15px;">
+                    <i class="fa-solid fa-globe" style="color:#f59e0b;margin-left:8px;"></i>إحصائيات الزوار
+                </span>
             </div>
-            <div style="padding:20px;">
-                <div class="chart-wrapper"><canvas id="requestsChart"></canvas></div>
+            <div style="padding:20px;" id="visitorStatsContainer">
+                <div style="display:flex;justify-content:center;"><div class="spinner"></div></div>
             </div>
         </div>
 
-        {# Chart: Subscription Distribution #}
-        <div class="admin-card">
-            <div class="admin-card-header">
-                <span style="font-weight:800;font-size:15px;"><i class="fa-solid fa-pie-chart" style="color:#8b5cf6;margin-left:8px;"></i>توزيع الباقات</span>
-            </div>
-            <div style="padding:20px;">
-                <div class="chart-wrapper"><canvas id="plansChart"></canvas></div>
-            </div>
-        </div>
-    </div>
+        {# ── الرسوم البيانية ─ #}
+        <div style="display:grid;gap:20px;">
 
-    {# ===== MODEL USAGE + QUICK ACTIONS ===== #}
-    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:20px;margin-bottom:28px;">
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <span style="font-weight:800;font-size:15px;"><i class="fa-solid fa-chart-line" style="color:#f59e0b;margin-left:8px;"></i>الطلبات (آخر 7 أيام)</span>
+                    <span id="totalRequests7d" style="font-size:12px;color:#9ca3af;"></span>
+                </div>
+                <div style="padding:20px;" class="chart-wrapper"><canvas id="requestsChart"></canvas></div>
+            </div>
 
-        {# Chart: Model Usage #}
-        <div class="admin-card">
-            <div class="admin-card-header">
-                <span style="font-weight:800;font-size:15px;"><i class="fa-solid fa-robot" style="color:#3b82f6;margin-left:8px;"></i>استخدام النماذج اليوم</span>
-            </div>
-            <div style="padding:20px;">
-                <div class="chart-wrapper"><canvas id="modelsChart"></canvas></div>
-            </div>
-        </div>
-
-        {# Quick Actions #}
-        <div class="admin-card">
-            <div class="admin-card-header">
-                <span style="font-weight:800;font-size:15px;"><i class="fa-solid fa-bolt" style="color:#f59e0b;margin-left:8px;"></i>إجراءات سريعة</span>
-            </div>
-            <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
-                <div class="quick-action" onclick="document.getElementById('searchInput').focus(); document.getElementById('usersSection').scrollIntoView({behavior:'smooth'});">
-                    <div style="width:36px;height:36px;background:#dbeafe;border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                        <i class="fa-solid fa-users" style="color:#3b82f6;"></i>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <span style="font-weight:800;font-size:14px;"><i class="fa-solid fa-chart-pie" style="color:#8b5cf6;margin-left:8px;"></i>توزيع الباقات</span>
                     </div>
-                    <div>
-                        <div style="font-weight:700;font-size:13px;">إدارة المستخدمين</div>
-                        <div style="font-size:11px;color:#9ca3af;">بحث وإدارة الحسابات</div>
-                    </div>
+                    <div style="padding:20px;" class="chart-wrapper"><canvas id="plansChart"></canvas></div>
                 </div>
-                <div class="quick-action" onclick="openGrantModal('')">
-                    <div style="width:36px;height:36px;background:#d1fae5;border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                        <i class="fa-solid fa-crown" style="color:#22c55e;"></i>
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <span style="font-weight:800;font-size:14px;"><i class="fa-solid fa-robot" style="color:#3b82f6;margin-left:8px;"></i>استخدام النماذج</span>
                     </div>
-                    <div>
-                        <div style="font-weight:700;font-size:13px;">منح اشتراك</div>
-                        <div style="font-size:11px;color:#9ca3af;">تفعيل باقة لمستخدم</div>
-                    </div>
-                </div>
-                <div class="quick-action" onclick="triggerSync()">
-                    <div style="width:36px;height:36px;background:#fef3c7;border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                        <i class="fa-solid fa-database" style="color:#f59e0b;"></i>
-                    </div>
-                    <div>
-                        <div style="font-weight:700;font-size:13px;">مزامنة قاعدة البيانات</div>
-                        <div style="font-size:11px;color:#9ca3af;">Redis → TiDB</div>
-                    </div>
-                </div>
-                <div class="quick-action" onclick="window.open('/api/health','_blank')">
-                    <div style="width:36px;height:36px;background:#fce7f3;border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                        <i class="fa-solid fa-heart-pulse" style="color:#ec4899;"></i>
-                    </div>
-                    <div>
-                        <div style="font-weight:700;font-size:13px;">فحص صحة السيرفر</div>
-                        <div style="font-size:11px;color:#9ca3af;">Health Check API</div>
-                    </div>
-                </div>
-                <div class="quick-action" onclick="exportUsers()">
-                    <div style="width:36px;height:36px;background:#ede9fe;border-radius:10px;display:flex;align-items:center;justify-content:center;">
-                        <i class="fa-solid fa-file-export" style="color:#8b5cf6;"></i>
-                    </div>
-                    <div>
-                        <div style="font-weight:700;font-size:13px;">تصدير بيانات المستخدمين</div>
-                        <div style="font-size:11px;color:#9ca3af;">تنزيل CSV</div>
-                    </div>
+                    <div style="padding:20px;" class="chart-wrapper"><canvas id="modelsChart"></canvas></div>
                 </div>
             </div>
         </div>
     </div>
 
-    {# ===== USERS TABLE ===== #}
-    <div class="admin-card" id="usersSection">
+    {# ─── الإجراءات السريعة ───────────────────────────────────────────────── #}
+    <div class="admin-card" style="margin-bottom:20px;">
         <div class="admin-card-header">
-            <span style="font-weight:800;font-size:15px;"><i class="fa-solid fa-users" style="color:#3b82f6;margin-left:8px;"></i>إدارة المستخدمين</span>
-            <span style="font-size:13px;font-weight:700;background:#f3f4f6;padding:4px 12px;border-radius:999px;" class="dark:bg-[#1a1a1a]" id="userCountBadge">-- مستخدم</span>
+            <span style="font-weight:800;font-size:15px;"><i class="fa-solid fa-bolt" style="color:#f59e0b;margin-left:8px;"></i>إجراءات سريعة</span>
         </div>
-        {# Search + Filters #}
+        <div style="padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+            <div class="quick-action" onclick="openGrantModal('')">
+                <div style="width:36px;height:36px;background:#d1fae5;border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                    <i class="fa-solid fa-plus" style="color:#22c55e;"></i>
+                </div>
+                <div>
+                    <div style="font-weight:700;font-size:13px;">منح اشتراك</div>
+                    <div style="font-size:11px;color:#9ca3af;">إضافة خطة لمستخدم</div>
+                </div>
+            </div>
+            <div class="quick-action" onclick="triggerSync()">
+                <div style="width:36px;height:36px;background:#dbeafe;border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                    <i class="fa-solid fa-database" style="color:#3b82f6;"></i>
+                </div>
+                <div>
+                    <div style="font-weight:700;font-size:13px;">مزامنة قاعدة البيانات</div>
+                    <div style="font-size:11px;color:#9ca3af;">Redis → TiDB</div>
+                </div>
+            </div>
+            <div class="quick-action" onclick="exportUsers()">
+                <div style="width:36px;height:36px;background:#ede9fe;border-radius:10px;display:flex;align-items:center;justify-content:center;">
+                    <i class="fa-solid fa-file-export" style="color:#8b5cf6;"></i>
+                </div>
+                <div>
+                    <div style="font-weight:700;font-size:13px;">تصدير المستخدمين</div>
+                    <div style="font-size:11px;color:#9ca3af;">تنزيل CSV (Gmail فقط)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ─── جدول المستخدمين ─────────────────────────────────────────────────── #}
+    <div class="admin-card" id="usersSection" style="margin-bottom:20px;">
+        <div class="admin-card-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-weight:800;font-size:15px;"><i class="fa-solid fa-users" style="color:#3b82f6;margin-left:8px;"></i>إدارة المستخدمين</span>
+                <span class="gmail-badge"><i class="fa-solid fa-envelope"></i> Gmail فقط</span>
+            </div>
+            <span style="font-size:13px;font-weight:700;background:#f3f4f6;padding:4px 12px;border-radius:999px;" class="dark:bg-[#1a1a1a]" id="userCountBadge">جارٍ التحميل...</span>
+        </div>
+
+        {# بحث + فلاتر #}
         <div style="padding:16px 24px;border-bottom:1px solid #f3f4f6;display:flex;gap:12px;flex-wrap:wrap;align-items:center;" class="dark:border-[#1a1a1a]">
             <div style="flex:1;min-width:200px;position:relative;">
                 <i class="fa-solid fa-search" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:13px;"></i>
@@ -382,26 +333,28 @@ html.dark #admin-bg { background: linear-gradient(135deg,#0a0500 0%,#000000 50%,
                 <option value="active">نشط</option>
                 <option value="expired">منتهي</option>
             </select>
+            <div style="font-size:12px;color:#9ca3af;">
+                <i class="fa-solid fa-sort-down" style="margin-left:4px;"></i>مُرتَّبة بأحدث تسجيل
+            </div>
         </div>
         <div class="table-scroll" id="usersTableWrapper">
             <div style="display:flex;justify-content:center;padding:40px;"><div class="spinner"></div></div>
         </div>
     </div>
 
-    {# ===== SYSTEM INFO ===== #}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px;">
+    {# ─── إحصائيات النظام + أحدث الاشتراكات ─────────────────────────────── #}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="bottom-grid">
+    <style>@media(max-width:700px){.bottom-grid{grid-template-columns:1fr!important;}}</style>
 
-        {# Global Stats Today #}
         <div class="admin-card">
             <div class="admin-card-header">
-                <span style="font-weight:800;font-size:15px;"><i class="fa-solid fa-server" style="color:#22c55e;margin-left:8px;"></i>إحصائيات النظام اليوم</span>
+                <span style="font-weight:800;font-size:15px;"><i class="fa-solid fa-server" style="color:#22c55e;margin-left:8px;"></i>إحصائيات النظام</span>
             </div>
             <div style="padding:20px;" id="sysStatsContainer">
                 <div style="display:flex;justify-content:center;"><div class="spinner"></div></div>
             </div>
         </div>
 
-        {# Subscription History / Recent Activity #}
         <div class="admin-card">
             <div class="admin-card-header">
                 <span style="font-weight:800;font-size:15px;"><i class="fa-solid fa-history" style="color:#ec4899;margin-left:8px;"></i>أحدث الاشتراكات</span>
@@ -412,12 +365,10 @@ html.dark #admin-bg { background: linear-gradient(135deg,#0a0500 0%,#000000 50%,
         </div>
     </div>
 
-</div>{# end max-width wrapper #}
+</div>{# end wrapper #}
 </div>{# end admin-bg #}
 
-{# ======================================
-   USER DETAIL MODAL
-====================================== #}
+{# ─── USER MODAL ──────────────────────────────────────────────────────────── #}
 <div id="userModal">
     <div class="modal-content" style="direction:rtl;">
         <button onclick="closeUserModal()" style="position:absolute;top:16px;left:16px;background:none;border:none;font-size:20px;color:#6b7280;cursor:pointer;">
@@ -444,9 +395,7 @@ html.dark #admin-bg { background: linear-gradient(135deg,#0a0500 0%,#000000 50%,
     </div>
 </div>
 
-{# ======================================
-   GRANT PLAN MODAL
-====================================== #}
+{# ─── GRANT MODAL ─────────────────────────────────────────────────────────── #}
 <div id="grantModal">
     <div class="modal-content" style="direction:rtl;">
         <button onclick="closeGrantModal()" style="position:absolute;top:16px;left:16px;background:none;border:none;font-size:20px;color:#6b7280;cursor:pointer;">
@@ -457,7 +406,7 @@ html.dark #admin-bg { background: linear-gradient(135deg,#0a0500 0%,#000000 50%,
             منح اشتراك
         </h2>
         <label style="font-size:13px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">البريد الإلكتروني</label>
-        <input type="email" id="grantEmail" class="admin-input" placeholder="user@example.com">
+        <input type="email" id="grantEmail" class="admin-input" placeholder="user@gmail.com">
         <label style="font-size:13px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px;">الباقة</label>
         <select id="grantPlan" class="admin-input">
             <option value="deepseek">DeepSeek V3</option>
@@ -473,30 +422,29 @@ html.dark #admin-bg { background: linear-gradient(135deg,#0a0500 0%,#000000 50%,
             <option value="monthly">شهري (30 يوم)</option>
             <option value="yearly">سنوي (365 يوم)</option>
         </select>
-        <button onclick="executeGrant()" style="width:100%;padding:12px;background:#22c55e;color:#000;font-weight:800;font-size:14px;border:none;border-radius:10px;cursor:pointer;margin-top:4px;" class="hover:opacity-90 transition">
-            <i class="fa-solid fa-check" style="margin-left:8px;"></i>
-            تفعيل الاشتراك
+        <button onclick="executeGrant()" style="width:100%;padding:12px;background:#22c55e;color:#000;font-weight:800;font-size:14px;border:none;border-radius:10px;cursor:pointer;margin-top:4px;">
+            <i class="fa-solid fa-check" style="margin-left:8px;"></i>تفعيل الاشتراك
         </button>
     </div>
 </div>
 
-{# ======================================
-   TOAST NOTIFICATION
-====================================== #}
 <div id="admin-toast"></div>
 
-{# ======================================
-   JAVASCRIPT
-====================================== #}
 <script>
-// ─── State ─────────────────────────────────────────────
-let allUsers = [];
-let currentModalEmail = '';
-let requestsChart = null;
-let plansChart = null;
-let modelsChart = null;
+/* =============================================================
+   ADMIN DASHBOARD — JavaScript
+============================================================= */
 
-// ─── Toast ─────────────────────────────────────────────
+let allUsers         = [];
+let currentModalEmail = '';
+let requestsChart    = null;
+let plansChart       = null;
+let modelsChart      = null;
+let currentPeriod    = '24h';     // الفترة الافتراضية
+
+const ADMIN_TOKEN    = '{{ admin_token }}';
+
+// ── Toast ────────────────────────────────────────────────────
 function showToast(msg, isError = false) {
     const t = document.getElementById('admin-toast');
     t.textContent = msg;
@@ -505,60 +453,76 @@ function showToast(msg, isError = false) {
     setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// ─── Refresh All ────────────────────────────────────────
+// ── فلتر الوقت ───────────────────────────────────────────────
+function setPeriod(p) {
+    currentPeriod = p;
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + p).classList.add('active');
+    refreshAll();
+}
+
+// ── Refresh All ──────────────────────────────────────────────
 async function refreshAll() {
     document.getElementById('updateTime').textContent = new Date().toLocaleTimeString('ar-SA');
     await Promise.all([loadStats(), loadUsers(), loadSysStats()]);
     showToast('✅ تم تحديث البيانات');
 }
 
-// ─── Load Main Stats ─────────────────────────────────────
+// ── Load Stats ───────────────────────────────────────────────
 async function loadStats() {
     try {
-        const res = await fetch('/api/admin/dashboard-stats', {
-            headers: {'X-Admin-Token': '{{ admin_token }}'}
+        const res  = await fetch(`/api/admin/dashboard-stats?period=${currentPeriod}`, {
+            headers: { 'X-Admin-Token': ADMIN_TOKEN }
         });
         const data = await res.json();
         renderStats(data);
         renderCharts(data);
+        renderVisitorStats(data.visitor_stats || {});
     } catch(e) {
-        console.error('Stats load error:', e);
+        console.error('Stats error:', e);
         showToast('خطأ في تحميل الإحصائيات', true);
     }
 }
 
-// ─── Render Stats Cards ──────────────────────────────────
+// ── Render Stat Cards ─────────────────────────────────────────
 function renderStats(d) {
+    const periodLabel = { '1h': 'آخر ساعة', '24h': 'آخر 24 ساعة', '1m': 'آخر شهر', '1y': 'آخر سنة' }[currentPeriod] || '';
     const grid = document.getElementById('statsGrid');
     const stats = [
         {
             icon: 'fa-users', color: '#3b82f6', bg: '#dbeafe',
-            label: 'إجمالي المستخدمين', value: (d.total_users || 0).toLocaleString('ar-SA'),
-            sub: `+${d.new_today || 0} اليوم`
+            label: 'إجمالي المستخدمين (Gmail)',
+            value: (d.total_users || 0).toLocaleString('ar-SA'),
+            sub: `+${d.new_in_period || 0} في ${periodLabel}`
         },
         {
             icon: 'fa-crown', color: '#f59e0b', bg: '#fef3c7',
-            label: 'اشتراكات نشطة', value: (d.active_paid_subs || 0).toLocaleString('ar-SA'),
-            sub: `من ${d.total_users || 0} مستخدم`
+            label: 'اشتراكات مدفوعة نشطة',
+            value: (d.active_paid_subs || 0).toLocaleString('ar-SA'),
+            sub: `من ${d.total_users || 0} مستخدم Gmail`
         },
         {
-            icon: 'fa-bolt', color: '#22c55e', bg: '#d1fae5',
-            label: 'طلبات اليوم', value: (d.today_requests || 0).toLocaleString('ar-SA'),
+            icon: 'fa-globe', color: '#22c55e', bg: '#d1fae5',
+            label: 'زوار الموقع',
+            value: (d.visitor_stats?.total_visits || 0).toLocaleString('ar-SA'),
+            sub: `آخر زيارة: ${d.visitor_stats?.last_visit ? fmtDate(d.visitor_stats.last_visit) : '—'}`
+        },
+        {
+            icon: 'fa-bolt', color: '#8b5cf6', bg: '#ede9fe',
+            label: 'طلبات اليوم',
+            value: (d.today_requests || 0).toLocaleString('ar-SA'),
             sub: `${d.today_errors || 0} خطأ`
         },
         {
-            icon: 'fa-coins', color: '#8b5cf6', bg: '#ede9fe',
-            label: 'التوكن اليوم', value: formatNum(d.today_tokens || 0),
+            icon: 'fa-coins', color: '#ec4899', bg: '#fce7f3',
+            label: 'التوكن اليوم',
+            value: formatNum(d.today_tokens || 0),
             sub: `معدل ${d.avg_latency || 0}ms`
         },
         {
-            icon: 'fa-chart-bar', color: '#ec4899', bg: '#fce7f3',
-            label: 'مجموع الطلبات (7 أيام)', value: formatNum(d.week_requests || 0),
-            sub: `${d.week_tokens || 0} توكن`
-        },
-        {
             icon: 'fa-shield-check', color: '#14b8a6', bg: '#ccfbf1',
-            label: 'نسبة النجاح', value: `${d.success_rate || 100}%`,
+            label: 'نسبة النجاح',
+            value: `${d.success_rate || 100}%`,
             sub: `${d.blocked_today || 0} محظور`
         }
     ];
@@ -573,21 +537,65 @@ function renderStats(d) {
             <div style="font-size:11px;color:#9ca3af;margin-top:2px;">${s.sub}</div>
         </div>
     `).join('');
-    // update dark text
-    document.querySelectorAll('.stat-card [style*="color:#374151"]').forEach(el => {
-        el.classList.add('dark:text-gray-300');
-    });
 }
 
+// ── Render Visitor Stats ──────────────────────────────────────
+function renderVisitorStats(vs) {
+    const c = document.getElementById('visitorStatsContainer');
+    const total   = vs.total_visits || 0;
+    const last    = vs.last_visit ? fmtDate(vs.last_visit) : '—';
+    const sources = vs.sources   || {};
+    const maxSrc  = Math.max(1, ...Object.values(sources));
+
+    const sourceRows = Object.entries(sources)
+        .sort((a,b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([src, cnt]) => {
+            const pct = Math.round(cnt / maxSrc * 100);
+            return `
+            <div style="margin-bottom:14px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                    <span style="font-size:12px;font-weight:700;">${src}</span>
+                    <span style="font-size:12px;color:#9ca3af;">${cnt.toLocaleString('ar-SA')}</span>
+                </div>
+                <div style="background:#f3f4f6;border-radius:4px;height:8px;" class="dark:bg-[#1a1a1a]">
+                    <div style="width:${pct}%;height:8px;border-radius:4px;background:linear-gradient(90deg,#f59e0b,#ef4444);transition:width 0.5s;"></div>
+                </div>
+            </div>`;
+        }).join('') || '<p style="color:#9ca3af;font-size:12px;text-align:center;padding:12px;">لا توجد بيانات بعد</p>';
+
+    c.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+            <div style="background:#f9fafb;border-radius:10px;padding:12px;text-align:center;" class="dark:bg-[#111]">
+                <div style="font-size:28px;font-weight:900;color:#f59e0b;">${total.toLocaleString('ar-SA')}</div>
+                <div style="font-size:11px;color:#9ca3af;margin-top:2px;">إجمالي الزيارات</div>
+            </div>
+            <div style="background:#f9fafb;border-radius:10px;padding:12px;text-align:center;" class="dark:bg-[#111]">
+                <div style="font-size:13px;font-weight:700;color:#22c55e;word-break:break-all;">${last}</div>
+                <div style="font-size:11px;color:#9ca3af;margin-top:2px;">آخر زيارة</div>
+            </div>
+        </div>
+        <div style="font-size:12px;font-weight:800;color:#6b7280;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;">مصادر الزيارات</div>
+        ${sourceRows}
+    `;
+}
+
+// ── Format Helpers ────────────────────────────────────────────
 function formatNum(n) {
     if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
-    if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+    if (n >= 1000)    return (n/1000).toFixed(1)    + 'K';
     return n.toString();
 }
+function fmtDate(iso) {
+    try {
+        const d = new Date(iso);
+        return d.toLocaleString('ar-SA', { dateStyle:'short', timeStyle:'short' });
+    } catch { return iso; }
+}
 
-// ─── Render Charts ──────────────────────────────────────
+// ── Render Charts ─────────────────────────────────────────────
 function renderCharts(d) {
-    const isDark = document.documentElement.classList.contains('dark');
+    const isDark    = document.documentElement.classList.contains('dark');
     const gridColor = isDark ? '#1a1a1a' : '#f3f4f6';
     const textColor = isDark ? '#6b7280' : '#9ca3af';
 
@@ -595,16 +603,15 @@ function renderCharts(d) {
     const reqCtx = document.getElementById('requestsChart');
     if (requestsChart) requestsChart.destroy();
     const days = d.daily_requests || [];
-    document.getElementById('totalRequests7d').textContent = `إجمالي: ${days.reduce((a,b) => a + (b.requests||0), 0).toLocaleString('ar-SA')}`;
+    document.getElementById('totalRequests7d').textContent =
+        `إجمالي: ${days.reduce((a,b) => a + (b.requests||0), 0).toLocaleString('ar-SA')}`;
     requestsChart = new Chart(reqCtx, {
         type: 'line',
         data: {
             labels: days.map(x => x.date || ''),
             datasets: [{
-                label: 'الطلبات',
-                data: days.map(x => x.requests || 0),
-                borderColor: '#f59e0b',
-                backgroundColor: 'rgba(245,158,11,0.1)',
+                label: 'الطلبات', data: days.map(x => x.requests || 0),
+                borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)',
                 borderWidth: 2.5, tension: 0.4, fill: true,
                 pointBackgroundColor: '#f59e0b', pointRadius: 4
             }]
@@ -619,18 +626,16 @@ function renderCharts(d) {
         }
     });
 
-    // Chart 2: Plans Distribution
+    // Chart 2: Plans
     const planCtx = document.getElementById('plansChart');
     if (plansChart) plansChart.destroy();
     const plans = d.plan_distribution || {};
-    const planLabels = Object.keys(plans);
-    const planValues = Object.values(plans);
     const planColors = ['#6b7280','#f59e0b','#3b82f6','#22c55e','#8b5cf6','#ec4899','#14b8a6','#ef4444'];
     plansChart = new Chart(planCtx, {
         type: 'doughnut',
         data: {
-            labels: planLabels,
-            datasets: [{ data: planValues, backgroundColor: planColors, borderWidth: 0 }]
+            labels: Object.keys(plans),
+            datasets: [{ data: Object.values(plans), backgroundColor: planColors, borderWidth: 0 }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
@@ -643,7 +648,7 @@ function renderCharts(d) {
         }
     });
 
-    // Chart 3: Model Usage
+    // Chart 3: Models
     const modelCtx = document.getElementById('modelsChart');
     if (modelsChart) modelsChart.destroy();
     const models = d.model_usage || {};
@@ -668,22 +673,22 @@ function renderCharts(d) {
     });
 }
 
-// ─── Load System Stats ───────────────────────────────────
+// ── Load System Stats ─────────────────────────────────────────
 async function loadSysStats() {
     const container = document.getElementById('sysStatsContainer');
     try {
-        const res = await fetch('/api/admin/dashboard-stats', {
-            headers: {'X-Admin-Token': '{{ admin_token }}'}
+        const res = await fetch(`/api/admin/dashboard-stats?period=${currentPeriod}`, {
+            headers: { 'X-Admin-Token': ADMIN_TOKEN }
         });
-        const d = await res.json();
+        const d  = await res.json();
         const gs = d.global_stats || {};
         const rows = [
-            { label: 'إجمالي الطلبات', value: (gs.total_requests||0).toLocaleString('ar-SA') },
-            { label: 'التوكن المُعالَجة', value: formatNum(gs.total_tokens||0) },
-            { label: 'متوسط الاستجابة', value: `${gs.avg_latency||0}ms` },
-            { label: 'الطلبات الداخلية', value: (gs.internal_ops||0).toLocaleString('ar-SA') },
-            { label: 'الأخطاء', value: (gs.errors||0).toLocaleString('ar-SA') },
-            { label: 'المحظورة', value: (gs.blocked||0).toLocaleString('ar-SA') },
+            { label: 'إجمالي الطلبات',     value: (gs.total_requests||0).toLocaleString('ar-SA') },
+            { label: 'التوكن المُعالَجة',   value: formatNum(gs.total_tokens||0) },
+            { label: 'متوسط الاستجابة',    value: `${gs.latency_sum && gs.total_requests ? Math.round(gs.latency_sum/gs.total_requests) : 0}ms` },
+            { label: 'العمليات الداخلية',   value: (gs.internal_ops||0).toLocaleString('ar-SA') },
+            { label: 'الأخطاء',             value: (gs.errors||0).toLocaleString('ar-SA') },
+            { label: 'المحظورة',            value: (gs.blocked||0).toLocaleString('ar-SA') },
         ];
         container.innerHTML = rows.map(r => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f3f4f6;" class="dark:border-[#1a1a1a]">
@@ -691,8 +696,6 @@ async function loadSysStats() {
                 <span style="font-size:14px;font-weight:700;">${r.value}</span>
             </div>
         `).join('');
-
-        // Load recent subscriptions
         loadRecentSubs(d.recent_subs || []);
     } catch(e) {
         container.innerHTML = '<p style="color:#ef4444;text-align:center;">خطأ في التحميل</p>';
@@ -709,7 +712,7 @@ function loadRecentSubs(subs) {
         <div style="padding:12px 20px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;" class="dark:border-[#1a1a1a]">
             <div>
                 <div style="font-size:13px;font-weight:700;">${s.email || '--'}</div>
-                <div style="font-size:11px;color:#9ca3af;">${s.activated || ''}</div>
+                <div style="font-size:11px;color:#9ca3af;">${s.activated ? fmtDate(s.activated) : ''}</div>
             </div>
             <div>
                 <span class="plan-badge plan-paid">${s.plan_name || s.plan_key || '--'}</span>
@@ -719,16 +722,16 @@ function loadRecentSubs(subs) {
     `).join('');
 }
 
-// ─── Load Users Table ────────────────────────────────────
+// ── Load Users (Gmail فقط، مرتّبة بأحدث تسجيل) ───────────────
 async function loadUsers() {
     const wrapper = document.getElementById('usersTableWrapper');
     wrapper.innerHTML = '<div style="display:flex;justify-content:center;padding:40px;"><div class="spinner"></div></div>';
     try {
-        const res = await fetch('/api/admin/users', {
-            headers: {'X-Admin-Token': '{{ admin_token }}'}
+        const res  = await fetch('/api/admin/users?gmail_only=true', {
+            headers: { 'X-Admin-Token': ADMIN_TOKEN }
         });
-        allUsers = await res.json();
-        document.getElementById('userCountBadge').textContent = `${allUsers.length} مستخدم`;
+        allUsers   = await res.json();
+        document.getElementById('userCountBadge').textContent = `${allUsers.length} مستخدم (Gmail)`;
         renderUsersTable(allUsers);
     } catch(e) {
         wrapper.innerHTML = '<p style="text-align:center;color:#ef4444;padding:40px;">خطأ في تحميل المستخدمين</p>';
@@ -748,8 +751,8 @@ function renderUsersTable(users) {
                     <th>البريد الإلكتروني</th>
                     <th>الباقات النشطة</th>
                     <th>الحالة</th>
-                    <th>الطلبات اليوم</th>
-                    <th>تاريخ التسجيل</th>
+                    <th>الطلبات</th>
+                    <th>تاريخ التسجيل ↓</th>
                     <th>الإجراءات</th>
                 </tr>
             </thead>
@@ -761,36 +764,35 @@ function renderUsersTable(users) {
 }
 
 function renderUserRow(u) {
-    const now = new Date();
+    const now         = new Date();
     const activePlans = (u.active_plans || []).filter(p => {
         try { return new Date(p.expires) > now; } catch { return false; }
     });
-    const isPaid = activePlans.length > 0;
+    const isPaid    = activePlans.length > 0;
     const planNames = activePlans.map(p => p.name || p.plan_key).join(', ') || 'Free Tier';
-    const statusDot = isPaid
-        ? '<span class="status-dot status-active"></span>'
-        : '<span class="status-dot status-free"></span>';
     const planBadge = isPaid
         ? `<span class="plan-badge plan-paid">${planNames}</span>`
         : `<span class="plan-badge plan-free">مجاني</span>`;
-    const usage = u.usage || {};
-    const todayReqs = (usage.total_requests || 0);
-    const createdAt = u.created_at ? u.created_at.split('T')[0] : '--';
+    const usage     = u.usage || {};
+    const createdAt = u.created_at ? fmtDate(u.created_at) : '--';
 
     return `
         <tr>
             <td>
                 <div style="font-weight:700;font-size:13px;">${u.email || '--'}</div>
-                <div style="font-size:11px;color:#9ca3af;font-family:monospace;">${(u.api_key||'').substring(0,16)}...</div>
+                <div style="font-size:11px;color:#9ca3af;font-family:monospace;">${(u.api_key||'').substring(0,16)}…</div>
             </td>
             <td>${planBadge}</td>
-            <td>${statusDot} <span style="font-size:12px;margin-right:4px;">${isPaid ? 'نشط' : 'مجاني'}</span></td>
-            <td style="font-weight:700;">${todayReqs.toLocaleString('ar-SA')}</td>
+            <td>
+                <span class="status-dot ${isPaid ? 'status-active' : 'status-free'}"></span>
+                <span style="font-size:12px;margin-right:4px;">${isPaid ? 'نشط' : 'مجاني'}</span>
+            </td>
+            <td style="font-weight:700;">${(usage.total_requests||0).toLocaleString('ar-SA')}</td>
             <td style="font-size:12px;color:#9ca3af;">${createdAt}</td>
             <td>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                    <button class="btn-view" onclick="viewUser('${u.email}')"><i class="fa-solid fa-eye" style="margin-left:4px;"></i>عرض</button>
-                    <button class="btn-grant" onclick="openGrantModal('${u.email}')"><i class="fa-solid fa-plus" style="margin-left:4px;"></i>منح</button>
+                    <button class="btn-view"   onclick="viewUser('${u.email}')"><i class="fa-solid fa-eye" style="margin-left:4px;"></i>عرض</button>
+                    <button class="btn-grant"  onclick="openGrantModal('${u.email}')"><i class="fa-solid fa-plus" style="margin-left:4px;"></i>منح</button>
                     ${isPaid ? `<button class="btn-revoke" onclick="revokeAllPlans('${u.email}')"><i class="fa-solid fa-ban" style="margin-left:4px;"></i>إلغاء</button>` : ''}
                 </div>
             </td>
@@ -798,48 +800,39 @@ function renderUserRow(u) {
     `;
 }
 
-// ─── Filter Users ────────────────────────────────────────
+// ── Filter Users ──────────────────────────────────────────────
 function filterUsers(q) {
-    const planFilter = document.getElementById('filterPlan').value;
+    const planFilter   = document.getElementById('filterPlan').value;
     const statusFilter = document.getElementById('filterStatus').value;
-    const now = new Date();
+    const now          = new Date();
 
     let filtered = allUsers.filter(u => {
-        const emailMatch = !q || u.email.toLowerCase().includes(q.toLowerCase());
-        if (!emailMatch) return false;
-
-        if (planFilter) {
-            const plans = (u.active_plans||[]).filter(p => new Date(p.expires||0) > now);
-            if (planFilter === 'free') { if (plans.length > 0) return false; }
-            else if (planFilter === 'paid') { if (plans.length === 0) return false; }
-            else {
-                const hasPlan = plans.some(p => (p.plan_key||'') === planFilter);
-                if (!hasPlan) return false;
-            }
+        if (q && !u.email.toLowerCase().includes(q.toLowerCase())) return false;
+        const plans = (u.active_plans||[]).filter(p => new Date(p.expires||0) > now);
+        if (planFilter === 'free'  && plans.length > 0)  return false;
+        if (planFilter === 'paid'  && plans.length === 0) return false;
+        if (planFilter && !['free','paid',''].includes(planFilter)) {
+            if (!plans.some(p => (p.plan_key||'') === planFilter)) return false;
         }
-
-        if (statusFilter) {
-            const plans = (u.active_plans||[]).filter(p => new Date(p.expires||0) > now);
-            const isActive = plans.length > 0;
-            if (statusFilter === 'active' && !isActive) return false;
-            if (statusFilter === 'expired' && isActive) return false;
-        }
+        if (statusFilter === 'active'  && plans.length === 0) return false;
+        if (statusFilter === 'expired' && plans.length > 0)   return false;
         return true;
     });
     renderUsersTable(filtered);
 }
 
-// ─── View User Modal ─────────────────────────────────────
+// ── View User ─────────────────────────────────────────────────
 async function viewUser(email) {
     currentModalEmail = email;
     document.getElementById('modalUserEmail').textContent = email;
-    document.getElementById('modalBody').innerHTML = '<div style="display:flex;justify-content:center;padding:24px;"><div class="spinner"></div></div>';
+    document.getElementById('modalBody').innerHTML =
+        '<div style="display:flex;justify-content:center;padding:24px;"><div class="spinner"></div></div>';
     document.getElementById('userModal').classList.add('open');
 
     const user = allUsers.find(u => u.email === email);
     if (!user) return;
 
-    const now = new Date();
+    const now         = new Date();
     const activePlans = (user.active_plans||[]).filter(p => {
         try { return new Date(p.expires) > now; } catch { return false; }
     });
@@ -848,12 +841,12 @@ async function viewUser(email) {
     const html = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
             ${[
-                ['البريد', user.email],
-                ['الخطة الحالية', user.plan || 'Free Tier'],
-                ['تاريخ التسجيل', (user.created_at||'--').split('T')[0]],
-                ['مفتاح API', `<code style="font-size:11px;">${user.api_key||'--'}</code>`],
-                ['الطلبات الكلية', (usage.total_requests||0).toLocaleString('ar-SA')],
-                ['التوكن الكلية', formatNum(usage.total_tokens||0)],
+                ['البريد',            user.email],
+                ['الخطة',             user.plan || 'Free Tier'],
+                ['تاريخ التسجيل',    user.created_at ? fmtDate(user.created_at) : '--'],
+                ['مفتاح API',         `<code style="font-size:11px;">${user.api_key||'--'}</code>`],
+                ['الطلبات الكلية',   (usage.total_requests||0).toLocaleString('ar-SA')],
+                ['التوكن الكلية',    formatNum(usage.total_tokens||0)],
             ].map(([k,v]) => `
                 <div style="background:#f9fafb;border-radius:10px;padding:12px;" class="dark:bg-[#111]">
                     <div style="font-size:11px;color:#9ca3af;margin-bottom:2px;">${k}</div>
@@ -861,7 +854,6 @@ async function viewUser(email) {
                 </div>
             `).join('')}
         </div>
-
         <h3 style="font-size:14px;font-weight:800;margin-bottom:12px;color:#f59e0b;">
             <i class="fa-solid fa-crown" style="margin-left:6px;"></i>الاشتراكات النشطة (${activePlans.length})
         </h3>
@@ -871,12 +863,11 @@ async function viewUser(email) {
                     <span class="plan-badge plan-paid">${p.name||p.plan_key}</span>
                     <span style="font-size:11px;color:#9ca3af;margin-right:8px;">${p.period||''}</span>
                 </div>
-                <div style="font-size:11px;color:#9ca3af;">ينتهي: ${(p.expires||'').split('T')[0]}</div>
+                <div style="font-size:11px;color:#9ca3af;">ينتهي: ${p.expires ? fmtDate(p.expires) : '--'}</div>
             </div>
         `).join('') : '<p style="color:#9ca3af;font-size:13px;">لا توجد اشتراكات مدفوعة</p>'}
-
         <h3 style="font-size:14px;font-weight:800;margin:16px 0 12px;color:#3b82f6;">
-            <i class="fa-solid fa-chart-bar" style="margin-left:6px;"></i>الاستخدام اليوم
+            <i class="fa-solid fa-chart-bar" style="margin-left:6px;"></i>الاستخدام اليومي
         </h3>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
             ${['deepseek','kimi','mistral','llama','gemma','unified_extra'].map(k => `
@@ -886,7 +877,6 @@ async function viewUser(email) {
                 </div>
             `).join('')}
         </div>
-
         ${(user.subscription_history||[]).length ? `
         <h3 style="font-size:14px;font-weight:800;margin:16px 0 12px;color:#ec4899;">
             <i class="fa-solid fa-history" style="margin-left:6px;"></i>سجل الاشتراكات
@@ -895,46 +885,36 @@ async function viewUser(email) {
         ${(user.subscription_history||[]).slice(0,5).map(h => `
             <div style="padding:8px 0;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;" class="dark:border-[#1a1a1a]">
                 <span style="font-size:12px;">${h.name||h.plan_key} (${h.period||''}) — ${h.type||''}</span>
-                <span style="font-size:11px;color:#9ca3af;">${(h.activated||'').split('T')[0]}</span>
+                <span style="font-size:11px;color:#9ca3af;">${h.activated ? fmtDate(h.activated) : ''}</span>
             </div>
         `).join('')}
-        </div>
-        ` : ''}
+        </div>` : ''}
     `;
     document.getElementById('modalBody').innerHTML = html;
 }
+function closeUserModal()  { document.getElementById('userModal').classList.remove('open'); }
 
-function closeUserModal() {
-    document.getElementById('userModal').classList.remove('open');
-}
-
-// ─── Grant Plan Modal ────────────────────────────────────
+// ── Grant Modal ───────────────────────────────────────────────
 function openGrantModal(email) {
     document.getElementById('grantEmail').value = email;
     document.getElementById('grantModal').classList.add('open');
 }
-function closeGrantModal() {
-    document.getElementById('grantModal').classList.remove('open');
-}
+function closeGrantModal() { document.getElementById('grantModal').classList.remove('open'); }
 
 async function executeGrant() {
-    const email = document.getElementById('grantEmail').value.trim();
+    const email   = document.getElementById('grantEmail').value.trim();
     const planKey = document.getElementById('grantPlan').value;
-    const period = document.getElementById('grantPeriod').value;
+    const period  = document.getElementById('grantPeriod').value;
     if (!email) { showToast('يرجى إدخال البريد الإلكتروني', true); return; }
 
     const planNameMap = {
-        'deepseek':'DeepSeek V3','kimi':'Kimi k2','mistral':'Mistral Large',
-        'gemma':'Gemma 3','llama':'Llama 3.2','agents':'Chat Agents','global':'Nexus Global'
+        deepseek:'DeepSeek V3', kimi:'Kimi k2', mistral:'Mistral Large',
+        gemma:'Gemma 3', llama:'Llama 3.2', agents:'Chat Agents', global:'Nexus Global'
     };
-
     try {
         const res = await fetch('/api/admin/grant-plan', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Admin-Token': '{{ admin_token }}'
-            },
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN_TOKEN },
             body: JSON.stringify({ email, plan_key: planKey, plan_name: planNameMap[planKey], period })
         });
         const data = await res.json();
@@ -945,71 +925,53 @@ async function executeGrant() {
         } else {
             showToast(data.error || 'خطأ في التفعيل', true);
         }
-    } catch(e) {
-        showToast('خطأ في الاتصال', true);
-    }
+    } catch(e) { showToast('خطأ في الاتصال', true); }
 }
 
-// ─── Revoke All Plans ────────────────────────────────────
+// ── Revoke ────────────────────────────────────────────────────
 async function revokeAllPlans(email) {
     if (!confirm(`هل أنت متأكد من إلغاء جميع اشتراكات ${email}؟`)) return;
     try {
         const res = await fetch('/api/admin/revoke-plans', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Admin-Token': '{{ admin_token }}'
-            },
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN_TOKEN },
             body: JSON.stringify({ email })
         });
-        const data = await res.json();
-        if (res.ok) {
-            showToast(`✅ تم إلغاء اشتراكات ${email}`);
-            closeUserModal();
-            await loadUsers();
-        } else {
-            showToast(data.error || 'خطأ', true);
-        }
-    } catch(e) {
-        showToast('خطأ في الاتصال', true);
-    }
+        if (res.ok) { showToast(`✅ تم إلغاء اشتراكات ${email}`); closeUserModal(); await loadUsers(); }
+        else showToast('خطأ', true);
+    } catch(e) { showToast('خطأ في الاتصال', true); }
 }
 
-// ─── Reset Usage ─────────────────────────────────────────
+// ── Reset Usage ───────────────────────────────────────────────
 async function resetUsage(email) {
     if (!confirm(`إعادة تعيين إحصائيات الاستخدام لـ ${email}؟`)) return;
     try {
         const res = await fetch('/api/admin/reset-usage', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Admin-Token': '{{ admin_token }}'
-            },
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN_TOKEN },
             body: JSON.stringify({ email })
         });
-        if (res.ok) { showToast(`✅ تم إعادة تعيين الاستخدام`); await loadUsers(); }
+        if (res.ok) { showToast('✅ تم إعادة تعيين الاستخدام'); await loadUsers(); }
         else showToast('خطأ', true);
     } catch(e) { showToast('خطأ في الاتصال', true); }
 }
 
-// ─── Trigger DB Sync ─────────────────────────────────────
+// ── DB Sync ───────────────────────────────────────────────────
 async function triggerSync() {
     try {
-        const res = await fetch('/api/admin/sync-db', {
-            headers: {'X-Admin-Token': '{{ admin_token }}'}
+        const res  = await fetch('/api/admin/sync-db', {
+            headers: { 'X-Admin-Token': ADMIN_TOKEN }
         });
         const data = await res.json();
         showToast(`✅ مزامنة: ${data.synced_users || 0} مستخدم`);
-    } catch(e) {
-        showToast('خطأ في المزامنة', true);
-    }
+    } catch(e) { showToast('خطأ في المزامنة', true); }
 }
 
-// ─── Export Users CSV ────────────────────────────────────
+// ── Export CSV (Gmail فقط) ────────────────────────────────────
 function exportUsers() {
     if (!allUsers.length) { showToast('لا يوجد بيانات للتصدير', true); return; }
-    const now = new Date();
-    const rows = [['Email','Plan','Status','Requests Today','Created At']];
+    const now  = new Date();
+    const rows = [['Email','Plan','Status','Requests','Created At']];
     allUsers.forEach(u => {
         const plans = (u.active_plans||[]).filter(p => new Date(p.expires||0) > now);
         rows.push([
@@ -1017,30 +979,26 @@ function exportUsers() {
             plans.map(p=>p.name||p.plan_key).join('+') || 'Free',
             plans.length ? 'Active' : 'Free',
             (u.usage||{}).total_requests||0,
-            (u.created_at||'').split('T')[0]
+            u.created_at || ''
         ]);
     });
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `orgteh-users-${new Date().toISOString().split('T')[0]}.csv`;
+    const csv  = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `orgteh-gmail-users-${new Date().toISOString().split('T')[0]}.csv`;
     a.click(); URL.revokeObjectURL(url);
-    showToast('✅ تم تصدير البيانات');
+    showToast('✅ تم تصدير بيانات Gmail');
 }
 
-// ─── Close modals on outside click ───────────────────────
-document.getElementById('userModal').addEventListener('click', function(e) {
-    if (e.target === this) closeUserModal();
-});
-document.getElementById('grantModal').addEventListener('click', function(e) {
-    if (e.target === this) closeGrantModal();
-});
+// ── Close modals on outside click ────────────────────────────
+document.getElementById('userModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeUserModal(); });
+document.getElementById('grantModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeGrantModal(); });
 
-// ─── Init ─────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('updateTime').textContent = new Date().toLocaleTimeString('ar-SA');
-    refreshAll();
+// ── Init ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    // تعيين الفترة الافتراضية: 24 ساعة
+    setPeriod('24h');
 });
 </script>
 
