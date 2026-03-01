@@ -1,13 +1,3 @@
-"""
-services/widget_service.py
-==========================
-خدمة الـ Widget الكاملة:
-  - إنشاء / تحديث / حذف الودجتات
-  - زحف (Crawl) المواقع وتنظيف النصوص
-  - نظام RAG مبسّط مع Redis
-  - نقطة نهاية المحادثة العامة (بدون مصادقة)
-"""
-
 import os
 import re
 import json
@@ -327,9 +317,10 @@ If you cannot find the answer in the sources, say so politely and suggest direct
 async def widget_chat_stream(widget_id: str, message: str, history: list, lang: str = "ar"):
     """
     نقطة المحادثة للـ Widget (عامة، بدون مصادقة مستخدم).
-    تُعيد generator يولّد أجزاء SSE.
+    تُعيد generator يولّد أجزاء SSE عبر NVIDIA Llama 3.1-8b-instruct.
     """
-    from services.providers import smart_chat_stream, acquire_provider_slot
+    import os
+    import httpx
 
     w = _get_widget(widget_id)
     if not w:
@@ -344,24 +335,52 @@ async def widget_chat_stream(widget_id: str, message: str, history: list, lang: 
 
     system_prompt = _build_system_prompt(w, lang)
 
-    messages = [{"role": "system", "content": system_prompt}]
-    for h in history[-6:]:  # آخر 6 رسائل فقط
+    messages = [{"role": "user", "content": system_prompt + "\n\n---"}]
+    for h in history[-6:]:
         if h.get("role") in ("user", "assistant"):
             messages.append({"role": h["role"], "content": h["content"]})
     messages.append({"role": "user", "content": message})
 
+    nvidia_api_key = os.environ.get("NVIDIA_API_KEY", "")
+    if not nvidia_api_key:
+        yield b'data: {"error": "NVIDIA API key not configured"}\n\n'
+        return
+
     payload = {
-        "model":       "gpt-4o-mini",
+        "model":       "meta/llama-3.1-8b-instruct",
         "messages":    messages,
-        "max_tokens":  800,
-        "temperature": 0.6,
+        "temperature": 0.3,
+        "top_p":       0.7,
+        "max_tokens":  4096,
         "stream":      True,
     }
 
+    headers = {
+        "Authorization": f"Bearer {nvidia_api_key}",
+        "Content-Type":  "application/json",
+        "Accept":        "text/event-stream",
+    }
+
     try:
-        await acquire_provider_slot(is_priority=False)
-        async for chunk in smart_chat_stream(payload, "widget@orgteh.com", is_trial=True):
-            yield chunk
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            async with client.stream(
+                "POST",
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                json=payload,
+                headers=headers,
+            ) as resp:
+                if resp.status_code != 200:
+                    body = await resp.aread()
+                    yield json.dumps({"error": f"NVIDIA API error {resp.status_code}"}).encode()
+                    return
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    raw = line[6:].strip()
+                    if raw == "[DONE]":
+                        yield b"data: [DONE]\n\n"
+                        break
+                    yield f"data: {raw}\n\n".encode("utf-8")
     except Exception as e:
         yield json.dumps({"error": str(e)}).encode("utf-8")
 
