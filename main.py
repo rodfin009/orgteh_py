@@ -54,7 +54,11 @@ from services.widget_service import (
     widget_chat_stream,
     get_all_widgets_admin,
     get_widget_stats_admin,
+    get_security_log,
+    unblock_ip,
+    generate_embed_token,
     _get_widget,
+    _is_origin_allowed,
 )
 
 # ============================================================================
@@ -857,18 +861,23 @@ class WidgetCreateRequest(BaseModel):
     name: str = "مساعد ذكي"
 
 class WidgetUpdateRequest(BaseModel):
-    name:              Optional[str]  = None
-    knowledge_mode:    Optional[str]  = None
-    manual_content:    Optional[str]  = None
-    urls:              Optional[list] = None
-    personality:       Optional[str]  = None
-    color:             Optional[str]  = None
-    assistant_name_ar: Optional[str]  = None
-    assistant_name_en: Optional[str]  = None
-    welcome_ar:        Optional[str]  = None
-    welcome_en:        Optional[str]  = None
-    position:          Optional[str]  = None
-    active:            Optional[bool] = None
+    name:              Optional[str]   = None
+    knowledge_mode:    Optional[str]   = None
+    manual_content:    Optional[str]   = None
+    urls:              Optional[list]  = None
+    personality:       Optional[str]   = None
+    color:             Optional[str]   = None
+    assistant_name_ar: Optional[str]   = None
+    assistant_name_en: Optional[str]   = None
+    welcome_ar:        Optional[str]   = None
+    welcome_en:        Optional[str]   = None
+    position:          Optional[str]   = None
+    active:            Optional[bool]  = None
+    widget_style:      Optional[str]   = None
+    widget_size:       Optional[str]   = None
+    # ─── SECURITY: النطاقات المسموح بها لتضمين الـ Widget ───────────────
+    allowed_domains:   Optional[list]  = None   # ["example.com", "*.shop.com"]
+    # ⛔ show_branding مُقفَل server-side — لا تُضف حقلاً له هنا أبداً
 
 class WidgetCrawlRequest(BaseModel):
     url: str
@@ -928,27 +937,50 @@ async def widget_crawl(request: Request, widget_id: str, data: WidgetCrawlReques
 
 @app.post("/api/widget/{widget_id}/chat")
 async def widget_chat(request: Request, widget_id: str, data: WidgetChatRequest):
-    """نقطة محادثة الودجت العامة — لا تتطلب تسجيل دخول (للزوار)."""
-    from database import redis as _redis
-    # Rate limiting بسيط على مستوى IP
-    client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip() \
-                or getattr(request.client, "host", "unknown")
-    if _redis:
-        rate_key = f"widget_rate:{client_ip}"
-        count = _redis.incr(rate_key)
-        if count == 1:
-            _redis.expire(rate_key, 60)
-        if count > 20:
-            return JSONResponse({"error": "Rate limit exceeded"}, 429)
+    """نقطة محادثة الودجت العامة — كل الأمان داخل widget_chat_stream."""
+    client_ip = (
+        request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        or getattr(request.client, "host", "unknown")
+    )
+    raw_origin  = request.headers.get("Origin", "")
+    raw_referer = request.headers.get("Referer", "")
+    if raw_origin:
+        origin = raw_origin
+    elif raw_referer and len(raw_referer.split("/")) >= 3:
+        origin = "/".join(raw_referer.split("/")[:3])
+    else:
+        origin = ""
+
+    # طلب بلا Origin = طلب API مباشر → ارفض فوراً
+    if not origin:
+        return JSONResponse({"error": "Access denied"}, status_code=403)
+
+    embed_token = request.headers.get("X-Widget-Token", "")
 
     return StreamingResponse(
-        widget_chat_stream(widget_id, data.message, data.history, data.lang),
+        widget_chat_stream(
+            widget_id, data.message, data.history, data.lang,
+            origin=origin, embed_token=embed_token, client_ip=client_ip,
+        ),
         media_type="text/event-stream",
-        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"}
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
     )
 
 
-# ── Admin Widget APIs ──────────────────────────────────────────────────────
+# ─── Embed Token Generator ────────────────────────────────────────────────
+@app.get("/api/widget/{widget_id}/token")
+async def widget_get_token(request: Request, widget_id: str):
+    """يُصدر Embed Token مؤقت — widget-loader.js يطلبه تلقائياً."""
+    origin = request.headers.get("Origin", "")
+    w      = _get_widget(widget_id)
+    if not w or not w.get("active", True):
+        return JSONResponse({"error": "Widget not found"}, status_code=404)
+    if not _is_origin_allowed(origin, w.get("allowed_domains", [])):
+        return JSONResponse({"error": "Domain not authorized"}, status_code=403)
+    token = generate_embed_token(widget_id, origin)
+    return JSONResponse({"token": token, "expires": 3600})
+
+
 from services.admin import verify_admin as _verify_admin
 
 @app.get("/api/admin/widget-stats")
@@ -960,6 +992,19 @@ async def admin_widget_stats(request: Request):
 async def admin_widgets_list(request: Request):
     _verify_admin(request)
     return JSONResponse({"widgets": get_all_widgets_admin()})
+
+@app.get("/api/admin/widget-security-log")
+async def admin_security_log(request: Request, limit: int = 100):
+    _verify_admin(request)
+    return JSONResponse({"log": get_security_log(limit)})
+
+@app.delete("/api/admin/widget-unblock/{ip}")
+async def admin_unblock_ip(request: Request, ip: str):
+    _verify_admin(request)
+    unblock_ip(ip)
+    return JSONResponse({"ok": True, "ip": ip})
+
+
 
 @app.get("/policy", response_class=HTMLResponse)
 async def policy_redirect():
