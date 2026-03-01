@@ -24,7 +24,8 @@ from services.auth import (
     handle_send_verification, handle_register, handle_login, handle_logout,
     get_current_user_email, get_auth_context,
     handle_google_login, handle_google_callback,
-    validate_password as _validate_password
+    validate_password as _validate_password,
+    CheckEmailRequest, handle_check_email,
 )
 from database import (
     get_user_by_email, get_user_by_api_key, get_global_stats, add_user_subscription,
@@ -42,6 +43,19 @@ from services.payments import generate_payment_link, verify_spaceremit_payment
 
 # ── استيراد لوحة الأدمن المنفصلة ──────────────────────────────────────────────
 from services.admin import router as admin_router, track_page_visit, ADMIN_TOKEN, ADMIN_EMAIL
+
+# ── استيراد خدمة الودجت ────────────────────────────────────────────────────
+from services.widget_service import (
+    create_widget as _create_widget,
+    update_widget as _update_widget,
+    delete_widget as _delete_widget,
+    get_user_widgets,
+    crawl_url as _crawl_url,
+    widget_chat_stream,
+    get_all_widgets_admin,
+    get_widget_stats_admin,
+    _get_widget,
+)
 
 # ============================================================================
 # CONFIGURATION
@@ -824,6 +838,127 @@ async def docs_redirect():
 async def docs_page(request: Request, lang: str):
     return templates.TemplateResponse("docs.html", get_template_context(request, lang))
 
+# ============================================================================
+# WIDGET ROUTES
+# ============================================================================
+
+@app.get("/widget", response_class=HTMLResponse)
+async def widget_redirect():
+    return RedirectResponse("/en/widget")
+
+@app.get("/{lang}/widget", response_class=HTMLResponse)
+async def widget_page(request: Request, lang: str):
+    return templates.TemplateResponse("widget.html", get_template_context(request, lang))
+
+
+class WidgetCreateRequest(BaseModel):
+    name: str = "مساعد ذكي"
+
+class WidgetUpdateRequest(BaseModel):
+    name:              Optional[str]  = None
+    knowledge_mode:    Optional[str]  = None
+    manual_content:    Optional[str]  = None
+    urls:              Optional[list] = None
+    personality:       Optional[str]  = None
+    color:             Optional[str]  = None
+    assistant_name_ar: Optional[str]  = None
+    assistant_name_en: Optional[str]  = None
+    welcome_ar:        Optional[str]  = None
+    welcome_en:        Optional[str]  = None
+    position:          Optional[str]  = None
+    active:            Optional[bool] = None
+
+class WidgetCrawlRequest(BaseModel):
+    url: str
+
+class WidgetChatRequest(BaseModel):
+    message: str
+    history: list = []
+    lang:    str  = "ar"
+
+
+@app.get("/api/widget/list")
+async def widget_list(request: Request):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, 401)
+    return JSONResponse({"widgets": get_user_widgets(email)})
+
+
+@app.post("/api/widget/create")
+async def widget_create(request: Request, data: WidgetCreateRequest):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, 401)
+    w = _create_widget(email, data.name.strip() or "مساعد ذكي")
+    return JSONResponse({"ok": True, "widget": w})
+
+
+@app.put("/api/widget/{widget_id}")
+async def widget_update(request: Request, widget_id: str, data: WidgetUpdateRequest):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, 401)
+    updates = {k: v for k, v in data.dict().items() if v is not None}
+    w = _update_widget(widget_id, email, updates)
+    if not w:
+        return JSONResponse({"error": "Widget not found"}, 404)
+    return JSONResponse({"ok": True, "widget": w})
+
+
+@app.delete("/api/widget/{widget_id}")
+async def widget_delete(request: Request, widget_id: str):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, 401)
+    ok = _delete_widget(widget_id, email)
+    return JSONResponse({"ok": ok})
+
+
+@app.post("/api/widget/{widget_id}/crawl")
+async def widget_crawl(request: Request, widget_id: str, data: WidgetCrawlRequest):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, 401)
+    result = await _crawl_url(widget_id, email, data.url)
+    return JSONResponse(result)
+
+
+@app.post("/api/widget/{widget_id}/chat")
+async def widget_chat(request: Request, widget_id: str, data: WidgetChatRequest):
+    """نقطة محادثة الودجت العامة — لا تتطلب تسجيل دخول (للزوار)."""
+    from database import redis as _redis
+    # Rate limiting بسيط على مستوى IP
+    client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip() \
+                or getattr(request.client, "host", "unknown")
+    if _redis:
+        rate_key = f"widget_rate:{client_ip}"
+        count = _redis.incr(rate_key)
+        if count == 1:
+            _redis.expire(rate_key, 60)
+        if count > 20:
+            return JSONResponse({"error": "Rate limit exceeded"}, 429)
+
+    return StreamingResponse(
+        widget_chat_stream(widget_id, data.message, data.history, data.lang),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"}
+    )
+
+
+# ── Admin Widget APIs ──────────────────────────────────────────────────────
+from services.admin import verify_admin as _verify_admin
+
+@app.get("/api/admin/widget-stats")
+async def admin_widget_stats(request: Request):
+    _verify_admin(request)
+    return JSONResponse(get_widget_stats_admin())
+
+@app.get("/api/admin/widgets")
+async def admin_widgets_list(request: Request):
+    _verify_admin(request)
+    return JSONResponse({"widgets": get_all_widgets_admin()})
+
 @app.get("/policy", response_class=HTMLResponse)
 async def policy_redirect():
     return RedirectResponse("/en/policy")
@@ -857,6 +992,10 @@ async def dashboard_page(request: Request, lang: str):
 # ============================================================================
 # AUTH API ENDPOINTS
 # ============================================================================
+
+@app.post("/auth/check-email")
+async def check_email_endpoint(data: CheckEmailRequest):
+    return await handle_check_email(data)
 
 @app.post("/auth/send-verification")
 async def send_verification(request: Request, data: SendVerificationRequest):

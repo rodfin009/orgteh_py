@@ -1,0 +1,1646 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<style>
+/* ══════════════════════════════════════════════════════════
+   🧩 Widget Builder – Styles
+══════════════════════════════════════════════════════════ */
+:root {
+    --w-purple: #7c3aed;
+    --w-purple-light: #ede9fe;
+    --w-green: #22c55e;
+}
+
+.widget-page {
+    min-height: 100vh;
+    background: #f9fafb;
+    padding: 24px 16px 80px;
+}
+html.dark .widget-page { background: #050505; }
+
+/* ─── Hero banner ─── */
+.widget-hero {
+    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 50%, #06b6d4 100%);
+    border-radius: 20px;
+    padding: 40px 32px;
+    color: #fff;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+}
+.widget-hero::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='20'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ─── Layout ─── */
+.widget-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+@media (max-width: 900px) {
+    .widget-layout { grid-template-columns: 1fr; }
+}
+
+/* ─── Card ─── */
+.w-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    overflow: hidden;
+}
+html.dark .w-card {
+    background: #0d0d0d;
+    border-color: #1a1a1a;
+}
+.w-card-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+html.dark .w-card-header { border-color: #1a1a1a; }
+
+/* ─── Widget list item ─── */
+.widget-item {
+    padding: 14px 18px;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+html.dark .widget-item { border-color: #111; }
+.widget-item:hover, .widget-item.active {
+    background: #ede9fe;
+}
+html.dark .widget-item:hover, html.dark .widget-item.active {
+    background: #1a1033;
+}
+.widget-item-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--w-green);
+    flex-shrink: 0;
+}
+.widget-item-dot.inactive { background: #9ca3af; }
+
+/* ─── Tabs ─── */
+.w-tabs {
+    display: flex;
+    border-bottom: 1px solid #e5e7eb;
+    overflow-x: auto;
+}
+html.dark .w-tabs { border-color: #1a1a1a; }
+.w-tab {
+    padding: 12px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #6b7280;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    background: none;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    font-family: 'Cairo', sans-serif;
+}
+.w-tab.active {
+    color: var(--w-purple);
+    border-bottom-color: var(--w-purple);
+}
+html.dark .w-tab { color: #4b5563; }
+html.dark .w-tab.active { color: #a78bfa; border-bottom-color: #a78bfa; }
+
+/* ─── Form Controls ─── */
+.w-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 6px;
+}
+html.dark .w-label { color: #d1d5db; }
+
+.w-input, .w-select, .w-textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: 'Cairo', sans-serif;
+    background: #fff;
+    color: #111;
+    transition: border 0.2s;
+    box-sizing: border-box;
+}
+html.dark .w-input, html.dark .w-select, html.dark .w-textarea {
+    background: #111;
+    border-color: #333;
+    color: #f3f4f6;
+}
+.w-input:focus, .w-select:focus, .w-textarea:focus {
+    outline: none;
+    border-color: var(--w-purple);
+}
+.w-textarea { min-height: 120px; resize: vertical; }
+
+/* ─── Mode selector ─── */
+.mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.mode-card {
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+html.dark .mode-card { border-color: #333; }
+.mode-card:hover { border-color: var(--w-purple); }
+.mode-card.selected {
+    border-color: var(--w-purple);
+    background: #ede9fe;
+}
+html.dark .mode-card.selected { background: #1a1033; }
+.mode-card i { font-size: 22px; color: var(--w-purple); margin-bottom: 6px; display: block; }
+.mode-card .mode-title { font-size: 12px; font-weight: 700; }
+.mode-card .mode-sub { font-size: 10px; color: #9ca3af; }
+
+/* ─── Personality ─── */
+.personality-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.personality-btn {
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    transition: all 0.2s;
+    background: none;
+    font-family: 'Cairo', sans-serif;
+    color: inherit;
+}
+html.dark .personality-btn { border-color: #333; }
+.personality-btn:hover, .personality-btn.selected {
+    border-color: var(--w-purple);
+    background: #ede9fe;
+    color: var(--w-purple);
+}
+html.dark .personality-btn:hover, html.dark .personality-btn.selected {
+    background: #1a1033;
+    color: #a78bfa;
+}
+
+/* ─── Color picker row ─── */
+.color-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.color-dot {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: transform 0.15s, border 0.15s;
+    flex-shrink: 0;
+}
+.color-dot:hover, .color-dot.selected {
+    transform: scale(1.2);
+    border-color: #fff;
+    box-shadow: 0 0 0 2px #7c3aed;
+}
+.color-custom {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    cursor: pointer;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ─── Code block ─── */
+.code-block {
+    background: #1e1e2e;
+    border-radius: 12px;
+    padding: 20px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #a78bfa;
+    overflow-x: auto;
+    position: relative;
+    line-height: 1.7;
+}
+
+/* ─── Preview chat bubble ─── */
+.preview-bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.preview-bubble.bot {
+    background: #fff;
+    border-radius: 4px 16px 16px 16px;
+    align-self: flex-start;
+    color: #111;
+}
+html.dark .preview-bubble.bot { background: #1a1a1a; color: #f3f4f6; }
+.preview-bubble.user {
+    align-self: flex-end;
+    color: #fff;
+    border-radius: 16px 16px 4px 16px;
+}
+
+/* ─── Widget Live Preview (floating) ─── */
+.live-preview-widget {
+    position: fixed;
+    bottom: 90px;
+    width: 340px;
+    height: 480px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    display: none;
+    flex-direction: column;
+    z-index: 9000;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+}
+html.dark .live-preview-widget {
+    background: #0d0d0d;
+    border-color: #1a1a1a;
+}
+.live-preview-widget.active { display: flex; }
+.live-preview-widget.right-pos { right: 24px; }
+.live-preview-widget.left-pos { left: 24px; }
+.lp-header {
+    padding: 14px 16px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+.lp-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.lp-input-row {
+    padding: 12px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+}
+html.dark .lp-input-row { border-color: #1a1a1a; }
+.lp-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 20px;
+    font-size: 13px;
+    font-family: 'Cairo', sans-serif;
+    background: #f9fafb;
+    color: #111;
+}
+html.dark .lp-input {
+    background: #111;
+    border-color: #333;
+    color: #f3f4f6;
+}
+.lp-input:focus { outline: none; }
+.lp-send {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s;
+    flex-shrink: 0;
+}
+.lp-send:hover { opacity: 0.85; }
+.lp-branding {
+    text-align: center;
+    font-size: 10px;
+    color: #9ca3af;
+    padding: 4px 0;
+    flex-shrink: 0;
+}
+.lp-branding a { color: var(--w-purple); text-decoration: none; }
+
+/* ─── Floating toggle ─── */
+.live-toggle-btn {
+    position: fixed;
+    bottom: 24px;
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 22px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    z-index: 9001;
+    transition: transform 0.2s;
+}
+.live-toggle-btn:hover { transform: scale(1.08); }
+.live-toggle-btn.right-pos { right: 24px; }
+.live-toggle-btn.left-pos { left: 24px; }
+
+/* ─── Buttons ─── */
+.btn-primary {
+    background: var(--w-purple);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Cairo', sans-serif;
+    transition: opacity 0.2s;
+}
+.btn-primary:hover { opacity: 0.85; }
+.btn-danger {
+    background: #fee2e2;
+    color: #dc2626;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Cairo', sans-serif;
+}
+html.dark .btn-danger { background: #2d0808; color: #f87171; }
+.btn-ghost {
+    background: none;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Cairo', sans-serif;
+    color: inherit;
+    transition: background 0.15s;
+}
+html.dark .btn-ghost { border-color: #333; }
+.btn-ghost:hover { background: #f3f4f6; }
+html.dark .btn-ghost:hover { background: #111; }
+
+/* ─── Status badge ─── */
+.status-badge {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.status-badge.active-badge { background: #dcfce7; color: #16a34a; }
+.status-badge.inactive-badge { background: #fee2e2; color: #dc2626; }
+html.dark .status-badge.active-badge { background: #052e16; color: #4ade80; }
+html.dark .status-badge.inactive-badge { background: #2d0808; color: #f87171; }
+
+/* ─── Spinner ─── */
+.spinner-sm {
+    width: 16px; height: 16px;
+    border: 2px solid #e5e7eb;
+    border-top-color: var(--w-purple);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Empty state ─── */
+.empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: #9ca3af;
+}
+.empty-state > i { font-size: 36px; margin-bottom: 12px; display: block; }
+
+/* ─── Usage bar ─── */
+.usage-bar-track {
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 99px;
+    overflow: hidden;
+}
+html.dark .usage-bar-track { background: #1a1a1a; }
+.usage-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--w-purple), #06b6d4);
+    transition: width 0.5s ease;
+}
+
+/* ─── Crawl status ─── */
+.crawl-status {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 10px;
+    display: none;
+}
+.crawl-status.show { display: block; }
+.crawl-status.success { background: #dcfce7; color: #15803d; }
+.crawl-status.error { background: #fee2e2; color: #dc2626; }
+.crawl-status.loading { background: #ede9fe; color: #7c3aed; }
+html.dark .crawl-status.success { background: #052e16; color: #4ade80; }
+html.dark .crawl-status.error { background: #2d0808; color: #f87171; }
+html.dark .crawl-status.loading { background: #1a1033; color: #a78bfa; }
+
+/* ─── Tab content ─── */
+.tab-content { display: none; padding: 20px; }
+.tab-content.active { display: block; }
+
+/* ─── Toast ─── */
+#widgetToast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #111;
+    color: #fff;
+    padding: 10px 22px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 700;
+    z-index: 99999;
+    display: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    pointer-events: none;
+}
+html.dark #widgetToast { background: #f3f4f6; color: #111; }
+
+/* ─── Overlay/Modal ─── */
+.w-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99998;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.w-modal-overlay.show { display: flex; }
+.w-modal-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px;
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+}
+html.dark .w-modal-box { background: #111; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="widget-page" dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}">
+<div style="max-width:1200px;margin:0 auto;">
+
+    {# ── Hero ── #}
+    <div class="widget-hero">
+        <div style="position:relative;z-index:1;">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+                <div style="width:52px;height:52px;background:rgba(255,255,255,0.2);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">
+                    🧩
+                </div>
+                <div>
+                    <h1 style="font-size:22px;font-weight:900;margin:0;" id="hero-title">ادمج مساعداً ذكياً في موقعك</h1>
+                    <p style="margin:4px 0 0;font-size:14px;opacity:0.85;" id="hero-sub">أضف ودجت محادثة ذكي يرد على زوارك بمعلوماتك الخاصة</p>
+                </div>
+            </div>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:6px;font-size:13px;opacity:0.9;"><i class="fa-solid fa-check-circle"></i><span id="feat1">مجاني بالكامل</span></div>
+                <div style="display:flex;align-items:center;gap:6px;font-size:13px;opacity:0.9;"><i class="fa-solid fa-bolt"></i><span id="feat2">جاهز خلال دقيقة</span></div>
+                <div style="display:flex;align-items:center;gap:6px;font-size:13px;opacity:0.9;"><i class="fa-solid fa-globe"></i><span id="feat3">عربي + إنجليزي</span></div>
+                <div style="display:flex;align-items:center;gap:6px;font-size:13px;opacity:0.9;"><i class="fa-solid fa-code"></i><span id="feat4">بدون كود معقد</span></div>
+            </div>
+        </div>
+    </div>
+
+    {% if not is_logged_in %}
+    {# ── Not logged in ── #}
+    <div class="w-card" style="padding:60px;text-align:center;max-width:560px;margin:0 auto;">
+        <div style="font-size:52px;margin-bottom:16px;">🔐</div>
+        <h2 style="font-size:20px;font-weight:900;margin-bottom:10px;" id="login-title">سجّل دخولك لإنشاء ودجتك</h2>
+        <p style="font-size:14px;color:#9ca3af;margin-bottom:24px;" id="login-sub">الأداة مجانية تماماً، فقط نحتاج حساباً لحفظ إعداداتك.</p>
+        <a href="/{{ lang }}/login" class="btn-primary" style="display:inline-block;padding:14px 32px;font-size:15px;text-decoration:none;" id="login-btn">تسجيل الدخول / إنشاء حساب</a>
+    </div>
+    {% else %}
+
+    {# ── Main Layout ── #}
+    <div class="widget-layout">
+
+        {# ── Left: Widget List ── #}
+        <div class="w-card" style="height:fit-content;">
+            <div class="w-card-header">
+                <span style="font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;">
+                    <i class="fa-solid fa-puzzle-piece" style="color:var(--w-purple);"></i>
+                    <span id="my-widgets-label">ودجتاتي</span>
+                    <span id="widgetCount" style="background:#ede9fe;color:var(--w-purple);font-size:11px;padding:2px 8px;border-radius:999px;font-weight:800;">0</span>
+                </span>
+                <button class="btn-primary" onclick="openCreateModal()" style="padding:8px 14px;font-size:12px;" id="new-widget-btn">+ جديد</button>
+            </div>
+            <div id="widgetsList">
+                <div class="empty-state">
+                    <div class="spinner-sm" style="margin:0 auto 12px;display:block;"></div>
+                    <span id="loading-label">جارٍ التحميل...</span>
+                </div>
+            </div>
+        </div>
+
+        {# ── Right: Editor ── #}
+        <div id="editorPanel" style="display:none;">
+            <div class="w-card">
+                <div class="w-card-header">
+                    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                        <span style="font-size:18px;">🧩</span>
+                        <span style="font-weight:900;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="editorTitle">—</span>
+                        <span id="editorStatusBadge" class="status-badge active-badge"></span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+                        <button class="btn-ghost" onclick="toggleWidgetActive()" id="toggleActiveBtn" style="font-size:12px;"></button>
+                        <button class="btn-danger" onclick="confirmDeleteWidget()" style="font-size:12px;">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="w-tabs">
+                    <button class="w-tab active" onclick="switchTab('knowledge')" id="tab-btn-knowledge">🧠 المعرفة</button>
+                    <button class="w-tab" onclick="switchTab('appearance')" id="tab-btn-appearance">🎨 المظهر</button>
+                    <button class="w-tab" onclick="switchTab('code')" id="tab-btn-code">💻 الكود</button>
+                    <button class="w-tab" onclick="switchTab('stats')" id="tab-btn-stats">📊 الإحصاء</button>
+                </div>
+
+                {# ── Tab: Knowledge ── #}
+                <div id="tab-knowledge" class="tab-content active">
+                    <div style="margin-bottom:18px;">
+                        <label class="w-label" id="mode-label">🧠 مصدر المعرفة</label>
+                        <div class="mode-grid">
+                            <div class="mode-card" id="mode-manual" onclick="selectMode('manual')">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                                <div class="mode-title" id="mode-manual-title">يدوي</div>
+                                <div class="mode-sub" id="mode-manual-sub">اكتب النصوص مباشرة</div>
+                            </div>
+                            <div class="mode-card" id="mode-url" onclick="selectMode('url')">
+                                <i class="fa-solid fa-globe"></i>
+                                <div class="mode-title" id="mode-url-title">من موقعي</div>
+                                <div class="mode-sub" id="mode-url-sub">زحف تلقائي للموقع</div>
+                            </div>
+                            <div class="mode-card" id="mode-files" onclick="selectMode('files')">
+                                <i class="fa-solid fa-file-lines"></i>
+                                <div class="mode-title" id="mode-files-title">ملفات</div>
+                                <div class="mode-sub" id="mode-files-sub">PDF / DOC</div>
+                            </div>
+                            <div class="mode-card" id="mode-all" onclick="selectMode('all')">
+                                <i class="fa-solid fa-layer-group"></i>
+                                <div class="mode-title" id="mode-all-title">الكل</div>
+                                <div class="mode-sub" id="mode-all-sub">دمج جميع المصادر</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="section-manual" style="display:block;margin-bottom:16px;">
+                        <label class="w-label" id="manual-label">📝 المحتوى اليدوي</label>
+                        <textarea class="w-textarea" id="manualContent" rows="7"></textarea>
+                    </div>
+
+                    <div id="section-url" style="display:none;margin-bottom:16px;">
+                        <label class="w-label" id="url-label">🌐 رابط موقعك</label>
+                        <div style="display:flex;gap:8px;">
+                            <input type="url" class="w-input" id="crawlUrl" placeholder="https://yoursite.com" style="flex:1;">
+                            <button class="btn-primary" onclick="startCrawl()" id="crawlBtn" style="white-space:nowrap;padding:10px 16px;">
+                                <i class="fa-solid fa-spider"></i> <span id="crawl-btn-text">زحف</span>
+                            </button>
+                        </div>
+                        <div class="crawl-status" id="crawlStatus"></div>
+                        <p style="font-size:11px;color:#9ca3af;margin-top:8px;" id="crawl-note">سيتم زحف أقصى 5 صفحات وتخزين المحتوى تلقائياً.</p>
+                    </div>
+
+                    <div id="section-files" style="display:none;margin-bottom:16px;">
+                        <label class="w-label" id="files-label">📁 رفع الملفات</label>
+                        <div style="border:2px dashed #d1d5db;border-radius:12px;padding:30px;text-align:center;color:#9ca3af;cursor:pointer;" onclick="document.getElementById('fileInput').click()">
+                            <i class="fa-solid fa-cloud-arrow-up" style="font-size:28px;display:block;margin-bottom:8px;"></i>
+                            <span id="files-drag-label">اضغط أو اسحب ملفاتك هنا (PDF, DOC, TXT)</span>
+                        </div>
+                        <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx,.txt" style="display:none;" onchange="handleFiles(this)">
+                        <div id="filesList" style="margin-top:10px;font-size:12px;"></div>
+                        <p style="font-size:11px;color:#e59e0b;margin-top:6px;" id="files-soon">⚠️ استخراج الملفات قيد التطوير — ستُتاح قريباً.</p>
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <label class="w-label" id="personality-label">🎭 شخصية الرد</label>
+                        <div class="personality-grid">
+                            <button class="personality-btn" id="pers-friendly" onclick="selectPersonality('friendly')">😊 <span id="pers-friendly-label">ودود</span></button>
+                            <button class="personality-btn" id="pers-formal" onclick="selectPersonality('formal')">👔 <span id="pers-formal-label">رسمي</span></button>
+                            <button class="personality-btn" id="pers-technical" onclick="selectPersonality('technical')">⚙️ <span id="pers-technical-label">تقني</span></button>
+                            <button class="personality-btn" id="pers-sales" onclick="selectPersonality('sales')">🚀 <span id="pers-sales-label">مبيعات</span></button>
+                        </div>
+                    </div>
+
+                    <button class="btn-primary" onclick="saveKnowledge()" style="width:100%;" id="save-knowledge-btn">💾 حفظ إعدادات المعرفة</button>
+                </div>
+
+                {# ── Tab: Appearance ── #}
+                <div id="tab-appearance" class="tab-content">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;" class="appear-grid">
+                    <style>@media(max-width:600px){.appear-grid{grid-template-columns:1fr!important;}}</style>
+                        <div>
+                            <label class="w-label" id="name-ar-label">اسم المساعد (عربي)</label>
+                            <input type="text" class="w-input" id="assistantNameAr">
+                        </div>
+                        <div>
+                            <label class="w-label" id="name-en-label">Assistant Name (EN)</label>
+                            <input type="text" class="w-input" id="assistantNameEn">
+                        </div>
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label class="w-label" id="welcome-ar-label">رسالة الترحيب (عربي)</label>
+                        <input type="text" class="w-input" id="welcomeAr">
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label class="w-label" id="welcome-en-label">Welcome Message (EN)</label>
+                        <input type="text" class="w-input" id="welcomeEn">
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <label class="w-label" id="color-label">🎨 لون الودجت</label>
+                        <div class="color-row">
+                            <div class="color-dot" style="background:#7c3aed;" onclick="setColor('#7c3aed',this)"></div>
+                            <div class="color-dot" style="background:#2563eb;" onclick="setColor('#2563eb',this)"></div>
+                            <div class="color-dot" style="background:#059669;" onclick="setColor('#059669',this)"></div>
+                            <div class="color-dot" style="background:#dc2626;" onclick="setColor('#dc2626',this)"></div>
+                            <div class="color-dot" style="background:#d97706;" onclick="setColor('#d97706',this)"></div>
+                            <div class="color-dot" style="background:#0891b2;" onclick="setColor('#0891b2',this)"></div>
+                            <div class="color-dot" style="background:#db2777;" onclick="setColor('#db2777',this)"></div>
+                            <div class="color-dot" style="background:#111827;" onclick="setColor('#111827',this)"></div>
+                            <label class="color-custom">
+                                <input type="color" id="customColor" style="opacity:0;width:0;height:0;position:absolute;" oninput="setColor(this.value,null)">
+                                <i class="fa-solid fa-palette" style="font-size:14px;color:#9ca3af;cursor:pointer;"></i>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <label class="w-label" id="position-label">📌 موضع الظهور</label>
+                        <div style="display:flex;gap:10px;">
+                            <button class="personality-btn" id="pos-right" onclick="selectPosition('right')" style="flex:1;">← <span id="pos-right-label">يمين</span></button>
+                            <button class="personality-btn" id="pos-left" onclick="selectPosition('left')" style="flex:1;"><span id="pos-left-label">يسار</span> →</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px;background:#f9fafb;border-radius:12px;margin-bottom:16px;" class="dark:bg-[#111]">
+                        <div>
+                            <div style="font-size:13px;font-weight:700;" id="branding-label">Powered by Orgteh</div>
+                            <div style="font-size:11px;color:#9ca3af;" id="branding-note">مجاني دائماً</div>
+                        </div>
+                        <span class="status-badge active-badge" id="branding-free-badge">مجاني</span>
+                    </div>
+
+                    <div style="display:flex;gap:10px;">
+                        <button class="btn-primary" onclick="saveAppearance()" style="flex:1;" id="save-appearance-btn">💾 حفظ المظهر</button>
+                        <button class="btn-ghost" onclick="toggleLivePreview()" id="preview-btn">👁 معاينة</button>
+                    </div>
+                </div>
+
+                {# ── Tab: Code ── #}
+                <div id="tab-code" class="tab-content">
+                    <div style="padding:12px;background:#ede9fe;border-radius:12px;margin-bottom:16px;font-size:13px;" class="dark:bg-[#1a1033]">
+                        <i class="fa-solid fa-circle-info" style="color:var(--w-purple);margin-left:6px;"></i>
+                        <span id="code-instruction">الصق هذا الكود قبل إغلاق وسم &lt;/body&gt; في موقعك</span>
+                    </div>
+
+                    <div class="code-block">
+<span style="color:#6b7280;">&lt;!-- Orgteh Widget --&gt;</span><br>
+&lt;<span style="color:#7dd3fc;">script</span> <span style="color:#86efac;">src</span>=<span style="color:#fca5a5;">"https://orgteh.com/static/widget-loader.js"</span><br>
+&nbsp;&nbsp;<span style="color:#86efac;">data-widget-id</span>=<span style="color:#fbbf24;">"<span id="codeWidgetId">wx_...</span>"</span><br>
+&nbsp;&nbsp;<span style="color:#86efac;">data-lang</span>=<span style="color:#fca5a5;">"{{ lang }}"</span><br>
+&nbsp;&nbsp;<span style="color:#86efac;">defer</span>&gt;&lt;/<span style="color:#7dd3fc;">script</span>&gt;
+                    </div>
+
+                    <div style="display:flex;gap:8px;margin-top:12px;">
+                        <button class="btn-primary" onclick="copyCode()" style="flex:1;" id="copy-code-btn">📋 نسخ الكود</button>
+                        <button class="btn-ghost" onclick="downloadCode()" id="download-btn"><i class="fa-solid fa-download"></i></button>
+                    </div>
+
+                    <div style="margin-top:20px;padding-top:20px;border-top:1px solid #e5e7eb;" class="dark:border-gray-800">
+                        <h3 style="font-size:14px;font-weight:800;margin-bottom:12px;" id="how-it-works-title">كيف يعمل؟</h3>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <div style="display:flex;align-items:start;gap:10px;font-size:13px;">
+                                <span style="background:var(--w-purple);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0;">1</span>
+                                <span id="step1">أضف الكود إلى موقعك في الصفحات التي تريد</span>
+                            </div>
+                            <div style="display:flex;align-items:start;gap:10px;font-size:13px;">
+                                <span style="background:var(--w-purple);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0;">2</span>
+                                <span id="step2">ستظهر زرّة المحادثة الدائرية تلقائياً لزوار موقعك</span>
+                            </div>
+                            <div style="display:flex;align-items:start;gap:10px;font-size:13px;">
+                                <span style="background:var(--w-purple);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0;">3</span>
+                                <span id="step3">يردّ الذكاء الاصطناعي من المعلومات التي أضفتها</span>
+                            </div>
+                            <div style="display:flex;align-items:start;gap:10px;font-size:13px;">
+                                <span style="background:var(--w-purple);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0;">4</span>
+                                <span id="step4">راقب الإحصاءات ولا تحتاج أي إعداد إضافي</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:16px;padding:14px;background:#f9fafb;border-radius:12px;font-size:12px;color:#6b7280;display:flex;gap:8px;" class="dark:bg-[#111]">
+                        <i class="fa-solid fa-shield-halved" style="color:var(--w-purple);flex-shrink:0;margin-top:1px;"></i>
+                        <span id="privacy-note">لا يتم تخزين بيانات زوار موقعك بشكل دائم. المعلومات تُستخدم فقط لتحسين دقة الردود.</span>
+                    </div>
+                </div>
+
+                {# ── Tab: Stats ── #}
+                <div id="tab-stats" class="tab-content">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;" class="stats-grid-w">
+                    <style>@media(max-width:500px){.stats-grid-w{grid-template-columns:1fr!important;}}</style>
+                        <div style="background:#f9fafb;border-radius:12px;padding:16px;text-align:center;" class="dark:bg-[#111]">
+                            <div style="font-size:28px;font-weight:900;color:var(--w-purple);" id="stat-daily">—</div>
+                            <div style="font-size:12px;color:#9ca3af;margin-top:4px;" id="stat-daily-label">محادثات اليوم</div>
+                        </div>
+                        <div style="background:#f9fafb;border-radius:12px;padding:16px;text-align:center;" class="dark:bg-[#111]">
+                            <div style="font-size:28px;font-weight:900;color:#22c55e;" id="stat-total">—</div>
+                            <div style="font-size:12px;color:#9ca3af;margin-top:4px;" id="stat-total-label">إجمالي المحادثات</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+                            <span style="font-weight:700;" id="daily-usage-label">الاستخدام اليومي</span>
+                            <span id="usagePct" style="color:#9ca3af;">— / ∞</span>
+                        </div>
+                        <div class="usage-bar-track">
+                            <div class="usage-bar-fill" id="usageBar" style="width:10%;"></div>
+                        </div>
+                        <div style="font-size:11px;color:#9ca3af;margin-top:4px;" id="unlimited-note">الودجت التجريبية بلا حدود يومية</div>
+                    </div>
+
+                    <div style="padding:14px;background:#f9fafb;border-radius:12px;font-size:13px;" class="dark:bg-[#111]">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                            <span style="color:#9ca3af;" id="created-label">تاريخ الإنشاء</span>
+                            <span id="stat-created" style="font-weight:700;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                            <span style="color:#9ca3af;" id="crawled-label">آخر زحف</span>
+                            <span id="stat-crawled" style="font-weight:700;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;">
+                            <span style="color:#9ca3af;" id="mode-stat-label">مصدر المعرفة</span>
+                            <span id="stat-mode" style="font-weight:700;">—</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>{# end w-card #}
+        </div>{# end editorPanel #}
+
+        {# ── No widget selected ── #}
+        <div id="noWidgetPanel" style="display:flex;align-items:center;justify-content:center;">
+            <div style="text-align:center;color:#9ca3af;padding:60px 20px;">
+                <div style="font-size:52px;margin-bottom:16px;">🧩</div>
+                <h3 style="font-size:16px;font-weight:700;margin-bottom:8px;" id="no-widget-title">اختر ودجتاً أو أنشئ واحدة جديدة</h3>
+                <p style="font-size:13px;max-width:300px;" id="no-widget-sub">سيظهر هنا محرر الودجت بعد الاختيار</p>
+                <button class="btn-primary" onclick="openCreateModal()" style="margin-top:16px;" id="no-widget-btn">+ إنشاء ودجت</button>
+            </div>
+        </div>
+
+    </div>{# end widget-layout #}
+    {% endif %}
+
+</div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   🧩 Live Preview Widget (Floating)
+══════════════════════════════════════════════════════════ #}
+<div class="live-preview-widget" id="livePreviewWidget">
+    <div class="lp-header" id="lpHeader" style="background:#7c3aed;">
+        <div style="width:32px;height:32px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🤖</div>
+        <span id="lpTitle" style="flex:1;">مساعد ذكي</span>
+        <button onclick="toggleLivePreview()" style="background:none;border:none;color:#fff;cursor:pointer;font-size:16px;"><i class="fa-solid fa-times"></i></button>
+    </div>
+    <div class="lp-messages" id="lpMessages">
+        <div class="preview-bubble bot" id="lpWelcome">مرحباً! كيف يمكنني مساعدتك اليوم؟</div>
+    </div>
+    <div class="lp-branding"><a href="https://orgteh.com" target="_blank">Powered by Orgteh</a></div>
+    <div class="lp-input-row">
+        <input type="text" class="lp-input" id="lpInput" placeholder="اكتب سؤالك..." onkeydown="if(event.key==='Enter')sendPreviewMsg()">
+        <button class="lp-send" id="lpSend" style="background:#7c3aed;" onclick="sendPreviewMsg()">
+            <i class="fa-solid fa-paper-plane"></i>
+        </button>
+    </div>
+</div>
+<button class="live-toggle-btn right-pos" id="liveToggleBtn" style="background:#7c3aed;" onclick="toggleLivePreview()">
+    <i class="fa-solid fa-comment-dots"></i>
+</button>
+
+{# ══════════════════════════════════════════════════════════
+   Create Modal
+══════════════════════════════════════════════════════════ #}
+<div class="w-modal-overlay" id="createModal">
+    <div class="w-modal-box">
+        <button onclick="closeCreateModal()" style="position:absolute;top:14px;left:14px;background:none;border:none;font-size:18px;color:#9ca3af;cursor:pointer;"><i class="fa-solid fa-times"></i></button>
+        <h2 style="font-size:18px;font-weight:900;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
+            <span>🧩</span><span id="create-modal-title">إنشاء ودجت جديدة</span>
+        </h2>
+        <label class="w-label" id="widget-name-label">اسم الودجت</label>
+        <input type="text" class="w-input" id="newWidgetName" style="margin-bottom:16px;" onkeydown="if(event.key==='Enter')createWidget()">
+        <button class="btn-primary" onclick="createWidget()" style="width:100%;" id="create-confirm-btn">إنشاء ✨</button>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   Delete Confirm Modal
+══════════════════════════════════════════════════════════ #}
+<div class="w-modal-overlay" id="deleteModal">
+    <div class="w-modal-box" style="max-width:360px;">
+        <div style="text-align:center;margin-bottom:20px;">
+            <div style="font-size:40px;margin-bottom:8px;">⚠️</div>
+            <h3 style="font-size:16px;font-weight:900;margin-bottom:8px;" id="delete-title">حذف الودجت؟</h3>
+            <p style="font-size:13px;color:#9ca3af;" id="delete-sub">لا يمكن التراجع عن هذا الإجراء.</p>
+        </div>
+        <div style="display:flex;gap:10px;">
+            <button class="btn-danger" onclick="deleteWidget()" style="flex:1;padding:12px;" id="delete-yes">نعم، احذف</button>
+            <button class="btn-ghost" onclick="closeDeleteModal()" style="flex:1;padding:12px;" id="delete-cancel">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<div id="widgetToast"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ══════════════════════════════════════════════════════════
+//  Widget Builder – JavaScript  (Bilingual)
+// ══════════════════════════════════════════════════════════
+const USER_LANG = "{{ lang }}";
+
+// ── Translations ───────────────────────────────────────────
+const TRANS = {
+    ar: {
+        "hero-title": "ادمج مساعداً ذكياً في موقعك",
+        "hero-sub": "أضف ودجت محادثة ذكي يرد على زوارك بمعلوماتك الخاصة",
+        "feat1": "مجاني بالكامل",
+        "feat2": "جاهز خلال دقيقة",
+        "feat3": "عربي + إنجليزي",
+        "feat4": "بدون كود معقد",
+        "login-title": "سجّل دخولك لإنشاء ودجتك",
+        "login-sub": "الأداة مجانية تماماً، فقط نحتاج حساباً لحفظ إعداداتك.",
+        "login-btn": "تسجيل الدخول / إنشاء حساب",
+        "my-widgets-label": "ودجتاتي",
+        "new-widget-btn": "+ جديد",
+        "loading-label": "جارٍ التحميل...",
+        "tab-btn-knowledge": "🧠 المعرفة",
+        "tab-btn-appearance": "🎨 المظهر",
+        "tab-btn-code": "💻 الكود",
+        "tab-btn-stats": "📊 الإحصاء",
+        "mode-label": "🧠 مصدر المعرفة",
+        "mode-manual-title": "يدوي",
+        "mode-manual-sub": "اكتب النصوص مباشرة",
+        "mode-url-title": "من موقعي",
+        "mode-url-sub": "زحف تلقائي للموقع",
+        "mode-files-title": "ملفات",
+        "mode-files-sub": "PDF / DOC",
+        "mode-all-title": "الكل",
+        "mode-all-sub": "دمج جميع المصادر",
+        "manual-label": "📝 المحتوى اليدوي",
+        "url-label": "🌐 رابط موقعك",
+        "crawl-btn-text": "زحف",
+        "crawl-note": "سيتم زحف أقصى 5 صفحات وتخزين المحتوى تلقائياً.",
+        "files-label": "📁 رفع الملفات",
+        "files-drag-label": "اضغط أو اسحب ملفاتك هنا (PDF, DOC, TXT)",
+        "files-soon": "⚠️ استخراج الملفات قيد التطوير — ستُتاح قريباً.",
+        "personality-label": "🎭 شخصية الرد",
+        "pers-friendly-label": "ودود",
+        "pers-formal-label": "رسمي",
+        "pers-technical-label": "تقني",
+        "pers-sales-label": "مبيعات",
+        "save-knowledge-btn": "💾 حفظ إعدادات المعرفة",
+        "name-ar-label": "اسم المساعد (عربي)",
+        "name-en-label": "Assistant Name (EN)",
+        "welcome-ar-label": "رسالة الترحيب (عربي)",
+        "welcome-en-label": "Welcome Message (EN)",
+        "color-label": "🎨 لون الودجت",
+        "position-label": "📌 موضع الظهور",
+        "pos-right-label": "يمين",
+        "pos-left-label": "يسار",
+        "branding-label": "Powered by Orgteh",
+        "branding-note": "مجاني دائماً",
+        "branding-free-badge": "مجاني",
+        "save-appearance-btn": "💾 حفظ المظهر",
+        "preview-btn": "👁 معاينة",
+        "code-instruction": "الصق هذا الكود قبل إغلاق وسم </body> في موقعك",
+        "copy-code-btn": "📋 نسخ الكود",
+        "how-it-works-title": "كيف يعمل؟",
+        "step1": "أضف الكود إلى موقعك في الصفحات التي تريد",
+        "step2": "ستظهر زرّة المحادثة الدائرية تلقائياً لزوار موقعك",
+        "step3": "يردّ الذكاء الاصطناعي من المعلومات التي أضفتها",
+        "step4": "راقب الإحصاءات ولا تحتاج أي إعداد إضافي",
+        "privacy-note": "لا يتم تخزين بيانات زوار موقعك بشكل دائم. المعلومات تُستخدم فقط لتحسين دقة الردود.",
+        "stat-daily-label": "محادثات اليوم",
+        "stat-total-label": "إجمالي المحادثات",
+        "daily-usage-label": "الاستخدام اليومي",
+        "unlimited-note": "الودجت التجريبية بلا حدود يومية",
+        "created-label": "تاريخ الإنشاء",
+        "crawled-label": "آخر زحف",
+        "mode-stat-label": "مصدر المعرفة",
+        "no-widget-title": "اختر ودجتاً أو أنشئ واحدة جديدة",
+        "no-widget-sub": "سيظهر هنا محرر الودجت بعد الاختيار",
+        "no-widget-btn": "+ إنشاء ودجت",
+        "create-modal-title": "إنشاء ودجت جديدة",
+        "widget-name-label": "اسم الودجت",
+        "create-confirm-btn": "إنشاء ✨",
+        "delete-title": "حذف الودجت؟",
+        "delete-sub": "لا يمكن التراجع عن هذا الإجراء.",
+        "delete-yes": "نعم، احذف",
+        "delete-cancel": "إلغاء",
+        "saved_ok": "✅ تم الحفظ",
+        "deleted_ok": "🗑 تم الحذف",
+        "created_ok": "✨ تم الإنشاء",
+        "copied_ok": "📋 تم النسخ",
+        "crawling": "جارٍ الزحف...",
+        "crawl_ok": "✅ تم الزحف بنجاح",
+        "crawl_fail": "❌ فشل الزحف",
+        "active_label": "نشط",
+        "inactive_label": "معطّل",
+        "deactivate": "تعطيل",
+        "activate": "تفعيل",
+        "never": "لم يتم بعد",
+        "no_widgets_yet": "لا توجد ودجتات بعد",
+        "today_label": "اليوم",
+        "total_label": "إجمالي",
+        "mode_manual": "يدوي",
+        "mode_url": "موقع ويب",
+        "mode_files": "ملفات",
+        "mode_all": "جميع المصادر",
+        "error_load": "خطأ في التحميل",
+        "lp_placeholder": "اكتب سؤالك...",
+        "error_network": "عذراً، حدث خطأ.",
+    },
+    en: {
+        "hero-title": "Embed a Smart Assistant in Your Website",
+        "hero-sub": "Add an AI chat widget that answers visitors with your own information",
+        "feat1": "Completely Free",
+        "feat2": "Ready in 1 Minute",
+        "feat3": "Arabic + English",
+        "feat4": "No Complex Code",
+        "login-title": "Sign in to Create Your Widget",
+        "login-sub": "Completely free — we just need an account to save your settings.",
+        "login-btn": "Login / Create Account",
+        "my-widgets-label": "My Widgets",
+        "new-widget-btn": "+ New",
+        "loading-label": "Loading...",
+        "tab-btn-knowledge": "🧠 Knowledge",
+        "tab-btn-appearance": "🎨 Appearance",
+        "tab-btn-code": "💻 Code",
+        "tab-btn-stats": "📊 Stats",
+        "mode-label": "🧠 Knowledge Source",
+        "mode-manual-title": "Manual",
+        "mode-manual-sub": "Write text directly",
+        "mode-url-title": "From Website",
+        "mode-url-sub": "Auto-crawl your site",
+        "mode-files-title": "Files",
+        "mode-files-sub": "PDF / DOC",
+        "mode-all-title": "All",
+        "mode-all-sub": "Combine all sources",
+        "manual-label": "📝 Manual Content",
+        "url-label": "🌐 Your Website URL",
+        "crawl-btn-text": "Crawl",
+        "crawl-note": "We'll crawl up to 5 pages and store content automatically.",
+        "files-label": "📁 Upload Files",
+        "files-drag-label": "Click or drag files here (PDF, DOC, TXT)",
+        "files-soon": "⚠️ File extraction is coming soon.",
+        "personality-label": "🎭 Response Personality",
+        "pers-friendly-label": "Friendly",
+        "pers-formal-label": "Formal",
+        "pers-technical-label": "Technical",
+        "pers-sales-label": "Sales",
+        "save-knowledge-btn": "💾 Save Knowledge Settings",
+        "name-ar-label": "Assistant Name (AR)",
+        "name-en-label": "Assistant Name (EN)",
+        "welcome-ar-label": "Welcome Message (AR)",
+        "welcome-en-label": "Welcome Message (EN)",
+        "color-label": "🎨 Widget Color",
+        "position-label": "📌 Position",
+        "pos-right-label": "Right",
+        "pos-left-label": "Left",
+        "branding-label": "Powered by Orgteh",
+        "branding-note": "Always free",
+        "branding-free-badge": "Free",
+        "save-appearance-btn": "💾 Save Appearance",
+        "preview-btn": "👁 Preview",
+        "code-instruction": "Paste this code before the closing </body> tag on your site",
+        "copy-code-btn": "📋 Copy Code",
+        "how-it-works-title": "How it works?",
+        "step1": "Add the code to any page on your website",
+        "step2": "A chat button will appear automatically for your visitors",
+        "step3": "The AI responds from the knowledge you provided",
+        "step4": "Monitor stats — no additional setup needed",
+        "privacy-note": "Visitor data is not stored permanently. Information is used only to improve response accuracy.",
+        "stat-daily-label": "Today's Chats",
+        "stat-total-label": "Total Chats",
+        "daily-usage-label": "Daily Usage",
+        "unlimited-note": "Trial widgets have no daily limits",
+        "created-label": "Created At",
+        "crawled-label": "Last Crawl",
+        "mode-stat-label": "Knowledge Source",
+        "no-widget-title": "Select or Create a Widget",
+        "no-widget-sub": "The editor will appear here after selection",
+        "no-widget-btn": "+ Create Widget",
+        "create-modal-title": "Create New Widget",
+        "widget-name-label": "Widget Name",
+        "create-confirm-btn": "Create ✨",
+        "delete-title": "Delete Widget?",
+        "delete-sub": "This action cannot be undone.",
+        "delete-yes": "Yes, Delete",
+        "delete-cancel": "Cancel",
+        "saved_ok": "✅ Saved",
+        "deleted_ok": "🗑 Deleted",
+        "created_ok": "✨ Created",
+        "copied_ok": "📋 Copied",
+        "crawling": "Crawling...",
+        "crawl_ok": "✅ Crawl completed",
+        "crawl_fail": "❌ Crawl failed",
+        "active_label": "Active",
+        "inactive_label": "Inactive",
+        "deactivate": "Deactivate",
+        "activate": "Activate",
+        "never": "Not yet",
+        "no_widgets_yet": "No widgets yet",
+        "today_label": "today",
+        "total_label": "total",
+        "mode_manual": "Manual",
+        "mode_url": "Website",
+        "mode_files": "Files",
+        "mode_all": "All Sources",
+        "error_load": "Load error",
+        "lp_placeholder": "Type your question...",
+        "error_network": "Sorry, an error occurred.",
+    }
+};
+const T = TRANS[USER_LANG] || TRANS.en;
+const tr = k => T[k] || (TRANS.en)[k] || k;
+
+// Apply translations
+function applyTranslations() {
+    Object.keys(T).forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') {
+            // Only set text for span/div/label/button, not inputs
+            if (['SPAN','DIV','LABEL','BUTTON','P','H1','H2','H3','A'].includes(el.tagName)) {
+                el.textContent = T[id];
+            }
+        }
+    });
+    // placeholder
+    const lpInput = document.getElementById('lpInput');
+    if (lpInput) lpInput.placeholder = tr('lp_placeholder');
+}
+
+// ── State ──────────────────────────────────────────────────
+let widgets       = [];
+let currentWidget = null;
+let currentColor  = "#7c3aed";
+let currentMode   = "manual";
+let currentPersonality = "friendly";
+let currentPosition = "right";
+let previewOpen   = false;
+let lpHistory = [];
+
+// ══════════════════════════════════════════════════════════
+//  API
+// ══════════════════════════════════════════════════════════
+async function apiCall(method, url, body = null) {
+    const opts = { method, headers: { "Content-Type": "application/json" }, credentials: "include" };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    return res.json();
+}
+
+// ══════════════════════════════════════════════════════════
+//  Load Widgets
+// ══════════════════════════════════════════════════════════
+async function loadWidgets() {
+    try {
+        const data = await apiCall("GET", "/api/widget/list");
+        widgets = data.widgets || [];
+        renderWidgetsList();
+    } catch(e) {
+        const container = document.getElementById("widgetsList");
+        if (container) container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-exclamation-circle"></i>${tr('error_load')}</div>`;
+    }
+}
+
+function renderWidgetsList() {
+    const container = document.getElementById("widgetsList");
+    if (!container) return;
+    const countEl = document.getElementById("widgetCount");
+    if (countEl) countEl.textContent = widgets.length;
+    if (!widgets.length) {
+        container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-puzzle-piece"></i>
+            <div style="margin-bottom:12px;">${tr('no_widgets_yet')}</div>
+            <button class="btn-primary" onclick="openCreateModal()" style="font-size:12px;padding:8px 16px;">${tr('new-widget-btn')}</button>
+        </div>`;
+        return;
+    }
+    container.innerHTML = widgets.map(w => `
+        <div class="widget-item ${currentWidget?.id === w.id ? 'active' : ''}" onclick="selectWidget('${w.id}')">
+            <div class="widget-item-dot ${w.active ? '' : 'inactive'}"></div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(w.name)}</div>
+                <div style="font-size:11px;color:#9ca3af;">${w.daily_usage||0} ${tr('today_label')} · ${w.total_usage||0} ${tr('total_label')}</div>
+            </div>
+            <div style="width:10px;height:10px;border-radius:50%;background:${w.color||'#7c3aed'};flex-shrink:0;"></div>
+        </div>
+    `).join("");
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function selectWidget(id) {
+    currentWidget = widgets.find(w => w.id === id) || null;
+    renderWidgetsList();
+    if (currentWidget) {
+        loadWidgetEditor(currentWidget);
+        document.getElementById("editorPanel").style.display = "block";
+        document.getElementById("noWidgetPanel").style.display = "none";
+        document.getElementById("liveToggleBtn").style.display = "flex";
+    }
+}
+
+function loadWidgetEditor(w) {
+    document.getElementById("editorTitle").textContent = w.name;
+    const sb = document.getElementById("editorStatusBadge");
+    sb.textContent = w.active ? tr('active_label') : tr('inactive_label');
+    sb.className = `status-badge ${w.active ? 'active-badge' : 'inactive-badge'}`;
+    document.getElementById("toggleActiveBtn").textContent = w.active ? tr('deactivate') : tr('activate');
+
+    currentMode = w.knowledge_mode || "manual";
+    selectMode(currentMode, false);
+    const mc = document.getElementById("manualContent");
+    if (mc) mc.value = w.manual_content || "";
+    const cu = document.getElementById("crawlUrl");
+    if (cu) cu.value = (w.urls||[])[0] || "";
+    currentPersonality = w.personality || "friendly";
+    selectPersonality(currentPersonality, false);
+
+    const anAr = document.getElementById("assistantNameAr");
+    const anEn = document.getElementById("assistantNameEn");
+    const wAr  = document.getElementById("welcomeAr");
+    const wEn  = document.getElementById("welcomeEn");
+    if (anAr) anAr.value = w.assistant_name_ar || "";
+    if (anEn) anEn.value = w.assistant_name_en || "";
+    if (wAr)  wAr.value  = w.welcome_ar || "";
+    if (wEn)  wEn.value  = w.welcome_en || "";
+
+    currentColor    = w.color || "#7c3aed";
+    currentPosition = w.position || "right";
+    selectPosition(currentPosition, false);
+    updateColorUI();
+
+    const cid = document.getElementById("codeWidgetId");
+    if (cid) cid.textContent = w.id;
+
+    const sd = document.getElementById("stat-daily");
+    const st = document.getElementById("stat-total");
+    const up = document.getElementById("usagePct");
+    const sc = document.getElementById("stat-created");
+    const scr= document.getElementById("stat-crawled");
+    const sm = document.getElementById("stat-mode");
+    if (sd) sd.textContent = w.daily_usage || 0;
+    if (st) st.textContent = w.total_usage || 0;
+    if (up) up.textContent = `${w.daily_usage||0} / ∞`;
+    if (sc) sc.textContent = w.created_at ? w.created_at.split("T")[0] : "—";
+    if (scr) scr.textContent = w.crawled_at ? w.crawled_at.split("T")[0] : tr('never');
+    const modeMap = { manual: tr('mode_manual'), url: tr('mode_url'), files: tr('mode_files'), all: tr('mode_all') };
+    if (sm) sm.textContent = modeMap[w.knowledge_mode] || w.knowledge_mode || "—";
+
+    updateLivePreview();
+}
+
+// ══════════════════════════════════════════════════════════
+//  Knowledge
+// ══════════════════════════════════════════════════════════
+function selectMode(mode, _persist = true) {
+    currentMode = mode;
+    ["manual","url","files","all"].forEach(m => {
+        const card = document.getElementById(`mode-${m}`);
+        if (card) card.classList.toggle("selected", m === mode);
+    });
+    // Sections visibility
+    const showManual = mode === "manual" || mode === "all";
+    const showUrl    = mode === "url"    || mode === "all";
+    const showFiles  = mode === "files"  || mode === "all";
+    const sm = document.getElementById("section-manual");
+    const su = document.getElementById("section-url");
+    const sf = document.getElementById("section-files");
+    if (sm) sm.style.display = showManual ? "block" : "none";
+    if (su) su.style.display = showUrl    ? "block" : "none";
+    if (sf) sf.style.display = showFiles  ? "block" : "none";
+}
+
+function selectPersonality(p, _persist = true) {
+    currentPersonality = p;
+    ["friendly","formal","technical","sales"].forEach(x => {
+        const el = document.getElementById(`pers-${x}`);
+        if (el) el.classList.toggle("selected", x === p);
+    });
+}
+
+async function startCrawl() {
+    const urlEl  = document.getElementById("crawlUrl");
+    const status = document.getElementById("crawlStatus");
+    const btn    = document.getElementById("crawlBtn");
+    if (!urlEl || !status || !currentWidget) return;
+    const url = urlEl.value.trim();
+    if (!url) return;
+
+    status.className = "crawl-status show loading";
+    status.innerHTML = `<span class="spinner-sm"></span> ${tr('crawling')} ${escHtml(url)}`;
+    if (btn) btn.disabled = true;
+
+    try {
+        const data = await apiCall("POST", `/api/widget/${currentWidget.id}/crawl`, { url });
+        if (data.ok) {
+            status.className = "crawl-status show success";
+            status.textContent = `${tr('crawl_ok')} — ${data.pages} pages, ${(data.chars/1000).toFixed(1)}k chars`;
+            const idx = widgets.findIndex(w => w.id === currentWidget.id);
+            if (idx >= 0) { widgets[idx].crawled_at = new Date().toISOString(); currentWidget = widgets[idx]; }
+            const scr = document.getElementById("stat-crawled");
+            if (scr) scr.textContent = new Date().toISOString().split("T")[0];
+        } else {
+            status.className = "crawl-status show error";
+            status.textContent = `${tr('crawl_fail')}: ${data.error||'Unknown'}`;
+        }
+    } catch(e) {
+        status.className = "crawl-status show error";
+        status.textContent = `${tr('crawl_fail')}: ${e.message}`;
+    }
+    if (btn) btn.disabled = false;
+}
+
+async function saveKnowledge() {
+    if (!currentWidget) return;
+    const mc  = document.getElementById("manualContent");
+    const cu  = document.getElementById("crawlUrl");
+    const updates = {
+        knowledge_mode:  currentMode,
+        manual_content:  mc ? mc.value : "",
+        urls:            cu && cu.value ? [cu.value] : [],
+        personality:     currentPersonality,
+    };
+    const data = await apiCall("PUT", `/api/widget/${currentWidget.id}`, updates);
+    if (data.ok) {
+        Object.assign(currentWidget, updates);
+        const idx = widgets.findIndex(w => w.id === currentWidget.id);
+        if (idx >= 0) Object.assign(widgets[idx], updates);
+        showToast(tr('saved_ok'));
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+//  Appearance
+// ══════════════════════════════════════════════════════════
+function setColor(hex, dotEl) {
+    currentColor = hex;
+    document.querySelectorAll(".color-dot").forEach(d => d.classList.remove("selected"));
+    if (dotEl) dotEl.classList.add("selected");
+    updateLivePreview();
+}
+
+function updateColorUI() {
+    document.querySelectorAll(".color-dot").forEach(d => {
+        const bg = (d.style.background || "").toLowerCase();
+        if (bg && currentColor && bg.includes(currentColor.toLowerCase().replace('#',''))) {
+            d.classList.add("selected");
+        } else {
+            d.classList.remove("selected");
+        }
+    });
+}
+
+function selectPosition(pos, _persist = true) {
+    currentPosition = pos;
+    ["right","left"].forEach(p => {
+        const el = document.getElementById(`pos-${p}`);
+        if (el) el.classList.toggle("selected", p === pos);
+    });
+    updateLivePreview();
+}
+
+async function saveAppearance() {
+    if (!currentWidget) return;
+    const anAr = document.getElementById("assistantNameAr");
+    const anEn = document.getElementById("assistantNameEn");
+    const wAr  = document.getElementById("welcomeAr");
+    const wEn  = document.getElementById("welcomeEn");
+    const updates = {
+        assistant_name_ar: anAr ? anAr.value : "",
+        assistant_name_en: anEn ? anEn.value : "",
+        welcome_ar:        wAr  ? wAr.value  : "",
+        welcome_en:        wEn  ? wEn.value  : "",
+        color:             currentColor,
+        position:          currentPosition,
+    };
+    const data = await apiCall("PUT", `/api/widget/${currentWidget.id}`, updates);
+    if (data.ok) {
+        Object.assign(currentWidget, updates);
+        const idx = widgets.findIndex(w => w.id === currentWidget.id);
+        if (idx >= 0) Object.assign(widgets[idx], updates);
+        updateLivePreview();
+        showToast(tr('saved_ok'));
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+//  Live Preview
+// ══════════════════════════════════════════════════════════
+function updateLivePreview() {
+    const lpH   = document.getElementById("lpHeader");
+    const lpS   = document.getElementById("lpSend");
+    const toggle = document.getElementById("liveToggleBtn");
+    if (lpH)     lpH.style.background = currentColor;
+    if (lpS)     lpS.style.background = currentColor;
+    if (toggle)  toggle.style.background = currentColor;
+
+    const widget = document.getElementById("livePreviewWidget");
+    if (!widget) return;
+
+    if (previewOpen) widget.classList.add("active");
+    else widget.classList.remove("active");
+
+    widget.classList.remove("right-pos","left-pos");
+    toggle?.classList.remove("right-pos","left-pos");
+    if (currentPosition === "left") {
+        widget.classList.add("left-pos");
+        toggle?.classList.add("left-pos");
+    } else {
+        widget.classList.add("right-pos");
+        toggle?.classList.add("right-pos");
+    }
+
+    const titleEl = document.getElementById("lpTitle");
+    const welEl   = document.getElementById("lpWelcome");
+    if (titleEl && currentWidget) {
+        titleEl.textContent = USER_LANG === 'ar' ? (currentWidget.assistant_name_ar || "مساعد ذكي") : (currentWidget.assistant_name_en || "Smart Assistant");
+    }
+    if (welEl && currentWidget) {
+        welEl.textContent = USER_LANG === 'ar' ? (currentWidget.welcome_ar || "مرحباً!") : (currentWidget.welcome_en || "Hello!");
+    }
+}
+
+function toggleLivePreview() {
+    previewOpen = !previewOpen;
+    updateLivePreview();
+}
+
+async function sendPreviewMsg() {
+    if (!currentWidget) return;
+    const input = document.getElementById("lpInput");
+    const msg = input ? input.value.trim() : "";
+    if (!msg) return;
+    if (input) input.value = "";
+
+    const msgs = document.getElementById("lpMessages");
+    if (!msgs) return;
+
+    // User bubble
+    const userBubble = document.createElement("div");
+    userBubble.className = "preview-bubble user";
+    userBubble.style.background = currentColor;
+    userBubble.textContent = msg;
+    msgs.appendChild(userBubble);
+
+    // Bot bubble
+    const botBubble = document.createElement("div");
+    botBubble.className = "preview-bubble bot";
+    botBubble.innerHTML = '<span class="spinner-sm"></span>';
+    msgs.appendChild(botBubble);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    lpHistory.push({ role: "user", content: msg });
+
+    try {
+        const res = await fetch(`/api/widget/${currentWidget.id}/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: msg, history: lpHistory.slice(-6), lang: USER_LANG }),
+        });
+        if (!res.ok || !res.body) throw new Error("Network error");
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let full = "";
+        botBubble.textContent = "";
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = dec.decode(value, { stream: true });
+            for (const line of chunk.split("\n")) {
+                if (!line.startsWith("data: ")) continue;
+                const raw = line.slice(6).trim();
+                if (raw === "[DONE]") continue;
+                try {
+                    const j = JSON.parse(raw);
+                    const content = j?.choices?.[0]?.delta?.content || "";
+                    full += content;
+                    botBubble.textContent = full;
+                    msgs.scrollTop = msgs.scrollHeight;
+                } catch {}
+            }
+        }
+        lpHistory.push({ role: "assistant", content: full });
+    } catch {
+        botBubble.textContent = tr('error_network');
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+//  Code
+// ══════════════════════════════════════════════════════════
+function getEmbedCode() {
+    const id = currentWidget?.id || "wx_...";
+    return `<!-- Orgteh Widget -->\n<script src="https://orgteh.com/static/widget-loader.js"\n  data-widget-id="${id}"\n  data-lang="${USER_LANG}"\n  defer><\/script>`;
+}
+
+function copyCode() {
+    navigator.clipboard.writeText(getEmbedCode()).then(() => showToast(tr('copied_ok')));
+}
+
+function downloadCode() {
+    const blob = new Blob([getEmbedCode()], { type: "text/html" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `orgteh-widget-${currentWidget?.id||'snippet'}.html`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+// ══════════════════════════════════════════════════════════
+//  CRUD
+// ══════════════════════════════════════════════════════════
+function openCreateModal() {
+    const modal = document.getElementById("createModal");
+    if (modal) modal.classList.add("show");
+    setTimeout(() => { const n = document.getElementById("newWidgetName"); if(n) n.focus(); }, 50);
+}
+function closeCreateModal() {
+    const modal = document.getElementById("createModal");
+    if (modal) modal.classList.remove("show");
+}
+function confirmDeleteWidget() {
+    const modal = document.getElementById("deleteModal");
+    if (modal) modal.classList.add("show");
+}
+function closeDeleteModal() {
+    const modal = document.getElementById("deleteModal");
+    if (modal) modal.classList.remove("show");
+}
+
+document.addEventListener("keydown", e => {
+    if (e.key === "Escape") { closeCreateModal(); closeDeleteModal(); }
+});
+
+async function createWidget() {
+    const nameEl = document.getElementById("newWidgetName");
+    const name = nameEl ? nameEl.value.trim() : "";
+    if (!name) return;
+    const data = await apiCall("POST", "/api/widget/create", { name });
+    if (data.ok && data.widget) {
+        widgets.unshift(data.widget);
+        renderWidgetsList();
+        selectWidget(data.widget.id);
+        closeCreateModal();
+        if (nameEl) nameEl.value = "";
+        showToast(tr('created_ok'));
+    }
+}
+
+async function deleteWidget() {
+    if (!currentWidget) return;
+    const data = await apiCall("DELETE", `/api/widget/${currentWidget.id}`);
+    if (data.ok) {
+        widgets = widgets.filter(w => w.id !== currentWidget.id);
+        currentWidget = null;
+        renderWidgetsList();
+        document.getElementById("editorPanel").style.display = "none";
+        document.getElementById("noWidgetPanel").style.display = "flex";
+        const lp = document.getElementById("livePreviewWidget");
+        if (lp) lp.classList.remove("active");
+        const toggle = document.getElementById("liveToggleBtn");
+        if (toggle) toggle.style.display = "none";
+        previewOpen = false;
+        closeDeleteModal();
+        showToast(tr('deleted_ok'));
+    }
+}
+
+async function toggleWidgetActive() {
+    if (!currentWidget) return;
+    const data = await apiCall("PUT", `/api/widget/${currentWidget.id}`, { active: !currentWidget.active });
+    if (data.ok) {
+        currentWidget.active = !currentWidget.active;
+        const idx = widgets.findIndex(w => w.id === currentWidget.id);
+        if (idx >= 0) widgets[idx].active = currentWidget.active;
+        const sb  = document.getElementById("editorStatusBadge");
+        const btn = document.getElementById("toggleActiveBtn");
+        if (sb) {
+            sb.textContent = currentWidget.active ? tr('active_label') : tr('inactive_label');
+            sb.className   = `status-badge ${currentWidget.active ? 'active-badge' : 'inactive-badge'}`;
+        }
+        if (btn) btn.textContent = currentWidget.active ? tr('deactivate') : tr('activate');
+        renderWidgetsList();
+    }
+}
+
+function handleFiles(input) {
+    const list = document.getElementById("filesList");
+    if (!list) return;
+    list.innerHTML = Array.from(input.files).map(f =>
+        `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;"><i class="fa-solid fa-file" style="color:var(--w-purple);"></i><span>${escHtml(f.name)}</span></div>`
+    ).join("");
+}
+
+// ══════════════════════════════════════════════════════════
+//  Tab Switcher
+// ══════════════════════════════════════════════════════════
+function switchTab(tab) {
+    ["knowledge","appearance","code","stats"].forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const panel = document.getElementById(`tab-${t}`);
+        const active = t === tab;
+        if (btn) btn.classList.toggle("active", active);
+        if (panel) panel.classList.toggle("active", active);
+    });
+}
+
+// ══════════════════════════════════════════════════════════
+//  Toast
+// ══════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+    const el = document.getElementById("widgetToast");
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = "block";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.style.display = "none"; }, 2500);
+}
+
+// ══════════════════════════════════════════════════════════
+//  Init
+// ══════════════════════════════════════════════════════════
+applyTranslations();
+{% if is_logged_in %}
+loadWidgets();
+{% endif %}
+</script>
+{% endblock %}

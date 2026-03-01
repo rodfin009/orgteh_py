@@ -94,8 +94,8 @@
     .strength-strong { background: #10b981; width: 100%; }
 
     .toast {
-        position: fixed; top: 5.5rem; left: 50%;
-        transform: translateX(-50%) translateY(-120px);
+        position: fixed; bottom: 6rem; left: 50%;
+        transform: translateX(-50%) translateY(120px);
         z-index: 9999; min-width: 280px; max-width: 90vw;
         transition: transform 0.3s ease;
         border-radius: 12px; padding: 14px 20px;
@@ -531,12 +531,19 @@
                     body: JSON.stringify({ email })
                 });
                 const data = await resp.json();
-                if (!resp.ok || data.available === false) {
+                if (!resp.ok) {
+                    showToast(data.detail || data.error || 'البريد الإلكتروني مستخدم بالفعل', 'error');
+                    if (checkBtn) { checkBtn.disabled = false; checkBtn.innerHTML = 'التالي <i class="fas fa-arrow-left mr-2"></i>'; }
+                    return;
+                }
+                if (data.available === false) {
                     showToast(data.error || 'البريد الإلكتروني مستخدم بالفعل', 'error');
                     if (checkBtn) { checkBtn.disabled = false; checkBtn.innerHTML = 'التالي <i class="fas fa-arrow-left mr-2"></i>'; }
                     return;
                 }
             } catch (e) {
+                // إذا فشل الطلب شبكياً نكمل التسجيل — الخادم سيعيد الفحص لاحقاً
+                console.warn('[check-email] fetch error, proceeding:', e);
             }
             if (checkBtn) { checkBtn.disabled = false; checkBtn.innerHTML = 'التالي <i class="fas fa-arrow-left mr-2"></i>'; }
         }

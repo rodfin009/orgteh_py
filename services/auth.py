@@ -817,3 +817,42 @@ async def handle_google_callback(request: Request, code: str, state: str):
     except Exception as e:
         print(f"[Auth] Google login error: {e}")
         return RedirectResponse("/auth?google_error=token_failed")
+
+# ============================================================================
+# CHECK EMAIL AVAILABILITY  — /auth/check-email
+# ============================================================================
+
+class CheckEmailRequest(BaseModel):
+    email: EmailStr
+
+async def handle_check_email(data: CheckEmailRequest) -> dict:
+    """
+    يتحقق من أن البريد الإلكتروني غير مسجَّل بعد.
+    يُستدعى من auth.html قبل الانتقال للخطوة الثانية.
+    """
+    if not data.email.lower().endswith('@gmail.com'):
+        raise HTTPException(
+            status_code=400,
+            detail="يُقبل فقط البريد الإلكتروني من Gmail (@gmail.com)"
+        )
+
+    existing = get_user_by_email(data.email)
+    if existing:
+        # تحقق من ربط GitHub
+        try:
+            from database import redis as _redis
+            if _redis and _redis.exists(f"github:{data.email}"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="لديك حساب GitHub مرتبط بهذا البريد الإلكتروني. سجّل الدخول عبر GitHub."
+                )
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=400,
+            detail="البريد الإلكتروني مستخدم بالفعل. يمكنك تسجيل الدخول مباشرةً."
+        )
+
+    return {"available": True, "email": data.email}
