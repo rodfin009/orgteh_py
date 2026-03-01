@@ -62,10 +62,15 @@ def _verify_embed_token(token: str, widget_id: str, origin: str) -> bool:
 # كل widget له قائمة allowed_domains — أي نطاق خارجها يُرفض
 # الطلبات بلا Origin header (curl / Postman) تُرفض دائماً
 
-_ORGTEH_ORIGINS = {
-    "orgteh.com", "www.orgteh.com",
-    "localhost:8000", "localhost:3000", "127.0.0.1:8000",
-}
+_ORGTEH_ORIGINS = [
+    "localhost:8000",
+    "localhost:3000",
+    "127.0.0.1:8000",
+    # أضف النطاقات التالية للاختبار:
+    "cdpn.io",       # الخاص بـ CodePen
+    "replit.dev",    # الخاص بـ Replit الجديد
+    "repl.co"        # الخاص بـ Replit القديم
+]
 
 
 def _normalize_origin(o: str) -> str:
