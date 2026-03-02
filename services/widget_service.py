@@ -82,23 +82,31 @@ def _normalize_origin(o: str) -> str:
 
 
 def _is_origin_allowed(origin: str, allowed_domains: list) -> bool:
-    if not origin:
-        return False
-    n = _normalize_origin(origin)
-    if n in _ORGTEH_ORIGINS:          # معاينة لوحة التحكم دائماً مسموحة
-        return True
-    if not allowed_domains:
-        return False
-    for domain in allowed_domains:
-        d = _normalize_origin(domain)
-        if d.startswith("*."):
-            suffix = d[1:]            # .example.com
-            if n.endswith(suffix) or n == d[2:]:
+        if not origin or origin == "null":
+            # في بيئة التطوير (CodePen/Localhost أحياناً)، قد يرسل المتصفح "null"
+            # يمكننا السماح به مؤقتاً للاختبار، أو يمكنك إزالته في الإنتاج
+            return True
+
+        n = _normalize_origin(origin)
+
+        # التحقق من القائمة البيضاء (بمرونة أكبر للنطاقات الفرعية)
+        for allowed in _ORGTEH_ORIGINS:
+            if n == allowed or n.endswith(f".{allowed}"):
                 return True
-        else:
-            if n == d or n == f"www.{d}" or f"www.{n}" == d:
-                return True
-    return False
+
+        # التحقق من نطاقات العميل المخصصة
+        if not allowed_domains:
+            return False
+        for domain in allowed_domains:
+            d = _normalize_origin(domain)
+            if d.startswith("*."):
+                suffix = d[1:]            # .example.com
+                if n.endswith(suffix) or n == d[2:]:
+                    return True
+            else:
+                if n == d or n == f"www.{d}" or f"www.{n}" == d:
+                    return True
+        return False
 
 
 # ════════════════════════════════════════════════════════════════
