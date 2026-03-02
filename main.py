@@ -134,7 +134,13 @@ class SecurityHeadersMiddleware:
 app = FastAPI(title="Orgteh Infra", docs_url=None, redoc_url=None)
 
 app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,  # ✅ لا يمكن الجمع بين ["*"] و credentials=True — يسبب CORS error
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=False)
 
 BASE_DIR      = Path(__file__).resolve().parent

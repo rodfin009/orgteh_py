@@ -66,10 +66,19 @@ _ORGTEH_ORIGINS = [
     "localhost:8000",
     "localhost:3000",
     "127.0.0.1:8000",
-    # أضف النطاقات التالية للاختبار:
-    "cdpn.io",       # الخاص بـ CodePen
-    "replit.dev",    # الخاص بـ Replit الجديد
-    "repl.co"        # الخاص بـ Replit القديم
+    # ✅ CodePen — جميع نطاقاتها الممكنة
+    "cdpn.io",            # معاينة CodePen (النطاق الأساسي)
+    "s.cdpn.io",          # ✅ Static assets على CodePen
+    "codepen.io",         # ✅ النطاق الرئيسي لـ CodePen
+    "cpwebassets.com",    # ✅ CDN الخاص بـ CodePen
+    # Replit
+    "replit.dev",         # الخاص بـ Replit الجديد
+    "repl.co",            # الخاص بـ Replit القديم
+    "replit.app",         # ✅ نطاق Replit إضافي
+    # JSFiddle / StackBlitz / بيئات اختبار أخرى
+    "jsfiddle.net",
+    "stackblitz.io",
+    "codesandbox.io",
 ]
 
 
@@ -89,9 +98,11 @@ def _is_origin_allowed(origin: str, allowed_domains: list) -> bool:
 
         n = _normalize_origin(origin)
 
-        # التحقق من القائمة البيضاء (بمرونة أكبر للنطاقات الفرعية)
+        # ✅ التحقق من القائمة البيضاء — يقبل النطاق نفسه أو أي subdomain له
         for allowed in _ORGTEH_ORIGINS:
-            if n == allowed or n.endswith(f".{allowed}"):
+            a = _normalize_origin(allowed)
+            # مطابقة تامة أو كـ subdomain (مثلاً: abc.cdpn.io يطابق cdpn.io)
+            if n == a or n.endswith(f".{a}"):
                 return True
 
         # التحقق من نطاقات العميل المخصصة
