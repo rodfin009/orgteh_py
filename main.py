@@ -82,7 +82,11 @@ class OptimizedStaticFiles(StaticFiles):
 
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
-        if any(path.endswith(ext) for ext in ['.css', '.js', '.webp', '.png', '.jpg', '.woff2', '.woff']):
+        # widget-loader.js لا يُكاش طويلاً
+        if path.endswith("widget-loader.js"):
+            response.headers["Cache-Control"] = "public, max-age=300, must-revalidate"
+            response.headers["Vary"] = "Accept-Encoding"
+        elif any(path.endswith(ext) for ext in ['.css', '.js', '.webp', '.png', '.jpg', '.woff2', '.woff']):
             response.headers["Cache-Control"] = self.cache_control
             response.headers["Vary"] = "Accept-Encoding"
         if path.endswith(('.js', '.css', '.html')):
@@ -134,13 +138,7 @@ class SecurityHeadersMiddleware:
 app = FastAPI(title="Orgteh Infra", docs_url=None, redoc_url=None)
 
 app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,  # ✅ لا يمكن الجمع بين ["*"] و credentials=True — يسبب CORS error
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=False)
 
 BASE_DIR      = Path(__file__).resolve().parent
