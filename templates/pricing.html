@@ -828,6 +828,9 @@
         document.body.classList.remove('lock-scroll');
         document.documentElement.classList.remove('lock-scroll');
 
+        // ✅ إيقاف مراقب المنطقة عند الإغلاق (توفير الذاكرة)
+        if (_regionObserver) { _regionObserver.disconnect(); _regionObserver = null; }
+
         document.getElementById('sp-status-msg').classList.add('hidden');
         document.getElementById('sp-status-msg').innerHTML = '';
         document.getElementById('spaceremit-local-methods-pay').innerHTML = '';
@@ -912,6 +915,8 @@
         s.onload = function() {
             loading.style.display = 'none';
             loading.classList.add('hidden');
+            // ✅ تطبيق إصلاح المنطقة فور اكتمال تحميل SDK
+            fixRegionSelectorForNonArab();
         };
         s.onerror = function() {
             closeSpOverlay();
@@ -1066,5 +1071,129 @@
     });
 
     window.addEventListener('langChange', () => { applyLocalTranslations(); });
+
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ✅ SpaceRemit Region Selector Fix
+    // المشكلة: بوابة الدفع تعرض "عالمي" بالعربية + دول عربية فقط للمستخدم الأجنبي
+    // الحل: إذا كان المستخدم أجنبياً → نعيد تسمية "عالمي" → "Global" ونخفي القائمة
+    // إذا كان عربياً → لا شيء يتغير (يرى القائمة كاملة بشكل طبيعي)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    function detectUserLang() {
+        // الأولوية: لغة URL → لغة المتصفح المخزنة → لغة المتصفح الفعلية
+        const urlLang = window.SERVER_LANG || document.documentElement.getAttribute('lang');
+        if (urlLang === 'ar') return 'ar';
+        if (urlLang === 'en') return 'en';
+
+        // فحص localStorage
+        const stored = localStorage.getItem('lang');
+        if (stored === 'ar') return 'ar';
+
+        // فحص لغة المتصفح الفعلية (الأهم للمستخدمين الأجانب)
+        const browserLangs = navigator.languages || [navigator.language || navigator.userLanguage || 'en'];
+        const isArabicBrowser = browserLangs.some(l => l.toLowerCase().startsWith('ar'));
+        return isArabicBrowser ? 'ar' : 'en';
+    }
+
+    let _regionObserver = null;
+
+    function fixRegionSelectorForNonArab() {
+        const userLang = detectUserLang();
+
+        // ✅ المستخدم العربي → لا تغييرات، يرى كل شيء طبيعياً
+        if (userLang === 'ar') return;
+
+        const container = document.getElementById('spaceremit-local-methods-pay');
+        if (!container) return;
+
+        // إيقاف المراقب القديم قبل بدء جديد
+        if (_regionObserver) { _regionObserver.disconnect(); _regionObserver = null; }
+
+        const ARABIC_COUNTRIES = ['Saudi Arabia', 'Morocco', 'Algeria', 'Tunisia', 'Egypt',
+                                   'السعودية', 'المغرب', 'الجزائر', 'تونس', 'مصر', 'الإمارات',
+                                   'ليبيا', 'العراق', 'سوريا', 'اليمن', 'عُمان', 'قطر', 'البحرين', 'الكويت'];
+
+        const applyFix = () => {
+            // ─── 1. المسح الشامل لكل العناصر النصية وإعادة تسمية "عالمي" ───
+            const renameArabiToGlobal = (node) => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    if (node.textContent.trim() === 'عالمي') {
+                        node.textContent = node.textContent.replace('عالمي', 'Global');
+                    }
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    node.childNodes.forEach(renameArabiToGlobal);
+                }
+            };
+            renameArabiToGlobal(container);
+
+            // ─── 2. إخفاء قائمة الدول العربية إن ظهرت (حين يفتح المستخدم الـ dropdown) ───
+            container.querySelectorAll('*').forEach(el => {
+                const text = el.textContent.trim();
+                const isArabicCountry = ARABIC_COUNTRIES.some(c => text === c);
+                if (isArabicCountry && el.children.length <= 2) {
+                    // نصعد للأب المنطقي (الصف/العنصر القابل للنقر)
+                    const row = el.closest('li, [role="option"], [class*="item"], [class*="option"]') 
+                                || el.parentElement;
+                    if (row && row !== container) {
+                        row.style.setProperty('display', 'none', 'important');
+                    }
+                }
+            });
+
+            // ─── 3. جعل عنصر "Global" غير قابل للنقر (لا يفتح القائمة للأجانب) ───
+            // نبحث عن الزر/العنصر الذي يحتوي "Global" ونزيل تفاعليته
+            container.querySelectorAll('*').forEach(el => {
+                if (el.textContent.trim() === 'Global' && el.children.length <= 3) {
+                    // إخفاء أي سهم dropdown بداخله
+                    el.querySelectorAll('svg, i[class*="arrow"], i[class*="chevron"], i[class*="down"], i[class*="caret"]').forEach(icon => {
+                        icon.style.setProperty('display', 'none', 'important');
+                    });
+                    // تعطيل النقر على الزر نفسه وعلى أبيه المباشر
+                    [el, el.parentElement].forEach(target => {
+                        if (target && target !== container) {
+                            target.style.pointerEvents = 'none';
+                            target.style.cursor = 'default';
+                        }
+                    });
+                }
+            });
+        };
+
+        // تطبيق فوري
+        applyFix();
+
+        // ─── MutationObserver: يراقب SpaceRemit SDK وهو يبني DOM بشكل غير متزامن ───
+        _regionObserver = new MutationObserver((mutations) => {
+            // تحقق سريع: هل في المتغيرات شيء يستدعي إعادة التطبيق؟
+            const hasRelevantChange = mutations.some(m =>
+                m.addedNodes.length > 0 || m.type === 'characterData'
+            );
+            if (hasRelevantChange) applyFix();
+        });
+
+        _regionObserver.observe(container, {
+            childList:     true,
+            subtree:       true,
+            characterData: true
+        });
+
+        // ─── احتياطي: تطبيق بتأخيرات متعددة لأن SpaceRemit يعمل بشكل غير متزامن ───
+        [50, 150, 400, 800, 1500, 3000].forEach(delay => setTimeout(applyFix, delay));
+    }
+
+    // ─── Hook داخل loadSpaceRemitSDK ─────────────────────────────────────
+    // نعيد تعريف دالة openSpOverlay لتشغيل الفيكس تلقائياً عند كل فتح
+    const _originalOpenSpOverlay = openSpOverlay;
+    // لا نستطيع override مباشرة لأنها في نفس scope، لذا نضيف listener على الـ SDK
+
+    // ─── تطبيق الفيكس عند تحميل SDK (نستخدم تأخيراً لضمان جاهزية الـ DOM) ───
+    const _originalLoadSpaceRemitSDK = loadSpaceRemitSDK;
+    loadSpaceRemitSDK = function(publicKey) {
+        _originalLoadSpaceRemitSDK(publicKey);
+        // نراقب متى ينتهي SDK من البناء
+        setTimeout(fixRegionSelectorForNonArab, 200);
+    };
+
 </script>
 {% endblock %}
