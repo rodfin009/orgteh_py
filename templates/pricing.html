@@ -828,9 +828,6 @@
         document.body.classList.remove('lock-scroll');
         document.documentElement.classList.remove('lock-scroll');
 
-        // ✅ إيقاف مراقب المنطقة عند الإغلاق (توفير الذاكرة)
-        if (_regionObserver) { _regionObserver.disconnect(); _regionObserver = null; }
-
         document.getElementById('sp-status-msg').classList.add('hidden');
         document.getElementById('sp-status-msg').innerHTML = '';
         document.getElementById('spaceremit-local-methods-pay').innerHTML = '';
@@ -915,8 +912,6 @@
         s.onload = function() {
             loading.style.display = 'none';
             loading.classList.add('hidden');
-            // ✅ تطبيق إصلاح المنطقة فور اكتمال تحميل SDK
-            fixRegionSelectorForNonArab();
         };
         s.onerror = function() {
             closeSpOverlay();
@@ -1072,127 +1067,243 @@
 
     window.addEventListener('langChange', () => { applyLocalTranslations(); });
 
+    // ═══════════════════════════════════════════════════════════════════
+    //  SpaceRemit Arabic→English Fix — النسخة النهائية المضمونة 100%
+    //  المنطق: URL هو المصدر الوحيد الموثوق (لا يتغير بحذف الكاش)
+    //  إذا /en/ → نترجم كل شيء عربي ونخفي القائمة الإقليمية
+    //  إذا /ar/ → لا شيء يتغير (كل شيء طبيعي للعرب)
+    // ═══════════════════════════════════════════════════════════════════
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // ✅ SpaceRemit Region Selector Fix
-    // المشكلة: بوابة الدفع تعرض "عالمي" بالعربية + دول عربية فقط للمستخدم الأجنبي
-    // الحل: إذا كان المستخدم أجنبياً → نعيد تسمية "عالمي" → "Global" ونخفي القائمة
-    // إذا كان عربياً → لا شيء يتغير (يرى القائمة كاملة بشكل طبيعي)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    function detectUserLang() {
-        // الأولوية: لغة URL → لغة المتصفح المخزنة → لغة المتصفح الفعلية
-        const urlLang = window.SERVER_LANG || document.documentElement.getAttribute('lang');
-        if (urlLang === 'ar') return 'ar';
-        if (urlLang === 'en') return 'en';
-
-        // فحص localStorage
-        const stored = localStorage.getItem('lang');
-        if (stored === 'ar') return 'ar';
-
-        // فحص لغة المتصفح الفعلية (الأهم للمستخدمين الأجانب)
-        const browserLangs = navigator.languages || [navigator.language || navigator.userLanguage || 'en'];
-        const isArabicBrowser = browserLangs.some(l => l.toLowerCase().startsWith('ar'));
-        return isArabicBrowser ? 'ar' : 'en';
+    // ─── 1. تحديد اللغة من URL فقط (مضمون 100%) ─────────────────────
+    function isEnglishUser() {
+        // URL هو الحكم الأول والأخير — /en/cart أو /ar/cart
+        const pathLang = window.location.pathname.split('/')[1];
+        if (pathLang === 'en') return true;
+        if (pathLang === 'ar') return false;
+        // احتياطي: SERVER_LANG من Jinja
+        if (window.SERVER_LANG === 'en') return true;
+        if (window.SERVER_LANG === 'ar') return false;
+        // احتياطي أخير: localStorage
+        return localStorage.getItem('lang') !== 'ar';
     }
 
-    let _regionObserver = null;
+    // ─── 2. قاموس الترجمة الشامل (كل النصوص التي يضخها SpaceRemit) ──
+    const SR_TRANSLATIONS = {
+        // قائمة المناطق
+        'عالمي':                    'Global',
+        'السعودية':                 'Saudi Arabia',
+        'المغرب':                   'Morocco',
+        'الجزائر':                  'Algeria',
+        'تونس':                     'Tunisia',
+        'مصر':                      'Egypt',
+        'الإمارات':                 'UAE',
+        'الإمارات العربية المتحدة': 'UAE',
+        'ليبيا':                    'Libya',
+        'العراق':                   'Iraq',
+        'سوريا':                    'Syria',
+        'اليمن':                    'Yemen',
+        'عُمان':                    'Oman',
+        'قطر':                      'Qatar',
+        'البحرين':                  'Bahrain',
+        'الكويت':                   'Kuwait',
+        'الأردن':                   'Jordan',
+        'فلسطين':                   'Palestine',
+        // نصوص واجهة الدفع
+        'الاسم الكامل':             'Full Name',
+        'إثبات دفع':                'Payment Proof',
+        'لقد دفعت':                 'I Have Paid',
+        'تحميل إثبات الدفع':        'Upload Payment Proof',
+        'رفع ملف':                  'Upload File',
+        'اختر ملف':                 'Choose File',
+        'إلغاء':                    'Cancel',
+        'تأكيد':                    'Confirm',
+        'التالي':                   'Next',
+        'السابق':                   'Back',
+        'إرسال':                    'Send',
+        'رقم الهاتف':               'Phone Number',
+        'البريد الإلكتروني':        'Email',
+        'المبلغ':                   'Amount',
+        'العملة':                   'Currency',
+        'طريقة الدفع':              'Payment Method',
+        'تحويل بنكي':               'Bank Transfer',
+        'انتظر':                    'Please Wait',
+        'جاري المعالجة':            'Processing...',
+        'نجح':                      'Success',
+        'فشل':                      'Failed',
+        'خطأ':                      'Error',
+        'يرجى المحاولة مرة أخرى':  'Please try again',
+        'تم الدفع بنجاح':           'Payment Successful',
+        'رقم العملية':              'Transaction ID',
+        'الرجاء الانتظار':          'Please wait',
+        'دقائق':                    'minutes',
+        'ساعات':                    'hours',
+        'ثواني':                    'seconds',
+    };
 
-    function fixRegionSelectorForNonArab() {
-        const userLang = detectUserLang();
+    // ─── ترجمة الجمل الطويلة بـ Regex ─────────────────────────────────
+    const SR_REGEX_TRANSLATIONS = [
+        // "أرسل USD 3.99 الى البيانات التالية:"
+        [/أرسل\s+([\w\s.]+)\s+ال[ىي]\s+البيانات\s+التالية/g,
+         'Send $1 to the following address'],
+        // "بعد ارسال المبلغ قم بالضغط على زر 'لقد دفعت' يتم قبول الطلبات خلال بضع دقائق او ساعات"
+        [/بعد\s+ارسال\s+المبلغ[^"'<]*/g,
+         "After sending the amount, click 'I Have Paid'. Orders are confirmed within minutes or hours."],
+        // أي نص يحتوي على "TRC20 address" + Arabic mix - نبقيه كما هو (إنجليزي)
+    ];
 
-        // ✅ المستخدم العربي → لا تغييرات، يرى كل شيء طبيعياً
-        if (userLang === 'ar') return;
+    // ─── 3. دالة الترجمة الذكية ─────────────────────────────────────
+    let _srObserver = null;
+    let _translationRunning = false;
+
+    function translateSpaceRemitNode(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            let text = node.textContent;
+            const original = text;
+
+            // تطبيق الترجمات المباشرة (كلمة بكلمة)
+            Object.keys(SR_TRANSLATIONS).forEach(ar => {
+                if (text.includes(ar)) {
+                    text = text.split(ar).join(SR_TRANSLATIONS[ar]);
+                }
+            });
+
+            // تطبيق ترجمات الجمل الطويلة
+            SR_REGEX_TRANSLATIONS.forEach(([pattern, replacement]) => {
+                text = text.replace(pattern, replacement);
+            });
+
+            if (text !== original) {
+                node.textContent = text;
+            }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            // ترجمة الـ placeholder
+            ['placeholder', 'title', 'aria-label', 'data-placeholder'].forEach(attr => {
+                if (node.hasAttribute && node.hasAttribute(attr)) {
+                    let val = node.getAttribute(attr);
+                    const orig = val;
+                    Object.keys(SR_TRANSLATIONS).forEach(ar => {
+                        val = val.split(ar).join(SR_TRANSLATIONS[ar]);
+                    });
+                    if (val !== orig) node.setAttribute(attr, val);
+                }
+            });
+            // تطبيق على الأبناء
+            node.childNodes.forEach(translateSpaceRemitNode);
+        }
+    }
+
+    function hideArabicRegionDropdown(container) {
+        // إخفاء سهم القائمة المنسدلة لعناصر الدول
+        container.querySelectorAll('*').forEach(el => {
+            const text = el.textContent.trim();
+            // إذا احتوى العنصر على "Global" فقط → نزيل إمكانية النقر
+            if (text === 'Global' && el.children.length <= 4 && !el.querySelector('input')) {
+                // إخفاء أسهم الـ dropdown
+                el.querySelectorAll('svg, [class*="arrow"], [class*="chevron"], [class*="caret"], [class*="down"], i[class*="fa-chevron"], i[class*="fa-caret"]').forEach(icon => {
+                    icon.style.setProperty('display', 'none', 'important');
+                });
+                // تعطيل النقر على الزر والأب
+                [el, el.parentElement].filter(Boolean).forEach(t => {
+                    if (t !== container) {
+                        t.style.pointerEvents = 'none';
+                        t.style.cursor = 'default';
+                    }
+                });
+            }
+
+            // إخفاء الدول العربية من القائمة (عند الفتح)
+            const arabicCountries = ['Saudi Arabia','Morocco','Algeria','Tunisia','Egypt','UAE','Libya','Iraq','Syria','Yemen','Oman','Qatar','Bahrain','Kuwait','Jordan','Palestine'];
+            if (arabicCountries.includes(text) && el.children.length <= 3) {
+                const row = el.closest('li, [role="option"], [class*="option"], [class*="item"]') || el.parentElement;
+                if (row && row !== container) {
+                    row.style.setProperty('display', 'none', 'important');
+                }
+            }
+        });
+    }
+
+    function runFullFix() {
+        if (_translationRunning) return;
+        _translationRunning = true;
+
+        const container = document.getElementById('spaceremit-local-methods-pay');
+        if (!container) { _translationRunning = false; return; }
+
+        // 1. ترجمة كل النصوص
+        translateSpaceRemitNode(container);
+
+        // 2. إخفاء القائمة الإقليمية
+        hideArabicRegionDropdown(container);
+
+        _translationRunning = false;
+    }
+
+    function startSpaceRemitFix() {
+        if (!isEnglishUser()) return; // المستخدم عربي → لا شيء
 
         const container = document.getElementById('spaceremit-local-methods-pay');
         if (!container) return;
 
-        // إيقاف المراقب القديم قبل بدء جديد
-        if (_regionObserver) { _regionObserver.disconnect(); _regionObserver = null; }
-
-        const ARABIC_COUNTRIES = ['Saudi Arabia', 'Morocco', 'Algeria', 'Tunisia', 'Egypt',
-                                   'السعودية', 'المغرب', 'الجزائر', 'تونس', 'مصر', 'الإمارات',
-                                   'ليبيا', 'العراق', 'سوريا', 'اليمن', 'عُمان', 'قطر', 'البحرين', 'الكويت'];
-
-        const applyFix = () => {
-            // ─── 1. المسح الشامل لكل العناصر النصية وإعادة تسمية "عالمي" ───
-            const renameArabiToGlobal = (node) => {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    if (node.textContent.trim() === 'عالمي') {
-                        node.textContent = node.textContent.replace('عالمي', 'Global');
-                    }
-                } else if (node.nodeType === Node.ELEMENT_NODE) {
-                    node.childNodes.forEach(renameArabiToGlobal);
-                }
-            };
-            renameArabiToGlobal(container);
-
-            // ─── 2. إخفاء قائمة الدول العربية إن ظهرت (حين يفتح المستخدم الـ dropdown) ───
-            container.querySelectorAll('*').forEach(el => {
-                const text = el.textContent.trim();
-                const isArabicCountry = ARABIC_COUNTRIES.some(c => text === c);
-                if (isArabicCountry && el.children.length <= 2) {
-                    // نصعد للأب المنطقي (الصف/العنصر القابل للنقر)
-                    const row = el.closest('li, [role="option"], [class*="item"], [class*="option"]') 
-                                || el.parentElement;
-                    if (row && row !== container) {
-                        row.style.setProperty('display', 'none', 'important');
-                    }
-                }
-            });
-
-            // ─── 3. جعل عنصر "Global" غير قابل للنقر (لا يفتح القائمة للأجانب) ───
-            // نبحث عن الزر/العنصر الذي يحتوي "Global" ونزيل تفاعليته
-            container.querySelectorAll('*').forEach(el => {
-                if (el.textContent.trim() === 'Global' && el.children.length <= 3) {
-                    // إخفاء أي سهم dropdown بداخله
-                    el.querySelectorAll('svg, i[class*="arrow"], i[class*="chevron"], i[class*="down"], i[class*="caret"]').forEach(icon => {
-                        icon.style.setProperty('display', 'none', 'important');
-                    });
-                    // تعطيل النقر على الزر نفسه وعلى أبيه المباشر
-                    [el, el.parentElement].forEach(target => {
-                        if (target && target !== container) {
-                            target.style.pointerEvents = 'none';
-                            target.style.cursor = 'default';
-                        }
-                    });
-                }
-            });
-        };
+        // إيقاف مراقب قديم
+        if (_srObserver) { _srObserver.disconnect(); _srObserver = null; }
 
         // تطبيق فوري
-        applyFix();
+        runFullFix();
 
-        // ─── MutationObserver: يراقب SpaceRemit SDK وهو يبني DOM بشكل غير متزامن ───
-        _regionObserver = new MutationObserver((mutations) => {
-            // تحقق سريع: هل في المتغيرات شيء يستدعي إعادة التطبيق؟
-            const hasRelevantChange = mutations.some(m =>
-                m.addedNodes.length > 0 || m.type === 'characterData'
-            );
-            if (hasRelevantChange) applyFix();
+        // MutationObserver يراقب كل تغيير في DOM
+        _srObserver = new MutationObserver((mutations) => {
+            const hasNew = mutations.some(m => m.addedNodes.length > 0 || m.type === 'characterData');
+            if (hasNew) {
+                // تأخير صغير لانتظار انتهاء SpaceRemit من الرندر
+                clearTimeout(_srObserver._timer);
+                _srObserver._timer = setTimeout(runFullFix, 30);
+            }
         });
 
-        _regionObserver.observe(container, {
-            childList:     true,
-            subtree:       true,
+        _srObserver.observe(container, {
+            childList: true,
+            subtree: true,
             characterData: true
         });
 
-        // ─── احتياطي: تطبيق بتأخيرات متعددة لأن SpaceRemit يعمل بشكل غير متزامن ───
-        [50, 150, 400, 800, 1500, 3000].forEach(delay => setTimeout(applyFix, delay));
+        // تأخيرات احتياطية (SpaceRemit async rendering)
+        [100, 300, 600, 1000, 2000, 4000].forEach(ms => setTimeout(runFullFix, ms));
     }
 
-    // ─── Hook داخل loadSpaceRemitSDK ─────────────────────────────────────
-    // نعيد تعريف دالة openSpOverlay لتشغيل الفيكس تلقائياً عند كل فتح
-    const _originalOpenSpOverlay = openSpOverlay;
-    // لا نستطيع override مباشرة لأنها في نفس scope، لذا نضيف listener على الـ SDK
+    // ─── 4. ربط الإصلاح بكل نقاط الدخول ────────────────────────────
 
-    // ─── تطبيق الفيكس عند تحميل SDK (نستخدم تأخيراً لضمان جاهزية الـ DOM) ───
-    const _originalLoadSpaceRemitSDK = loadSpaceRemitSDK;
+    // Hook: بعد تحميل SDK مباشرة
+    const _origLoadSDK = loadSpaceRemitSDK;
     loadSpaceRemitSDK = function(publicKey) {
-        _originalLoadSpaceRemitSDK(publicKey);
-        // نراقب متى ينتهي SDK من البناء
-        setTimeout(fixRegionSelectorForNonArab, 200);
+        _origLoadSDK(publicKey);
+        // تشغيل بعد onload بوقت كافٍ
+        setTimeout(startSpaceRemitFix, 50);
+        setTimeout(startSpaceRemitFix, 500);
+    };
+
+    // Hook: داخل s.onload نفسه — نحتاج override الدالة المحلية
+    // نضيف listener على الـ script tag بعد إضافته للـ DOM
+    const _origDoc = document.body.appendChild.bind(document.body);
+    document.body.appendChild = function(el) {
+        const result = _origDoc(el);
+        if (el && el.id === 'sp-sdk-script') {
+            const origOnload = el.onload;
+            el.onload = function() {
+                if (origOnload) origOnload.call(this);
+                // بعد تحميل SDK: تطبيق الإصلاح مباشرة
+                setTimeout(startSpaceRemitFix, 50);
+                setTimeout(startSpaceRemitFix, 300);
+                setTimeout(startSpaceRemitFix, 800);
+            };
+        }
+        return result;
+    };
+
+    // Hook: عند إغلاق المودال — تنظيف المراقب
+    const _origClose = closeSpOverlay;
+    closeSpOverlay = function() {
+        if (_srObserver) { _srObserver.disconnect(); _srObserver = null; }
+        _origClose();
     };
 
 </script>
