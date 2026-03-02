@@ -973,7 +973,7 @@ html.dark .embedded-chat-input { background: #111; border-color: #333; color: #f
 
                     <div class="code-block">
 <span style="color:#6b7280;">&lt;!-- Orgteh Widget --&gt;</span><br>
-&lt;<span style="color:#7dd3fc;">script</span> <span style="color:#86efac;">src</span>=<span style="color:#fca5a5;">"https://orgteh.com/static/widget-loader.js"</span><br>
+&lt;<span style="color:#7dd3fc;">script</span> <span style="color:#86efac;">src</span>=<span style="color:#fca5a5;">"https://orgteh.com/static/widget-loader.js?v=2"</span><br>
 &nbsp;&nbsp;<span style="color:#86efac;">data-widget-id</span>=<span style="color:#fbbf24;">"<span id="codeWidgetId">wx_...</span>"</span><br>
 &nbsp;&nbsp;<span style="color:#86efac;">data-lang</span>=<span style="color:#fca5a5;">"{{ lang }}"</span><br>
 &nbsp;&nbsp;<span style="color:#86efac;">defer</span>&gt;&lt;/<span style="color:#7dd3fc;">script</span>&gt;
@@ -1951,7 +1951,7 @@ async function sendEmbedMsg() {
 // ══════════════════════════════════════════════════════════
 function getEmbedCode() {
     const id = currentWidget?.id || "wx_...";
-    return `<!-- Orgteh Widget -->\n<script src="https://orgteh.com/static/widget-loader.js"\n  data-widget-id="${id}"\n  data-lang="${USER_LANG}"\n  defer><\/script>`;
+    return `<!-- Orgteh Widget -->\n<script src="https://orgteh.com/static/widget-loader.js?v=2"\n  data-widget-id="${id}"\n  data-lang="${USER_LANG}"\n  defer><\/script>`;
 }
 
 function copyCode() {
