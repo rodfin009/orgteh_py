@@ -19,7 +19,7 @@
   "use strict";
 
   /* ─── إعدادات أساسية ──────────────────────────────────────────────── */
-  const BASE_URL     = "https://orgteh.com";
+  const BASE_URL     = "https://www.orgteh.com"; // ✅ www مباشرة — بدونها يحدث 307 redirect يكسر CORS
   const SCRIPT_EL    = document.currentScript || (() => {
     const scripts = document.querySelectorAll('script[data-widget-id]');
     return scripts[scripts.length - 1];
