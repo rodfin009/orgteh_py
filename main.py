@@ -2,6 +2,7 @@ import os
 import json
 import sys
 import gzip
+import logging
 import secrets
 import asyncio
 import brotli
@@ -66,6 +67,9 @@ from services.widget_service import (
 # ============================================================================
 
 SECRET_KEY   = os.environ.get("SESSION_SECRET_KEY", "super-secret-key-change-in-production")
+
+# Logger للـ proxy
+logger = logging.getLogger(__name__)
 
 # ─── SpaceRemit Webhook IP Whitelist ─────────────────────────────────────────
 SPACEREMIT_WEBHOOK_IPS = [
@@ -1361,6 +1365,130 @@ async def api_enterprise_contact(request: Request):
 # ============================================================================
 # PAYMENT ROUTES (SpaceRemit)
 # ============================================================================
+
+# ─── SpaceRemit SDK Proxy — يجلب الـ JS ويترجم النصوص العربية قبل الإرسال ───
+# السبب: SpaceRemit يرندر داخل iframe، لا يمكن تعديله بـ JS من الصفحة الأم.
+# الحل الوحيد المضمون: تعديل الـ JS نفسه على السيرفر قبل وصوله للمتصفح.
+
+_spaceremit_sdk_cache: dict = {"content": None, "expires": 0}
+
+SPACEREMIT_AR_TO_EN = {
+    # ── واجهة اختيار الدولة / المنطقة ──
+    "عالمي":                     "Global",
+    "السعودية":                  "Saudi Arabia",
+    "المغرب":                    "Morocco",
+    "الجزائر":                   "Algeria",
+    "تونس":                      "Tunisia",
+    "مصر":                       "Egypt",
+    "الإمارات العربية المتحدة":  "UAE",
+    "الإمارات":                  "UAE",
+    "ليبيا":                     "Libya",
+    "العراق":                    "Iraq",
+    "سوريا":                     "Syria",
+    "اليمن":                     "Yemen",
+    "عُمان":                     "Oman",
+    "قطر":                       "Qatar",
+    "البحرين":                   "Bahrain",
+    "الكويت":                    "Kuwait",
+    "الأردن":                    "Jordan",
+    "فلسطين":                    "Palestine",
+    "السودان":                   "Sudan",
+    "موريتانيا":                 "Mauritania",
+    # ── نصوص واجهة الدفع ──
+    "الاسم الكامل":              "Full Name",
+    "الاسم":                     "Name",
+    "إثبات دفع":                 "Payment Proof",
+    "إثبات الدفع":               "Payment Proof",
+    "تحميل إثبات الدفع":         "Upload Proof",
+    "لقد دفعت":                  "I Have Paid",
+    "رفع ملف":                   "Upload File",
+    "اختر ملف":                  "Choose File",
+    "لا يوجد ملف":               "No file chosen",
+    "إلغاء":                     "Cancel",
+    "تأكيد":                     "Confirm",
+    "التالي":                    "Next",
+    "السابق":                    "Back",
+    "إرسال":                     "Send",
+    "رقم الهاتف":                "Phone Number",
+    "البريد الإلكتروني":         "Email",
+    "المبلغ":                    "Amount",
+    "الرسوم":                    "Fees",
+    "الإجمالي":                  "Total",
+    "العملة":                    "Currency",
+    "طريقة الدفع":               "Payment Method",
+    "انتظر":                     "Please Wait",
+    "جاري المعالجة":             "Processing...",
+    "جاري التحميل":              "Loading...",
+    "نجح":                       "Success",
+    "فشل":                       "Failed",
+    "خطأ":                       "Error",
+    "تم الدفع بنجاح":            "Payment Successful",
+    "رقم العملية":               "Transaction ID",
+    "الرجاء الانتظار":           "Please wait",
+    "دقائق":                     "minutes",
+    "ساعات":                     "hours",
+    "ثواني":                     "seconds",
+    "تحويل بنكي":                "Bank Transfer",
+    "بطاقة ائتمانية":            "Credit Card",
+    "العودة":                    "Go Back",
+    "ادفع الآن":                 "Pay Now",
+    "اكمل الدفع":                "Complete Payment",
+    "بعد ارسال المبلغ قم بالضغط على زر": "After sending the amount, click",
+    "يتم قبول الطلبات خلال بضع": "Orders confirmed within a few",
+    "الى البيانات التالية":      "to the following address",
+    "أرسل":                      "Send",
+}
+
+
+@app.get("/api/proxy/spaceremit-sdk.js")
+async def proxy_spaceremit_sdk(request: Request):
+    """
+    يجلب SpaceRemit JS SDK من مصدره، يستبدل كل النصوص العربية بالإنجليزية،
+    ثم يُرسله للمتصفح. يُخزَّن في كاش لمدة 10 دقائق لتجنب الطلبات المتكررة.
+    """
+    import time
+
+    # ── تحقق من الكاش أولاً ──────────────────────────────────────────
+    now = time.time()
+    if _spaceremit_sdk_cache["content"] and now < _spaceremit_sdk_cache["expires"]:
+        logger.info("SpaceRemit SDK: serving from cache")
+        return Response(
+            content=_spaceremit_sdk_cache["content"],
+            media_type="application/javascript",
+            headers={"Cache-Control": "public, max-age=600", "Access-Control-Allow-Origin": "*"}
+        )
+
+    # ── جلب الملف من SpaceRemit ───────────────────────────────────────
+    sdk_url = "https://spaceremit.com/api/v2/js_script/spaceremit.js"
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            logger.info("SpaceRemit SDK: fetching from origin...")
+            resp = await client.get(sdk_url, headers={"Accept": "*/*", "User-Agent": "Mozilla/5.0"})
+            resp.raise_for_status()
+            js_content = resp.text
+    except Exception as e:
+        logger.error(f"SpaceRemit SDK proxy fetch failed: {e}")
+        # في حال الفشل → redirect للمصدر الأصلي
+        return RedirectResponse(url=sdk_url)
+
+    # ── استبدال النصوص العربية ────────────────────────────────────────
+    # نرتّب من الأطول للأقصر لتجنب الاستبدال الجزئي
+    for ar_text, en_text in sorted(SPACEREMIT_AR_TO_EN.items(), key=lambda x: -len(x[0])):
+        # نبحث في السلاسل المقتبسة (كل أنواع الاقتباس) وخارجها
+        js_content = js_content.replace(ar_text, en_text)
+
+    # ── تخزين في الكاش لـ 10 دقائق ───────────────────────────────────
+    _spaceremit_sdk_cache["content"] = js_content
+    _spaceremit_sdk_cache["expires"] = now + 600
+
+    logger.info(f"SpaceRemit SDK: translated and cached ({len(js_content)} bytes)")
+
+    return Response(
+        content=js_content,
+        media_type="application/javascript",
+        headers={"Cache-Control": "public, max-age=600", "Access-Control-Allow-Origin": "*"}
+    )
+
 
 class CheckoutRequest(BaseModel):
     plan_name: str

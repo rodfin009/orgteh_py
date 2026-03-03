@@ -907,15 +907,42 @@
 
         const s  = document.createElement('script');
         s.id     = 'sp-sdk-script';
-        s.src    = 'https://spaceremit.com/api/v2/js_script/spaceremit.js';
+
+        // ✅ تحديد مصدر الـ SDK:
+        // - المستخدم الإنجليزي (/en/) → proxy يُترجم النصوص العربية
+        // - المستخدم العربي (/ar/)   → المصدر الأصلي مباشرة
+        const isEnPage = window.location.pathname.startsWith('/en');
+        const PROXY_URL    = '/api/proxy/spaceremit-sdk.js';
+        const ORIGINAL_URL = 'https://spaceremit.com/api/v2/js_script/spaceremit.js';
+
+        s.src    = isEnPage ? PROXY_URL : ORIGINAL_URL;
         s.async  = false;
         s.onload = function() {
             loading.style.display = 'none';
             loading.classList.add('hidden');
         };
         s.onerror = function() {
-            closeSpOverlay();
-            alert(getActiveLang()==='ar' ? 'فشل تحميل بوابة الدفع. تحقق من اتصالك.' : 'Failed to load payment gateway.');
+            // Fallback: إذا فشل الـ proxy → حمّل من المصدر الأصلي مباشرة
+            if (s.src === PROXY_URL) {
+                console.warn('[SpaceRemit] Proxy failed, falling back to origin...');
+                const fallback = document.createElement('script');
+                fallback.id    = 'sp-sdk-script';
+                fallback.src   = ORIGINAL_URL;
+                fallback.async = false;
+                fallback.onload = function() {
+                    loading.style.display = 'none';
+                    loading.classList.add('hidden');
+                };
+                fallback.onerror = function() {
+                    closeSpOverlay();
+                    alert(getActiveLang()==='ar' ? 'فشل تحميل بوابة الدفع. تحقق من اتصالك.' : 'Failed to load payment gateway.');
+                };
+                document.getElementById('sp-sdk-script')?.remove();
+                document.body.appendChild(fallback);
+            } else {
+                closeSpOverlay();
+                alert(getActiveLang()==='ar' ? 'فشل تحميل بوابة الدفع. تحقق من اتصالك.' : 'Failed to load payment gateway.');
+            }
         };
         document.body.appendChild(s);
     }
@@ -1066,213 +1093,5 @@
     });
 
     window.addEventListener('langChange', () => { applyLocalTranslations(); });
-
-    // ════════════════════════════════════════════════════════════════════
-    //  SpaceRemit Arabic→English — النسخة النهائية المضمونة
-    //  المشكلة الحقيقية: SpaceRemit يُعيد رندر HTML عند كل نقرة
-    //  لذا setTimeout و MutationObserver لا يكفيان وحدهما
-    //  الحل: setInterval مستمر يعمل كل 80ms طوال فترة فتح المودال
-    // ════════════════════════════════════════════════════════════════════
-
-    (function() {
-
-        // ─── تحديد المستخدم من URL فقط (الوحيد المضمون 100%) ──────────
-        function isEnglishSession() {
-            const seg = window.location.pathname.split('/')[1];
-            if (seg === 'en') return true;
-            if (seg === 'ar') return false;
-            return (window.SERVER_LANG === 'en') || (localStorage.getItem('lang') !== 'ar');
-        }
-
-        if (!isEnglishSession()) return; // عربي → لا شيء
-
-        // ─── قاموس الترجمة الكامل ──────────────────────────────────────
-        const DICT = {
-            // منطقة
-            'عالمي':                     'Global',
-            'السعودية':                  'Saudi Arabia',
-            'المغرب':                    'Morocco',
-            'الجزائر':                   'Algeria',
-            'تونس':                      'Tunisia',
-            'مصر':                       'Egypt',
-            'الإمارات العربية المتحدة':  'UAE',
-            'الإمارات':                  'UAE',
-            'ليبيا':                     'Libya',
-            'العراق':                    'Iraq',
-            'سوريا':                     'Syria',
-            'اليمن':                     'Yemen',
-            'عُمان':                     'Oman',
-            'قطر':                       'Qatar',
-            'البحرين':                   'Bahrain',
-            'الكويت':                    'Kuwait',
-            'الأردن':                    'Jordan',
-            'فلسطين':                    'Palestine',
-            'السودان':                   'Sudan',
-            'موريتانيا':                 'Mauritania',
-            // واجهة الدفع
-            'الاسم الكامل':              'Full Name',
-            'الاسم':                     'Name',
-            'إثبات دفع':                 'Payment Proof',
-            'إثبات الدفع':               'Payment Proof',
-            'تحميل إثبات الدفع':         'Upload Proof',
-            'لقد دفعت':                  'I Have Paid',
-            'رفع ملف':                   'Upload File',
-            'اختر ملف':                  'Choose File',
-            'لا يوجد ملف':               'No file chosen',
-            'إلغاء':                     'Cancel',
-            'تأكيد':                     'Confirm',
-            'التالي':                    'Next',
-            'السابق':                    'Back',
-            'إرسال':                     'Send',
-            'رقم الهاتف':                'Phone Number',
-            'البريد الإلكتروني':         'Email',
-            'المبلغ':                    'Amount',
-            'الرسوم':                    'Fees',
-            'الإجمالي':                  'Total',
-            'العملة':                    'Currency',
-            'طريقة الدفع':               'Payment Method',
-            'انتظر':                     'Please Wait',
-            'جاري المعالجة':             'Processing...',
-            'جاري التحميل':              'Loading...',
-            'نجح':                       'Success',
-            'فشل':                       'Failed',
-            'خطأ':                       'Error',
-            'تم الدفع بنجاح':            'Payment Successful',
-            'رقم العملية':               'Transaction ID',
-            'الرجاء الانتظار':           'Please wait',
-            'دقائق':                     'minutes',
-            'ساعات':                     'hours',
-            'ثواني':                     'seconds',
-            'تحويل بنكي':                'Bank Transfer',
-            'بطاقة ائتمانية':            'Credit Card',
-            'العودة':                    'Go Back',
-            'ادفع الآن':                 'Pay Now',
-            'اكمل الدفع':                'Complete Payment',
-        };
-
-        // ─── ترجمة node نصي أو عنصر HTML ──────────────────────────────
-        function translateNode(node) {
-            if (node.nodeType === Node.TEXT_NODE) {
-                let t = node.textContent;
-                if (!t.trim()) return;
-                // هل يحتوي على عربي؟
-                if (!/[\u0600-\u06FF]/.test(t)) return;
-                let changed = false;
-                for (const [ar, en] of Object.entries(DICT)) {
-                    if (t.includes(ar)) { t = t.split(ar).join(en); changed = true; }
-                }
-                // ترجمة جمل خاصة بـ regex
-                const before = t;
-                t = t.replace(/أرسل\s+([\w\s$.]+)\s+ال[ىي]\s+البيانات\s+التالية:?/g,
-                              'Send $1 to the following address:');
-                t = t.replace(/بعد\s+ارسال\s+المبلغ[^<]*/g,
-                              "After sending, click 'I Have Paid'. Confirmed within minutes or hours.");
-                t = t.replace(/يتم\s+قبول\s+الطلبات[^<]*/g, '');
-                if (before !== t) changed = true;
-                if (changed) node.textContent = t;
-            } else if (node.nodeType === Node.ELEMENT_NODE) {
-                // ترجمة placeholder وattributes
-                for (const attr of ['placeholder', 'title', 'aria-label', 'value']) {
-                    if (node.hasAttribute(attr)) {
-                        let v = node.getAttribute(attr);
-                        if (!/[\u0600-\u06FF]/.test(v)) continue;
-                        let changed = false;
-                        for (const [ar, en] of Object.entries(DICT)) {
-                            if (v.includes(ar)) { v = v.split(ar).join(en); changed = true; }
-                        }
-                        // لا نترجم value للـ inputs (قد يكون قيمة مدخلة)
-                        if (changed && attr !== 'value') node.setAttribute(attr, v);
-                    }
-                }
-                for (const child of node.childNodes) translateNode(child);
-            }
-        }
-
-        // ─── إخفاء سهم dropdown القائمة الإقليمية ────────────────────
-        function lockRegionDropdown(container) {
-            container.querySelectorAll('*').forEach(el => {
-                const txt = el.textContent.trim();
-                if ((txt === 'Global' || txt === 'عالمي') && el.children.length <= 5 && !el.querySelector('input, button')) {
-                    // إخفاء أي سهم/أيقونة بداخله
-                    el.querySelectorAll('svg, i, span[class*="arrow"], span[class*="caret"], span[class*="chevron"]')
-                      .forEach(ico => { if (!ico.textContent.trim()) ico.style.setProperty('display','none','important'); });
-                    // منع النقر
-                    const targets = [el, el.parentElement].filter(Boolean);
-                    targets.forEach(t => { if (t !== container) { t.style.pointerEvents='none'; t.style.cursor='default'; }});
-                }
-            });
-        }
-
-        // ─── الدالة الرئيسية التي تُشغَّل بشكل متكرر ────────────────
-        function runTranslation() {
-            const container = document.getElementById('spaceremit-local-methods-pay');
-            if (!container || !container.children.length) return;
-            translateNode(container);
-            lockRegionDropdown(container);
-        }
-
-        // ─── متغيرات التحكم ───────────────────────────────────────────
-        let _intervalId  = null;
-        let _observerId  = null;
-
-        function startFix() {
-            stopFix(); // أوقف القديم أولاً
-            // setInterval كل 80ms — الضمان الوحيد ضد إعادة الرندر
-            _intervalId = setInterval(runTranslation, 80);
-            // MutationObserver كطبقة إضافية
-            const container = document.getElementById('spaceremit-local-methods-pay');
-            if (container) {
-                const obs = new MutationObserver(runTranslation);
-                obs.observe(container, { childList: true, subtree: true, characterData: true });
-                _observerId = obs;
-            }
-        }
-
-        function stopFix() {
-            if (_intervalId)  { clearInterval(_intervalId); _intervalId = null; }
-            if (_observerId)  { _observerId.disconnect(); _observerId = null; }
-        }
-
-        // ─── Hook على openSpOverlay ────────────────────────────────────
-        const _origOpen = window.openSpOverlay;
-        window.openSpOverlay = function() {
-            if (_origOpen) _origOpen.apply(this, arguments);
-            // ابدأ الإصلاح فور فتح المودال
-            startFix();
-            // ابدأ مرة أخرى بعد تحميل SDK (تأخيرات متعددة للأمان)
-            [200, 500, 1000, 2000].forEach(ms => setTimeout(startFix, ms));
-        };
-
-        // ─── Hook على closeSpOverlay ───────────────────────────────────
-        const _origClose = window.closeSpOverlay;
-        window.closeSpOverlay = function() {
-            stopFix(); // أوقف الـ interval عند الإغلاق
-            if (_origClose) _origClose.apply(this, arguments);
-        };
-
-        // ─── Hook على loadSpaceRemitSDK ────────────────────────────────
-        const _origLoad = window.loadSpaceRemitSDK;
-        window.loadSpaceRemitSDK = function(publicKey) {
-            if (_origLoad) _origLoad.apply(this, arguments);
-            // بعد تحميل SDK نضمن أن الـ interval يعمل
-            setTimeout(startFix, 100);
-        };
-
-        // ─── CSS مباشر: إخفاء سهم الـ dropdown نهائياً ──────────────
-        const style = document.createElement('style');
-        style.textContent = `
-            /* SpaceRemit: إخفاء سهم القائمة الإقليمية للمستخدم الإنجليزي */
-            #spaceremit-local-methods-pay [class*="select"] > svg:last-child,
-            #spaceremit-local-methods-pay [class*="dropdown"] > svg:last-child,
-            #spaceremit-local-methods-pay [class*="region"] > svg,
-            #spaceremit-local-methods-pay [class*="country"] > svg,
-            #spaceremit-local-methods-pay [class*="flag"] ~ svg {
-                display: none !important;
-            }
-        `;
-        document.head.appendChild(style);
-
-    })(); // IIFE — تُشغَّل مرة واحدة عند تحميل الصفحة وتُسجّل الـ hooks
-
 </script>
 {% endblock %}
