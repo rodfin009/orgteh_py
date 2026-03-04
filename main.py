@@ -4,7 +4,6 @@ import sys
 import gzip
 import logging
 import httpx
-import re as _re
 import time as _time
 import secrets
 import asyncio
@@ -70,7 +69,7 @@ from services.widget_service import (
 # ============================================================================
 
 SECRET_KEY   = os.environ.get("SESSION_SECRET_KEY", "super-secret-key-change-in-production")
-_sr_logger   = logging.getLogger("spaceremit_proxy")
+_sr_logger   = logging.getLogger("sr_proxy")
 
 # ─── SpaceRemit Webhook IP Whitelist ─────────────────────────────────────────
 SPACEREMIT_WEBHOOK_IPS = [
@@ -1368,11 +1367,15 @@ async def api_enterprise_contact(request: Request):
 # ============================================================================
 
 # ════════════════════════════════════════════════════════════════════════════
-#  SpaceRemit Universal Proxy
-#  السبب: SpaceRemit يجلب كل النصوص العربية من API calls منفصلة بعد تحميل JS
-#  الحل: نعترض كل طلبات spaceremit.com (JS + API) ونترجم الردود
-#  في الـ JS نستبدل روابط spaceremit.com بـ /api/proxy/sr/
-#  كل طلب API → proxy يجلبه ويترجمه ويُعيده
+#  SpaceRemit SDK Proxy — النسخة الصحيحة
+#
+#  الخطأ السابق: كنا نستبدل URLs في الـ JS → يكسر الصور والـ assets
+#
+#  الحل الصحيح:
+#  1. نترجم النصوص العربية في الـ JS نفسه (strings الثابتة)
+#  2. نحقن كود JS في بداية الملف يعترض fetch() و XHR
+#     ويترجم أي رد JSON يأتي من spaceremit.com قبل أن يعالجه SDK
+#  3. لا نلمس الـ URLs أبداً ← يبقى كل شيء يعمل
 # ════════════════════════════════════════════════════════════════════════════
 
 _AR_TO_EN = {
@@ -1420,7 +1423,6 @@ _AR_TO_EN = {
     "انتظر":                    "Please Wait",
     "جاري المعالجة":            "Processing...",
     "جاري التحميل":             "Loading...",
-    "جاري":                     "Loading...",
     "نجح":                      "Success",
     "فشل":                      "Failed",
     "خطأ":                      "Error",
@@ -1436,71 +1438,140 @@ _AR_TO_EN = {
     "ادفع الآن":                "Pay Now",
     "اكمل الدفع":               "Complete Payment",
     "بعد ارسال المبلغ قم بالضغط على زر": "After sending, click",
-    "يتم قبول الطلبات خلال بضع": "Orders confirmed within a few",
+    "يتم قبول الطلبات خلال بضع دقائق او ساعات": "Orders confirmed within minutes or hours",
     "الى البيانات التالية":     "to the following address",
     "البيانات التالية":         "the following details",
     "أرسل":                     "Send",
     "ارسل":                     "Send",
-    "اضغط":                     "Click",
 }
 
-_SR_ORIGIN = "https://spaceremit.com"
-_PROXY_PREFIX = "/api/proxy/sr"
 _sdk_cache: dict = {"js": None, "expires": 0}
 
 
-def _translate_text(text: str) -> str:
-    """يترجم أي نص: يستبدل العربي بالإنجليزي (مباشر + unicode escapes)."""
-    # من الأطول للأقصر لتجنب الاستبدال الجزئي
-    for ar, en in sorted(_AR_TO_EN.items(), key=lambda x: -len(x[0])):
-        text = text.replace(ar, en)
-        # Unicode escape مثل \u0639\u0627\u0644\u0645\u064a
-        ar_esc = "".join(f"\\u{ord(c):04x}" for c in ar)
-        text = text.replace(ar_esc, en)
-    return text
-
-
-def _translate_sdk_js(js: str) -> str:
-    """
-    يترجم ملف JS الخاص بـ SpaceRemit:
-    1. يستبدل النصوص العربية بالإنجليزية
-    2. يُعيد توجيه كل طلبات spaceremit.com → proxy داخلي
-       حتى يمر كل شيء عبر الترجمة
-    """
-    # ── ترجمة النصوص العربية ─────────────────────────────────────────
-    js = _translate_text(js)
-
-    # ── إعادة توجيه API calls من SpaceRemit → proxy ─────────────────
-    # نستبدل الروابط داخل الـ JS ليصبح كل طلب مرئياً لنا
-    # مثال: "https://spaceremit.com/api/v2/data" → "/api/proxy/sr/api/v2/data"
-    js = js.replace(
-        '"https://spaceremit.com',
-        f'"{_PROXY_PREFIX}/__sr__'
-    ).replace(
-        "'https://spaceremit.com",
-        f"'{_PROXY_PREFIX}/__sr__"
-    ).replace(
-        "`https://spaceremit.com",
-        f"`{_PROXY_PREFIX}/__sr__"
+def _build_translation_dict_js() -> str:
+    """يبني كائن JavaScript يحتوي على كل الترجمات للحقن في الـ SDK."""
+    pairs = ",\n".join(
+        f'  {json.dumps(ar, ensure_ascii=False)}: {json.dumps(en)}'
+        for ar, en in sorted(_AR_TO_EN.items(), key=lambda x: -len(x[0]))
     )
+    return f"{{\n{pairs}\n}}"
 
+
+# كود JS يُحقن في بداية spaceremit.js
+# يعترض fetch() و XMLHttpRequest ويترجم أي JSON response من spaceremit.com
+_INTERCEPTOR_JS = r"""
+;(function() {
+  var _AR_EN = """ + _build_translation_dict_js() + r""";
+
+  function _translateValue(val) {
+    if (typeof val === 'string') {
+      var result = val;
+      var keys = Object.keys(_AR_EN);
+      for (var i = 0; i < keys.length; i++) {
+        var ar = keys[i];
+        if (result.indexOf(ar) !== -1) {
+          result = result.split(ar).join(_AR_EN[ar]);
+        }
+      }
+      return result;
+    }
+    if (Array.isArray(val)) return val.map(_translateValue);
+    if (val !== null && typeof val === 'object') {
+      var out = {};
+      Object.keys(val).forEach(function(k) { out[k] = _translateValue(val[k]); });
+      return out;
+    }
+    return val;
+  }
+
+  function _translateJSON(text) {
+    try {
+      var parsed = JSON.parse(text);
+      return JSON.stringify(_translateValue(parsed));
+    } catch(e) { return text; }
+  }
+
+  function _isSpaceRemit(url) {
+    return typeof url === 'string' && url.indexOf('spaceremit.com') !== -1;
+  }
+
+  /* ── اعتراض fetch() ── */
+  var _origFetch = window.fetch;
+  window.fetch = function(input, init) {
+    var url = (typeof input === 'string') ? input : (input && input.url) || '';
+    return _origFetch.apply(this, arguments).then(function(resp) {
+      if (!_isSpaceRemit(url)) return resp;
+      var ct = resp.headers.get('content-type') || '';
+      if (ct.indexOf('json') === -1) return resp;
+      return resp.text().then(function(text) {
+        var translated = _translateJSON(text);
+        return new Response(translated, {
+          status:     resp.status,
+          statusText: resp.statusText,
+          headers:    resp.headers
+        });
+      });
+    });
+  };
+
+  /* ── اعتراض XMLHttpRequest ── */
+  var _origOpen = XMLHttpRequest.prototype.open;
+  var _origSend = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function(method, url) {
+    this._srUrl = url;
+    return _origOpen.apply(this, arguments);
+  };
+  XMLHttpRequest.prototype.send = function() {
+    if (_isSpaceRemit(this._srUrl)) {
+      this.addEventListener('readystatechange', function() {
+        if (this.readyState === 4) {
+          var ct = this.getResponseHeader('content-type') || '';
+          if (ct.indexOf('json') !== -1 || this.responseText.trim().startsWith('{') || this.responseText.trim().startsWith('[')) {
+            try {
+              Object.defineProperty(this, 'responseText', {
+                get: function() { return _translateJSON(this._srOrigText || ''); },
+                configurable: true
+              });
+              Object.defineProperty(this, 'response', {
+                get: function() { return _translateJSON(this._srOrigText || ''); },
+                configurable: true
+              });
+              this._srOrigText = this.responseText;
+            } catch(e) {}
+          }
+        }
+      });
+    }
+    return _origSend.apply(this, arguments);
+  };
+
+})();
+"""
+
+
+def _translate_static_strings(js: str) -> str:
+    """
+    يترجم النصوص الثابتة في الـ JS (مثل error messages و hardcoded labels).
+    لا يلمس URLs أو أسماء متغيرات.
+    """
+    for ar, en in sorted(_AR_EN.items(), key=lambda x: -len(x[0])) if False else \
+                  sorted(_AR_TO_EN.items(), key=lambda x: -len(x[0])):
+        # استبدال النص المباشر داخل strings فقط
+        js = js.replace(ar, en)
+        # استبدال unicode escapes
+        ar_esc = "".join(f"\\u{ord(c):04x}" for c in ar)
+        js = js.replace(ar_esc, en)
     return js
 
 
-def _translate_json_response(data) -> any:
-    """يمر على أي JSON (dict/list/str) ويترجم كل القيم العربية."""
-    if isinstance(data, str):
-        return _translate_text(data)
-    if isinstance(data, list):
-        return [_translate_json_response(item) for item in data]
-    if isinstance(data, dict):
-        return {k: _translate_json_response(v) for k, v in data.items()}
-    return data
-
-
-# ─── 1. Proxy ملف SDK الرئيسي ────────────────────────────────────────────────
 @app.get("/api/proxy/spaceremit-sdk.js")
 async def proxy_spaceremit_sdk():
+    """
+    يجلب SpaceRemit JS SDK ويطبق عليه طبقتين من الترجمة:
+    1. يستبدل النصوص الثابتة العربية في الكود
+    2. يحقن interceptor يترجم كل JSON responses من spaceremit.com
+    النتيجة: الواجهة كاملة بالإنجليزي دون كسر أي assets أو URLs
+    """
     now = _time.time()
 
     if _sdk_cache["js"] and now < _sdk_cache["expires"]:
@@ -1511,7 +1582,7 @@ async def proxy_spaceremit_sdk():
             headers={"Cache-Control": "public, max-age=600", "Access-Control-Allow-Origin": "*"}
         )
 
-    sdk_url = f"{_SR_ORIGIN}/api/v2/js_script/spaceremit.js"
+    sdk_url = "https://spaceremit.com/api/v2/js_script/spaceremit.js"
     try:
         async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
             _sr_logger.info("[SDKProxy] Fetching from origin...")
@@ -1527,115 +1598,43 @@ async def proxy_spaceremit_sdk():
         _sr_logger.error(f"[SDKProxy] Fetch error: {e}")
         return RedirectResponse(url=sdk_url, status_code=302)
 
-    js_translated = _translate_sdk_js(js_raw)
-    count = sum(js_raw.count(ar) for ar in _AR_TO_EN)
-    _sr_logger.info(f"[SDKProxy] Translated. Replacements ~{count}. Size={len(js_translated)}")
+    # ── طبقة 1: ترجمة النصوص الثابتة في الـ JS ─────────────────────
+    js_translated = _translate_static_strings(js_raw)
 
-    _sdk_cache["js"]      = js_translated
+    # ── طبقة 2: حقن interceptor في بداية الملف ─────────────────────
+    js_final = _INTERCEPTOR_JS + "\n" + js_translated
+
+    ar_count = sum(js_raw.count(ar) for ar in _AR_TO_EN)
+    _sr_logger.info(f"[SDKProxy] Done. Static replacements={ar_count}, size={len(js_final)}")
+
+    _sdk_cache["js"]      = js_final
     _sdk_cache["expires"] = now + 600
 
     return Response(
-        content=js_translated,
+        content=js_final,
         media_type="application/javascript; charset=utf-8",
         headers={
             "Cache-Control": "public, max-age=600",
             "Access-Control-Allow-Origin": "*",
-            "X-SR-Replacements": str(count),
+            "X-SR-Static-Replacements": str(ar_count),
         }
     )
 
 
-# ─── 2. Universal proxy لكل طلبات SpaceRemit API ─────────────────────────────
-@app.api_route("/api/proxy/sr/__sr__{path:path}", methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"])
-async def proxy_spaceremit_api(path: str, request: Request):
-    """
-    يعترض كل الطلبات التي أعدنا توجيهها من الـ JS:
-    /api/proxy/sr/__sr__/api/v2/regions → spaceremit.com/api/v2/regions
-    يجلب الرد، يترجم أي عربي فيه، يُعيده.
-    """
-    target_url = f"{_SR_ORIGIN}{path}"
-
-    # إعادة بناء query params
-    qs = str(request.url.query)
-    if qs:
-        target_url = f"{target_url}?{qs}"
-
-    # نسخ headers المفيدة فقط
-    forward_headers = {
-        "User-Agent":    "Mozilla/5.0",
-        "Accept":        request.headers.get("Accept", "*/*"),
-        "Content-Type":  request.headers.get("Content-Type", "application/json"),
-        "Accept-Encoding": "identity",
-    }
-
-    body = await request.body()
-
-    try:
-        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
-            resp = await client.request(
-                method=request.method,
-                url=target_url,
-                headers=forward_headers,
-                content=body if body else None,
-            )
-
-        content_type = resp.headers.get("content-type", "")
-
-        # ── ترجمة JSON ──────────────────────────────────────────────
-        if "json" in content_type:
-            try:
-                data = resp.json()
-                translated = _translate_json_response(data)
-                out = json.dumps(translated, ensure_ascii=False).encode("utf-8")
-                return Response(
-                    content=out,
-                    status_code=resp.status_code,
-                    media_type="application/json",
-                    headers={"Access-Control-Allow-Origin": "*"}
-                )
-            except Exception:
-                pass  # إذا فشل parse JSON → أعد الرد كما هو
-
-        # ── ترجمة HTML / JS ─────────────────────────────────────────
-        if "html" in content_type or "javascript" in content_type or "text" in content_type:
-            translated_text = _translate_text(resp.text)
-            return Response(
-                content=translated_text.encode("utf-8"),
-                status_code=resp.status_code,
-                media_type=content_type,
-                headers={"Access-Control-Allow-Origin": "*"}
-            )
-
-        # ── ملفات أخرى (صور، إلخ) → مرّر كما هو ────────────────────
-        return Response(
-            content=resp.content,
-            status_code=resp.status_code,
-            media_type=content_type,
-            headers={"Access-Control-Allow-Origin": "*"}
-        )
-
-    except Exception as e:
-        _sr_logger.error(f"[SRProxy] Error proxying {target_url}: {e}")
-        return JSONResponse({"error": "proxy error"}, status_code=502)
-
-
-# ─── 3. Debug endpoint للتحقق من الترجمة ─────────────────────────────────────
 @app.get("/api/proxy/debug-sr")
-async def debug_spaceremit_proxy():
-    """اختبار: يُظهر أول 500 حرف من الـ JS المترجم وعدد الاستبدالات."""
+async def debug_sr():
+    """للتحقق من حالة الـ proxy وعدد الترجمات."""
     now = _time.time()
     if not (_sdk_cache["js"] and now < _sdk_cache["expires"]):
-        return JSONResponse({"status": "cache_empty", "message": "Open /en/cart and click Subscribe first"})
+        return JSONResponse({"status": "empty", "hint": "Open /en/cart and click Subscribe first"})
     js = _sdk_cache["js"]
-    sample = js[:500]
-    ar_remaining = [ar for ar in _AR_TO_EN if ar in js]
+    remaining = [ar for ar in _AR_TO_EN if ar in js and ar not in _INTERCEPTOR_JS]
     return JSONResponse({
-        "status": "ok",
-        "size": len(js),
-        "sample": sample,
-        "arabic_still_in_js": ar_remaining[:10],
-        "arabic_remaining_count": len(ar_remaining),
-        "url_redirected": _PROXY_PREFIX in js,
+        "status":            "ok",
+        "size_bytes":        len(js),
+        "interceptor_injected": "window.fetch" in js,
+        "arabic_remaining":  remaining[:5],
+        "arabic_count":      len(remaining),
     })
 
 
