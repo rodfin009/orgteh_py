@@ -905,40 +905,32 @@
         loading.style.display = 'flex';
         loading.classList.remove('hidden');
 
+        // ✅ /en/ → proxy مترجم | /ar/ → مصدر أصلي
+        const isEn = window.location.pathname.split('/')[1] === 'en';
+        const sdkSrc = isEn
+            ? '/api/proxy/spaceremit-sdk.js'
+            : 'https://spaceremit.com/api/v2/js_script/spaceremit.js';
+
         const s  = document.createElement('script');
         s.id     = 'sp-sdk-script';
-
-        // ✅ تحديد مصدر الـ SDK:
-        // - المستخدم الإنجليزي (/en/) → proxy يُترجم النصوص العربية
-        // - المستخدم العربي (/ar/)   → المصدر الأصلي مباشرة
-        const isEnPage = window.location.pathname.startsWith('/en');
-        const PROXY_URL    = '/api/proxy/spaceremit-sdk.js';
-        const ORIGINAL_URL = 'https://spaceremit.com/api/v2/js_script/spaceremit.js';
-
-        s.src    = isEnPage ? PROXY_URL : ORIGINAL_URL;
+        s.src    = sdkSrc;
         s.async  = false;
         s.onload = function() {
             loading.style.display = 'none';
             loading.classList.add('hidden');
         };
         s.onerror = function() {
-            // Fallback: إذا فشل الـ proxy → حمّل من المصدر الأصلي مباشرة
-            if (s.src === PROXY_URL) {
-                console.warn('[SpaceRemit] Proxy failed, falling back to origin...');
-                const fallback = document.createElement('script');
-                fallback.id    = 'sp-sdk-script';
-                fallback.src   = ORIGINAL_URL;
-                fallback.async = false;
-                fallback.onload = function() {
-                    loading.style.display = 'none';
-                    loading.classList.add('hidden');
-                };
-                fallback.onerror = function() {
-                    closeSpOverlay();
-                    alert(getActiveLang()==='ar' ? 'فشل تحميل بوابة الدفع. تحقق من اتصالك.' : 'Failed to load payment gateway.');
-                };
+            // إذا فشل الـ proxy → جرّب المصدر الأصلي مباشرة
+            if (isEn && s.src.includes('/api/proxy/')) {
+                console.warn('[SpaceRemit] Proxy failed, trying origin directly...');
+                const s2 = document.createElement('script');
+                s2.id    = 'sp-sdk-script';
+                s2.src   = 'https://spaceremit.com/api/v2/js_script/spaceremit.js';
+                s2.async = false;
+                s2.onload = () => { loading.style.display='none'; loading.classList.add('hidden'); };
+                s2.onerror = () => { closeSpOverlay(); alert('Failed to load payment gateway.'); };
                 document.getElementById('sp-sdk-script')?.remove();
-                document.body.appendChild(fallback);
+                document.body.appendChild(s2);
             } else {
                 closeSpOverlay();
                 alert(getActiveLang()==='ar' ? 'فشل تحميل بوابة الدفع. تحقق من اتصالك.' : 'Failed to load payment gateway.');

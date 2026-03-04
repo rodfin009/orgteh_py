@@ -3,6 +3,7 @@ import json
 import sys
 import gzip
 import logging
+import httpx
 import secrets
 import asyncio
 import brotli
@@ -67,8 +68,6 @@ from services.widget_service import (
 # ============================================================================
 
 SECRET_KEY   = os.environ.get("SESSION_SECRET_KEY", "super-secret-key-change-in-production")
-
-# Logger للـ proxy
 logger = logging.getLogger(__name__)
 
 # ─── SpaceRemit Webhook IP Whitelist ─────────────────────────────────────────
@@ -1366,127 +1365,162 @@ async def api_enterprise_contact(request: Request):
 # PAYMENT ROUTES (SpaceRemit)
 # ============================================================================
 
-# ─── SpaceRemit SDK Proxy — يجلب الـ JS ويترجم النصوص العربية قبل الإرسال ───
-# السبب: SpaceRemit يرندر داخل iframe، لا يمكن تعديله بـ JS من الصفحة الأم.
-# الحل الوحيد المضمون: تعديل الـ JS نفسه على السيرفر قبل وصوله للمتصفح.
+# ─── SpaceRemit SDK Proxy ────────────────────────────────────────────────────
+# المشكلة: SpaceRemit يرندر داخل iframe من domain مختلف → JS من الصفحة لا يصل إليه
+# الحل: نجلب الـ JS من SpaceRemit على السيرفر ونستبدل كل النصوص العربية قبل الإرسال
+# مهم: نتعامل مع Unicode escapes مثل \u0639\u0627\u0644\u0645\u064a = عالمي
 
-_spaceremit_sdk_cache: dict = {"content": None, "expires": 0}
+import re as _re
+import time as _time
 
-SPACEREMIT_AR_TO_EN = {
-    # ── واجهة اختيار الدولة / المنطقة ──
-    "عالمي":                     "Global",
-    "السعودية":                  "Saudi Arabia",
-    "المغرب":                    "Morocco",
-    "الجزائر":                   "Algeria",
-    "تونس":                      "Tunisia",
-    "مصر":                       "Egypt",
-    "الإمارات العربية المتحدة":  "UAE",
-    "الإمارات":                  "UAE",
-    "ليبيا":                     "Libya",
-    "العراق":                    "Iraq",
-    "سوريا":                     "Syria",
-    "اليمن":                     "Yemen",
-    "عُمان":                     "Oman",
-    "قطر":                       "Qatar",
-    "البحرين":                   "Bahrain",
-    "الكويت":                    "Kuwait",
-    "الأردن":                    "Jordan",
-    "فلسطين":                    "Palestine",
-    "السودان":                   "Sudan",
-    "موريتانيا":                 "Mauritania",
-    # ── نصوص واجهة الدفع ──
-    "الاسم الكامل":              "Full Name",
-    "الاسم":                     "Name",
-    "إثبات دفع":                 "Payment Proof",
-    "إثبات الدفع":               "Payment Proof",
-    "تحميل إثبات الدفع":         "Upload Proof",
-    "لقد دفعت":                  "I Have Paid",
-    "رفع ملف":                   "Upload File",
-    "اختر ملف":                  "Choose File",
-    "لا يوجد ملف":               "No file chosen",
-    "إلغاء":                     "Cancel",
-    "تأكيد":                     "Confirm",
-    "التالي":                    "Next",
-    "السابق":                    "Back",
-    "إرسال":                     "Send",
-    "رقم الهاتف":                "Phone Number",
-    "البريد الإلكتروني":         "Email",
-    "المبلغ":                    "Amount",
-    "الرسوم":                    "Fees",
-    "الإجمالي":                  "Total",
-    "العملة":                    "Currency",
-    "طريقة الدفع":               "Payment Method",
-    "انتظر":                     "Please Wait",
-    "جاري المعالجة":             "Processing...",
-    "جاري التحميل":              "Loading...",
-    "نجح":                       "Success",
-    "فشل":                       "Failed",
-    "خطأ":                       "Error",
-    "تم الدفع بنجاح":            "Payment Successful",
-    "رقم العملية":               "Transaction ID",
-    "الرجاء الانتظار":           "Please wait",
-    "دقائق":                     "minutes",
-    "ساعات":                     "hours",
-    "ثواني":                     "seconds",
-    "تحويل بنكي":                "Bank Transfer",
-    "بطاقة ائتمانية":            "Credit Card",
-    "العودة":                    "Go Back",
-    "ادفع الآن":                 "Pay Now",
-    "اكمل الدفع":                "Complete Payment",
-    "بعد ارسال المبلغ قم بالضغط على زر": "After sending the amount, click",
+_sdk_cache: dict = {"js": None, "expires": 0}
+
+_AR_TO_EN = {
+    "عالمي":                    "Global",
+    "السعودية":                 "Saudi Arabia",
+    "المغرب":                   "Morocco",
+    "الجزائر":                  "Algeria",
+    "تونس":                     "Tunisia",
+    "مصر":                      "Egypt",
+    "الإمارات العربية المتحدة": "UAE",
+    "الإمارات":                 "UAE",
+    "ليبيا":                    "Libya",
+    "العراق":                   "Iraq",
+    "سوريا":                    "Syria",
+    "اليمن":                    "Yemen",
+    "عُمان":                    "Oman",
+    "قطر":                      "Qatar",
+    "البحرين":                  "Bahrain",
+    "الكويت":                   "Kuwait",
+    "الأردن":                   "Jordan",
+    "فلسطين":                   "Palestine",
+    "السودان":                  "Sudan",
+    "موريتانيا":                "Mauritania",
+    "الاسم الكامل":             "Full Name",
+    "الاسم":                    "Name",
+    "إثبات دفع":                "Payment Proof",
+    "إثبات الدفع":              "Payment Proof",
+    "تحميل إثبات الدفع":        "Upload Proof",
+    "لقد دفعت":                 "I Have Paid",
+    "رفع ملف":                  "Upload File",
+    "اختر ملف":                 "Choose File",
+    "لا يوجد ملف":              "No file chosen",
+    "إلغاء":                    "Cancel",
+    "تأكيد":                    "Confirm",
+    "التالي":                   "Next",
+    "السابق":                   "Back",
+    "إرسال":                    "Send",
+    "رقم الهاتف":               "Phone Number",
+    "البريد الإلكتروني":        "Email",
+    "المبلغ":                   "Amount",
+    "الرسوم":                   "Fees",
+    "الإجمالي":                 "Total",
+    "العملة":                   "Currency",
+    "طريقة الدفع":              "Payment Method",
+    "انتظر":                    "Please Wait",
+    "جاري المعالجة":            "Processing...",
+    "جاري التحميل":             "Loading...",
+    "نجح":                      "Success",
+    "فشل":                      "Failed",
+    "خطأ":                      "Error",
+    "تم الدفع بنجاح":           "Payment Successful",
+    "رقم العملية":              "Transaction ID",
+    "الرجاء الانتظار":          "Please wait",
+    "دقائق":                    "minutes",
+    "ساعات":                    "hours",
+    "ثواني":                    "seconds",
+    "تحويل بنكي":               "Bank Transfer",
+    "بطاقة ائتمانية":           "Credit Card",
+    "العودة":                   "Go Back",
+    "ادفع الآن":                "Pay Now",
+    "اكمل الدفع":               "Complete Payment",
+    "بعد ارسال المبلغ قم بالضغط على زر": "After sending, click",
     "يتم قبول الطلبات خلال بضع": "Orders confirmed within a few",
-    "الى البيانات التالية":      "to the following address",
-    "أرسل":                      "Send",
+    "الى البيانات التالية":     "to the following address",
+    "أرسل":                     "Send",
 }
 
 
-@app.get("/api/proxy/spaceremit-sdk.js")
-async def proxy_spaceremit_sdk(request: Request):
-    """
-    يجلب SpaceRemit JS SDK من مصدره، يستبدل كل النصوص العربية بالإنجليزية،
-    ثم يُرسله للمتصفح. يُخزَّن في كاش لمدة 10 دقائق لتجنب الطلبات المتكررة.
-    """
-    import time
+def _to_unicode_escape(text: str) -> str:
+    """حوّل نصاً عربياً إلى Unicode escape مثل \\u0639\\u0627\\u0644\\u0645\\u064a"""
+    return "".join(f"\\u{ord(c):04x}" for c in text)
 
-    # ── تحقق من الكاش أولاً ──────────────────────────────────────────
-    now = time.time()
-    if _spaceremit_sdk_cache["content"] and now < _spaceremit_sdk_cache["expires"]:
-        logger.info("SpaceRemit SDK: serving from cache")
+
+def _translate_sdk(js: str) -> str:
+    """
+    يترجم النصوص العربية في JS سواء كانت:
+    - نصاً مباشراً: 'عالمي'
+    - Unicode escapes: '\\u0639\\u0627\\u0644\\u0645\\u064a'
+    """
+    # ترتيب من الأطول للأقصر لتجنب الاستبدال الجزئي
+    for ar, en in sorted(_AR_TO_EN.items(), key=lambda x: -len(x[0])):
+        # استبدال النص المباشر
+        js = js.replace(ar, en)
+        # استبدال Unicode escape المقابل
+        ar_escaped = _to_unicode_escape(ar)
+        js = js.replace(ar_escaped, en)
+        # أحياناً يخلط SpaceRemit بين المباشر والـ escape — استبدل كل منهما
+        # (للأحرف المفردة أيضاً مثل 'و' في 'او')
+    return js
+
+
+@app.get("/api/proxy/spaceremit-sdk.js")
+async def proxy_spaceremit_sdk():
+    """
+    Proxy لـ SpaceRemit JS SDK مع ترجمة النصوص العربية → إنجليزية.
+    يُستخدم فقط لصفحات /en/ — صفحات /ar/ تحمّل من المصدر مباشرة.
+    الكاش: 10 دقائق لتقليل الطلبات للـ SpaceRemit.
+    """
+    now = _time.time()
+
+    # ── خدمة من الكاش إن لم ينته ──────────────────────────────────────
+    if _sdk_cache["js"] and now < _sdk_cache["expires"]:
+        logger.info("[SDKProxy] Serving translated SDK from cache")
         return Response(
-            content=_spaceremit_sdk_cache["content"],
-            media_type="application/javascript",
-            headers={"Cache-Control": "public, max-age=600", "Access-Control-Allow-Origin": "*"}
+            content=_sdk_cache["js"],
+            media_type="application/javascript; charset=utf-8",
+            headers={
+                "Cache-Control": "public, max-age=600",
+                "Access-Control-Allow-Origin": "*",
+                "X-Translated-By": "Orgteh-Proxy",
+            }
         )
 
-    # ── جلب الملف من SpaceRemit ───────────────────────────────────────
+    # ── جلب من SpaceRemit ──────────────────────────────────────────────
     sdk_url = "https://spaceremit.com/api/v2/js_script/spaceremit.js"
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            logger.info("SpaceRemit SDK: fetching from origin...")
-            resp = await client.get(sdk_url, headers={"Accept": "*/*", "User-Agent": "Mozilla/5.0"})
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            logger.info("[SDKProxy] Fetching SpaceRemit SDK from origin...")
+            resp = await client.get(sdk_url, headers={
+                "Accept": "*/*",
+                "User-Agent": "Mozilla/5.0 (compatible; OrgtehProxy/1.0)",
+                "Accept-Encoding": "identity",
+            })
             resp.raise_for_status()
-            js_content = resp.text
+            js_raw = resp.text
+            logger.info(f"[SDKProxy] Fetched {len(js_raw)} bytes")
+
     except Exception as e:
-        logger.error(f"SpaceRemit SDK proxy fetch failed: {e}")
-        # في حال الفشل → redirect للمصدر الأصلي
-        return RedirectResponse(url=sdk_url)
+        logger.error(f"[SDKProxy] Fetch failed: {e}")
+        # Fallback: أعد توجيه للمصدر الأصلي (سيظهر عربياً لكن على الأقل يعمل)
+        return RedirectResponse(url=sdk_url, status_code=302)
 
-    # ── استبدال النصوص العربية ────────────────────────────────────────
-    # نرتّب من الأطول للأقصر لتجنب الاستبدال الجزئي
-    for ar_text, en_text in sorted(SPACEREMIT_AR_TO_EN.items(), key=lambda x: -len(x[0])):
-        # نبحث في السلاسل المقتبسة (كل أنواع الاقتباس) وخارجها
-        js_content = js_content.replace(ar_text, en_text)
+    # ── ترجمة النصوص العربية ───────────────────────────────────────────
+    js_translated = _translate_sdk(js_raw)
+    logger.info(f"[SDKProxy] Translation done. Size: {len(js_translated)} bytes")
 
-    # ── تخزين في الكاش لـ 10 دقائق ───────────────────────────────────
-    _spaceremit_sdk_cache["content"] = js_content
-    _spaceremit_sdk_cache["expires"] = now + 600
-
-    logger.info(f"SpaceRemit SDK: translated and cached ({len(js_content)} bytes)")
+    # ── تخزين في الكاش ────────────────────────────────────────────────
+    _sdk_cache["js"]      = js_translated
+    _sdk_cache["expires"] = now + 600   # 10 دقائق
 
     return Response(
-        content=js_content,
-        media_type="application/javascript",
-        headers={"Cache-Control": "public, max-age=600", "Access-Control-Allow-Origin": "*"}
+        content=js_translated,
+        media_type="application/javascript; charset=utf-8",
+        headers={
+            "Cache-Control": "public, max-age=600",
+            "Access-Control-Allow-Origin": "*",
+            "X-Translated-By": "Orgteh-Proxy",
+        }
     )
 
 
