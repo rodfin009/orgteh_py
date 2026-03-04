@@ -1367,18 +1367,19 @@ async def api_enterprise_contact(request: Request):
 # ============================================================================
 
 # ════════════════════════════════════════════════════════════════════════════
-#  SpaceRemit SDK Proxy — النسخة الصحيحة
+#  SpaceRemit SDK Proxy — النسخة الأخيرة
 #
-#  الخطأ السابق: كنا نستبدل URLs في الـ JS → يكسر الصور والـ assets
+#  المشكلة المكتشفة من debug:
+#  - JS صغير (15837 bytes) → SDK يجلب المحتوى بعده كـ HTML وليس JSON
+#  - Interceptor كان يترجم JSON فقط → يفوّته HTML
 #
-#  الحل الصحيح:
-#  1. نترجم النصوص العربية في الـ JS نفسه (strings الثابتة)
-#  2. نحقن كود JS في بداية الملف يعترض fetch() و XHR
-#     ويترجم أي رد JSON يأتي من spaceremit.com قبل أن يعالجه SDK
-#  3. لا نلمس الـ URLs أبداً ← يبقى كل شيء يعمل
+#  الحل المزدوج المحقون داخل الـ SDK:
+#  1. يعترض fetch() + XHR لكل أنواع الردود (JSON + HTML + text)
+#  2. MutationObserver يراقب DOM باستمرار ويترجم أي عربي يظهر
+#     (للـ HTML الذي يُحقن مباشرة في DOM)
 # ════════════════════════════════════════════════════════════════════════════
 
-_AR_TO_EN = {
+_AR_TO_EN_PY = {
     "عالمي":                    "Global",
     "السعودية":                 "Saudi Arabia",
     "المغرب":                   "Morocco",
@@ -1448,134 +1449,176 @@ _AR_TO_EN = {
 _sdk_cache: dict = {"js": None, "expires": 0}
 
 
-def _build_translation_dict_js() -> str:
-    """يبني كائن JavaScript يحتوي على كل الترجمات للحقن في الـ SDK."""
+def _build_js_dict() -> str:
+    """يبني JS object من قاموس الترجمة، مرتباً من الأطول للأقصر."""
     pairs = ",\n".join(
         f'  {json.dumps(ar, ensure_ascii=False)}: {json.dumps(en)}'
-        for ar, en in sorted(_AR_TO_EN.items(), key=lambda x: -len(x[0]))
+        for ar, en in sorted(_AR_TO_EN_PY.items(), key=lambda x: -len(x[0]))
     )
-    return f"{{\n{pairs}\n}}"
+    return "{\n" + pairs + "\n}"
 
 
-# كود JS يُحقن في بداية spaceremit.js
-# يعترض fetch() و XMLHttpRequest ويترجم أي JSON response من spaceremit.com
-_INTERCEPTOR_JS = r"""
+def _make_interceptor_js() -> str:
+    """
+    يولّد كود JS يُحقن في بداية SDK:
+    - يعترض fetch() + XHR لكل أنواع الردود
+    - MutationObserver يترجم DOM مباشرة (للـ HTML المحقون)
+    """
+    dict_js = _build_js_dict()
+    return r"""
 ;(function() {
-  var _AR_EN = """ + _build_translation_dict_js() + r""";
+  'use strict';
+  var _D = """ + dict_js + r""";
+  var _K = Object.keys(_D);  /* مرتبة من الأطول للأقصر */
 
-  function _translateValue(val) {
-    if (typeof val === 'string') {
-      var result = val;
-      var keys = Object.keys(_AR_EN);
-      for (var i = 0; i < keys.length; i++) {
-        var ar = keys[i];
-        if (result.indexOf(ar) !== -1) {
-          result = result.split(ar).join(_AR_EN[ar]);
-        }
-      }
-      return result;
+  /* ── دالة ترجمة أي نص ── */
+  function tr(s) {
+    if (!s || typeof s !== 'string') return s;
+    for (var i = 0; i < _K.length; i++) {
+      var ar = _K[i];
+      if (s.indexOf(ar) !== -1) s = s.split(ar).join(_D[ar]);
     }
-    if (Array.isArray(val)) return val.map(_translateValue);
-    if (val !== null && typeof val === 'object') {
-      var out = {};
-      Object.keys(val).forEach(function(k) { out[k] = _translateValue(val[k]); });
-      return out;
-    }
-    return val;
+    return s;
   }
 
-  function _translateJSON(text) {
-    try {
-      var parsed = JSON.parse(text);
-      return JSON.stringify(_translateValue(parsed));
-    } catch(e) { return text; }
+  /* ── ترجمة قيمة عشوائية (JSON) ── */
+  function trVal(v) {
+    if (typeof v === 'string') return tr(v);
+    if (Array.isArray(v)) return v.map(trVal);
+    if (v && typeof v === 'object') {
+      var o = {};
+      Object.keys(v).forEach(function(k){ o[k] = trVal(v[k]); });
+      return o;
+    }
+    return v;
   }
 
-  function _isSpaceRemit(url) {
+  /* ── ترجمة body (JSON أو HTML أو text) ── */
+  function trBody(text, ct) {
+    if (!text) return text;
+    ct = (ct||'').toLowerCase();
+    if (ct.indexOf('json') !== -1) {
+      try { return JSON.stringify(trVal(JSON.parse(text))); } catch(e){}
+    }
+    /* HTML أو text عادي → استبدال مباشر */
+    return tr(text);
+  }
+
+  function isSR(url) {
     return typeof url === 'string' && url.indexOf('spaceremit.com') !== -1;
   }
 
   /* ── اعتراض fetch() ── */
-  var _origFetch = window.fetch;
+  var _oF = window.fetch;
   window.fetch = function(input, init) {
     var url = (typeof input === 'string') ? input : (input && input.url) || '';
-    return _origFetch.apply(this, arguments).then(function(resp) {
-      if (!_isSpaceRemit(url)) return resp;
+    return _oF.apply(this, arguments).then(function(resp) {
+      if (!isSR(url)) return resp;
       var ct = resp.headers.get('content-type') || '';
-      if (ct.indexOf('json') === -1) return resp;
       return resp.text().then(function(text) {
-        var translated = _translateJSON(text);
+        var translated = trBody(text, ct);
+        /* بناء response جديد بنفس headers */
+        var hdrs = {};
+        resp.headers.forEach(function(v,k){ hdrs[k]=v; });
         return new Response(translated, {
-          status:     resp.status,
-          statusText: resp.statusText,
-          headers:    resp.headers
+          status: resp.status, statusText: resp.statusText, headers: hdrs
         });
       });
     });
   };
 
   /* ── اعتراض XMLHttpRequest ── */
-  var _origOpen = XMLHttpRequest.prototype.open;
-  var _origSend = XMLHttpRequest.prototype.send;
-  XMLHttpRequest.prototype.open = function(method, url) {
-    this._srUrl = url;
-    return _origOpen.apply(this, arguments);
+  var _oOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(m, url) {
+    this._srUrl = url; return _oOpen.apply(this, arguments);
   };
+  var _oSend = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.send = function() {
-    if (_isSpaceRemit(this._srUrl)) {
-      this.addEventListener('readystatechange', function() {
-        if (this.readyState === 4) {
-          var ct = this.getResponseHeader('content-type') || '';
-          if (ct.indexOf('json') !== -1 || this.responseText.trim().startsWith('{') || this.responseText.trim().startsWith('[')) {
-            try {
-              Object.defineProperty(this, 'responseText', {
-                get: function() { return _translateJSON(this._srOrigText || ''); },
-                configurable: true
-              });
-              Object.defineProperty(this, 'response', {
-                get: function() { return _translateJSON(this._srOrigText || ''); },
-                configurable: true
-              });
-              this._srOrigText = this.responseText;
-            } catch(e) {}
+    if (isSR(this._srUrl)) {
+      this.addEventListener('load', function() {
+        var ct = this.getResponseHeader('content-type') || '';
+        try {
+          var translated = trBody(this.responseText, ct);
+          if (translated !== this.responseText) {
+            Object.defineProperty(this, 'responseText', { get: function(){ return translated; }, configurable:true });
+            Object.defineProperty(this, 'response',     { get: function(){ return translated; }, configurable:true });
           }
-        }
+        } catch(e){}
       });
     }
-    return _origSend.apply(this, arguments);
+    return _oSend.apply(this, arguments);
   };
+
+  /* ── MutationObserver: يترجم DOM مباشرة ── */
+  /* هذا هو الحل الأهم: يمسح أي عربي يظهر في DOM كيفما جاء */
+  function trNode(node) {
+    if (node.nodeType === 3) { /* TEXT_NODE */
+      var t = node.nodeValue;
+      if (!t || !t.trim()) return;
+      /* فحص سريع: هل يحتوي حروف عربية؟ */
+      if (!/[\u0600-\u06FF]/.test(t)) return;
+      var nt = tr(t);
+      if (nt !== t) node.nodeValue = nt;
+    } else if (node.nodeType === 1) { /* ELEMENT_NODE */
+      /* ترجمة placeholder و title */
+      ['placeholder','title','aria-label'].forEach(function(a){
+        var v = node.getAttribute && node.getAttribute(a);
+        if (v && /[\u0600-\u06FF]/.test(v)) {
+          var nv = tr(v);
+          if (nv !== v) node.setAttribute(a, nv);
+        }
+      });
+      node.childNodes.forEach(trNode);
+    }
+  }
+
+  var _obs = new MutationObserver(function(muts) {
+    muts.forEach(function(m) {
+      if (m.type === 'characterData') {
+        trNode(m.target);
+      } else {
+        m.addedNodes.forEach(function(n) { trNode(n); });
+      }
+    });
+  });
+
+  /* نبدأ المراقبة عند جاهزية DOM */
+  function startObs() {
+    var target = document.getElementById('spaceremit-local-methods-pay') || document.body;
+    _obs.observe(target, { childList:true, subtree:true, characterData:true });
+    /* ترجمة ما هو موجود الآن */
+    trNode(target);
+  }
+
+  /* تشغيل فوري أو بعد DOM جاهز */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startObs);
+  } else {
+    startObs();
+  }
+  /* setInterval دائماً — يضمن الترجمة بعد كل إعادة رندر من SDK */
+  setInterval(function() {
+    var c = document.getElementById('spaceremit-local-methods-pay') || document.body;
+    if (c) trNode(c);
+  }, 150);
 
 })();
 """
 
 
-def _translate_static_strings(js: str) -> str:
-    """
-    يترجم النصوص الثابتة في الـ JS (مثل error messages و hardcoded labels).
-    لا يلمس URLs أو أسماء متغيرات.
-    """
-    for ar, en in sorted(_AR_EN.items(), key=lambda x: -len(x[0])) if False else \
-                  sorted(_AR_TO_EN.items(), key=lambda x: -len(x[0])):
-        # استبدال النص المباشر داخل strings فقط
+def _translate_static(js: str) -> str:
+    """يترجم النصوص الثابتة في الـ JS (unicode escapes + نص مباشر)."""
+    for ar, en in sorted(_AR_TO_EN_PY.items(), key=lambda x: -len(x[0])):
         js = js.replace(ar, en)
-        # استبدال unicode escapes
-        ar_esc = "".join(f"\\u{ord(c):04x}" for c in ar)
-        js = js.replace(ar_esc, en)
+        js = js.replace("".join(f"\\u{ord(c):04x}" for c in ar), en)
     return js
 
 
 @app.get("/api/proxy/spaceremit-sdk.js")
 async def proxy_spaceremit_sdk():
-    """
-    يجلب SpaceRemit JS SDK ويطبق عليه طبقتين من الترجمة:
-    1. يستبدل النصوص الثابتة العربية في الكود
-    2. يحقن interceptor يترجم كل JSON responses من spaceremit.com
-    النتيجة: الواجهة كاملة بالإنجليزي دون كسر أي assets أو URLs
-    """
     now = _time.time()
-
     if _sdk_cache["js"] and now < _sdk_cache["expires"]:
-        _sr_logger.info("[SDKProxy] Cache hit")
+        _sr_logger.info("[SDKProxy] cache hit")
         return Response(
             content=_sdk_cache["js"],
             media_type="application/javascript; charset=utf-8",
@@ -1585,7 +1628,7 @@ async def proxy_spaceremit_sdk():
     sdk_url = "https://spaceremit.com/api/v2/js_script/spaceremit.js"
     try:
         async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
-            _sr_logger.info("[SDKProxy] Fetching from origin...")
+            _sr_logger.info("[SDKProxy] fetching origin...")
             resp = await client.get(sdk_url, headers={
                 "Accept": "*/*",
                 "User-Agent": "Mozilla/5.0",
@@ -1593,49 +1636,50 @@ async def proxy_spaceremit_sdk():
             })
             resp.raise_for_status()
             js_raw = resp.text
-            _sr_logger.info(f"[SDKProxy] Fetched {len(js_raw)} bytes")
+            _sr_logger.info(f"[SDKProxy] fetched {len(js_raw)} bytes")
     except Exception as e:
-        _sr_logger.error(f"[SDKProxy] Fetch error: {e}")
+        _sr_logger.error(f"[SDKProxy] fetch error: {e}")
         return RedirectResponse(url=sdk_url, status_code=302)
 
-    # ── طبقة 1: ترجمة النصوص الثابتة في الـ JS ─────────────────────
-    js_translated = _translate_static_strings(js_raw)
+    interceptor = _make_interceptor_js()
+    js_translated = _translate_static(js_raw)
+    js_final = interceptor + "\n" + js_translated
 
-    # ── طبقة 2: حقن interceptor في بداية الملف ─────────────────────
-    js_final = _INTERCEPTOR_JS + "\n" + js_translated
-
-    ar_count = sum(js_raw.count(ar) for ar in _AR_TO_EN)
-    _sr_logger.info(f"[SDKProxy] Done. Static replacements={ar_count}, size={len(js_final)}")
-
+    _sr_logger.info(f"[SDKProxy] done, final size={len(js_final)}")
     _sdk_cache["js"]      = js_final
     _sdk_cache["expires"] = now + 600
 
     return Response(
         content=js_final,
         media_type="application/javascript; charset=utf-8",
-        headers={
-            "Cache-Control": "public, max-age=600",
-            "Access-Control-Allow-Origin": "*",
-            "X-SR-Static-Replacements": str(ar_count),
-        }
+        headers={"Cache-Control": "public, max-age=600", "Access-Control-Allow-Origin": "*"}
     )
 
 
 @app.get("/api/proxy/debug-sr")
 async def debug_sr():
-    """للتحقق من حالة الـ proxy وعدد الترجمات."""
     now = _time.time()
     if not (_sdk_cache["js"] and now < _sdk_cache["expires"]):
-        return JSONResponse({"status": "empty", "hint": "Open /en/cart and click Subscribe first"})
+        return JSONResponse({"status": "empty", "hint": "open /en/cart and click Subscribe"})
     js = _sdk_cache["js"]
-    remaining = [ar for ar in _AR_TO_EN if ar in js and ar not in _INTERCEPTOR_JS]
     return JSONResponse({
-        "status":            "ok",
-        "size_bytes":        len(js),
-        "interceptor_injected": "window.fetch" in js,
-        "arabic_remaining":  remaining[:5],
-        "arabic_count":      len(remaining),
+        "status":               "ok",
+        "size_bytes":           len(js),
+        "interceptor_fetch":    "window.fetch = function" in js,
+        "interceptor_xhr":      "XMLHttpRequest.prototype.open" in js,
+        "mutation_observer":    "MutationObserver" in js,
+        "interval_fallback":    "setInterval" in js,
+        "arabic_in_js":         [ar for ar in _AR_TO_EN_PY if ar in js][:5],
     })
+
+
+@app.get("/api/proxy/clear-sr-cache")
+async def clear_sr_cache():
+    """يمسح الـ cache فوراً — يُستخدم بعد كل تحديث للكود."""
+    _sdk_cache["js"]      = None
+    _sdk_cache["expires"] = 0
+    _sr_logger.info("[SDKProxy] Cache cleared manually")
+    return JSONResponse({"status": "cleared", "message": "Cache cleared. Next request will fetch fresh SDK."})
 
 
 class CheckoutRequest(BaseModel):
