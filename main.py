@@ -4,6 +4,8 @@ import sys
 import gzip
 import logging
 import httpx
+import re as _re
+import time as _time
 import secrets
 import asyncio
 import brotli
@@ -68,7 +70,7 @@ from services.widget_service import (
 # ============================================================================
 
 SECRET_KEY   = os.environ.get("SESSION_SECRET_KEY", "super-secret-key-change-in-production")
-logger = logging.getLogger(__name__)
+_sr_logger   = logging.getLogger("spaceremit_proxy")
 
 # ─── SpaceRemit Webhook IP Whitelist ─────────────────────────────────────────
 SPACEREMIT_WEBHOOK_IPS = [
@@ -1365,15 +1367,13 @@ async def api_enterprise_contact(request: Request):
 # PAYMENT ROUTES (SpaceRemit)
 # ============================================================================
 
-# ─── SpaceRemit SDK Proxy ────────────────────────────────────────────────────
-# المشكلة: SpaceRemit يرندر داخل iframe من domain مختلف → JS من الصفحة لا يصل إليه
-# الحل: نجلب الـ JS من SpaceRemit على السيرفر ونستبدل كل النصوص العربية قبل الإرسال
-# مهم: نتعامل مع Unicode escapes مثل \u0639\u0627\u0644\u0645\u064a = عالمي
-
-import re as _re
-import time as _time
-
-_sdk_cache: dict = {"js": None, "expires": 0}
+# ════════════════════════════════════════════════════════════════════════════
+#  SpaceRemit Universal Proxy
+#  السبب: SpaceRemit يجلب كل النصوص العربية من API calls منفصلة بعد تحميل JS
+#  الحل: نعترض كل طلبات spaceremit.com (JS + API) ونترجم الردود
+#  في الـ JS نستبدل روابط spaceremit.com بـ /api/proxy/sr/
+#  كل طلب API → proxy يجلبه ويترجمه ويُعيده
+# ════════════════════════════════════════════════════════════════════════════
 
 _AR_TO_EN = {
     "عالمي":                    "Global",
@@ -1420,6 +1420,7 @@ _AR_TO_EN = {
     "انتظر":                    "Please Wait",
     "جاري المعالجة":            "Processing...",
     "جاري التحميل":             "Loading...",
+    "جاري":                     "Loading...",
     "نجح":                      "Success",
     "فشل":                      "Failed",
     "خطأ":                      "Error",
@@ -1437,81 +1438,101 @@ _AR_TO_EN = {
     "بعد ارسال المبلغ قم بالضغط على زر": "After sending, click",
     "يتم قبول الطلبات خلال بضع": "Orders confirmed within a few",
     "الى البيانات التالية":     "to the following address",
+    "البيانات التالية":         "the following details",
     "أرسل":                     "Send",
+    "ارسل":                     "Send",
+    "اضغط":                     "Click",
 }
 
+_SR_ORIGIN = "https://spaceremit.com"
+_PROXY_PREFIX = "/api/proxy/sr"
+_sdk_cache: dict = {"js": None, "expires": 0}
 
-def _to_unicode_escape(text: str) -> str:
-    """حوّل نصاً عربياً إلى Unicode escape مثل \\u0639\\u0627\\u0644\\u0645\\u064a"""
-    return "".join(f"\\u{ord(c):04x}" for c in text)
 
-
-def _translate_sdk(js: str) -> str:
-    """
-    يترجم النصوص العربية في JS سواء كانت:
-    - نصاً مباشراً: 'عالمي'
-    - Unicode escapes: '\\u0639\\u0627\\u0644\\u0645\\u064a'
-    """
-    # ترتيب من الأطول للأقصر لتجنب الاستبدال الجزئي
+def _translate_text(text: str) -> str:
+    """يترجم أي نص: يستبدل العربي بالإنجليزي (مباشر + unicode escapes)."""
+    # من الأطول للأقصر لتجنب الاستبدال الجزئي
     for ar, en in sorted(_AR_TO_EN.items(), key=lambda x: -len(x[0])):
-        # استبدال النص المباشر
-        js = js.replace(ar, en)
-        # استبدال Unicode escape المقابل
-        ar_escaped = _to_unicode_escape(ar)
-        js = js.replace(ar_escaped, en)
-        # أحياناً يخلط SpaceRemit بين المباشر والـ escape — استبدل كل منهما
-        # (للأحرف المفردة أيضاً مثل 'و' في 'او')
+        text = text.replace(ar, en)
+        # Unicode escape مثل \u0639\u0627\u0644\u0645\u064a
+        ar_esc = "".join(f"\\u{ord(c):04x}" for c in ar)
+        text = text.replace(ar_esc, en)
+    return text
+
+
+def _translate_sdk_js(js: str) -> str:
+    """
+    يترجم ملف JS الخاص بـ SpaceRemit:
+    1. يستبدل النصوص العربية بالإنجليزية
+    2. يُعيد توجيه كل طلبات spaceremit.com → proxy داخلي
+       حتى يمر كل شيء عبر الترجمة
+    """
+    # ── ترجمة النصوص العربية ─────────────────────────────────────────
+    js = _translate_text(js)
+
+    # ── إعادة توجيه API calls من SpaceRemit → proxy ─────────────────
+    # نستبدل الروابط داخل الـ JS ليصبح كل طلب مرئياً لنا
+    # مثال: "https://spaceremit.com/api/v2/data" → "/api/proxy/sr/api/v2/data"
+    js = js.replace(
+        '"https://spaceremit.com',
+        f'"{_PROXY_PREFIX}/__sr__'
+    ).replace(
+        "'https://spaceremit.com",
+        f"'{_PROXY_PREFIX}/__sr__"
+    ).replace(
+        "`https://spaceremit.com",
+        f"`{_PROXY_PREFIX}/__sr__"
+    )
+
     return js
 
 
+def _translate_json_response(data) -> any:
+    """يمر على أي JSON (dict/list/str) ويترجم كل القيم العربية."""
+    if isinstance(data, str):
+        return _translate_text(data)
+    if isinstance(data, list):
+        return [_translate_json_response(item) for item in data]
+    if isinstance(data, dict):
+        return {k: _translate_json_response(v) for k, v in data.items()}
+    return data
+
+
+# ─── 1. Proxy ملف SDK الرئيسي ────────────────────────────────────────────────
 @app.get("/api/proxy/spaceremit-sdk.js")
 async def proxy_spaceremit_sdk():
-    """
-    Proxy لـ SpaceRemit JS SDK مع ترجمة النصوص العربية → إنجليزية.
-    يُستخدم فقط لصفحات /en/ — صفحات /ar/ تحمّل من المصدر مباشرة.
-    الكاش: 10 دقائق لتقليل الطلبات للـ SpaceRemit.
-    """
     now = _time.time()
 
-    # ── خدمة من الكاش إن لم ينته ──────────────────────────────────────
     if _sdk_cache["js"] and now < _sdk_cache["expires"]:
-        logger.info("[SDKProxy] Serving translated SDK from cache")
+        _sr_logger.info("[SDKProxy] Cache hit")
         return Response(
             content=_sdk_cache["js"],
             media_type="application/javascript; charset=utf-8",
-            headers={
-                "Cache-Control": "public, max-age=600",
-                "Access-Control-Allow-Origin": "*",
-                "X-Translated-By": "Orgteh-Proxy",
-            }
+            headers={"Cache-Control": "public, max-age=600", "Access-Control-Allow-Origin": "*"}
         )
 
-    # ── جلب من SpaceRemit ──────────────────────────────────────────────
-    sdk_url = "https://spaceremit.com/api/v2/js_script/spaceremit.js"
+    sdk_url = f"{_SR_ORIGIN}/api/v2/js_script/spaceremit.js"
     try:
         async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
-            logger.info("[SDKProxy] Fetching SpaceRemit SDK from origin...")
+            _sr_logger.info("[SDKProxy] Fetching from origin...")
             resp = await client.get(sdk_url, headers={
                 "Accept": "*/*",
-                "User-Agent": "Mozilla/5.0 (compatible; OrgtehProxy/1.0)",
+                "User-Agent": "Mozilla/5.0",
                 "Accept-Encoding": "identity",
             })
             resp.raise_for_status()
             js_raw = resp.text
-            logger.info(f"[SDKProxy] Fetched {len(js_raw)} bytes")
-
+            _sr_logger.info(f"[SDKProxy] Fetched {len(js_raw)} bytes")
     except Exception as e:
-        logger.error(f"[SDKProxy] Fetch failed: {e}")
-        # Fallback: أعد توجيه للمصدر الأصلي (سيظهر عربياً لكن على الأقل يعمل)
+        _sr_logger.error(f"[SDKProxy] Fetch error: {e}")
         return RedirectResponse(url=sdk_url, status_code=302)
 
-    # ── ترجمة النصوص العربية ───────────────────────────────────────────
-    js_translated = _translate_sdk(js_raw)
-    logger.info(f"[SDKProxy] Translation done. Size: {len(js_translated)} bytes")
+    js_translated = _translate_sdk_js(js_raw)
+    count = sum(js_raw.count(ar) for ar in _AR_TO_EN)
+    _sr_logger.info(f"[SDKProxy] Translated. Replacements ~{count}. Size={len(js_translated)}")
 
-    # ── تخزين في الكاش ────────────────────────────────────────────────
     _sdk_cache["js"]      = js_translated
-    _sdk_cache["expires"] = now + 600   # 10 دقائق
+    _sdk_cache["expires"] = now + 600
 
     return Response(
         content=js_translated,
@@ -1519,9 +1540,103 @@ async def proxy_spaceremit_sdk():
         headers={
             "Cache-Control": "public, max-age=600",
             "Access-Control-Allow-Origin": "*",
-            "X-Translated-By": "Orgteh-Proxy",
+            "X-SR-Replacements": str(count),
         }
     )
+
+
+# ─── 2. Universal proxy لكل طلبات SpaceRemit API ─────────────────────────────
+@app.api_route("/api/proxy/sr/__sr__{path:path}", methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"])
+async def proxy_spaceremit_api(path: str, request: Request):
+    """
+    يعترض كل الطلبات التي أعدنا توجيهها من الـ JS:
+    /api/proxy/sr/__sr__/api/v2/regions → spaceremit.com/api/v2/regions
+    يجلب الرد، يترجم أي عربي فيه، يُعيده.
+    """
+    target_url = f"{_SR_ORIGIN}{path}"
+
+    # إعادة بناء query params
+    qs = str(request.url.query)
+    if qs:
+        target_url = f"{target_url}?{qs}"
+
+    # نسخ headers المفيدة فقط
+    forward_headers = {
+        "User-Agent":    "Mozilla/5.0",
+        "Accept":        request.headers.get("Accept", "*/*"),
+        "Content-Type":  request.headers.get("Content-Type", "application/json"),
+        "Accept-Encoding": "identity",
+    }
+
+    body = await request.body()
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            resp = await client.request(
+                method=request.method,
+                url=target_url,
+                headers=forward_headers,
+                content=body if body else None,
+            )
+
+        content_type = resp.headers.get("content-type", "")
+
+        # ── ترجمة JSON ──────────────────────────────────────────────
+        if "json" in content_type:
+            try:
+                data = resp.json()
+                translated = _translate_json_response(data)
+                out = json.dumps(translated, ensure_ascii=False).encode("utf-8")
+                return Response(
+                    content=out,
+                    status_code=resp.status_code,
+                    media_type="application/json",
+                    headers={"Access-Control-Allow-Origin": "*"}
+                )
+            except Exception:
+                pass  # إذا فشل parse JSON → أعد الرد كما هو
+
+        # ── ترجمة HTML / JS ─────────────────────────────────────────
+        if "html" in content_type or "javascript" in content_type or "text" in content_type:
+            translated_text = _translate_text(resp.text)
+            return Response(
+                content=translated_text.encode("utf-8"),
+                status_code=resp.status_code,
+                media_type=content_type,
+                headers={"Access-Control-Allow-Origin": "*"}
+            )
+
+        # ── ملفات أخرى (صور، إلخ) → مرّر كما هو ────────────────────
+        return Response(
+            content=resp.content,
+            status_code=resp.status_code,
+            media_type=content_type,
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+
+    except Exception as e:
+        _sr_logger.error(f"[SRProxy] Error proxying {target_url}: {e}")
+        return JSONResponse({"error": "proxy error"}, status_code=502)
+
+
+# ─── 3. Debug endpoint للتحقق من الترجمة ─────────────────────────────────────
+@app.get("/api/proxy/debug-sr")
+async def debug_spaceremit_proxy():
+    """اختبار: يُظهر أول 500 حرف من الـ JS المترجم وعدد الاستبدالات."""
+    now = _time.time()
+    if not (_sdk_cache["js"] and now < _sdk_cache["expires"]):
+        return JSONResponse({"status": "cache_empty", "message": "Open /en/cart and click Subscribe first"})
+    js = _sdk_cache["js"]
+    sample = js[:500]
+    ar_remaining = [ar for ar in _AR_TO_EN if ar in js]
+    return JSONResponse({
+        "status": "ok",
+        "size": len(js),
+        "sample": sample,
+        "arabic_still_in_js": ar_remaining[:10],
+        "arabic_remaining_count": len(ar_remaining),
+        "url_redirected": _PROXY_PREFIX in js,
+    })
 
 
 class CheckoutRequest(BaseModel):
