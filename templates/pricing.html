@@ -831,6 +831,11 @@
         document.getElementById('sp-status-msg').classList.add('hidden');
         document.getElementById('sp-status-msg').innerHTML = '';
         document.getElementById('spaceremit-local-methods-pay').innerHTML = '';
+        // Restore the submit button in case it was hidden during payment-instructions step
+        const submitBtn = document.getElementById('sp-submit-btn');
+        if (submitBtn) submitBtn.style.display = '';
+        // Reset nav patch so it re-registers fresh on next open
+        window._srNavPatched = false;
         const old = document.getElementById('sp-sdk-script');
         if (old) old.remove();
     }
@@ -905,38 +910,83 @@
         loading.style.display = 'flex';
         loading.classList.remove('hidden');
 
-        const isEn = window.location.pathname.split('/')[1] === 'en';
+        // ── Patch window.location to stay INSIDE the modal ─────────────────────
+        // SpaceRemit SDK, after the user clicks "Proceed to Payment", navigates
+        // window.location.href to a SpaceRemit instructions page.
+        // Instead of a full-page redirect (which destroys the modal), we catch
+        // that URL and inject it as a proxied iframe inside the modal container.
+        if (!window._srNavPatched) {
+            window._srNavPatched = true;
+            (function () {
+                var SR = 'https://spaceremit.com';
 
-        if (isEn) {
-            // ── Strategy: add &lang=en to the SpaceRemit iframe URL ──
-            // SpaceRemit may support this param natively (no proxy needed)
-            if (window._srWatcher) window._srWatcher.disconnect();
-            window._srWatcher = new MutationObserver(function(mutations) {
-                mutations.forEach(function(m) {
-                    m.addedNodes.forEach(function(node) {
-                        const frames = [];
-                        if (node.tagName === 'IFRAME') frames.push(node);
-                        if (node.querySelectorAll) node.querySelectorAll('iframe').forEach(f => frames.push(f));
-                        frames.forEach(function(fr) {
-                            const src = fr.getAttribute('src') || '';
-                            if (!src.includes('spaceremit.com')) return;
-                            if (src.includes('lang=en')) return; // already set
-                            // Add lang=en to force English
-                            const sep = src.includes('?') ? '&' : '?';
-                            fr.setAttribute('src', src + sep + 'lang=en');
-                        });
+                function isSR(u) {
+                    return u && typeof u === 'string' &&
+                           (u.indexOf(SR) === 0 ||
+                            (u.charAt(0) === '/' && !u.startsWith('/api/') && !u.startsWith('/en/') && !u.startsWith('/ar/')));
+                }
+
+                function loadInModal(u) {
+                    var container = document.getElementById('spaceremit-local-methods-pay');
+                    if (!container) return false;
+                    // Build the proxied URL
+                    var proxied = (u.indexOf(SR) === 0)
+                        ? '/api/proxy/sr-frame?url=' + encodeURIComponent(u)
+                        : '/api/proxy/sr-frame?url=' + encodeURIComponent(SR + u);
+                    // Replace the payment-methods list with an iframe showing the instructions
+                    container.innerHTML =
+                        '<iframe src="' + proxied + '" ' +
+                        'style="width:100%;min-height:420px;border:none;display:block;background:transparent;" ' +
+                        'allow="payment" loading="eager"></iframe>';
+                    // Hide the "Proceed to Payment" button — SpaceRemit now handles the next step inside the iframe
+                    var btn = document.getElementById('sp-submit-btn');
+                    if (btn) btn.style.display = 'none';
+                    return true;
+                }
+
+                try {
+                    var _a = window.location.assign.bind(window.location);
+                    var _r = window.location.replace.bind(window.location);
+                    window.location.assign  = function (u) { if (!isSR(u) || !loadInModal(u)) _a(u); };
+                    window.location.replace = function (u) { if (!isSR(u) || !loadInModal(u)) _r(u); };
+                    Object.defineProperty(window.location, 'href', {
+                        set: function (u) { if (!isSR(u) || !loadInModal(u)) _a(u); },
+                        get: function ()  { return document.location.href; },
+                        configurable: true
+                    });
+                } catch (e) { console.warn('[SR-Nav] patch failed:', e); }
+            })();
+        }
+
+        // ── Route SpaceRemit iframes through our translating proxy ─────────────
+        // The proxy fetches the page server-side, replaces Arabic text, then
+        // injects a script that (a) keeps translating dynamic content and
+        // (b) patches navigation *inside* the iframe so sub-pages also stay translated.
+        if (window._srWatcher) window._srWatcher.disconnect();
+        window._srWatcher = new MutationObserver(function (mutations) {
+            mutations.forEach(function (m) {
+                m.addedNodes.forEach(function (node) {
+                    var frames = [];
+                    if (node.tagName === 'IFRAME') frames.push(node);
+                    if (node.querySelectorAll) node.querySelectorAll('iframe').forEach(function (f) { frames.push(f); });
+                    frames.forEach(function (fr) {
+                        var src = fr.getAttribute('src') || '';
+                        if (!src.includes('spaceremit.com')) return;
+                        if (src.includes('/api/proxy/sr-frame')) return; // already proxied
+                        fr.setAttribute('src', '/api/proxy/sr-frame?url=' + encodeURIComponent(src));
                     });
                 });
             });
-            window._srWatcher.observe(
-                document.getElementById('spaceremit-local-methods-pay'),
-                { childList: true, subtree: true }
-            );
-        }
+        });
+        window._srWatcher.observe(
+            document.getElementById('spaceremit-local-methods-pay'),
+            { childList: true, subtree: true }
+        );
 
         const s  = document.createElement('script');
         s.id     = 'sp-sdk-script';
-        s.src    = 'https://spaceremit.com/api/v2/js_script/spaceremit.js';
+        // Use our server-side proxy — translates Arabic inside the SDK JS before delivery
+        s.src    = '/api/proxy/spaceremit-sdk.js';
         s.async  = false;
         s.onload = function() { loading.style.display = 'none'; loading.classList.add('hidden'); };
         s.onerror = function() {
