@@ -1,0 +1,526 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-[#f8f9fa] dark:bg-[#0b1120] py-16 px-4 sm:px-6 lg:px-8 font-sans">
+
+    <div class="max-w-5xl mx-auto bg-white dark:bg-[#151e2e] shadow-sm border border-gray-200 dark:border-gray-700 p-10 sm:p-16 rounded-xl">
+
+        <!-- Header -->
+        <div class="border-b border-gray-200 dark:border-gray-700 pb-8 mb-10">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4" data-i18n="policy_title">
+                سياسة الخدمة
+            </h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm uppercase tracking-widest font-semibold" data-i18n="policy_ref">
+                REF: OGH-SERVICE-2026-V1 | EFFECTIVE DATE: FEB 10, 2026
+            </p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="flex flex-wrap gap-2 mb-10 border-b border-gray-200 dark:border-gray-700 pb-4">
+            <button onclick="showSection('terms')" id="tab-terms" class="policy-tab active px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 bg-primary text-white">
+                <i class="fa-solid fa-file-contract mr-2"></i>
+                <span data-i18n="tab_terms">شروط الخدمة</span>
+            </button>
+            <button onclick="showSection('privacy')" id="tab-privacy" class="policy-tab px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
+                <i class="fa-solid fa-shield-halved mr-2"></i>
+                <span data-i18n="tab_privacy">سياسة الخصوصية</span>
+            </button>
+            <button onclick="showSection('refund')" id="tab-refund" class="policy-tab px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-200 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
+                <i class="fa-solid fa-rotate-left mr-2"></i>
+                <span data-i18n="tab_refund">سياسة الاسترداد</span>
+            </button>
+        </div>
+
+        <!-- Section 1: Service Terms -->
+        <div id="section-terms" class="policy-section space-y-10 text-gray-700 dark:text-gray-300 leading-relaxed">
+
+            <div class="bg-gradient-to-r from-primary/10 to-violet-500/10 dark:from-primary/20 dark:to-violet-500/20 p-6 rounded-xl border border-primary/20">
+                <p class="text-lg font-semibold text-gray-900 dark:text-white" data-i18n="terms_intro">
+                    منصة Orgteh هي منصة لبيع خدمات الذكاء الاصطناعي عبر API. باستخدامك للمنصة، فإنك توافق على الشروط والأحكام التالية.
+                </p>
+            </div>
+
+            <!-- 1.1 Platform Usage -->
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-primary">1.1</span> <span data-i18n="sec1_1_title">شروط استخدام المنصة</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <p data-i18n="sec1_1_p1">
+                        يُسمح باستخدام منصة Orgteh فقط للأغراض القانونية والمشروعة. يُحظر استخدام المنصة لأي نشاط غير قانوني أو ضار، بما في ذلك على سبيل المثال لا الحصر: توليد محتوى ضار، أو التحايل على أنظمة الأمان، أو إساءة استخدام الخدمة بأي شكل من الأشكال.
+                    </p>
+                    <p data-i18n="sec1_1_p2">
+                        يحق لـ Orgteh تعليق أو إنهاء حساب أي مستخدم يُخالف هذه الشروط دون إشعار مسبق.
+                    </p>
+                </div>
+            </section>
+
+            <!-- 1.2 Daily Limits -->
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-primary">1.2</span> <span data-i18n="sec1_2_title">الحدود اليومية والاستخدام</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <div class="bg-blue-50 dark:bg-blue-900/20 p-5 rounded-xl border border-blue-200 dark:border-blue-800">
+                        <p class="font-semibold text-blue-800 dark:text-blue-400 mb-2" data-i18n="sec1_2_note_title">
+                            <i class="fa-solid fa-clock-rotate-left mr-2"></i>الحدود تتجدد يومياً
+                        </p>
+                        <p data-i18n="sec1_2_p1">
+                            جميع خطط Orgteh تتضمن <strong>حدوداً يومية</strong> لاستخدام النماذج. هذه الحدود تُحسب بناءً على عدد الطلبات (Requests) المُرسلة إلى API. يتم إعادة تعيين العداد يومياً في تمام الساعة 00:00 بتوقيت UTC.
+                        </p>
+                    </div>
+                    <p data-i18n="sec1_2_p2">
+                        عند تجاوز الحد اليومي، يتم نقل طلباتك تلقائياً إلى <strong>وضع الأولوية المنخفضة</strong> (Low Priority Mode) باستخدام رصيد Overdraft إن كان متاحاً. في هذا الوضع، تستمر في تلقي الردود ولكن بأولوية معالجة أقل.
+                    </p>
+                    <div class="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg mt-4">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white uppercase font-bold">
+                                <tr>
+                                    <th class="px-4 py-3 text-right" data-i18n="tbl_plan">الخطة</th>
+                                    <th class="px-4 py-3 text-right" data-i18n="tbl_daily_limit">الحد اليومي</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-[#151e2e]">
+                                <tr>
+                                    <td class="px-4 py-3 font-medium">DeepSeek V3</td>
+                                    <td class="px-4 py-3 font-mono text-primary">300 طلب/يوم</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-3 font-medium">Kimi K2</td>
+                                    <td class="px-4 py-3 font-mono text-primary">200 طلب/يوم</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-3 font-medium">Mistral Large</td>
+                                    <td class="px-4 py-3 font-mono text-primary">100 طلب/يوم</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-3 font-medium">Gemma 3</td>
+                                    <td class="px-4 py-3 font-mono text-primary">500 طلب/يوم</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-3 font-medium">Llama 3.2</td>
+                                    <td class="px-4 py-3 font-mono text-primary">400 طلب/يوم</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 1.3 API Key -->
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-primary">1.3</span> <span data-i18n="sec1_3_title">مفتاح API والأمان</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <p data-i18n="sec1_3_p1">
+                        مفتاح API الخاص بك هو بمثابة كلمة المرور لحسابك. <strong>يُحظر مشاركته مع أي طرف ثالث</strong>. أنت المسؤول الوحيد عن جميع الأنشطة التي تتم باستخدام مفتاح API الخاص بك.
+                    </p>
+                    <div class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                        <p class="text-sm text-yellow-800 dark:text-yellow-400" data-i18n="sec1_3_warning">
+                            <i class="fa-solid fa-triangle-exclamation mr-2"></i>
+                            في حال اكتشاف استخدام غير مصرح به لمفتاحك، يُرجى إعادة توليده فوراً من لوحة التحكم.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 1.4 Prohibited Use -->
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-primary">1.4</span> <span data-i18n="sec1_4_title">الاستخدام المحظور</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <p data-i18n="sec1_4_p1">
+                        يُحظر استخدام منصة Orgteh للأغراض التالية:
+                    </p>
+                    <ul class="list-disc list-inside space-y-2 mr-4">
+                        <li data-i18n="sec1_4_item1">توليد أكواد برمجية خبيثة أو برمجيات ضارة (Malware)</li>
+                        <li data-i18n="sec1_4_item2">الانتحال أو انتحال الهوية لأي شخص أو كيان</li>
+                        <li data-i18n="sec1_4_item3">إرسال محتوى مضايق أو تحرش</li>
+                        <li data-i18n="sec1_4_item4">تجاوز حواجز السلامة أو الرقابة التنظيمية</li>
+                        <li data-i18n="sec1_4_item5">إعادة بيع الخدمة أو استخدامها لأغراض تجارية غير مصرح بها</li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+
+        <!-- Section 2: Privacy Policy -->
+        <div id="section-privacy" class="policy-section hidden space-y-10 text-gray-700 dark:text-gray-300 leading-relaxed">
+
+            <div class="bg-gradient-to-r from-green-500/10 to-emerald-500/10 dark:from-green-500/20 dark:to-emerald-500/20 p-6 rounded-xl border border-green-500/20">
+                <p class="text-lg font-semibold text-gray-900 dark:text-white" data-i18n="privacy_intro">
+                    نحن نأخذ خصوصيتك على محمل الجد. هذه السياسة توضح كيفية جمع واستخدام وحماية بياناتك.
+                </p>
+            </div>
+
+            <!-- 2.1 Data Processing -->
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-green-500">2.1</span> <span data-i18n="sec2_1_title">المبادئ المعمارية والمعالجة العابرة</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <p data-i18n="sec2_1_p1">
+                        تعمل البنية التحتية لـ Orgteh API وفق نموذج صارم يُعرف بـ <strong>نموذج التنفيذ عديم الحالة (Stateless Execution Model)</strong>. نحن نميز بشكل جوهري بين "حمولات المحتوى" (مدخلات المستخدم والردود المولدة) وبين "بيانات المعاملات الوصفية" (عدادات الفوترة والطوابع الزمنية).
+                    </p>
+                    <p data-i18n="sec2_1_p2">
+                        تتم معالجة حمولات المحتوى في الذاكرة المتطايرة (RAM) حصرياً خلال فترة طلب الاستدلال. بمجرد إرسال الرد بنجاح للعميل أو إنهاء الاتصال، يتم تطهير هذه البيانات بشكل منهجي وفوري من مخازن الذاكرة. لا يتم استخدام أي تخزين دائم (SSD/HDD) لأرشفة مدخلات المستخدم أو مخرجات النموذج.
+                    </p>
+                </div>
+            </section>
+
+            <!-- 2.2 No Training -->
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-green-500">2.2</span> <span data-i18n="sec2_2_title">ضمان عدم التدريب</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <div class="bg-green-50 dark:bg-green-900/20 p-5 rounded-xl border border-green-200 dark:border-green-800">
+                        <p class="font-bold text-green-800 dark:text-green-400 mb-2" data-i18n="sec2_2_guarantee">
+                            <i class="fa-solid fa-check-circle mr-2"></i>ضمان صارم
+                        </p>
+                        <p data-i18n="sec2_2_p1">
+                            تتعهد Orgteh بشكل صريح بأن محتوى المستخدم المرسل عبر API <strong>لا يُستخدم لتدريب الذكاء الاصطناعي التوليدي</strong>، أو الضبط الدقيق (Fine-Tuning)، أو التعلم المعزز (RLHF). يظل الكود الخاص بك، ومنطق عملك، واستفساراتك الحساسة مستبعدة رياضياً وتقنياً من تحديثات أوزان النماذج وإصداراتها المستقبلية.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2.3 Telemetry -->
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-green-500">2.3</span> <span data-i18n="sec2_3_title">القياس عن بُعد للأغراض التشغيلية</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <p data-i18n="sec2_3_p1">
+                        بينما لا يتم الوصول إلى المحتوى أبداً، تستخدم Orgteh بيانات القياس عن بُعد (Telemetry) المجمعة والمجهولة الهوية حصرياً لغرض <strong>تحسين موثوقية النظام والأداء</strong>. يشمل ذلك مراقبة منحنيات التأخير (Latency)، وحجم التدفق، وتوزيع معدلات الخطأ.
+                    </p>
+                </div>
+            </section>
+
+            <!-- 2.4 IP Rights -->
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-green-500">2.4</span> <span data-i18n="sec2_4_title">الملكية الفكرية وتعيين الحقوق</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <p data-i18n="sec2_4_p1">
+                        وفقاً لقوانين الأصول الرقمية الدولية، يحتفظ المستخدم بملكية كاملة وغير قابلة للإلغاء وحقوق الملكية الفكرية (IP) على جميع المدخلات المقدمة وجميع المخرجات التي يتم إنشاؤها عبر Orgteh API.
+                    </p>
+                    <p data-i18n="sec2_4_p2">
+                        لا تطالب Orgteh بأي حقوق نشر أو ترخيص أو حقوق متبقية على الكود أو النصوص أو البيانات المولدة. يعمل المستخدم كمتحكم وحيد في البيانات، بينما تعمل Orgteh كمعالج حصري فقط.
+                    </p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Section 3: Refund Policy -->
+        <div id="section-refund" class="policy-section hidden space-y-10 text-gray-700 dark:text-gray-300 leading-relaxed">
+
+            <div class="bg-gradient-to-r from-orange-500/10 to-red-500/10 dark:from-orange-500/20 dark:to-red-500/20 p-6 rounded-xl border border-orange-500/20">
+                <p class="text-lg font-semibold text-gray-900 dark:text-white" data-i18n="refund_intro">
+                    سياسة الاسترداد الخاصة بـ Orgteh واضحة ومباشرة. نحن نؤمن بجودة خدماتنا ونركز على رضا العملاء.
+                </p>
+            </div>
+
+            <!-- 3.1 No Refund Policy -->
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-orange-500">3.1</span> <span data-i18n="sec3_1_title">سياسة عدم الاسترداد</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <div class="bg-red-50 dark:bg-red-900/20 p-5 rounded-xl border border-red-200 dark:border-red-800">
+                        <p class="font-bold text-red-800 dark:text-red-400 mb-3" data-i18n="sec3_1_important">
+                            <i class="fa-solid fa-circle-exclamation mr-2"></i>مهم جداً
+                        </p>
+                        <p data-i18n="sec3_1_p1">
+                            <strong>بمجرد الاشتراك في أي خطة مدفوعة، لا يوجد استرداد</strong> إلا في الحالات الاستثنائية المذكورة أدناه. هذا ينطبق على جميع خطط الاشتراك (شهرية وسنوية).
+                        </p>
+                    </div>
+                    <p data-i18n="sec3_1_p2">
+                        نحن نقدم نموذج <strong>Freemium</strong> (مجاني + مدفوع) يسمح لك باختبار الخدمة قبل الاشتراك. الخطة المجانية تمنحك وصولاً محدوداً لمعظم النماذج لتتمكن من تقييم الجودة قبل الدفع.
+                    </p>
+                </div>
+            </section>
+
+            <!-- 3.2 Exception Cases -->
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-orange-500">3.2</span> <span data-i18n="sec3_2_title">حالات الاسترداد الاستثنائية</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <p data-i18n="sec3_2_p1">
+                        قد يتم النظر في طلب الاسترداد في الحالات التالية فقط:
+                    </p>
+                    <div class="space-y-4">
+                        <div class="bg-white dark:bg-[#1a1a2e] p-5 rounded-xl border border-gray-200 dark:border-gray-700">
+                            <h4 class="font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                                <i class="fa-solid fa-bug text-red-500"></i>
+                                <span data-i18n="sec3_2_case1_title">أخطاء فنية من طرفنا</span>
+                            </h4>
+                            <p class="text-sm text-gray-600 dark:text-gray-400" data-i18n="sec3_2_case1_desc">
+                                في حال حدوث أخطاء تقنية جسيمة من جانب بنيتنا التحتية تمنعك من استخدام الخدمة المدفوعة بشكل كلي لمدة تزيد عن 24 ساعة متواصلة.
+                            </p>
+                        </div>
+                        <div class="bg-white dark:bg-[#1a1a2e] p-5 rounded-xl border border-gray-200 dark:border-gray-700">
+                            <h4 class="font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                                <i class="fa-solid fa-circle-xmark text-red-500"></i>
+                                <span data-i18n="sec3_2_case2_title">سوء في الخدمة مع الإثبات</span>
+                            </h4>
+                            <p class="text-sm text-gray-600 dark:text-gray-400" data-i18n="sec3_2_case2_desc">
+                                في حال ثبت وجود خلل جوهري في الخدمة يؤثر على جودة المخرجات بشكل كبير، ويمكن إثبات ذلك بسجلات واضحة.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3.3 Refund Process -->
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-orange-500">3.3</span> <span data-i18n="sec3_3_title">كيفية طلب الاسترداد</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <p data-i18n="sec3_3_p1">
+                        لطلب الاسترداد في الحالات المسموح بها، يُرجى اتباع الخطوات التالية:
+                    </p>
+                    <ol class="list-decimal list-inside space-y-3 mr-4">
+                        <li data-i18n="sec3_3_step1">التواصل مع فريق الدعم عبر صفحة <a href="/contacts" class="text-primary underline">تواصل معنا</a></li>
+                        <li data-i18n="sec3_3_step2">تقديم وصف تفصيلي للمشكلة مع سجلات الأخطاء (Logs) إن وجدت</li>
+                        <li data-i18n="sec3_3_step3">ذكر تاريخ الاشتراك والخطة المشترك بها</li>
+                        <li data-i18n="sec3_3_step4">انتظار مراجعة الطلب خلال 3-5 أيام عمل</li>
+                    </ol>
+                    <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800 mt-4">
+                        <p class="text-sm text-blue-800 dark:text-blue-400" data-i18n="sec3_3_note">
+                            <i class="fa-solid fa-info-circle mr-2"></i>
+                            جميع طلبات الاسترداد تُراجع بعناية. القرار النهائي يعود لإدارة Orgteh.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3.4 Subscription Cancellation -->
+            <section>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-orange-500">3.4</span> <span data-i18n="sec3_4_title">إلغاء الاشتراك</span>
+                </h2>
+                <div class="pl-0 sm:pl-6 sm:border-l-2 border-gray-100 dark:border-gray-700 space-y-4">
+                    <p data-i18n="sec3_4_p1">
+                        يمكنك إلغاء اشتراكك في أي وقت من خلال لوحة التحكم. عند الإلغاء:
+                    </p>
+                    <ul class="list-disc list-inside space-y-2 mr-4">
+                        <li data-i18n="sec3_4_item1">ستستمر في الوصول للخدمة حتى نهاية فترة الاشتراك المدفوعة</li>
+                        <li data-i18n="sec3_4_item2">لن يتم تجديد الاشتراك تلقائياً</li>
+                        <li data-i18n="sec3_4_item3">لا يوجد استرداد للفترة المتبقية</li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700 text-center">
+            <p class="text-xs text-gray-400 uppercase font-mono" data-i18n="legal_footer">
+                هذه الوثيقة تشكل اتفاقية ملزمة بين Orgteh ومستخدمي المنصة.
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .policy-tab {
+        transition: all 0.3s ease;
+    }
+    .policy-tab:hover {
+        transform: translateY(-1px);
+    }
+    .policy-tab.active {
+        box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+    }
+    .policy-section {
+        animation: fadeIn 0.4s ease-in-out;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<script>
+    // Tab switching functionality
+    function showSection(sectionName) {
+        // Hide all sections
+        document.querySelectorAll('.policy-section').forEach(section => {
+            section.classList.add('hidden');
+        });
+
+        // Show selected section
+        document.getElementById('section-' + sectionName).classList.remove('hidden');
+
+        // Update tab styles
+        document.querySelectorAll('.policy-tab').forEach(tab => {
+            tab.classList.remove('active', 'bg-primary', 'text-white');
+            tab.classList.add('bg-gray-100', 'dark:bg-gray-800', 'text-gray-600', 'dark:text-gray-300');
+        });
+
+        const activeTab = document.getElementById('tab-' + sectionName);
+        activeTab.classList.add('active', 'bg-primary', 'text-white');
+        activeTab.classList.remove('bg-gray-100', 'dark:bg-gray-800', 'text-gray-600', 'dark:text-gray-300');
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Translations
+    const policyTranslations = {
+        en: {
+            "policy_title": "Service Policy",
+            "policy_ref": "REF: OGH-SERVICE-2026-V1 | EFFECTIVE DATE: FEB 10, 2026",
+            "tab_terms": "Service Terms",
+            "tab_privacy": "Privacy Policy",
+            "tab_refund": "Refund Policy",
+            "terms_intro": "Orgteh is an AI services platform sold via API. By using the platform, you agree to the following terms and conditions.",
+            "sec1_1_title": "Platform Usage Terms",
+            "sec1_1_p1": "Orgteh platform may only be used for lawful and legitimate purposes. Using the platform for any illegal or harmful activity is prohibited, including but not limited to: generating harmful content, circumventing security systems, or abusing the service in any form.",
+            "sec1_1_p2": "Orgteh reserves the right to suspend or terminate the account of any user who violates these terms without prior notice.",
+            "sec1_2_title": "Daily Limits & Usage",
+            "sec1_2_note_title": "Limits reset daily",
+            "sec1_2_p1": "All Orgteh plans include daily limits for model usage. These limits are calculated based on the number of Requests sent to the API. The counter resets daily at 00:00 UTC.",
+            "sec1_2_p2": "When you exceed your daily limit, your requests are automatically moved to Low Priority Mode using Overdraft credit if available. In this mode, you continue to receive responses but with lower processing priority.",
+            "tbl_plan": "Plan",
+            "tbl_daily_limit": "Daily Limit",
+            "sec1_3_title": "API Key & Security",
+            "sec1_3_p1": "Your API key is like a password for your account. Sharing it with any third party is prohibited. You are solely responsible for all activities conducted using your API key.",
+            "sec1_3_warning": "If unauthorized use of your key is detected, please regenerate it immediately from the dashboard.",
+            "sec1_4_title": "Prohibited Use",
+            "sec1_4_p1": "Using the Orgteh platform for the following purposes is prohibited:",
+            "sec1_4_item1": "Generating malicious code or malware",
+            "sec1_4_item2": "Impersonating any person or entity",
+            "sec1_4_item3": "Sending harassing or abusive content",
+            "sec1_4_item4": "Bypassing safety guardrails or regulatory censorship",
+            "sec1_4_item5": "Reselling the service or using it for unauthorized commercial purposes",
+            "privacy_intro": "We take your privacy seriously. This policy explains how we collect, use, and protect your data.",
+            "sec2_1_title": "Architectural Principles & Ephemeral Processing",
+            "sec2_1_p1": "The Orgteh API infrastructure operates on a strict Stateless Execution Model. We fundamentally distinguish between 'Content Payloads' (User Prompts and Generated Completions) and 'Transactional Metadata' (Billing counts and API timestamps).",
+            "sec2_1_p2": "Content Payloads are processed in volatile memory (RAM) exclusively during the inference request period. Once the response is successfully sent to the client or the connection is terminated, this data is systematically and immediately purged from memory buffers. No persistent storage (SSD/HDD) is used to archive user inputs or model outputs.",
+            "sec2_2_title": "No-Training Guarantee",
+            "sec2_2_guarantee": "Strict Guarantee",
+            "sec2_2_p1": "Orgteh explicitly warrants that User Content submitted via the API is NOT utilized for Generative AI Training, Fine-Tuning (SFT), or Reinforcement Learning (RLHF). Your proprietary code, business logic, and sensitive queries remain mathematically and technically excluded from model weight updates and future iterations.",
+            "sec2_3_title": "Operational Telemetry",
+            "sec2_3_p1": "While content is never accessed, Orgteh employs aggregated, anonymized telemetry strictly to enhance System Reliability and Performance. This includes monitoring latency curves, throughput volume, and error rate distribution.",
+            "sec2_4_title": "Intellectual Property & Rights Assignment",
+            "sec2_4_p1": "In accordance with international digital asset laws, the User retains full, irrevocable ownership and Intellectual Property (IP) rights over all inputs provided and all outputs generated via the Orgteh API.",
+            "sec2_4_p2": "Orgteh claims no copyright, license, or residual rights over the generated code, text, or data. The User acts as the sole controller of the data, while Orgteh acts exclusively as the processor.",
+            "refund_intro": "Orgteh's refund policy is clear and straightforward. We believe in the quality of our services and focus on customer satisfaction.",
+            "sec3_1_title": "No Refund Policy",
+            "sec3_1_important": "Very Important",
+            "sec3_1_p1": "Once you subscribe to any paid plan, there is NO REFUND except in the exceptional cases mentioned below. This applies to all subscription plans (monthly and yearly).",
+            "sec3_1_p2": "We offer a Freemium model (free + paid) that allows you to test the service before subscribing. The free plan gives you limited access to most models so you can evaluate quality before paying.",
+            "sec3_2_title": "Exceptional Refund Cases",
+            "sec3_2_p1": "A refund request may be considered only in the following cases:",
+            "sec3_2_case1_title": "Technical Errors on Our Side",
+            "sec3_2_case1_desc": "In case of serious technical errors on our infrastructure side that prevent you from using the paid service completely for more than 24 continuous hours.",
+            "sec3_2_case2_title": "Service Deficiency with Proof",
+            "sec3_2_case2_desc": "If a fundamental flaw in the service is proven that significantly affects output quality, and this can be proven with clear logs.",
+            "sec3_3_title": "How to Request a Refund",
+            "sec3_3_p1": "To request a refund in permitted cases, please follow these steps:",
+            "sec3_3_step1": "Contact the support team via the Contact Us page",
+            "sec3_3_step2": "Provide a detailed description of the issue with error logs if available",
+            "sec3_3_step3": "Mention the subscription date and plan subscribed to",
+            "sec3_3_step4": "Wait for the request to be reviewed within 3-5 business days",
+            "sec3_3_note": "All refund requests are carefully reviewed. The final decision rests with Orgteh management.",
+            "sec3_4_title": "Subscription Cancellation",
+            "sec3_4_p1": "You can cancel your subscription at any time through the dashboard. Upon cancellation:",
+            "sec3_4_item1": "You will continue to have access to the service until the end of the paid subscription period",
+            "sec3_4_item2": "The subscription will not be automatically renewed",
+            "sec3_4_item3": "There is no refund for the remaining period",
+            "legal_footer": "This document constitutes a binding agreement between Orgteh and platform users."
+        },
+        ar: {
+            "policy_title": "سياسة الخدمة",
+            "policy_ref": "المرجع: OGH-SERVICE-2026-V1 | تاريخ السريان: 10 فبراير 2026",
+            "tab_terms": "شروط الخدمة",
+            "tab_privacy": "سياسة الخصوصية",
+            "tab_refund": "سياسة الاسترداد",
+            "terms_intro": "منصة Orgteh هي منصة لبيع خدمات الذكاء الاصطناعي عبر API. باستخدامك للمنصة، فإنك توافق على الشروط والأحكام التالية.",
+            "sec1_1_title": "شروط استخدام المنصة",
+            "sec1_1_p1": "يُسمح باستخدام منصة Orgteh فقط للأغراض القانونية والمشروعة. يُحظر استخدام المنصة لأي نشاط غير قانوني أو ضار، بما في ذلك على سبيل المثال لا الحصر: توليد محتوى ضار، أو التحايل على أنظمة الأمان، أو إساءة استخدام الخدمة بأي شكل من الأشكال.",
+            "sec1_1_p2": "يحق لـ Orgteh تعليق أو إنهاء حساب أي مستخدم يُخالف هذه الشروط دون إشعار مسبق.",
+            "sec1_2_title": "الحدود اليومية والاستخدام",
+            "sec1_2_note_title": "الحدود تتجدد يومياً",
+            "sec1_2_p1": "جميع خطط Orgteh تتضمن حدوداً يومية لاستخدام النماذج. هذه الحدود تُحسب بناءً على عدد الطلبات (Requests) المُرسلة إلى API. يتم إعادة تعيين العداد يومياً في تمام الساعة 00:00 بتوقيت UTC.",
+            "sec1_2_p2": "عند تجاوز الحد اليومي، يتم نقل طلباتك تلقائياً إلى وضع الأولوية المنخفضة (Low Priority Mode) باستخدام رصيد Overdraft إن كان متاحاً. في هذا الوضع، تستمر في تلقي الردود ولكن بأولوية معالجة أقل.",
+            "tbl_plan": "الخطة",
+            "tbl_daily_limit": "الحد اليومي",
+            "sec1_3_title": "مفتاح API والأمان",
+            "sec1_3_p1": "مفتاح API الخاص بك هو بمثابة كلمة المرور لحسابك. يُحظر مشاركته مع أي طرف ثالث. أنت المسؤول الوحيد عن جميع الأنشطة التي تتم باستخدام مفتاح API الخاص بك.",
+            "sec1_3_warning": "في حال اكتشاف استخدام غير مصرح به لمفتاحك، يُرجى إعادة توليده فوراً من لوحة التحكم.",
+            "sec1_4_title": "الاستخدام المحظور",
+            "sec1_4_p1": "يُحظر استخدام منصة Orgteh للأغراض التالية:",
+            "sec1_4_item1": "توليد أكواد برمجية خبيثة أو برمجيات ضارة (Malware)",
+            "sec1_4_item2": "الانتحال أو انتحال الهوية لأي شخص أو كيان",
+            "sec1_4_item3": "إرسال محتوى مضايق أو تحرش",
+            "sec1_4_item4": "تجاوز حواجز السلامة أو الرقابة التنظيمية",
+            "sec1_4_item5": "إعادة بيع الخدمة أو استخدامها لأغراض تجارية غير مصرح بها",
+            "privacy_intro": "نحن نأخذ خصوصيتك على محمل الجد. هذه السياسة توضح كيفية جمع واستخدام وحماية بياناتك.",
+            "sec2_1_title": "المبادئ المعمارية والمعالجة العابرة",
+            "sec2_1_p1": "تعمل البنية التحتية لـ Orgteh API وفق نموذج صارم يُعرف بنموذج التنفيذ عديم الحالة (Stateless Execution Model). نحن نميز بشكل جوهري بين 'حمولات المحتوى' (مدخلات المستخدم والردود المولدة) وبين 'بيانات المعاملات الوصفية' (عدادات الفوترة والطوابع الزمنية).",
+            "sec2_1_p2": "تتم معالجة حمولات المحتوى في الذاكرة المتطايرة (RAM) حصرياً خلال فترة طلب الاستدلال. بمجرد إرسال الرد بنجاح للعميل أو إنهاء الاتصال، يتم تطهير هذه البيانات بشكل منهجي وفوري من مخازن الذاكرة. لا يتم استخدام أي تخزين دائم (SSD/HDD) لأرشفة مدخلات المستخدم أو مخرجات النموذج.",
+            "sec2_2_title": "ضمان عدم التدريب",
+            "sec2_2_guarantee": "ضمان صارم",
+            "sec2_2_p1": "تتعهد Orgteh بشكل صريح بأن محتوى المستخدم المرسل عبر API لا يُستخدم لتدريب الذكاء الاصطناعي التوليدي، أو الضبط الدقيق (Fine-Tuning)، أو التعلم المعزز (RLHF). يظل الكود الخاص بك، ومنطق عملك، واستفساراتك الحساسة مستبعدة رياضياً وتقنياً من تحديثات أوزان النماذج وإصداراتها المستقبلية.",
+            "sec2_3_title": "القياس عن بُعد للأغراض التشغيلية",
+            "sec2_3_p1": "بينما لا يتم الوصول إلى المحتوى أبداً، تستخدم Orgteh بيانات القياس عن بُعد (Telemetry) المجمعة والمجهولة الهوية حصرياً لغرض تحسين موثوقية النظام والأداء. يشمل ذلك مراقبة منحنيات التأخير (Latency)، وحجم التدفق، وتوزيع معدلات الخطأ.",
+            "sec2_4_title": "الملكية الفكرية وتعيين الحقوق",
+            "sec2_4_p1": "وفقاً لقوانين الأصول الرقمية الدولية، يحتفظ المستخدم بملكية كاملة وغير قابلة للإلغاء وحقوق الملكية الفكرية (IP) على جميع المدخلات المقدمة وجميع المخرجات التي يتم إنشاؤها عبر Orgteh API.",
+            "sec2_4_p2": "لا تطالب Orgteh بأي حقوق نشر أو ترخيص أو حقوق متبقية على الكود أو النصوص أو البيانات المولدة. يعمل المستخدم كمتحكم وحيد في البيانات، بينما تعمل Orgteh كمعالج حصري فقط.",
+            "refund_intro": "سياسة الاسترداد الخاصة بـ Orgteh واضحة ومباشرة. نحن نؤمن بجودة خدماتنا ونركز على رضا العملاء.",
+            "sec3_1_title": "سياسة عدم الاسترداد",
+            "sec3_1_important": "مهم جداً",
+            "sec3_1_p1": "بمجرد الاشتراك في أي خطة مدفوعة، لا يوجد استرداد إلا في الحالات الاستثنائية المذكورة أدناه. هذا ينطبق على جميع خطط الاشتراك (شهرية وسنوية).",
+            "sec3_1_p2": "نحن نقدم نموذج Freemium (مجاني + مدفوع) يسمح لك باختبار الخدمة قبل الاشتراك. الخطة المجانية تمنحك وصولاً محدوداً لمعظم النماذج لتتمكن من تقييم الجودة قبل الدفع.",
+            "sec3_2_title": "حالات الاسترداد الاستثنائية",
+            "sec3_2_p1": "قد يتم النظر في طلب الاسترداد في الحالات التالية فقط:",
+            "sec3_2_case1_title": "أخطاء فنية من طرفنا",
+            "sec3_2_case1_desc": "في حال حدوث أخطاء تقنية جسيمة من جانب بنيتنا التحتية تمنعك من استخدام الخدمة المدفوعة بشكل كلي لمدة تزيد عن 24 ساعة متواصلة.",
+            "sec3_2_case2_title": "سوء في الخدمة مع الإثبات",
+            "sec3_2_case2_desc": "في حال ثبت وجود خلل جوهري في الخدمة يؤثر على جودة المخرجات بشكل كبير، ويمكن إثبات ذلك بسجلات واضحة.",
+            "sec3_3_title": "كيفية طلب الاسترداد",
+            "sec3_3_p1": "لطلب الاسترداد في الحالات المسموح بها، يُرجى اتباع الخطوات التالية:",
+            "sec3_3_step1": "التواصل مع فريق الدعم عبر صفحة تواصل معنا",
+            "sec3_3_step2": "تقديم وصف تفصيلي للمشكلة مع سجلات الأخطاء (Logs) إن وجدت",
+            "sec3_3_step3": "ذكر تاريخ الاشتراك والخطة المشترك بها",
+            "sec3_3_step4": "انتظار مراجعة الطلب خلال 3-5 أيام عمل",
+            "sec3_3_note": "جميع طلبات الاسترداد تُراجع بعناية. القرار النهائي يعود لإدارة Orgteh.",
+            "sec3_4_title": "إلغاء الاشتراك",
+            "sec3_4_p1": "يمكنك إلغاء اشتراكك في أي وقت من خلال لوحة التحكم. عند الإلغاء:",
+            "sec3_4_item1": "ستستمر في الوصول للخدمة حتى نهاية فترة الاشتراك المدفوعة",
+            "sec3_4_item2": "لن يتم تجديد الاشتراك تلقائياً",
+            "sec3_4_item3": "لا يوجد استرداد للفترة المتبقية",
+            "legal_footer": "هذه الوثيقة تشكل اتفاقية ملزمة بين Orgteh ومستخدمي المنصة."
+        }
+    };
+
+    function applyPolicyTranslations() {
+        const lang = localStorage.getItem('lang') || 'ar';
+        const t = policyTranslations[lang];
+        if (!t) return;
+
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (t[key]) el.innerHTML = t[key];
+        });
+
+        const contentDiv = document.querySelector('.max-w-5xl');
+        if (contentDiv) {
+            if (lang === 'ar') {
+                contentDiv.setAttribute('dir', 'rtl');
+            } else {
+                contentDiv.setAttribute('dir', 'ltr');
+            }
+        }
+    }
+
+    window.addEventListener('langChange', applyPolicyTranslations);
+    window.addEventListener('DOMContentLoaded', applyPolicyTranslations);
+</script>
+{% endblock %}

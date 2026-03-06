@@ -2,6 +2,7 @@ import os
 import json
 import sys
 import gzip
+import re as _re
 import logging
 import httpx
 import time as _time
@@ -69,7 +70,8 @@ from services.widget_service import (
 # ============================================================================
 
 SECRET_KEY   = os.environ.get("SESSION_SECRET_KEY", "super-secret-key-change-in-production")
-_sr_logger   = logging.getLogger("sr_proxy")
+logging.basicConfig(level=logging.INFO)
+_sr_log = logging.getLogger("sr")
 
 # ─── SpaceRemit Webhook IP Whitelist ─────────────────────────────────────────
 SPACEREMIT_WEBHOOK_IPS = [
@@ -1016,11 +1018,19 @@ async def admin_unblock_ip(request: Request, ip: str):
 
 @app.get("/policy", response_class=HTMLResponse)
 async def policy_redirect():
-    return RedirectResponse("/en/policy")
+    return RedirectResponse("/en/service-policy")
 
 @app.get("/{lang}/policy", response_class=HTMLResponse)
-async def policy_page(request: Request, lang: str):
-    return templates.TemplateResponse("policy.html", get_template_context(request, lang))
+async def policy_old_redirect(request: Request, lang: str):
+    return RedirectResponse(f"/{lang}/service-policy")
+
+@app.get("/service-policy", response_class=HTMLResponse)
+async def service_policy_redirect():
+    return RedirectResponse("/en/service-policy")
+
+@app.get("/{lang}/service-policy", response_class=HTMLResponse)
+async def service_policy_page(request: Request, lang: str):
+    return templates.TemplateResponse("service-policy.html", get_template_context(request, lang))
 
 @app.get("/performance", response_class=HTMLResponse)
 async def performance_page(request: Request):
@@ -1364,322 +1374,180 @@ async def api_enterprise_contact(request: Request):
 
 # ============================================================================
 # PAYMENT ROUTES (SpaceRemit)
-# ============================================================================
-
-# ════════════════════════════════════════════════════════════════════════════
-#  SpaceRemit SDK Proxy — النسخة الأخيرة
-#
-#  المشكلة المكتشفة من debug:
-#  - JS صغير (15837 bytes) → SDK يجلب المحتوى بعده كـ HTML وليس JSON
-#  - Interceptor كان يترجم JSON فقط → يفوّته HTML
-#
-#  الحل المزدوج المحقون داخل الـ SDK:
-#  1. يعترض fetch() + XHR لكل أنواع الردود (JSON + HTML + text)
-#  2. MutationObserver يراقب DOM باستمرار ويترجم أي عربي يظهر
-#     (للـ HTML الذي يُحقن مباشرة في DOM)
 # ════════════════════════════════════════════════════════════════════════════
 
-_AR_TO_EN_PY = {
-    "عالمي":                    "Global",
-    "السعودية":                 "Saudi Arabia",
-    "المغرب":                   "Morocco",
-    "الجزائر":                  "Algeria",
-    "تونس":                     "Tunisia",
-    "مصر":                      "Egypt",
-    "الإمارات العربية المتحدة": "UAE",
-    "الإمارات":                 "UAE",
-    "ليبيا":                    "Libya",
-    "العراق":                   "Iraq",
-    "سوريا":                    "Syria",
-    "اليمن":                    "Yemen",
-    "عُمان":                    "Oman",
-    "قطر":                      "Qatar",
-    "البحرين":                  "Bahrain",
-    "الكويت":                   "Kuwait",
-    "الأردن":                   "Jordan",
-    "فلسطين":                   "Palestine",
-    "السودان":                  "Sudan",
-    "موريتانيا":                "Mauritania",
-    "الاسم الكامل":             "Full Name",
-    "الاسم":                    "Name",
-    "إثبات دفع":                "Payment Proof",
-    "إثبات الدفع":              "Payment Proof",
-    "تحميل إثبات الدفع":        "Upload Proof",
-    "لقد دفعت":                 "I Have Paid",
-    "رفع ملف":                  "Upload File",
-    "اختر ملف":                 "Choose File",
-    "لا يوجد ملف":              "No file chosen",
-    "إلغاء":                    "Cancel",
-    "تأكيد":                    "Confirm",
-    "التالي":                   "Next",
-    "السابق":                   "Back",
-    "إرسال":                    "Send",
-    "رقم الهاتف":               "Phone Number",
-    "البريد الإلكتروني":        "Email",
-    "المبلغ":                   "Amount",
-    "الرسوم":                   "Fees",
-    "الإجمالي":                 "Total",
-    "العملة":                   "Currency",
-    "طريقة الدفع":              "Payment Method",
-    "انتظر":                    "Please Wait",
-    "جاري المعالجة":            "Processing...",
-    "جاري التحميل":             "Loading...",
-    "نجح":                      "Success",
-    "فشل":                      "Failed",
-    "خطأ":                      "Error",
-    "تم الدفع بنجاح":           "Payment Successful",
-    "رقم العملية":              "Transaction ID",
-    "الرجاء الانتظار":          "Please wait",
-    "دقائق":                    "minutes",
-    "ساعات":                    "hours",
-    "ثواني":                    "seconds",
-    "تحويل بنكي":               "Bank Transfer",
-    "بطاقة ائتمانية":           "Credit Card",
-    "العودة":                   "Go Back",
-    "ادفع الآن":                "Pay Now",
-    "اكمل الدفع":               "Complete Payment",
-    "بعد ارسال المبلغ قم بالضغط على زر": "After sending, click",
+import base64 as _b64
+
+_AR_DICT = {
     "يتم قبول الطلبات خلال بضع دقائق او ساعات": "Orders confirmed within minutes or hours",
-    "الى البيانات التالية":     "to the following address",
-    "البيانات التالية":         "the following details",
-    "أرسل":                     "Send",
-    "ارسل":                     "Send",
+    "بعد ارسال المبلغ قم بالضغط على زر": "After sending, click",
+    "الإمارات العربية المتحدة": "UAE",
+    "الى البيانات التالية": "to the following address",
+    "تحميل إثبات الدفع": "Upload Proof",
+    "البريد الإلكتروني": "Email",
+    "البيانات التالية": "the following details",
+    "الرجاء الانتظار": "Please wait",
+    "تم الدفع بنجاح": "Payment Successful",
+    "بطاقة ائتمانية": "Credit Card",
+    "جاري المعالجة": "Processing...",
+    "الاسم الكامل": "Full Name",
+    "جاري التحميل": "Loading...",
+    "إثبات الدفع": "Payment Proof",
+    "لا يوجد ملف": "No file chosen",
+    "طريقة الدفع": "Payment Method",
+    "رقم العملية": "Transaction ID",
+    "رقم الهاتف": "Phone Number",
+    "تحويل بنكي": "Bank Transfer",
+    "اكمل الدفع": "Complete Payment",
+    "موريتانيا": "Mauritania",
+    "إثبات دفع": "Payment Proof",
+    "ادفع الآن": "Pay Now",
+    "السعودية": "Saudi Arabia",
+    "الإمارات": "UAE",
+    "لقد دفعت": "I Have Paid",
+    "اختر ملف": "Choose File",
+    "الإجمالي": "Total",
+    "الجزائر": "Algeria",
+    "البحرين": "Bahrain",
+    "السودان": "Sudan",
+    "رفع ملف": "Upload File",
+    "المغرب": "Morocco",
+    "العراق": "Iraq",
+    "الكويت": "Kuwait",
+    "الأردن": "Jordan",
+    "فلسطين": "Palestine",
+    "التالي": "Next",
+    "السابق": "Back",
+    "المبلغ": "Amount",
+    "الرسوم": "Fees",
+    "العملة": "Currency",
+    "العودة": "Go Back",
+    "عالمي": "Global",
+    "ليبيا": "Libya",
+    "سوريا": "Syria",
+    "اليمن": "Yemen",
+    "عُمان": "Oman",
+    "الاسم": "Name",
+    "إلغاء": "Cancel",
+    "تأكيد": "Confirm",
+    "إرسال": "Send",
+    "انتظر": "Please Wait",
+    "دقائق": "minutes",
+    "ساعات": "hours",
+    "ثواني": "seconds",
+    "تونس": "Tunisia",
+    "أرسل": "Send",
+    "ارسل": "Send",
+    "مصر": "Egypt",
+    "قطر": "Qatar",
+    "نجح": "Success",
+    "فشل": "Failed",
+    "خطأ": "Error",
 }
 
+_SR = "https://spaceremit.com"
 _sdk_cache: dict = {"js": None, "expires": 0}
+_AR_PAT = _re.compile(r"[\u0600-\u06FF]")
+
+# iframe script stored as base64 to avoid any escaping issues
+_IFRAME_B64 = "PHNjcmlwdD4KKGZ1bmN0aW9uKCl7CnZhciBEPXsi2YrYqtmFINmC2KjZiNmEINin2YTYt9mE2KjYp9iqINiu2YTYp9mEINio2LbYuSDYr9mC2KfYptmCINin2Ygg2LPYp9i52KfYqiI6Ik9yZGVycyBjb25maXJtZWQgd2l0aGluIG1pbnV0ZXMgb3IgaG91cnMiLCLYqNi52K8g2KfYsdiz2KfZhCDYp9mE2YXYqNmE2Log2YLZhSDYqNin2YTYtti62Lcg2LnZhNmJINiy2LEiOiJBZnRlciBzZW5kaW5nLCBjbGljayIsItin2YTYpdmF2KfYsdin2Kog2KfZhNi52LHYqNmK2Kkg2KfZhNmF2KrYrdiv2KkiOiJVQUUiLCLYp9mE2Ykg2KfZhNio2YrYp9mG2KfYqiDYp9mE2KrYp9mE2YrYqSI6InRvIHRoZSBmb2xsb3dpbmcgYWRkcmVzcyIsItiq2K3ZhdmK2YQg2KXYq9io2KfYqiDYp9mE2K/Zgdi5IjoiVXBsb2FkIFByb29mIiwi2KfZhNio2LHZitivINin2YTYpdmE2YPYqtix2YjZhtmKIjoiRW1haWwiLCLYp9mE2KjZitin2YbYp9iqINin2YTYqtin2YTZitipIjoidGhlIGZvbGxvd2luZyBkZXRhaWxzIiwi2KfZhNix2KzYp9ihINin2YTYp9mG2KrYuNin2LEiOiJQbGVhc2Ugd2FpdCIsItiq2YUg2KfZhNiv2YHYuSDYqNmG2KzYp9itIjoiUGF5bWVudCBTdWNjZXNzZnVsIiwi2KjYt9in2YLYqSDYp9im2KrZhdin2YbZitipIjoiQ3JlZGl0IENhcmQiLCLYrNin2LHZiiDYp9mE2YXYudin2YTYrNipIjoiUHJvY2Vzc2luZy4uLiIsItin2YTYp9iz2YUg2KfZhNmD2KfZhdmEIjoiRnVsbCBOYW1lIiwi2KzYp9ix2Yog2KfZhNiq2K3ZhdmK2YQiOiJMb2FkaW5nLi4uIiwi2KXYq9io2KfYqiDYp9mE2K/Zgdi5IjoiUGF5bWVudCBQcm9vZiIsItmE2Kcg2YrZiNis2K8g2YXZhNmBIjoiTm8gZmlsZSBjaG9zZW4iLCLYt9ix2YrZgtipINin2YTYr9mB2LkiOiJQYXltZW50IE1ldGhvZCIsItix2YLZhSDYp9mE2LnZhdmE2YrYqSI6IlRyYW5zYWN0aW9uIElEIiwi2LHZgtmFINin2YTZh9in2KrZgSI6IlBob25lIE51bWJlciIsItiq2K3ZiNmK2YQg2KjZhtmD2YoiOiJCYW5rIFRyYW5zZmVyIiwi2KfZg9mF2YQg2KfZhNiv2YHYuSI6IkNvbXBsZXRlIFBheW1lbnQiLCLZhdmI2LHZitiq2KfZhtmK2KciOiJNYXVyaXRhbmlhIiwi2KXYq9io2KfYqiDYr9mB2LkiOiJQYXltZW50IFByb29mIiwi2KfYr9mB2Lkg2KfZhNii2YYiOiJQYXkgTm93Iiwi2KfZhNiz2LnZiNiv2YrYqSI6IlNhdWRpIEFyYWJpYSIsItin2YTYpdmF2KfYsdin2KoiOiJVQUUiLCLZhNmC2K8g2K/Zgdi52KoiOiJJIEhhdmUgUGFpZCIsItin2K7YqtixINmF2YTZgSI6IkNob29zZSBGaWxlIiwi2KfZhNil2KzZhdin2YTZiiI6IlRvdGFsIiwi2KfZhNis2LLYp9im2LEiOiJBbGdlcmlhIiwi2KfZhNio2K3YsdmK2YYiOiJCYWhyYWluIiwi2KfZhNiz2YjYr9in2YYiOiJTdWRhbiIsItix2YHYuSDZhdmE2YEiOiJVcGxvYWQgRmlsZSIsItin2YTZhdi62LHYqCI6Ik1vcm9jY28iLCLYp9mE2LnYsdin2YIiOiJJcmFxIiwi2KfZhNmD2YjZitiqIjoiS3V3YWl0Iiwi2KfZhNij2LHYr9mGIjoiSm9yZGFuIiwi2YHZhNiz2LfZitmGIjoiUGFsZXN0aW5lIiwi2KfZhNiq2KfZhNmKIjoiTmV4dCIsItin2YTYs9in2KjZgiI6IkJhY2siLCLYp9mE2YXYqNmE2LoiOiJBbW91bnQiLCLYp9mE2LHYs9mI2YUiOiJGZWVzIiwi2KfZhNi52YXZhNipIjoiQ3VycmVuY3kiLCLYp9mE2LnZiNiv2KkiOiJHbyBCYWNrIiwi2LnYp9mE2YXZiiI6Ikdsb2JhbCIsItmE2YrYqNmK2KciOiJMaWJ5YSIsItiz2YjYsdmK2KciOiJTeXJpYSIsItin2YTZitmF2YYiOiJZZW1lbiIsIti52Y/Zhdin2YYiOiJPbWFuIiwi2KfZhNin2LPZhSI6Ik5hbWUiLCLYpdmE2LrYp9ihIjoiQ2FuY2VsIiwi2KrYo9mD2YrYryI6IkNvbmZpcm0iLCLYpdix2LPYp9mEIjoiU2VuZCIsItin2YbYqti42LEiOiJQbGVhc2UgV2FpdCIsItiv2YLYp9im2YIiOiJtaW51dGVzIiwi2LPYp9i52KfYqiI6ImhvdXJzIiwi2KvZiNin2YbZiiI6InNlY29uZHMiLCLYqtmI2YbYsyI6IlR1bmlzaWEiLCLYo9ix2LPZhCI6IlNlbmQiLCLYp9ix2LPZhCI6IlNlbmQiLCLZhdi12LEiOiJFZ3lwdCIsItmC2LfYsSI6IlFhdGFyIiwi2YbYrNitIjoiU3VjY2VzcyIsItmB2LTZhCI6IkZhaWxlZCIsItiu2LfYoyI6IkVycm9yIn07CnZhciBLPU9iamVjdC5rZXlzKEQpOwp2YXIgQVI9L1tcdTA2MDAtXHUwNkZGXS87CmZ1bmN0aW9uIHRyKHMpewogIGlmKCFzfHx0eXBlb2YgcyE9PSdzdHJpbmcnfHwhQVIudGVzdChzKSlyZXR1cm4gczsKICBmb3IodmFyIGk9MDtpPEsubGVuZ3RoO2krKylpZihzLmluZGV4T2YoS1tpXSkhPT0tMSlzPXMuc3BsaXQoS1tpXSkuam9pbihEW0tbaV1dKTsKICByZXR1cm4gczsKfQpmdW5jdGlvbiB3YWxrKG4pewogIGlmKCFuKXJldHVybjsKICBpZihuLm5vZGVUeXBlPT09Myl7dmFyIHY9bi5ub2RlVmFsdWU7aWYoQVIudGVzdCh2KSl7dmFyIHQ9dHIodik7aWYodCE9PXYpbi5ub2RlVmFsdWU9dDt9fQogIGVsc2UgaWYobi5ub2RlVHlwZT09PTEpewogICAgWydwbGFjZWhvbGRlcicsJ3RpdGxlJywnYXJpYS1sYWJlbCddLmZvckVhY2goZnVuY3Rpb24oYSl7CiAgICAgIHZhciB2PW4uZ2V0QXR0cmlidXRlJiZuLmdldEF0dHJpYnV0ZShhKTsKICAgICAgaWYodiYmQVIudGVzdCh2KSluLnNldEF0dHJpYnV0ZShhLHRyKHYpKTsKICAgIH0pOwogICAgZm9yKHZhciBjPW4uZmlyc3RDaGlsZDtjO2M9Yy5uZXh0U2libGluZyl3YWxrKGMpOwogIH0KfQpuZXcgTXV0YXRpb25PYnNlcnZlcihmdW5jdGlvbihtcyl7CiAgbXMuZm9yRWFjaChmdW5jdGlvbihtKXsKICAgIGlmKG0udHlwZT09PSdjaGFyYWN0ZXJEYXRhJyl3YWxrKG0udGFyZ2V0KTsKICAgIGVsc2UgbS5hZGRlZE5vZGVzLmZvckVhY2god2Fsayk7CiAgfSk7Cn0pLm9ic2VydmUoZG9jdW1lbnQuZG9jdW1lbnRFbGVtZW50LHtjaGlsZExpc3Q6dHJ1ZSxzdWJ0cmVlOnRydWUsY2hhcmFjdGVyRGF0YTp0cnVlfSk7CnNldEludGVydmFsKGZ1bmN0aW9uKCl7aWYoZG9jdW1lbnQuYm9keSl3YWxrKGRvY3VtZW50LmJvZHkpO30sMjAwKTsKaWYoZG9jdW1lbnQucmVhZHlTdGF0ZT09PSdsb2FkaW5nJylkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCdET01Db250ZW50TG9hZGVkJyxmdW5jdGlvbigpe3dhbGsoZG9jdW1lbnQuYm9keSk7fSk7CmVsc2UgaWYoZG9jdW1lbnQuYm9keSl3YWxrKGRvY3VtZW50LmJvZHkpOwp2YXIgUEZYPScvYXBpL3Byb3h5L3NyLWZyYW1lP3VybD0nLFNSPSdodHRwczovL3NwYWNlcmVtaXQuY29tJzsKZnVuY3Rpb24gcHgodSl7CiAgaWYoIXUpcmV0dXJuIHU7CiAgaWYodS5jaGFyQXQoMCk9PT0nIycpcmV0dXJuIHU7CiAgaWYodS5pbmRleE9mKCdibG9iOicpPT09MHx8dS5pbmRleE9mKCdkYXRhOicpPT09MClyZXR1cm4gdTsKICBpZih1LmluZGV4T2YoU1IpPT09MClyZXR1cm4gUEZYK2VuY29kZVVSSUNvbXBvbmVudCh1KTsKICBpZih1LmNoYXJBdCgwKT09PScvJylyZXR1cm4gUEZYK2VuY29kZVVSSUNvbXBvbmVudChTUit1KTsKICByZXR1cm4gdTsKfQp0cnl7CiAgdmFyIF9hPXdpbmRvdy5sb2NhdGlvbi5hc3NpZ24uYmluZCh3aW5kb3cubG9jYXRpb24pOwogIHZhciBfcj13aW5kb3cubG9jYXRpb24ucmVwbGFjZS5iaW5kKHdpbmRvdy5sb2NhdGlvbik7CiAgd2luZG93LmxvY2F0aW9uLmFzc2lnbj1mdW5jdGlvbih1KXtfYShweCh1KSk7fTsKICB3aW5kb3cubG9jYXRpb24ucmVwbGFjZT1mdW5jdGlvbih1KXtfcihweCh1KSk7fTsKICBPYmplY3QuZGVmaW5lUHJvcGVydHkod2luZG93LmxvY2F0aW9uLCdocmVmJyx7CiAgICBzZXQ6ZnVuY3Rpb24odSl7X2EocHgodSkpO30sCiAgICBnZXQ6ZnVuY3Rpb24oKXtyZXR1cm4gZG9jdW1lbnQubG9jYXRpb24uaHJlZjt9LAogICAgY29uZmlndXJhYmxlOnRydWUKICB9KTsKfWNhdGNoKGUpe30KdmFyIF9vRj13aW5kb3cuZmV0Y2g7CmlmKF9vRil3aW5kb3cuZmV0Y2g9ZnVuY3Rpb24oaW5wLGluaXQpewogIHJldHVybiBfb0YuYXBwbHkodGhpcyxhcmd1bWVudHMpLnRoZW4oZnVuY3Rpb24ocil7CiAgICB2YXIgY3Q9ci5oZWFkZXJzLmdldCgnY29udGVudC10eXBlJyl8fCcnOwogICAgaWYoY3QuaW5kZXhPZignanNvbicpPT09LTEpcmV0dXJuIHI7CiAgICByZXR1cm4gci50ZXh0KCkudGhlbihmdW5jdGlvbih0KXsKICAgICAgaWYoIUFSLnRlc3QodCkpcmV0dXJuIG5ldyBSZXNwb25zZSh0LHtzdGF0dXM6ci5zdGF0dXMsaGVhZGVyczpyLmhlYWRlcnN9KTsKICAgICAgdmFyIG89dDtLLmZvckVhY2goZnVuY3Rpb24oayl7aWYoby5pbmRleE9mKGspIT09LTEpbz1vLnNwbGl0KGspLmpvaW4oRFtrXSk7fSk7CiAgICAgIHZhciBoPXt9O3IuaGVhZGVycy5mb3JFYWNoKGZ1bmN0aW9uKHYsayl7aFtrXT12O30pOwogICAgICByZXR1cm4gbmV3IFJlc3BvbnNlKG8se3N0YXR1czpyLnN0YXR1cyxzdGF0dXNUZXh0OnIuc3RhdHVzVGV4dCxoZWFkZXJzOmh9KTsKICAgIH0pOwogIH0pOwp9Owp9KSgpOwo8L3NjcmlwdD4="
+_IFRAME_SCRIPT = _b64.b64decode(_IFRAME_B64).decode("utf-8")
 
 
-def _build_js_dict() -> str:
-    """يبني JS object من قاموس الترجمة، مرتباً من الأطول للأقصر."""
-    pairs = ",\n".join(
-        f'  {json.dumps(ar, ensure_ascii=False)}: {json.dumps(en)}'
-        for ar, en in sorted(_AR_TO_EN_PY.items(), key=lambda x: -len(x[0]))
-    )
-    return "{\n" + pairs + "\n}"
+def _translate(text: str) -> str:
+    if not text or not _AR_PAT.search(text):
+        return text
+    for ar, en in sorted(_AR_DICT.items(), key=lambda x: -len(x[0])):
+        if ar in text:
+            text = text.replace(ar, en)
+        esc = "".join(f"\\u{ord(c):04x}" for c in ar)
+        if esc in text:
+            text = text.replace(esc, en)
+    return text
 
 
-def _make_interceptor_js() -> str:
-    """
-    يولّد كود JS يُحقن في بداية SDK:
-    - يعترض fetch() + XHR لكل أنواع الردود
-    - MutationObserver يترجم DOM مباشرة (للـ HTML المحقون)
-    """
-    dict_js = _build_js_dict()
-    return r"""
-;(function() {
-  'use strict';
-  var _D = """ + dict_js + r""";
-  var _K = Object.keys(_D);  /* مرتبة من الأطول للأقصر */
+def _fix_urls(html: str) -> str:
+    sr = _SR
+    html = _re.sub(r'(src|href|action)="(/[^"#][^"]*)"',
+                   lambda m: f'{m.group(1)}="{sr}{m.group(2)}"', html)
+    html = _re.sub(r"(src|href|action)='(/[^'#][^']*)'" ,
+                   lambda m: f"{m.group(1)}'{sr}{m.group(2)}'", html)
+    html = _re.sub(r"url\((/[^)#][^)]*)\)",
+                   lambda m: f"url({sr}{m.group(1)})", html)
+    return html
 
-  /* ── دالة ترجمة أي نص ── */
-  function tr(s) {
-    if (!s || typeof s !== 'string') return s;
-    for (var i = 0; i < _K.length; i++) {
-      var ar = _K[i];
-      if (s.indexOf(ar) !== -1) s = s.split(ar).join(_D[ar]);
-    }
-    return s;
-  }
 
-  /* ── ترجمة قيمة عشوائية (JSON) ── */
-  function trVal(v) {
-    if (typeof v === 'string') return tr(v);
-    if (Array.isArray(v)) return v.map(trVal);
-    if (v && typeof v === 'object') {
-      var o = {};
-      Object.keys(v).forEach(function(k){ o[k] = trVal(v[k]); });
-      return o;
-    }
-    return v;
-  }
-
-  /* ── ترجمة body (JSON أو HTML أو text) ── */
-  function trBody(text, ct) {
-    if (!text) return text;
-    ct = (ct||'').toLowerCase();
-    if (ct.indexOf('json') !== -1) {
-      try { return JSON.stringify(trVal(JSON.parse(text))); } catch(e){}
-    }
-    /* HTML أو text عادي → استبدال مباشر */
-    return tr(text);
-  }
-
-  function isSR(url) {
-    return typeof url === 'string' && url.indexOf('spaceremit.com') !== -1;
-  }
-
-  /* ── اعتراض fetch() ── */
-  var _oF = window.fetch;
-  window.fetch = function(input, init) {
-    var url = (typeof input === 'string') ? input : (input && input.url) || '';
-    return _oF.apply(this, arguments).then(function(resp) {
-      if (!isSR(url)) return resp;
-      var ct = resp.headers.get('content-type') || '';
-      return resp.text().then(function(text) {
-        var translated = trBody(text, ct);
-        /* بناء response جديد بنفس headers */
-        var hdrs = {};
-        resp.headers.forEach(function(v,k){ hdrs[k]=v; });
-        return new Response(translated, {
-          status: resp.status, statusText: resp.statusText, headers: hdrs
-        });
-      });
-    });
-  };
-
-  /* ── اعتراض XMLHttpRequest ── */
-  var _oOpen = XMLHttpRequest.prototype.open;
-  XMLHttpRequest.prototype.open = function(m, url) {
-    this._srUrl = url; return _oOpen.apply(this, arguments);
-  };
-  var _oSend = XMLHttpRequest.prototype.send;
-  XMLHttpRequest.prototype.send = function() {
-    if (isSR(this._srUrl)) {
-      this.addEventListener('load', function() {
-        var ct = this.getResponseHeader('content-type') || '';
-        try {
-          var translated = trBody(this.responseText, ct);
-          if (translated !== this.responseText) {
-            Object.defineProperty(this, 'responseText', { get: function(){ return translated; }, configurable:true });
-            Object.defineProperty(this, 'response',     { get: function(){ return translated; }, configurable:true });
-          }
-        } catch(e){}
-      });
-    }
-    return _oSend.apply(this, arguments);
-  };
-
-  /* ── MutationObserver: يترجم DOM مباشرة ── */
-  /* هذا هو الحل الأهم: يمسح أي عربي يظهر في DOM كيفما جاء */
-  function trNode(node) {
-    if (node.nodeType === 3) { /* TEXT_NODE */
-      var t = node.nodeValue;
-      if (!t || !t.trim()) return;
-      /* فحص سريع: هل يحتوي حروف عربية؟ */
-      if (!/[\u0600-\u06FF]/.test(t)) return;
-      var nt = tr(t);
-      if (nt !== t) node.nodeValue = nt;
-    } else if (node.nodeType === 1) { /* ELEMENT_NODE */
-      /* ترجمة placeholder و title */
-      ['placeholder','title','aria-label'].forEach(function(a){
-        var v = node.getAttribute && node.getAttribute(a);
-        if (v && /[\u0600-\u06FF]/.test(v)) {
-          var nv = tr(v);
-          if (nv !== v) node.setAttribute(a, nv);
+@app.get("/api/proxy/sr-frame")
+async def proxy_sr_frame(url: str):
+    if "spaceremit.com" not in url:
+        return JSONResponse({"error": "invalid"}, status_code=400)
+    _sr_log.info(f"[SRFrame] {url[:80]}")
+    try:
+        async with httpx.AsyncClient(timeout=25.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers={
+                "Accept": "text/html,application/xhtml+xml,*/*",
+                "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36",
+                "Accept-Encoding": "identity",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Referer": "https://www.orgteh.com/",
+            })
+            raw = resp.text
+            _sr_log.info(f"[SRFrame] got {len(raw)} bytes")
+    except Exception as e:
+        _sr_log.error(f"[SRFrame] {e}")
+        return Response("<html><body>proxy error</body></html>",
+                        media_type="text/html", status_code=502)
+    html = _translate(raw)
+    html = _fix_urls(html)
+    script = _IFRAME_SCRIPT
+    if "<head>" in html:
+        html = html.replace("<head>", "<head>\n" + script, 1)
+    elif "<head " in html:
+        m = _re.search(r"<head[^>]*>", html)
+        if m:
+            pos = m.end()
+            html = html[:pos] + "\n" + script + html[pos:]
+    else:
+        html = script + html
+    _sr_log.info(f"[SRFrame] sending {len(html)} bytes")
+    return Response(
+        content=html.encode("utf-8"),
+        media_type="text/html; charset=utf-8",
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "X-Frame-Options": "ALLOWALL",
+            "Cache-Control": "no-cache, no-store",
+            "Content-Security-Policy": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;",
         }
-      });
-      node.childNodes.forEach(trNode);
-    }
-  }
-
-  var _obs = new MutationObserver(function(muts) {
-    muts.forEach(function(m) {
-      if (m.type === 'characterData') {
-        trNode(m.target);
-      } else {
-        m.addedNodes.forEach(function(n) { trNode(n); });
-      }
-    });
-  });
-
-  /* نبدأ المراقبة عند جاهزية DOM */
-  function startObs() {
-    var target = document.getElementById('spaceremit-local-methods-pay') || document.body;
-    _obs.observe(target, { childList:true, subtree:true, characterData:true });
-    /* ترجمة ما هو موجود الآن */
-    trNode(target);
-  }
-
-  /* تشغيل فوري أو بعد DOM جاهز */
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startObs);
-  } else {
-    startObs();
-  }
-  /* setInterval دائماً — يضمن الترجمة بعد كل إعادة رندر من SDK */
-  setInterval(function() {
-    var c = document.getElementById('spaceremit-local-methods-pay') || document.body;
-    if (c) trNode(c);
-  }, 150);
-
-})();
-"""
-
-
-def _translate_static(js: str) -> str:
-    """يترجم النصوص الثابتة في الـ JS (unicode escapes + نص مباشر)."""
-    for ar, en in sorted(_AR_TO_EN_PY.items(), key=lambda x: -len(x[0])):
-        js = js.replace(ar, en)
-        js = js.replace("".join(f"\\u{ord(c):04x}" for c in ar), en)
-    return js
+    )
 
 
 @app.get("/api/proxy/spaceremit-sdk.js")
 async def proxy_spaceremit_sdk():
     now = _time.time()
     if _sdk_cache["js"] and now < _sdk_cache["expires"]:
-        _sr_logger.info("[SDKProxy] cache hit")
-        return Response(
-            content=_sdk_cache["js"],
-            media_type="application/javascript; charset=utf-8",
-            headers={"Cache-Control": "public, max-age=600", "Access-Control-Allow-Origin": "*"}
-        )
-
-    sdk_url = "https://spaceremit.com/api/v2/js_script/spaceremit.js"
+        return Response(_sdk_cache["js"], media_type="application/javascript; charset=utf-8",
+                        headers={"Cache-Control": "public, max-age=600", "Access-Control-Allow-Origin": "*"})
+    url = f"{_SR}/api/v2/js_script/spaceremit.js"
     try:
-        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
-            _sr_logger.info("[SDKProxy] fetching origin...")
-            resp = await client.get(sdk_url, headers={
-                "Accept": "*/*",
-                "User-Agent": "Mozilla/5.0",
-                "Accept-Encoding": "identity",
-            })
-            resp.raise_for_status()
-            js_raw = resp.text
-            _sr_logger.info(f"[SDKProxy] fetched {len(js_raw)} bytes")
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as c:
+            _sr_log.info("[SDK] fetching...")
+            r = await c.get(url, headers={"Accept": "*/*", "User-Agent": "Mozilla/5.0", "Accept-Encoding": "identity"})
+            r.raise_for_status()
+            js = _translate(r.text)
+            _sr_log.info(f"[SDK] {len(js)} bytes")
     except Exception as e:
-        _sr_logger.error(f"[SDKProxy] fetch error: {e}")
-        return RedirectResponse(url=sdk_url, status_code=302)
-
-    interceptor = _make_interceptor_js()
-    js_translated = _translate_static(js_raw)
-    js_final = interceptor + "\n" + js_translated
-
-    _sr_logger.info(f"[SDKProxy] done, final size={len(js_final)}")
-    _sdk_cache["js"]      = js_final
-    _sdk_cache["expires"] = now + 600
-
-    return Response(
-        content=js_final,
-        media_type="application/javascript; charset=utf-8",
-        headers={"Cache-Control": "public, max-age=600", "Access-Control-Allow-Origin": "*"}
-    )
-
-
-@app.get("/api/proxy/debug-sr")
-async def debug_sr():
-    now = _time.time()
-    if not (_sdk_cache["js"] and now < _sdk_cache["expires"]):
-        return JSONResponse({"status": "empty", "hint": "open /en/cart and click Subscribe"})
-    js = _sdk_cache["js"]
-    return JSONResponse({
-        "status":               "ok",
-        "size_bytes":           len(js),
-        "interceptor_fetch":    "window.fetch = function" in js,
-        "interceptor_xhr":      "XMLHttpRequest.prototype.open" in js,
-        "mutation_observer":    "MutationObserver" in js,
-        "interval_fallback":    "setInterval" in js,
-        "arabic_in_js":         [ar for ar in _AR_TO_EN_PY if ar in js][:5],
-    })
+        _sr_log.error(f"[SDK] {e}")
+        return RedirectResponse(url=url, status_code=302)
+    _sdk_cache.update({"js": js, "expires": now + 600})
+    return Response(js, media_type="application/javascript; charset=utf-8",
+                    headers={"Cache-Control": "public, max-age=600", "Access-Control-Allow-Origin": "*"})
 
 
 @app.get("/api/proxy/clear-sr-cache")
 async def clear_sr_cache():
-    """يمسح الـ cache فوراً — يُستخدم بعد كل تحديث للكود."""
-    _sdk_cache["js"]      = None
-    _sdk_cache["expires"] = 0
-    _sr_logger.info("[SDKProxy] Cache cleared manually")
-    return JSONResponse({"status": "cleared", "message": "Cache cleared. Next request will fetch fresh SDK."})
+    _sdk_cache.update({"js": None, "expires": 0})
+    return JSONResponse({"status": "cleared"})
 
 
 class CheckoutRequest(BaseModel):

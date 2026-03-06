@@ -200,7 +200,7 @@
 
     <aside id="sidebar" class="flex flex-col p-6 shadow-2xl sidebar-closed" aria-label="القائمة الجانبية">
         <div class="flex justify-between items-center mb-8">
-            <h3 class="text-xl font-black">القائمة</h3>
+            <h3 class="text-xl font-black" data-i18n="sidebar_title">القائمة</h3>
             <button onclick="toggleSidebar()" class="text-gray-500 hover:text-red-500" aria-label="إغلاق القائمة الجانبية">
                 <i class="fa-solid fa-times text-xl" aria-hidden="true"></i>
             </button>
@@ -216,7 +216,7 @@
             <a href="/{{ lang }}/contacts" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-envelope w-6" aria-hidden="true"></i> <span data-i18n="nav_contacts">تواصل معنا</span></a>
             <a href="/{{ lang }}/enterprise" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-building w-6" aria-hidden="true"></i> <span data-i18n="nav_custom_solutions">حلول مخصصة</span></a>
             <a href="/{{ lang }}/docs" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-book w-6" aria-hidden="true"></i> <span data-i18n="nav_docs">التوثيق</span></a>
-            <a href="/{{ lang }}/policy" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-shield-halved w-6" aria-hidden="true"></i> <span data-i18n="nav_policy">سياسة الاستخدام</span></a>
+            <a href="/{{ lang }}/service-policy" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-shield-halved w-6" aria-hidden="true"></i> <span data-i18n="nav_policy">سياسة الخدمة</span></a>
             <a href="/{{ lang }}/performance" onclick="toggleSidebar();" class="font-bold hover:text-primary flex items-center gap-3"><i class="fa-solid fa-chart-line w-6" aria-hidden="true"></i> <span data-i18n="nav_performance">الأداء</span></a>
 
             <hr class="border-gray-200 dark:border-gray-800">
@@ -351,11 +351,12 @@
                 "nav_contacts": "Contact Us",
                 "nav_docs": "Documentation",
                 "nav_beta": "Beta",
+                "sidebar_title": "Menu",
                 "sidebar_login": "Login",
                 "sidebar_register": "Create Account",
                 "sidebar_logout": "Logout",
                 "nav_custom_solutions": "Custom Solutions",
-                "nav_policy": "Policy", 
+                "nav_policy": "Service Policy", 
                 "nav_dashboard": "Dashboard",
                 "nav_performance": "Performance",
                 "nav_settings": "Settings",
@@ -374,11 +375,12 @@
                 "nav_contacts": "تواصل معنا",
                 "nav_docs": "التوثيق",
                 "nav_beta": "تجريبي",
+                "sidebar_title": "القائمة",
                 "sidebar_login": "تسجيل الدخول",
                 "sidebar_register": "إنشاء حساب جديد",
                 "sidebar_logout": "تسجيل الخروج",
                 "nav_custom_solutions": "حلول مخصصة",
-                "nav_policy": "سياسة الاستخدام",
+                "nav_policy": "سياسة الخدمة",
                 "nav_dashboard": "لوحة التحكم",
                 "nav_performance": "الأداء",
                 "nav_settings": "الإعدادات",
