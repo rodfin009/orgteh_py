@@ -905,35 +905,6 @@
         loading.style.display = 'flex';
         loading.classList.remove('hidden');
 
-        const isEn = window.location.pathname.split('/')[1] === 'en';
-
-        if (isEn) {
-            // ── Strategy: add &lang=en to the SpaceRemit iframe URL ──
-            // SpaceRemit may support this param natively (no proxy needed)
-            if (window._srWatcher) window._srWatcher.disconnect();
-            window._srWatcher = new MutationObserver(function(mutations) {
-                mutations.forEach(function(m) {
-                    m.addedNodes.forEach(function(node) {
-                        const frames = [];
-                        if (node.tagName === 'IFRAME') frames.push(node);
-                        if (node.querySelectorAll) node.querySelectorAll('iframe').forEach(f => frames.push(f));
-                        frames.forEach(function(fr) {
-                            const src = fr.getAttribute('src') || '';
-                            if (!src.includes('spaceremit.com')) return;
-                            if (src.includes('lang=en')) return; // already set
-                            // Add lang=en to force English
-                            const sep = src.includes('?') ? '&' : '?';
-                            fr.setAttribute('src', src + sep + 'lang=en');
-                        });
-                    });
-                });
-            });
-            window._srWatcher.observe(
-                document.getElementById('spaceremit-local-methods-pay'),
-                { childList: true, subtree: true }
-            );
-        }
-
         const s  = document.createElement('script');
         s.id     = 'sp-sdk-script';
         s.src    = 'https://spaceremit.com/api/v2/js_script/spaceremit.js';
