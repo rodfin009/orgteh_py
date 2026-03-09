@@ -746,3 +746,196 @@ def get_widget_stats_admin() -> dict:
         "total_usage": sum(w.get("total_usage", 0) for w in widgets),
         "daily_usage": sum(w.get("daily_usage", 0) for w in widgets),
     }
+
+
+# ============================================================================
+# FASTAPI ROUTER — مسارات الـ Widget (صفحات + API + أدمن)
+# يُستورد في main.py عبر:  from services.widget_service import router as widget_router
+# ============================================================================
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from pydantic import BaseModel
+from typing import Optional as _Optional
+from services.auth import get_current_user_email
+
+router = APIRouter()
+
+# ── Pydantic models ─────────────────────────────────────────────────────────
+
+class WidgetCreateRequest(BaseModel):
+    name: str = "مساعد ذكي"
+
+
+class WidgetUpdateRequest(BaseModel):
+    name:              _Optional[str]   = None
+    knowledge_mode:    _Optional[str]   = None
+    manual_content:    _Optional[str]   = None
+    urls:              _Optional[list]  = None
+    personality:       _Optional[str]   = None
+    color:             _Optional[str]   = None
+    assistant_name_ar: _Optional[str]   = None
+    assistant_name_en: _Optional[str]   = None
+    welcome_ar:        _Optional[str]   = None
+    welcome_en:        _Optional[str]   = None
+    position:          _Optional[str]   = None
+    active:            _Optional[bool]  = None
+    widget_style:      _Optional[str]   = None
+    widget_size:       _Optional[str]   = None
+    allowed_domains:   _Optional[list]  = None
+    # ⛔ show_branding مُقفَل server-side — لا تُضف حقلاً له هنا أبداً
+
+
+class WidgetCrawlRequest(BaseModel):
+    url: str
+
+
+class WidgetChatRequest(BaseModel):
+    message: str
+    history: list = []
+    lang:    str  = "ar"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# صفحة الـ Widget
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/widget", response_class=HTMLResponse)
+async def widget_redirect(request: Request):
+    lang_cookie = request.cookies.get("preferred_lang")
+    lang = lang_cookie if lang_cookie in ["ar", "en"] else "en"
+    return RedirectResponse(f"/{lang}/widget")
+
+
+@router.get("/{lang}/widget", response_class=HTMLResponse)
+async def widget_page(request: Request, lang: str):
+    from services.auth import get_template_context, templates
+    return templates.TemplateResponse("widget.html", get_template_context(request, lang))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Widget API Endpoints (المستخدم)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/api/widget/list")
+async def widget_list(request: Request):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, 401)
+    return JSONResponse({"widgets": get_user_widgets(email)})
+
+
+@router.post("/api/widget/create")
+async def widget_create(request: Request, data: WidgetCreateRequest):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, 401)
+    w = create_widget(email, data.name.strip() or "مساعد ذكي")
+    return JSONResponse({"ok": True, "widget": w})
+
+
+@router.put("/api/widget/{widget_id}")
+async def widget_update(request: Request, widget_id: str, data: WidgetUpdateRequest):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, 401)
+    updates = {k: v for k, v in data.dict().items() if v is not None}
+    w = update_widget(widget_id, email, updates)
+    if not w:
+        return JSONResponse({"error": "Widget not found"}, 404)
+    return JSONResponse({"ok": True, "widget": w})
+
+
+@router.delete("/api/widget/{widget_id}")
+async def widget_delete(request: Request, widget_id: str):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, 401)
+    ok = delete_widget(widget_id, email)
+    return JSONResponse({"ok": ok})
+
+
+@router.post("/api/widget/{widget_id}/crawl")
+async def widget_crawl(request: Request, widget_id: str, data: WidgetCrawlRequest):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, 401)
+    result = await crawl_url(widget_id, email, data.url)
+    return JSONResponse(result)
+
+
+@router.post("/api/widget/{widget_id}/chat")
+async def widget_chat(request: Request, widget_id: str, data: WidgetChatRequest):
+    """نقطة محادثة الودجت العامة — كل الأمان داخل widget_chat_stream."""
+    client_ip = (
+        request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        or getattr(request.client, "host", "unknown")
+    )
+    raw_origin  = request.headers.get("Origin", "")
+    raw_referer = request.headers.get("Referer", "")
+    if raw_origin:
+        origin = raw_origin
+    elif raw_referer and len(raw_referer.split("/")) >= 3:
+        origin = "/".join(raw_referer.split("/")[:3])
+    else:
+        origin = ""
+
+    # طلب بلا Origin = طلب API مباشر → ارفض فوراً
+    if not origin:
+        return JSONResponse({"error": "Access denied"}, status_code=403)
+
+    embed_token = request.headers.get("X-Widget-Token", "")
+
+    return StreamingResponse(
+        widget_chat_stream(
+            widget_id, data.message, data.history, data.lang,
+            origin=origin, embed_token=embed_token, client_ip=client_ip,
+        ),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
+    )
+
+
+@router.get("/api/widget/{widget_id}/token")
+async def widget_get_token(request: Request, widget_id: str):
+    """يُصدر Embed Token مؤقت — widget-loader.js يطلبه تلقائياً."""
+    origin = request.headers.get("Origin", "")
+    w      = _get_widget(widget_id)
+    if not w or not w.get("active", True):
+        return JSONResponse({"error": "Widget not found"}, status_code=404)
+    if not _is_origin_allowed(origin, w.get("allowed_domains", [])):
+        return JSONResponse({"error": "Domain not authorized"}, status_code=403)
+    token = generate_embed_token(widget_id, origin)
+    return JSONResponse({"token": token, "expires": 3600})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Widget Admin API Endpoints
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/api/admin/widget-stats")
+async def admin_widget_stats(request: Request):
+    from services.admin import verify_admin as _verify_admin
+    _verify_admin(request)
+    return JSONResponse(get_widget_stats_admin())
+
+
+@router.get("/api/admin/widgets")
+async def admin_widgets_list(request: Request):
+    from services.admin import verify_admin as _verify_admin
+    _verify_admin(request)
+    return JSONResponse({"widgets": get_all_widgets_admin()})
+
+
+@router.get("/api/admin/widget-security-log")
+async def admin_security_log(request: Request, limit: int = 100):
+    from services.admin import verify_admin as _verify_admin
+    _verify_admin(request)
+    return JSONResponse({"log": get_security_log(limit)})
+
+
+@router.delete("/api/admin/widget-unblock/{ip}")
+async def admin_unblock_ip(request: Request, ip: str):
+    from services.admin import verify_admin as _verify_admin
+    _verify_admin(request)
+    unblock_ip(ip)
+    return JSONResponse({"ok": True, "ip": ip})

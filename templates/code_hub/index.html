@@ -1,14 +1,162 @@
 {% extends "base.html" %}
 
 {% block content %}
+{# ══════════════════════════════════════════════════════════════════════════
+   Code Hub — IDE
+   ترتيب الطبقات:
+     [1] styles.html        ← CSS الأساسي للـ IDE
+     [2] agent_v2_styles    ← CSS مكوّنات V2
+     [3] #ide-header        ← شريط أعلى IDE (مبدّل الوضع + V1/V2 + جلسات)
+     [4] #ide-layout        ← الـ IDE (Chat | Preview + Input)
+     [5] modals.html        ← مودالات القائمة / النماذج / الأدوات / GitHub
+     [6] #agent-sessions-modal ← جلسات V2 السابقة
+     [7] scripts.html       ← منطق V1 + أدوات مشتركة
+     [8] browser_runtime    ← تشغيل Python/SQL/JS في متصفح المستخدم
+     [9] agent_v2_scripts   ← محرك الوكيل V2 (AgentV2 class)
+   ══════════════════════════════════════════════════════════════════════════ #}
+
+{# ── مكتبات خارجية ───────────────────────────────────────────────────────── #}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
 <script>const NEXUS_MODE = "standard";</script>
 
+{# ── [1] CSS الأساسي ──────────────────────────────────────────────────────── #}
 {% include "code_hub/styles.html" %}
 
+{# [2] CSS الوكيل V2 — مدمج داخل styles.html #}
+
+{# ── CSS مبدّل V1/V2 السفلي ────────────────────────────────────────────────── #}
+<style>
+/* ── مبدّل الوضع (Classic / Agent) ──────────────────────────────── */
+.mode-ver-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.05);
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    white-space: nowrap;
+}
+.mode-ver-btn:hover   { background: rgba(255,255,255,.1); }
+.mode-ver-btn.agent   { border-color: rgba(99,102,241,.4); color: #818cf8; }
+
+.mode-ver-dropdown {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 220px;
+    background: #1a1a2e;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 14px;
+    padding: 6px;
+    box-shadow: 0 -12px 40px rgba(0,0,0,.6);
+    z-index: 100;
+}
+.mode-ver-dropdown.show { display: block; }
+
+.mode-ver-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .15s;
+}
+.mode-ver-option:hover  { background: rgba(255,255,255,.06); }
+.mode-ver-option.active { background: rgba(99,102,241,.12); }
+.mode-ver-option .mode-info h4 { font-size: 12px; font-weight: 700; color: #e2e8f0; margin: 0 0 1px; }
+.mode-ver-option .mode-info p  { font-size: 10px; color: #64748b; margin: 0; }
+.mode-icon-box {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 13px;
+}
+</style>
+
+
+{# ══════════════════════════════════════════════════════════════════════════
+   [3] IDE Header — شريط علوي ثابت
+       يسار : مبدّل الوضع (Auto | Build | Chat) — نُقِل من شريط الإدخال
+       وسط  : عنوان جلسة V2 + badge الحالة (مخفي في V1)
+       يمين : مبدّل V1/V2 + زر سجل الجلسات
+   ══════════════════════════════════════════════════════════════════════════ #}
+<div id="ide-header">
+
+    <div class="ide-header-left">
+        <div class="mode-toggle-wrapper" style="position:relative;">
+            <button id="header-mode-btn" onclick="toggleHeaderModeDropdown(event)">
+                <i class="fa-solid fa-wand-magic-sparkles" id="header-mode-icon"></i>
+                <span id="header-mode-label">تلقائي</span>
+                <i class="fa-solid fa-chevron-down" style="font-size:9px;opacity:0.6;"></i>
+            </button>
+            <div class="header-mode-dropdown" id="header-mode-dropdown">
+                <div class="mode-option active" id="hmode-opt-auto" onclick="selectMode('auto',true)">
+                    <div class="mode-icon-box"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                    <div class="mode-info">
+                        <h4>تلقائي / Auto</h4>
+                        <p>النموذج يحدد هل يبني أم يستجيب</p>
+                    </div>
+                </div>
+                <div class="mode-option" id="hmode-opt-build" onclick="selectMode('build',true)">
+                    <div class="mode-icon-box"><i class="fa-solid fa-hammer"></i></div>
+                    <div class="mode-info">
+                        <h4>وضع البناء / Build</h4>
+                        <p>لبناء مشاريع وملفات كود فقط</p>
+                    </div>
+                </div>
+                <div class="mode-option" id="hmode-opt-chat" onclick="selectMode('chat',true)">
+                    <div class="mode-icon-box"><i class="fa-solid fa-comments"></i></div>
+                    <div class="mode-info">
+                        <h4>وضع المحادثة / Chat</h4>
+                        <p>للاستفسار والشرح والنقاش</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ide-header-center hidden" id="agent-session-title-bar">
+        <i class="fa-solid fa-robot" style="font-size:12px;color:#818cf8;"></i>
+        <span id="agent-session-title"
+              style="font-size:12px;font-weight:600;color:#94a3b8;
+                     max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            جلسة الوكيل
+        </span>
+        <span class="agent-phase-badge phase-planning" id="agent-phase-badge"
+              style="font-size:9px;">جاهز</span>
+    </div>
+
+    <div class="ide-header-right">
+
+        {# ── زر السجلات الموحَّد — يظهر في كلا الوضعين ── #}
+        <button class="action-btn" id="hub-history-btn"
+                onclick="openHubHistory()"
+                title="{{ 'السجلات' if lang == 'ar' else 'History' }}"
+                style="position:relative;">
+            <i class="fa-solid fa-clock-rotate-left" style="font-size:13px;"></i>
+        </button>
+
+    </div>
+
+</div>
+{# ── نهاية IDE Header ──────────────────────────────────────────────────────── #}
+
+
+{# ══════════════════════════════════════════════════════════════════════════
+   [4] IDE Layout
+   ══════════════════════════════════════════════════════════════════════════ #}
 <div id="ide-layout">
+
     <div id="view-chat" class="view-section active">
         <div id="chat-container" class="custom-scrollbar">
             <div id="welcome-message-container" class="msg-row ai"></div>
@@ -17,15 +165,15 @@
 
     <div id="view-preview" class="view-section">
         <iframe id="preview-frame"></iframe>
-        <div id="preview-empty" class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-[#09090b] text-gray-400">
+        <div id="preview-empty"
+             class="absolute inset-0 flex flex-col items-center justify-center
+                    bg-gray-50 dark:bg-[#09090b] text-gray-400">
             <i class="fa-solid fa-layer-group text-4xl mb-4 opacity-30"></i>
             <p data-i18n-ide="no_preview">No build available yet.</p>
         </div>
     </div>
 
     <div class="bottom-controls-layer">
-
-        <!-- Floating file chip: appears above input when "ask about file" is clicked -->
         <div id="floating-file-area" class="floating-file-area"></div>
 
         <div class="input-row" id="main-input-row">
@@ -34,37 +182,43 @@
                 <button onclick="document.getElementById('file-input').click()" class="action-btn">
                     <i class="fa-solid fa-paperclip"></i>
                 </button>
-                <input type="file" id="file-input" multiple class="hidden" onchange="updateFileBadge()">
-                <div id="file-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center hidden">0</div>
+                <input type="file" id="file-input" multiple class="hidden"
+                       onchange="updateFileBadge()">
+                <div id="file-badge"
+                     class="absolute -top-1 -right-1 bg-red-500 text-white
+                            text-[10px] w-4 h-4 rounded-full flex items-center
+                            justify-center hidden">0</div>
             </div>
-            <textarea id="prompt-input" rows="1" data-i18n-ide="input_placeholder" placeholder="Ask Nexus..." oninput="autoResize(this)"></textarea>
 
-            <!-- Mode Selector Button (moved before send button) -->
-            <div class="mode-toggle-wrapper">
-                <button class="mode-btn" id="mode-btn" onclick="toggleModeDropdown(event)">
-                    <i class="fa-solid fa-wand-magic-sparkles" id="mode-icon"></i>
-                    <span id="mode-label">تلقائي</span>
+            <textarea id="prompt-input" rows="1"
+                      data-i18n-ide="input_placeholder"
+                      placeholder="Ask Orgteh..."
+                      oninput="autoResize(this)"></textarea>
+
+            {# ── مبدّل الوضع (Classic/Agent) — زر واحد يفتح قائمة ── #}
+            <div class="mode-ver-wrapper" style="position:relative;flex-shrink:0;">
+                <button class="mode-ver-btn" id="ver-btn" onclick="toggleVerDropdown(event)">
+                    <i class="fa-solid fa-wand-magic-sparkles" id="ver-icon"></i>
+                    <span id="ver-label">Classic</span>
+                    <i class="fa-solid fa-chevron-down" style="font-size:8px;opacity:.5;"></i>
                 </button>
-                <div class="mode-dropdown" id="mode-dropdown">
-                    <div class="mode-option active" id="mode-opt-auto" onclick="selectMode('auto', true)">
-                        <div class="mode-icon-box"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                <div class="mode-ver-dropdown" id="ver-dropdown">
+                    <div class="mode-ver-option active" id="ver-opt-v1" onclick="switchVersion('v1');closeVerDropdown()">
+                        <div class="mode-icon-box" style="background:rgba(99,102,241,.15);">
+                            <i class="fa-solid fa-bolt" style="color:#818cf8;"></i>
+                        </div>
                         <div class="mode-info">
-                            <h4>تلقائي / Auto</h4>
-                            <p>النموذج يحدد هل يبني أم يستجيب</p>
+                            <h4 id="ver-v1-title">Classic Mode</h4>
+                            <p id="ver-v1-desc">توليد مباشر وسريع</p>
                         </div>
                     </div>
-                    <div class="mode-option" id="mode-opt-build" onclick="selectMode('build', true)">
-                        <div class="mode-icon-box"><i class="fa-solid fa-hammer"></i></div>
-                        <div class="mode-info">
-                            <h4>وضع البناء / Build</h4>
-                            <p>لبناء مشاريع وملفات كود فقط</p>
+                    <div class="mode-ver-option" id="ver-opt-v2" onclick="switchVersion('v2');closeVerDropdown()">
+                        <div class="mode-icon-box" style="background:rgba(99,102,241,.15);">
+                            <i class="fa-solid fa-robot" style="color:#818cf8;"></i>
                         </div>
-                    </div>
-                    <div class="mode-option" id="mode-opt-chat" onclick="selectMode('chat', true)">
-                        <div class="mode-icon-box"><i class="fa-solid fa-comments"></i></div>
                         <div class="mode-info">
-                            <h4>وضع المحادثة / Chat</h4>
-                            <p>للاستفسار والشرح والنقاش</p>
+                            <h4 id="ver-v2-title">Agent Mode</h4>
+                            <p id="ver-v2-desc">يخطط وينفذ ويختبر تلقائياً</p>
                         </div>
                     </div>
                 </div>
@@ -80,17 +234,408 @@
                 <i id="eye-icon" class="fa-solid fa-eye-slash"></i>
             </div>
             <div class="tab-pill">
-                <div onclick="switchView('chat')" id="tab-chat" class="tab-item active" data-i18n-ide="tab_chat">Chat</div>
-                <div onclick="switchView('preview')" id="tab-preview" class="tab-item" data-i18n-ide="tab_preview">Preview</div>
+                <div onclick="switchView('chat')" id="tab-chat"
+                     class="tab-item active" data-i18n-ide="tab_chat">Chat</div>
+                <div onclick="switchView('preview')" id="tab-preview"
+                     class="tab-item" data-i18n-ide="tab_preview">Preview</div>
             </div>
-            <button onclick="openSpecificModal('main-menu-modal')" class="action-btn model-trigger" id="nexus-menu-btn">
+            <button onclick="openSpecificModal('main-menu-modal')"
+                    class="action-btn model-trigger" id="nexus-menu-btn">
                 <i class="fa-solid fa-ellipsis"></i>
             </button>
         </div>
     </div>
+
+</div>
+{# ── نهاية IDE Layout ──────────────────────────────────────────────────────── #}
+
+
+{# ══════════════════════════════════════════════════════════════════════════
+   [5] المودالات الأساسية
+   ══════════════════════════════════════════════════════════════════════════ #}
+{% include "code_hub/modals.html" %}
+
+
+{# ══════════════════════════════════════════════════════════════════════════
+   [6] مودال السجلات الموحَّد (V1 محادثات + V2 مشاريع الوكيل)
+   ══════════════════════════════════════════════════════════════════════════ #}
+<div id="hub-history-modal" class="fixed inset-0 z-50 hidden" onclick="closeHubHistory()">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+
+    {# لوحة جانبية من اليمين — تشبه ChatGPT sidebar #}
+    <div id="hub-history-panel"
+         style="position:absolute;top:0;right:0;bottom:0;width:min(320px,92vw);
+                background:#0a0a0f;border-left:1px solid rgba(255,255,255,.07);
+                display:flex;flex-direction:column;transform:translateX(100%);
+                transition:transform .25s cubic-bezier(.4,0,.2,1);z-index:1;"
+         onclick="event.stopPropagation()">
+
+        {# Header #}
+        <div style="padding:16px 16px 12px;border-bottom:1px solid rgba(255,255,255,.06);
+                    display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-clock-rotate-left" style="color:#818cf8;"></i>
+                <span id="hh-title" style="font-weight:700;font-size:14px;">السجلات</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                {# زر محادثة جديدة #}
+                <button onclick="newHubChat()"
+                        style="padding:5px 11px;border-radius:8px;border:1px solid rgba(99,102,241,.3);
+                               background:rgba(99,102,241,.1);color:#818cf8;font-size:11px;
+                               font-weight:600;cursor:pointer;transition:all .15s;"
+                        onmouseenter="this.style.background='rgba(99,102,241,.2)'"
+                        onmouseleave="this.style.background='rgba(99,102,241,.1)'"
+                        id="hh-new-btn">
+                    <i class="fa-solid fa-plus" style="margin-inline-end:4px;"></i>
+                    <span id="hh-new-label">جديد</span>
+                </button>
+                <button onclick="closeHubHistory()"
+                        style="width:28px;height:28px;border-radius:7px;border:none;
+                               background:transparent;color:#475569;cursor:pointer;
+                               font-size:14px;display:flex;align-items:center;justify-content:center;"
+                        onmouseenter="this.style.color='#e2e8f0'"
+                        onmouseleave="this.style.color='#475569'">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        {# Tabs: Classic / Agent #}
+        <div style="display:flex;padding:8px 10px 0;gap:4px;border-bottom:1px solid rgba(255,255,255,.05);">
+            <button id="hh-tab-v1" onclick="switchHistoryTab('v1')"
+                    style="flex:1;padding:6px;border-radius:8px 8px 0 0;border:none;
+                           font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;
+                           background:rgba(255,255,255,.08);color:#e2e8f0;">
+                <i class="fa-solid fa-bolt" style="margin-inline-end:4px;color:#818cf8;"></i>
+                <span id="hh-tab-v1-lbl">كلاسيكي</span>
+            </button>
+            <button id="hh-tab-v2" onclick="switchHistoryTab('v2')"
+                    style="flex:1;padding:6px;border-radius:8px 8px 0 0;border:none;
+                           font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;
+                           background:transparent;color:#475569;">
+                <i class="fa-solid fa-robot" style="margin-inline-end:4px;color:#818cf8;"></i>
+                <span id="hh-tab-v2-lbl">وكيل</span>
+            </button>
+        </div>
+
+        {# List #}
+        <div id="hub-history-list"
+             style="flex:1;overflow-y:auto;padding:8px 6px;scrollbar-width:thin;
+                    scrollbar-color:#1e293b transparent;">
+            <div style="text-align:center;padding:40px;color:#334155;font-size:12px;">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size:18px;display:block;margin-bottom:8px;"></i>
+                <span id="hh-loading">جاري التحميل...</span>
+            </div>
+        </div>
+
+    </div>
 </div>
 
-{% include "code_hub/modals.html" %}
+{# ── مودال V2 القديم — أُبقي كـ alias للتوافق مع agent_v2_scripts.html ── #}
+<div id="agent-sessions-modal" style="display:none;"></div>
+<div id="agent-sessions-list"  style="display:none;"></div>
+
+
+{# ══════════════════════════════════════════════════════════════════════════
+   [7] سكريبت V1 — المنطق الأساسي
+   ══════════════════════════════════════════════════════════════════════════ #}
 {% include "code_hub/scripts.html" %}
+
+{# ── بيانات المستخدم — متاحة لكلا V1 و V2 ────────────────────────────────── #}
+<script>
+    window.SERVER_LANG  = "{{ lang }}";
+    window.USER_EMAIL   = "{{ user_email }}";
+    window.USER_API_KEY = "{{ api_key }}";
+    window.IS_LOGGED_IN = {{ "true" if is_logged_in else "false" }};
+    window.HUB_MODE     = "{{ hub_mode | default('classic') }}";  // 'classic' | 'agent'
+</script>
+
+{# ── مزامنة مبدّلَي V1/V2 أعلى ↔ أسفل ────────────────────────────────────── #}
+<script>
+(function () {
+
+    // ── تبديل الوضع: إعادة تحميل الصفحة بمعامل ?mode= ─────────────────────
+    window.switchVersion = function (v) {
+        var url  = new URL(window.location.href);
+        var mode = (v === 'v2') ? 'agent' : 'classic';
+        if (url.searchParams.get('mode') === mode) { window.closeVerDropdown(); return; }
+        url.searchParams.set('mode', mode);
+        window.location.href = url.toString();
+    };
+
+    window.toggleVerDropdown = function(ev) {
+        ev.stopPropagation();
+        var d = document.getElementById('ver-dropdown');
+        if (d) d.classList.toggle('show');
+    };
+    window.closeVerDropdown = function() {
+        var d = document.getElementById('ver-dropdown');
+        if (d) d.classList.remove('show');
+    };
+    document.addEventListener('click', function() { window.closeVerDropdown(); });
+
+    // ── تهيئة الزر حسب HUB_MODE القادم من الخادم ──────────────────────────
+    function _initVerBtn() {
+        var v    = (window.HUB_MODE === 'agent') ? 'v2' : 'v1';
+        var lang = localStorage.getItem('lang') || 'ar';
+        var e    = function(id) { return document.getElementById(id); };
+
+        var btn = e('ver-btn'), lbl = e('ver-label'), ico = e('ver-icon');
+        if (btn) btn.classList.toggle('agent', v === 'v2');
+        if (lbl) lbl.textContent = v === 'v2'
+            ? (lang === 'ar' ? 'وكيل' : 'Agent')
+            : (lang === 'ar' ? 'كلاسيك' : 'Classic');
+        if (ico) ico.className = v === 'v2' ? 'fa-solid fa-robot' : 'fa-solid fa-bolt';
+
+        var o1 = e('ver-opt-v1'), o2 = e('ver-opt-v2');
+        if (o1) o1.classList.toggle('active', v === 'v1');
+        if (o2) o2.classList.toggle('active', v === 'v2');
+
+        var t1=e('ver-v1-title'), d1=e('ver-v1-desc'),
+            t2=e('ver-v2-title'), d2=e('ver-v2-desc');
+        if (t1) t1.textContent = lang === 'ar' ? 'الوضع الكلاسيكي' : 'Classic Mode';
+        if (d1) d1.textContent = lang === 'ar' ? 'توليد مباشر وسريع' : 'Direct fast generation';
+        if (t2) t2.textContent = lang === 'ar' ? 'وضع الوكيل الذكي' : 'Agent Mode';
+        if (d2) d2.textContent = lang === 'ar' ? 'يخطط وينفذ ويختبر تلقائياً' : 'Plans, executes & tests automatically';
+
+        // ── زر السجلات مرئي في كلا الوضعين ─────────────────────────────
+        var hBtn = e('hub-history-btn');
+        if (hBtn) hBtn.classList.remove('hidden');
+
+        // عناصر V2 فقط
+        var bar  = e('agent-session-title-bar');
+        var sBtn = e('agent-sessions-btn');
+        if (bar)  bar.classList.toggle('hidden', v !== 'v2');
+        if (sBtn) sBtn.classList.toggle('hidden', v !== 'v2');
+
+        // تشغيل switchVersion من agent_v2_scripts إن وُجد (بدون reload)
+        if (typeof window._applyVersion === 'function') window._applyVersion(v);
+    }
+    window._syncVersionBtns = _initVerBtn;
+
+    document.addEventListener('DOMContentLoaded', _initVerBtn);
+})();
+</script>
+
+
+{# ══════════════════════════════════════════════════════════════════════════
+   [8] محرك التنفيذ في المتصفح
+       Python  → Pyodide  (WebAssembly, ~10MB، يُحمَّل مرة واحدة)
+       SQL     → SQL.js   (SQLite كامل)
+       HTML/JS → iframe sandbox
+   ══════════════════════════════════════════════════════════════════════════ #}
+{% include "code_hub/browser_runtime.html" %}
+
+{# [9] محرك الوكيل V2 — مدمج داخل scripts.html #}
+
+
+{# ══════════════════════════════════════════════════════════════════════════
+   [10] منطق السجلات الموحَّد (V1 + V2)
+   ══════════════════════════════════════════════════════════════════════════ #}
+<script>
+(function() {
+var _currentHistoryTab = (window.HUB_MODE === 'agent') ? 'v2' : 'v1';
+var _historyOpen       = false;
+
+// ── فتح / إغلاق ────────────────────────────────────────────────────────────
+window.openHubHistory = function() {
+    var modal  = document.getElementById('hub-history-modal');
+    var panel  = document.getElementById('hub-history-panel');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    _historyOpen = true;
+    setTimeout(function() { if (panel) panel.style.transform = 'translateX(0)'; }, 10);
+    _initHistoryUI();
+    _loadHistoryTab(_currentHistoryTab);
+};
+
+window.closeHubHistory = function() {
+    var modal = document.getElementById('hub-history-modal');
+    var panel = document.getElementById('hub-history-panel');
+    if (panel) panel.style.transform = 'translateX(100%)';
+    setTimeout(function() { if (modal) modal.classList.add('hidden'); _historyOpen = false; }, 260);
+};
+
+// ── alias للتوافق مع agent_v2_scripts ──────────────────────────────────────
+window.openAgentSessions  = function() { _currentHistoryTab = 'v2'; window.openHubHistory(); };
+window.closeAgentSessions = window.closeHubHistory;
+
+// ── ترجمة الواجهة ──────────────────────────────────────────────────────────
+function _initHistoryUI() {
+    var lang = localStorage.getItem('lang') || 'ar';
+    var e    = function(id) { return document.getElementById(id); };
+    if (e('hh-title'))       e('hh-title').textContent       = lang === 'ar' ? 'السجلات'  : 'History';
+    if (e('hh-new-label'))   e('hh-new-label').textContent   = lang === 'ar' ? 'جديد'     : 'New';
+    if (e('hh-loading'))     e('hh-loading').textContent     = lang === 'ar' ? 'جاري التحميل...' : 'Loading...';
+    if (e('hh-tab-v1-lbl'))  e('hh-tab-v1-lbl').textContent  = lang === 'ar' ? 'كلاسيكي'  : 'Classic';
+    if (e('hh-tab-v2-lbl'))  e('hh-tab-v2-lbl').textContent  = lang === 'ar' ? 'وكيل'     : 'Agent';
+}
+
+// ── تبديل التاب ────────────────────────────────────────────────────────────
+window.switchHistoryTab = function(tab) {
+    _currentHistoryTab = tab;
+    var t1 = document.getElementById('hh-tab-v1');
+    var t2 = document.getElementById('hh-tab-v2');
+    if (t1) { t1.style.background = tab==='v1' ? 'rgba(255,255,255,.08)' : 'transparent'; t1.style.color = tab==='v1' ? '#e2e8f0' : '#475569'; }
+    if (t2) { t2.style.background = tab==='v2' ? 'rgba(255,255,255,.08)' : 'transparent'; t2.style.color = tab==='v2' ? '#e2e8f0' : '#475569'; }
+    _loadHistoryTab(tab);
+};
+
+// ── تحميل القائمة ──────────────────────────────────────────────────────────
+async function _loadHistoryTab(tab) {
+    var list = document.getElementById('hub-history-list');
+    var lang = localStorage.getItem('lang') || 'ar';
+    if (!list) return;
+
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:#334155;font-size:12px;"><i class="fa-solid fa-spinner fa-spin" style="font-size:18px;display:block;margin-bottom:8px;"></i>' + (lang==='ar'?'جاري التحميل...':'Loading...') + '</div>';
+
+    try {
+        var url  = tab === 'v2' ? '/api/agent/v2/sessions' : '/api/hub/chats';
+        var res  = await fetch(url);
+        var data = await res.json();
+        var items = tab === 'v2' ? (data.sessions || []) : (data.chats || []);
+
+        if (!items.length) {
+            list.innerHTML = '<div style="text-align:center;padding:40px 16px;color:#334155;">' +
+                '<i class="fa-solid fa-' + (tab==='v2'?'robot':'comments') + '" style="font-size:24px;display:block;margin-bottom:10px;color:#1e293b;"></i>' +
+                '<div style="font-size:12px;font-weight:600;color:#475569;">' +
+                (lang==='ar' ? 'لا توجد سجلات بعد' : 'No history yet') + '</div></div>';
+            return;
+        }
+
+        // ── تجميع حسب التاريخ ──────────────────────────────────────────────
+        var now = Date.now() / 1000, DAY = 86400;
+        var G = {today:[], yesterday:[], week:[], older:[]};
+        var GL = { today: lang==='ar'?'اليوم':'Today', yesterday: lang==='ar'?'الأمس':'Yesterday',
+                   week: lang==='ar'?'هذا الأسبوع':'This Week', older: lang==='ar'?'أقدم':'Older' };
+
+        items.forEach(function(s) {
+            var age = now - (s.updated_at || now);
+            if      (age < DAY)      G.today.push(s);
+            else if (age < 2*DAY)    G.yesterday.push(s);
+            else if (age < 7*DAY)    G.week.push(s);
+            else                     G.older.push(s);
+        });
+
+        var html = '';
+        ['today','yesterday','week','older'].forEach(function(k) {
+            if (!G[k].length) return;
+            html += '<div style="padding:8px 6px 3px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#1e293b;">' + GL[k] + '</div>';
+            G[k].forEach(function(s) {
+                var sid   = s.session_id;
+                var title = s.title || (lang==='ar'?'محادثة':'Chat');
+                var sub   = tab === 'v2'
+                    ? (s.file_count||0) + ' ' + (lang==='ar'?'ملفات':'files')
+                    : (s.msg_count||0)  + ' ' + (lang==='ar'?'رسالة':'msgs');
+                var ico   = tab === 'v2' ? 'fa-robot' : 'fa-comments';
+                var color = tab === 'v2' ? '#818cf8'  : '#4ade80';
+                html += '<div onclick="_loadSession('' + tab + '','' + sid + '')" role="button"' +
+                    ' style="display:flex;align-items:center;gap:9px;padding:8px 8px;border-radius:9px;cursor:pointer;transition:background .12s;margin-bottom:1px;"' +
+                    ' onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background='transparent'">' +
+                    '<div style="width:34px;height:34px;border-radius:8px;flex-shrink:0;background:rgba(99,102,241,.1);display:flex;align-items:center;justify-content:center;">' +
+                    '<i class="fa-solid ' + ico + '" style="color:' + color + ';font-size:13px;"></i></div>' +
+                    '<div style="flex:1;min-width:0;">' +
+                    '<div style="font-size:12px;font-weight:600;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(title) + '</div>' +
+                    '<div style="font-size:10px;color:#334155;margin-top:1px;">' + sub + '</div></div>' +
+                    '<button onclick="event.stopPropagation();_deleteSession('' + tab + '','' + sid + '',this.closest('[role=button]'))" ' +
+                    'style="padding:3px 6px;border-radius:5px;border:none;background:transparent;color:#334155;font-size:10px;cursor:pointer;opacity:0;" ' +
+                    'onmouseenter="this.style.opacity='1';this.style.color='#ef4444'" onmouseleave="this.style.opacity='0'">' +
+                    '<i class="fa-solid fa-trash"></i></button>' +
+                    '</div>';
+            });
+        });
+        list.innerHTML = html;
+
+    } catch(e) {
+        list.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444;font-size:11px;"><i class="fa-solid fa-triangle-exclamation" style="display:block;margin-bottom:6px;"></i>' + (lang==='ar'?'خطأ في التحميل':'Load error') + '</div>';
+    }
+}
+
+function _esc(t) { return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── تحميل جلسة ──────────────────────────────────────────────────────────────
+window._loadSession = async function(tab, sid) {
+    window.closeHubHistory();
+    var lang = localStorage.getItem('lang') || 'ar';
+    try {
+        var url = tab === 'v2' ? '/api/agent/v2/session/' + sid : '/api/hub/chat/' + sid;
+        var res = await fetch(url);
+        var d   = await res.json();
+
+        if (d.files)   Object.assign(window.currentFiles || {}, d.files);
+        if (d.history) window.chatHistory = d.history;
+
+        // إعادة رسم المحادثة
+        var feed = document.getElementById('chat-container');
+        if (feed && d.history && d.history.length) {
+            feed.innerHTML = '';
+            d.history.forEach(function(m) {
+                if (typeof addMessageUI === 'function') addMessageUI(m.role === 'user' ? 'user' : 'ai', m.content || '');
+            });
+        }
+        // معاينة
+        if (d.files && Object.keys(d.files).some(function(f){return f.endsWith('.html');})) {
+            if (typeof renderPreview === 'function') renderPreview('index.html');
+            if (typeof switchView    === 'function') switchView('preview');
+        }
+    } catch(e) {
+        if (typeof addMessageUI === 'function')
+            addMessageUI('ai', '<span style="color:#f87171">⚠️ ' + (lang==='ar'?'تعذّر التحميل':'Failed to load') + '</span>');
+    }
+};
+
+// ── حذف جلسة ────────────────────────────────────────────────────────────────
+window._deleteSession = async function(tab, sid, rowEl) {
+    var url = tab === 'v2' ? '/api/agent/v2/session/' + sid : '/api/hub/chat/' + sid;
+    try {
+        await fetch(url, { method: 'DELETE' });
+        if (rowEl) rowEl.style.opacity = '0';
+        setTimeout(function() { if(rowEl && rowEl.parentNode) rowEl.parentNode.removeChild(rowEl); }, 200);
+    } catch(e) {}
+};
+
+// ── بدء محادثة جديدة ────────────────────────────────────────────────────────
+window.newHubChat = function() {
+    window.closeHubHistory();
+    window.chatHistory   = [];
+    window.currentFiles  = {};
+    var feed = document.getElementById('chat-container');
+    if (feed) {
+        feed.innerHTML = '<div id="welcome-message-container" class="msg-row ai"></div>';
+        if (typeof applyIdeTranslations === 'function') applyIdeTranslations();
+    }
+    var frame = document.getElementById('preview-frame');
+    if (frame) frame.srcdoc = '';
+    var empty = document.getElementById('preview-empty');
+    if (empty) empty.style.display = '';
+};
+
+// ── حفظ محادثة V1 تلقائياً بعد كل رد ───────────────────────────────────────
+var _v1SaveTimer = null;
+window._scheduleV1Save = function() {
+    if (window.HUB_MODE === 'agent') return;
+    clearTimeout(_v1SaveTimer);
+    _v1SaveTimer = setTimeout(function() {
+        var hist = window.chatHistory || [];
+        if (!hist.length) return;
+        var sid  = window._v1SessionId = window._v1SessionId || ('v1_' + Date.now());
+        var firstUser = '';
+        for (var i=0; i<hist.length; i++) { if(hist[i].role==='user'){firstUser=hist[i].content||'';break;} }
+        var title = firstUser.slice(0,60) || 'محادثة';
+        fetch('/api/hub/save-chat', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({
+                session_id: sid,
+                title:      title,
+                history:    hist,
+                files:      window.currentFiles || {}
+            })
+        }).catch(function(){});
+    }, 3000);
+};
+
+})();
+</script>
 
 {% endblock %}

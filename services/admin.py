@@ -108,7 +108,7 @@ async def admin_redirect():
 async def admin_page(request: Request, lang: str):
     """صفحة لوحة الإدارة — لـ rodfin0202@gmail.com فقط."""
     # استيراد متأخر لتجنب الدوران الدائري
-    from main import get_template_context, templates
+    from services.auth import get_template_context, templates
 
     email = get_current_user_email(request)
     if not email:

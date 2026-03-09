@@ -1,0 +1,564 @@
+<script>
+/**
+ * browser_runtime.html
+ * ═══════════════════════════════════════════════════════════════════════════
+ * محرك التنفيذ في متصفح المستخدم — صفر حمل على سيرفرنا
+ *
+ * اللغات المدعومة (كلها تعمل على جهاز المستخدم):
+ *
+ *  ┌─ NATIVE / WASM ──────────────────────────────────────────────────────┐
+ *  │  html / css / js  → iframe sandbox (فوري)                           │
+ *  │  javascript       → Function sandbox (فوري)                         │
+ *  │  typescript       → TypeScript CDN compiler → js sandbox            │
+ *  │  python           → Pyodide WASM (~10MB يُحمَّل مرة)               │
+ *  │  sql              → SQL.js SQLite WASM                               │
+ *  └──────────────────────────────────────────────────────────────────────┘
+ *  ┌─ PISTON API (يُستدعى من المتصفح، صفر استخدام لسيرفرنا) ─────────────┐
+ *  │  java · c · cpp · csharp · go · rust · swift                        │
+ *  │  kotlin · php · ruby · typescript (بديل)                             │
+ *  └──────────────────────────────────────────────────────────────────────┘
+ *
+ * واجهة الاستخدام:
+ *   await BrowserRuntime.run(code, language, onOutput)
+ *   BrowserRuntime.detect(files)   → language string | null
+ *   BrowserRuntime.isReady(lang)   → bool
+ */
+window.BrowserRuntime = (function () {
+
+  // ── CDN URLs ──────────────────────────────────────────────────────────────
+  const CDN = {
+    pyodide:    'https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js',
+    sqljs:      'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/sql-wasm.js',
+    typescript: 'https://cdnjs.cloudflare.com/ajax/libs/typescript/5.4.5/typescript.min.js',
+  };
+
+  // Piston — مزوّد تنفيذ مجاني، يُستدعى من المتصفح مباشرةً
+  const PISTON_URL = 'https://emkc.org/api/v2/piston/execute';
+
+  // خريطة امتداد → معرّف Piston (language + version)
+  const PISTON_LANGS = {
+    java:       { language: 'java',       version: '*' },
+    c:          { language: 'c',          version: '*' },
+    cpp:        { language: 'c++',        version: '*' },
+    'c++':      { language: 'c++',        version: '*' },
+    csharp:     { language: 'csharp',     version: '*' },
+    'c#':       { language: 'csharp',     version: '*' },
+    go:         { language: 'go',         version: '*' },
+    rust:       { language: 'rust',       version: '*' },
+    swift:      { language: 'swift',      version: '*' },
+    kotlin:     { language: 'kotlin',     version: '*' },
+    php:        { language: 'php',        version: '*' },
+    ruby:       { language: 'ruby',       version: '*' },
+  };
+
+  // خريطة الامتداد → اسم اللغة الداخلي
+  const EXT_MAP = {
+    py:   'python', sql:  'sql',   html: 'html',  htm:  'html',
+    js:   'javascript', ts: 'typescript',
+    java: 'java',  c:    'c',     cpp:  'cpp',   cc:   'cpp',
+    cs:   'csharp', go:  'go',    rs:   'rust',  swift:'swift',
+    kt:   'kotlin', php: 'php',   rb:   'ruby',
+  };
+
+  // ── الحالة الداخلية ────────────────────────────────────────────────────────
+  const state = {
+    pyodide:  null,
+    sqlReady: false,
+    tsReady:  false,
+    loading:  {},
+  };
+
+  // ── مساعد: تحميل script خارجي ────────────────────────────────────────────
+  function loadScript(url) {
+    if (state.loading[url]) return state.loading[url];
+    state.loading[url] = new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = url; s.async = true;
+      s.onload = res; s.onerror = () => rej(new Error('Failed to load: ' + url));
+      document.head.appendChild(s);
+    });
+    return state.loading[url];
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  [1] Python — Pyodide WASM
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async function ensurePyodide(onOutput) {
+    if (state.pyodide) return state.pyodide;
+    onOutput?.({ type: 'system', text: '⏳ Loading Python runtime (Pyodide)…' });
+    await loadScript(CDN.pyodide);
+    state.pyodide = await loadPyodide({
+      indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.27.5/full/',
+      stdout: (t) => onOutput?.({ type: 'stdout', text: t }),
+      stderr: (t) => onOutput?.({ type: 'stderr', text: t }),
+    });
+    onOutput?.({ type: 'system', text: '✅ Python ready' });
+    return state.pyodide;
+  }
+
+  async function runPython(code, onOutput) {
+    const py = await ensurePyodide(onOutput);
+    py.setStdout({ batched: (t) => onOutput?.({ type: 'stdout', text: t }) });
+    py.setStderr({ batched: (t) => onOutput?.({ type: 'stderr', text: t }) });
+    try {
+      const result = await py.runPythonAsync(code);
+      if (result !== undefined && result !== null)
+        onOutput?.({ type: 'result', text: String(result) });
+      return { ok: true };
+    } catch (err) {
+      const msg   = err.message || String(err);
+      const clean = msg.split('\n').filter(l => !l.includes('pyodide')).join('\n') || msg;
+      onOutput?.({ type: 'error', text: clean });
+      return { ok: false, error: clean };
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  [2] SQL — SQL.js (SQLite WASM)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async function ensureSQLjs(onOutput) {
+    if (state.sqlReady) return;
+    onOutput?.({ type: 'system', text: '⏳ Loading SQL engine…' });
+    await loadScript(CDN.sqljs);
+    state.sqlReady = true;
+    onOutput?.({ type: 'system', text: '✅ SQL ready' });
+  }
+
+  async function runSQL(code, onOutput) {
+    await ensureSQLjs(onOutput);
+    try {
+      const SQL = await initSqlJs({
+        locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/${f}`
+      });
+      const db    = new SQL.Database();
+      const stmts = code.split(';').map(s => s.trim()).filter(Boolean);
+      for (const stmt of stmts) {
+        const res = db.exec(stmt);
+        if (res.length > 0) {
+          const { columns, values } = res[0];
+          const header = columns.join(' | ');
+          onOutput?.({ type: 'stdout', text: header });
+          onOutput?.({ type: 'stdout', text: '-'.repeat(header.length) });
+          values.forEach(row => onOutput?.({ type: 'stdout', text: row.join(' | ') }));
+        }
+      }
+      db.close();
+      return { ok: true };
+    } catch (err) {
+      onOutput?.({ type: 'error', text: err.message });
+      return { ok: false, error: err.message };
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  [3] HTML / CSS / JS — iframe sandbox
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function runHTML(files, onOutput) {
+    const htmlFile = Object.keys(files).find(f => f.match(/\.html?$/i)) || 'index.html';
+    let html       = files[htmlFile] || '';
+
+    const cssFile = Object.keys(files).find(f => f.endsWith('.css'));
+    const jsFile  = Object.keys(files).find(f => f.endsWith('.js') && !f.includes('node_modules'));
+    if (cssFile && files[cssFile] && !html.includes(cssFile))
+      html = html.replace('</head>', `<style>${files[cssFile]}</style></head>`);
+    if (jsFile && files[jsFile] && !html.includes(jsFile))
+      html = html.replace('</body>', `<script>${files[jsFile]}<\/script></body>`);
+
+    const interceptor = `<script>
+      window.onerror = (msg,src,line) => parent.postMessage({type:'runtime_error',message:msg+' (line '+line+')'}, '*');
+      window.addEventListener('unhandledrejection', e => parent.postMessage({type:'runtime_error',message:'Promise: '+(e.reason?.message||e.reason)}, '*'));
+      const _log=console.log.bind(console);
+      console.log = function() { const a=Array.from(arguments).map(String).join(' '); parent.postMessage({type:'console_log',message:a},'*'); _log.apply(console,arguments); };
+    <\/script>`;
+    html = html.replace('<head>', '<head>' + interceptor);
+
+    const handler = (e) => {
+      if (e.data?.type === 'runtime_error') onOutput?.({ type: 'error', text: e.data.message });
+      else if (e.data?.type === 'console_log') onOutput?.({ type: 'stdout', text: e.data.message });
+    };
+    window.addEventListener('message', handler);
+    setTimeout(() => window.removeEventListener('message', handler), 10000);
+
+    return { ok: true, html, type: 'preview' };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  [4] JavaScript — Function sandbox
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function runJS(code, onOutput) {
+    const fakeConsole = {
+      log:   (...a) => onOutput?.({ type: 'stdout', text: a.map(String).join(' ') }),
+      error: (...a) => onOutput?.({ type: 'error',  text: a.map(String).join(' ') }),
+      warn:  (...a) => onOutput?.({ type: 'warn',   text: a.map(String).join(' ') }),
+    };
+    try {
+      new Function('console', code)(fakeConsole);
+      return { ok: true };
+    } catch (err) {
+      onOutput?.({ type: 'error', text: err.message });
+      return { ok: false, error: err.message };
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  [5] TypeScript — CDN compiler → JS sandbox
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async function ensureTypeScript(onOutput) {
+    if (state.tsReady || window.ts) { state.tsReady = true; return; }
+    onOutput?.({ type: 'system', text: '⏳ Loading TypeScript compiler…' });
+    await loadScript(CDN.typescript);
+    state.tsReady = true;
+    onOutput?.({ type: 'system', text: '✅ TypeScript ready' });
+  }
+
+  async function runTypeScript(code, onOutput) {
+    await ensureTypeScript(onOutput);
+    try {
+      const result = window.ts.transpileModule(code, {
+        compilerOptions: {
+          target: window.ts.ScriptTarget.ES2020,
+          module: window.ts.ModuleKind.None,
+          strict: false,
+        }
+      });
+      if (result.diagnostics?.length) {
+        result.diagnostics.forEach(d => onOutput?.({ type: 'warn', text: d.messageText }));
+      }
+      return runJS(result.outputText, onOutput);
+    } catch (err) {
+      onOutput?.({ type: 'error', text: err.message });
+      return { ok: false, error: err.message };
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  [6] Piston API — Java · C · C++ · C# · Go · Rust · Swift · Kotlin · PHP · Ruby
+  //      يُستدعى من متصفح المستخدم مباشرةً — صفر استخدام لسيرفرنا
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async function runViaPiston(code, language, onOutput) {
+    const langKey  = language.toLowerCase().replace(/\s/g, '');
+    const pistonCfg = PISTON_LANGS[langKey];
+    if (!pistonCfg) {
+      onOutput?.({ type: 'error', text: `Language '${language}' not supported via Piston` });
+      return { ok: false, error: 'Unsupported language' };
+    }
+
+    onOutput?.({ type: 'system', text: `⏳ Compiling & running ${language} via Piston…` });
+
+    // تحديد اسم الملف المناسب
+    const fileExts = {
+      java: 'Main.java', 'c++': 'main.cpp', c: 'main.c',
+      csharp: 'Main.cs', go: 'main.go', rust: 'main.rs',
+      swift: 'main.swift', kotlin: 'Main.kt', php: 'main.php', ruby: 'main.rb',
+    };
+    const filename = fileExts[pistonCfg.language] || `main.${langKey}`;
+
+    try {
+      const res = await fetch(PISTON_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          language: pistonCfg.language,
+          version:  pistonCfg.version,
+          files:    [{ name: filename, content: code }],
+        }),
+      });
+
+      if (!res.ok) {
+        const err = `Piston API error: HTTP ${res.status}`;
+        onOutput?.({ type: 'error', text: err });
+        return { ok: false, error: err };
+      }
+
+      const data = await res.json();
+
+      // Piston يُعيد مرحلة compile (اختياري) + مرحلة run
+      const compile = data.compile;
+      const run     = data.run;
+
+      if (compile?.stderr) {
+        onOutput?.({ type: 'stderr', text: '── Compile Errors ──\n' + compile.stderr });
+      }
+      if (compile?.stdout && compile.stdout.trim()) {
+        onOutput?.({ type: 'stdout', text: compile.stdout });
+      }
+
+      if (run?.stdout) onOutput?.({ type: 'stdout', text: run.stdout });
+      if (run?.stderr) onOutput?.({ type: 'stderr', text: run.stderr });
+
+      const ok = (run?.code ?? compile?.code ?? 1) === 0;
+      onOutput?.({ type: 'system', text: ok ? '✅ Done' : `⚠️ Exit code: ${run?.code}` });
+
+      return {
+        ok,
+        stdout:    run?.stdout   || '',
+        stderr:    (compile?.stderr || '') + (run?.stderr || ''),
+        exit_code: run?.code ?? 1,
+      };
+    } catch (err) {
+      const msg = 'Network error reaching Piston: ' + err.message;
+      onOutput?.({ type: 'error', text: msg });
+      return { ok: false, error: msg };
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  [7] كشف اللغة تلقائياً من أسماء الملفات
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function detect(files) {
+    const names = Object.keys(files || {}).map(f => f.toLowerCase());
+    for (const name of names) {
+      const ext = name.split('.').pop();
+      if (EXT_MAP[ext]) return EXT_MAP[ext];
+    }
+    return null;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  [8] الواجهة العامة — run()
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async function run(codeOrFiles, language, onOutput) {
+    const lang = (language || '').toLowerCase().trim();
+    const code = typeof codeOrFiles === 'string'
+      ? codeOrFiles
+      : Object.values(codeOrFiles).join('\n');
+    const files = typeof codeOrFiles === 'object' && codeOrFiles !== null
+      ? codeOrFiles
+      : { 'index.html': codeOrFiles };
+
+    // ── NATIVE / WASM ─────────────────────────────────────────────────────
+    if (lang === 'python' || lang === 'py')
+      return runPython(code, onOutput);
+
+    if (lang === 'sql')
+      return runSQL(code, onOutput);
+
+    if (lang === 'html' || lang === 'web')
+      return runHTML(files, onOutput);
+
+    if (lang === 'javascript' || lang === 'js')
+      return runJS(code, onOutput);
+
+    if (lang === 'typescript' || lang === 'ts')
+      return runTypeScript(code, onOutput);
+
+    // ── PISTON (جميع اللغات المتبقية) ────────────────────────────────────
+    const pistonKey = lang.replace(/\s/g,'');
+    if (PISTON_LANGS[pistonKey] || PISTON_LANGS[lang])
+      return runViaPiston(code, lang, onOutput);
+
+    onOutput?.({ type: 'system', text: `⚠️ No runner found for '${lang}' — shown in preview only.` });
+    return { ok: true, note: 'preview_only' };
+  }
+
+  function isReady(lang) {
+    const l = (lang || '').toLowerCase();
+    if (l === 'python') return !!state.pyodide;
+    if (l === 'sql')    return state.sqlReady;
+    if (l === 'typescript' || l === 'ts') return state.tsReady;
+    if (PISTON_LANGS[l]) return true; // Piston جاهز دائماً (API call)
+    return true;
+  }
+
+  return {
+    run, detect, isReady,
+    ensurePyodide,
+    runPython, runSQL, runHTML, runJS, runTypeScript, runViaPiston,
+    PISTON_LANGS, EXT_MAP,
+  };
+
+})();
+</script>
+
+<script>
+/**
+ * ══════════════════════════════════════════════════════════════════════════
+ *  UI لنتائج التنفيذ — مشترك بين V1 و V2
+ * ══════════════════════════════════════════════════════════════════════════
+ */
+
+function _createOutputPanel(container) {
+  const panel = document.createElement('div');
+  panel.className = 'runtime-output-panel';
+  panel.style.cssText = `
+    background:#0d1117; border-radius:10px; border:1px solid #30363d;
+    padding:12px 14px; margin-top:8px; font-family:monospace; font-size:13px;
+    max-height:300px; overflow-y:auto; color:#e6edf3;
+  `;
+  container.appendChild(panel);
+  return panel;
+}
+
+function _appendLine(panel, { type, text }) {
+  const line = document.createElement('div');
+  const colors = { stdout:'#e6edf3', stderr:'#f97316', error:'#ef4444',
+                   result:'#34d399', system:'#60a5fa', warn:'#facc15' };
+  const pfx    = { stderr:'⚠ ', error:'✖ ', result:'→ ', system:'', warn:'⚡ ' };
+  line.style.color      = colors[type] || '#e6edf3';
+  line.style.margin     = '1px 0';
+  line.style.whiteSpace = 'pre-wrap';
+  line.textContent      = (pfx[type] || '') + text;
+  panel.appendChild(line);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+async function runAndShow(files, container, lang) {
+  const panel       = _createOutputPanel(container);
+  const detectedLang = lang || BrowserRuntime.detect(files) || 'html';
+  const onOutput    = (ev) => _appendLine(panel, ev);
+
+  _appendLine(panel, { type:'system', text:`▶ Running as ${detectedLang}…` });
+
+  const result = await BrowserRuntime.run(files, detectedLang, onOutput);
+
+  if (result?.type === 'preview' && result?.html) {
+    if (typeof renderPreview === 'function') {
+      const fname = Object.keys(files).find(f => f.match(/\.html?$/i)) || 'index.html';
+      window.currentFiles = { ...window.currentFiles, ...files };
+      renderPreview(fname);
+      _appendLine(panel, { type:'system', text:'✅ Preview updated ↑' });
+    }
+  } else if (result?.ok) {
+    _appendLine(panel, { type:'system', text:'✅ Done' });
+  } else {
+    _appendLine(panel, { type:'error', text: result?.error || 'Execution failed' });
+  }
+
+  return result;
+}
+
+function addRunButton(rowEl, files) {
+  if (!files || !Object.keys(files).length) return;
+  const lang = BrowserRuntime.detect(files);
+  if (!lang) return;
+
+  const langLabels = {
+    python:'Python', sql:'SQL', html:'HTML/Web', javascript:'JS',
+    typescript:'TypeScript', java:'Java', cpp:'C++', c:'C',
+    csharp:'C#', go:'Go', rust:'Rust', swift:'Swift',
+    kotlin:'Kotlin', php:'PHP', ruby:'Ruby',
+  };
+
+  const btn = document.createElement('button');
+  btn.className = 'run-in-browser-btn';
+  btn.style.cssText = `
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 14px; border-radius:8px; border:none; cursor:pointer;
+    background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff;
+    font-size:12px; font-weight:600; margin-top:8px; transition:opacity .2s;
+  `;
+  btn.innerHTML = `<i class="fa-solid fa-play"></i> Run ${langLabels[lang]||lang} in Browser`;
+
+  const artifacts = rowEl.querySelector('.file-artifacts') || rowEl;
+  artifacts.appendChild(btn);
+
+  btn.addEventListener('click', async () => {
+    btn.disabled  = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Running…';
+    const parent  = btn.closest('.msg-bubble') || btn.parentElement;
+    await runAndShow(files, parent, lang);
+    btn.remove();
+  });
+}
+</script>
+
+<script>
+/**
+ * ══════════════════════════════════════════════════════════════════════════
+ *  BrowserExecutor — واجهة V2 Agent
+ *  يستبدل استدعاءات /api/agent/v2/execute و /api/agent/v2/check-syntax
+ *  كل شيء يعمل في متصفح المستخدم — سيرفرنا لا يُشغّل كوداً أبداً
+ * ══════════════════════════════════════════════════════════════════════════
+ */
+window.BrowserExecutor = {
+
+  /**
+   * execute(code, language, timeoutMs)
+   * يُعيد { passed, stdout, stderr, exit_code }
+   * متوافق مع ما كان يُعيده /api/agent/v2/execute
+   */
+  async execute(code, language, timeoutMs = 15000) {
+    const stdout = [];
+    const stderr = [];
+
+    const onOutput = ({ type, text }) => {
+      if (type === 'stdout' || type === 'result') stdout.push(text);
+      if (type === 'stderr' || type === 'error')  stderr.push(text);
+    };
+
+    let result;
+    try {
+      result = await Promise.race([
+        BrowserRuntime.run(code, language, onOutput),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('[TIMEOUT] Execution exceeded ' + (timeoutMs/1000) + 's')), timeoutMs)),
+      ]);
+    } catch (e) {
+      return { passed: false, stdout: stdout.join('\n'), stderr: e.message, exit_code: 124 };
+    }
+
+    const stdoutStr = stdout.join('\n');
+    const stderrStr = stderr.join('\n');
+    const passed    = (result?.ok ?? false) && stderrStr.length === 0;
+
+    return {
+      passed,
+      stdout:    stdoutStr,
+      stderr:    stderrStr,
+      exit_code: passed ? 0 : (result?.exit_code ?? 1),
+    };
+  },
+
+  /**
+   * checkSyntax(code, language)
+   * فحص سريع بدون تشغيل — يعمل كله في المتصفح
+   */
+  checkSyntax(code, language) {
+    const lang = (language || '').toLowerCase().replace(/\s/g,'');
+
+    // JavaScript / TypeScript → Function parse
+    if (lang === 'javascript' || lang === 'js') {
+      try { new Function(code); return { valid: true, errors: [] }; }
+      catch (e) { return { valid: false, errors: [e.message] }; }
+    }
+    if (lang === 'typescript' || lang === 'ts') {
+      if (window.ts) {
+        const diags = window.ts.transpileModule(code, { reportDiagnostics: true }).diagnostics;
+        if (diags?.length)
+          return { valid: false, errors: diags.map(d => String(d.messageText)) };
+      }
+      return { valid: true, errors: [], note: 'TS compiler not loaded yet' };
+    }
+
+    // Python → فحص syntax عبر Pyodide إذا محمّل
+    if (lang === 'python' || lang === 'py') {
+      if (BrowserRuntime.isReady('python') && window.pyodide) {
+        try {
+          window.pyodide.runPython(`compile(${JSON.stringify(code)}, '<string>', 'exec')`);
+          return { valid: true, errors: [] };
+        } catch (e) {
+          return { valid: false, errors: [e.message] };
+        }
+      }
+      return { valid: true, errors: [], note: 'Python runtime not loaded yet' };
+    }
+
+    // HTML → DOMParser
+    if (lang === 'html') {
+      const doc  = new DOMParser().parseFromString(code, 'text/html');
+      const errs = Array.from(doc.querySelectorAll('parsererror')).map(e => e.textContent);
+      return { valid: errs.length === 0, errors: errs };
+    }
+
+    // باقي اللغات (Java, C++, Go …) → لا يوجد parser في المتصفح، نفترض صحة الكود
+    return { valid: true, errors: [], note: `Syntax check for '${lang}' not available in browser` };
+  },
+};
+</script>

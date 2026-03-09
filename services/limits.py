@@ -1,16 +1,20 @@
 import json
 from datetime import datetime
+from fastapi import Request
+from fastapi.responses import JSONResponse
 from database import get_user_by_email, update_user_usage_struct
 from services.providers import MODEL_MAPPING
 
 # ─── Admin Configuration ──────────────────────────────────────────────────────
-# المسؤول يحصل على صلاحيات غير محدودة في جميع النماذج والأدوات
 ADMIN_EMAIL = "rodfin0202@gmail.com"
+
+# ─── Premium Tool IDs ─────────────────────────────────────────────────────────
+PREMIUM_TOOL_IDS = {"nexus-ocr", "orgteh-ocr", "nexus-rag", "orgteh-rag"}
 
 PLAN_CONFIGS = {
     "free_tier": {
         "daily_limits": {"llama": 10, "kimi": 5, "deepseek": 0, "mistral": 0, "gemma": 0},
-        "overdraft": {"forever": 0} 
+        "overdraft": {"forever": 0}
     },
     "chat_agents": {
         "daily_limits": {"gemma": 270, "llama": 200, "kimi": 30, "deepseek": 0, "mistral": 0},
@@ -43,45 +47,44 @@ PLAN_CONFIGS = {
 }
 
 PLAN_NAME_MAP = {
-    "Free Tier": "free_tier",
-    "Chat Agents": "chat_agents",
-    "Nexus Global": "nexus_global",
-    "DeepSeek V3": "deepseek",
-    "Kimi k2": "kimi",
+    "Free Tier":     "free_tier",
+    "Chat Agents":   "chat_agents",
+    "Nexus Global":  "nexus_global",
+    "DeepSeek V3":   "deepseek",
+    "Kimi k2":       "kimi",
     "Mistral Large": "mistral",
-    "Gemma 3": "gemma",
-    "Llama 3.2": "llama"
+    "Gemma 3":       "gemma",
+    "Llama 3.2":     "llama",
 }
+
 
 def get_user_limits_and_usage(email):
     user = get_user_by_email(email)
-    if not user: return {}, {}
+    if not user:
+        return {}, {}
 
     active_plans = user.get("active_plans", [])
     now = datetime.utcnow()
     valid_plans = []
 
-    # فلترة الباقات النشطة (غير المنتهية الصلاحية)
     for p in active_plans:
         try:
             exp_date = datetime.fromisoformat(p["expires"])
             if exp_date > now:
                 valid_plans.append(p)
-        except: pass
+        except:
+            pass
 
-    # وضع الأساس (الخطة المجانية)
     final_limits = PLAN_CONFIGS["free_tier"]["daily_limits"].copy()
     final_limits["unified_extra"] = 0
 
     if not valid_plans:
-        # إذا لم توجد خطط فعالة، نطبق حدود الداتابيز القديمة إن وجدت احتياطاً
         db_limits = user.get("limits", {})
         if db_limits:
             for k, v in db_limits.items():
                 if k in final_limits or k == "unified_extra":
                     final_limits[k] = max(final_limits.get(k, 0), v)
     else:
-        # تراكم الحدود (Sum) لجميع الباقات الفعالة معاً
         for p in valid_plans:
             p_limits = p.get("limits", {})
             for k, v in p_limits.items():
@@ -94,30 +97,36 @@ def get_user_limits_and_usage(email):
     if usage.get("date") != today_str:
         preserved_extra_usage = usage.get("unified_extra", 0)
         usage = {
-            "date": today_str,
-            "deepseek": 0, "kimi": 0, "mistral": 0, "llama": 0, "gemma": 0,
-            "unified_extra": preserved_extra_usage, 
-            "trial_counts": {}, 
-            "total_requests": 0,
-            "total_tokens": 0,
-            "latency_sum": 0, 
-            "errors": 0, 
-            "internal_ops": 0
+            "date":            today_str,
+            "deepseek":        0,
+            "kimi":            0,
+            "mistral":         0,
+            "llama":           0,
+            "gemma":           0,
+            "unified_extra":   preserved_extra_usage,
+            "trial_counts":    {},
+            "total_requests":  0,
+            "total_tokens":    0,
+            "latency_sum":     0,
+            "errors":          0,
+            "internal_ops":    0,
         }
         update_user_usage_struct(email, usage)
 
     return final_limits, usage
 
+
 async def check_request_allowance(email, model_id):
-    # ─── الأدمن: وصول غير محدود ──────────────────────────────
     if email == ADMIN_EMAIL:
-        return True, True  # مسموح، أولوية عالية
+        return True, True
 
     user = get_user_by_email(email)
-    if not user: return False, False
+    if not user:
+        return False, False
 
     internal_key = MODEL_MAPPING.get(model_id)
-    if not internal_key: return True, True 
+    if not internal_key:
+        return True, True
 
     limits, usage = get_user_limits_and_usage(email)
 
@@ -128,21 +137,21 @@ async def check_request_allowance(email, model_id):
         usage[internal_key] += 1
         usage["total_requests"] = usage.get("total_requests", 0) + 1
         update_user_usage_struct(email, usage)
-        return True, True 
+        return True, True
 
     extra_limit = limits.get("unified_extra", 0)
-    extra_usage = usage.get("unified_extra", 0)
+    extra_usage  = usage.get("unified_extra", 0)
 
     if extra_usage < extra_limit:
         usage["unified_extra"] += 1
         usage["total_requests"] = usage.get("total_requests", 0) + 1
         update_user_usage_struct(email, usage)
-        return True, False 
+        return True, False
 
     return False, False
 
+
 async def check_trial_allowance(email, model_id):
-    # ─── الأدمن: وصول غير محدود ──────────────────────────────
     if email == ADMIN_EMAIL:
         return True
 
@@ -158,25 +167,25 @@ async def check_trial_allowance(email, model_id):
         return True
     return False
 
+
 def has_active_paid_subscription(email: str) -> bool:
     """
     Returns True if the user has at least one active non-free subscription.
     Used to gate access to premium tools (OCR, RAG).
     """
-    # ─── الأدمن: وصول غير محدود لجميع الأدوات ───────────────
     if email == ADMIN_EMAIL:
         return True
 
     user = get_user_by_email(email)
     if not user:
         return False
+
     active_plans = user.get("active_plans", [])
     now = datetime.utcnow()
     for p in active_plans:
         try:
             exp_date = datetime.fromisoformat(p["expires"])
             if exp_date > now:
-                # ✅ إصلاح: المفتاح الصحيح هو "plan_key" وليس "key"
                 plan_key = p.get("plan_key", "")
                 if plan_key and plan_key != "free_tier":
                     return True
@@ -188,7 +197,6 @@ def has_active_paid_subscription(email: str) -> bool:
 def get_limits_for_new_subscription(plan_key, period="monthly"):
     config = PLAN_CONFIGS.get(plan_key)
     if not config:
-        # ✅ إصلاح: كان يُعيد tuple، الآن يُعيد dict دائماً
         limits = PLAN_CONFIGS["free_tier"]["daily_limits"].copy()
         limits["unified_extra"] = 0
         return limits
@@ -197,3 +205,46 @@ def get_limits_for_new_subscription(plan_key, period="monthly"):
     overdraft = config["overdraft"].get(period, 0)
     limits["unified_extra"] = overdraft
     return limits
+
+
+# ============================================================================
+# PREMIUM TOOLS ACCESS GUARD — يُستخدم كـ middleware في main.py
+# ============================================================================
+
+async def check_premium_tool_access(request: Request):
+    """
+    تتحقق من صلاحية الوصول للأدوات المميزة.
+    تُعيد None إذا كان الوصول مسموحاً، أو JSONResponse جاهز في حالة الرفض.
+    """
+    path = request.url.path
+    if "/tools/execute/" not in path:
+        return None
+
+    parts = path.split("/tools/execute/")
+    if len(parts) != 2:
+        return None
+
+    tool_id = parts[1].strip("/").split("/")[0]
+    if tool_id not in PREMIUM_TOOL_IDS:
+        return None
+
+    # local import لتجنب الاستيراد الدائري
+    from services.auth import get_current_user_email
+
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse(
+            {"error": "يجب تسجيل الدخول لاستخدام هذه الأداة. / Login required to use this tool."},
+            status_code=401,
+        )
+
+    if not has_active_paid_subscription(email):
+        return JSONResponse(
+            {
+                "error":       "هذه الأداة متاحة للمشتركين فقط. / This tool requires an active paid subscription.",
+                "upgrade_url": "/cart",
+            },
+            status_code=403,
+        )
+
+    return None  # الوصول مسموح

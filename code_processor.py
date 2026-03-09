@@ -136,7 +136,7 @@ Tools endpoint: {PROJECT_HOST_URL}/api/tools/execute/{{TOOL_ID}}
 {tools_context}
 ════════════════════════════════════════════════
 [DESIGN RULES when building]
-- Tailwind CSS via CDN ([https://cdn.tailwindcss.com](https://cdn.tailwindcss.com))
+- Tailwind CSS via CDN: https://cdn.tailwindcss.com
 - Dark theme by default, mobile responsive, modern animations
 """
 
@@ -183,7 +183,7 @@ Tools: POST to {PROJECT_HOST_URL}/api/tools/execute/{{TOOL_ID}}
 ════════════════════════════════
 
 [DESIGN RULES]
-- Tailwind CSS via CDN ([https://cdn.tailwindcss.com](https://cdn.tailwindcss.com))
+- Tailwind CSS via CDN: https://cdn.tailwindcss.com
 - Dark theme by default, modern UI, mobile responsive, smooth animations
 """
 

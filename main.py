@@ -1,86 +1,51 @@
 import os
 import json
-import sys
-import gzip
-import re as _re
 import logging
-import httpx
-import time as _time
-import secrets
 import asyncio
-import brotli
-import traceback
 from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Optional
-from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse, FileResponse
+from datetime import datetime
+from fastapi import FastAPI, Request, UploadFile, File, Form
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
-from pydantic import BaseModel
+from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.datastructures import MutableHeaders
 
 from services.auth import (
-    LoginRequest, SendVerificationRequest, RegisterRequest,
-    handle_send_verification, handle_register, handle_login, handle_logout,
     get_current_user_email, get_auth_context,
-    handle_google_login, handle_google_callback,
-    validate_password as _validate_password,
-    CheckEmailRequest, handle_check_email,
+    templates, get_template_context,
+    router as auth_router,
 )
 from database import (
-    get_user_by_email, get_user_by_api_key, get_global_stats, add_user_subscription,
-    get_subscription_history, get_db_connection
+    get_user_by_email, get_global_stats,
+    hub_save_chat, hub_list_chats, hub_get_chat, hub_delete_chat,
 )
 from services.subscriptions import get_user_subscription_status
-from services.limits import get_user_limits_and_usage, check_trial_allowance, has_active_paid_subscription
-from services.providers import MODELS_METADATA, HIDDEN_MODELS, smart_chat_stream, acquire_provider_slot
-from services.request_router import handle_chat_request
+from services.limits import check_premium_tool_access
+from services.providers import MODELS_METADATA, HIDDEN_MODELS
+from services.request_router import router as chat_router
 from customer_service import router as customer_service_router
 from tools import router as tools_router
 from tools.registry import TOOLS_DB
 from code_processor import process_code_merge_stream, CODE_HUB_MODELS_INFO
-from services.payments import generate_payment_link, verify_spaceremit_payment
-
-# ── استيراد لوحة الأدمن المنفصلة ──────────────────────────────────────────────
-from services.admin import router as admin_router, track_page_visit, ADMIN_TOKEN, ADMIN_EMAIL
-
-# ── استيراد خدمة الودجت ────────────────────────────────────────────────────
-from services.widget_service import (
-    create_widget as _create_widget,
-    update_widget as _update_widget,
-    delete_widget as _delete_widget,
-    get_user_widgets,
-    crawl_url as _crawl_url,
-    widget_chat_stream,
-    get_all_widgets_admin,
-    get_widget_stats_admin,
-    get_security_log,
-    unblock_ip,
-    generate_embed_token,
-    _get_widget,
-    _is_origin_allowed,
-)
+from services.payments import router as payments_router
+from services.widget_service import router as widget_router
+from agent.routes import router as agent_v2_router, init_agent_db
+from services.admin import router as admin_router, track_page_visit
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-SECRET_KEY   = os.environ.get("SESSION_SECRET_KEY", "super-secret-key-change-in-production")
+SECRET_KEY = os.environ.get("SESSION_SECRET_KEY", "super-secret-key-change-in-production")
 logging.basicConfig(level=logging.INFO)
 _sr_log = logging.getLogger("sr")
-
-# ─── SpaceRemit Webhook IP Whitelist ─────────────────────────────────────────
-SPACEREMIT_WEBHOOK_IPS = [
-    ip.strip() for ip in os.environ.get("SPACEREMIT_WEBHOOK_IPS", "").split(",") if ip.strip()
-]
 
 # ============================================================================
 # OPTIMIZED STATIC FILES
 # ============================================================================
+
 class OptimizedStaticFiles(StaticFiles):
     def __init__(self, *args, cache_control="public, max-age=31536000, immutable", **kwargs):
         self.cache_control = cache_control
@@ -88,7 +53,6 @@ class OptimizedStaticFiles(StaticFiles):
 
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
-        # widget-loader.js لا يُكاش طويلاً
         if path.endswith("widget-loader.js"):
             response.headers["Cache-Control"] = "public, max-age=300, must-revalidate"
             response.headers["Vary"] = "Accept-Encoding"
@@ -102,8 +66,6 @@ class OptimizedStaticFiles(StaticFiles):
 # ============================================================================
 # SECURITY HEADERS MIDDLEWARE  (Pure ASGI — safe for streaming)
 # ============================================================================
-from starlette.types import ASGIApp, Receive, Scope, Send
-from starlette.datastructures import MutableHeaders
 
 class SecurityHeadersMiddleware:
     def __init__(self, app: ASGIApp):
@@ -141,6 +103,7 @@ class SecurityHeadersMiddleware:
 # ============================================================================
 # APP SETUP
 # ============================================================================
+
 app = FastAPI(title="Orgteh Infra", docs_url=None, redoc_url=None)
 
 app.add_middleware(SecurityHeadersMiddleware)
@@ -155,32 +118,54 @@ if not STATIC_DIR.exists():    STATIC_DIR.mkdir()
 if not TEMPLATES_DIR.exists(): TEMPLATES_DIR.mkdir()
 
 app.mount("/static", OptimizedStaticFiles(directory=str(STATIC_DIR)), name="static")
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-# ── تضمين الراوترات ────────────────────────────────────────────────────────────
+# ── تضمين جميع الراوترات ──────────────────────────────────────────────────────
 app.include_router(customer_service_router)
-app.include_router(admin_router)          # ← لوحة الأدمن المنفصلة
+app.include_router(admin_router)
+app.include_router(auth_router)
+app.include_router(payments_router)
+app.include_router(widget_router)
+app.include_router(chat_router)       # ← المحادثات: /api/chat, /api/chat/trial, /v1/chat/completions
+
+# ── تهيئة جدول agent_sessions عند بدء التشغيل ────────────────────────────────
+@app.on_event("startup")
+async def _startup_init():
+    try:
+        await init_agent_db()
+    except Exception as _e:
+        logging.getLogger("startup").warning(f"agent_db init: {_e}")
 
 # ============================================================================
-# VISITOR TRACKING MIDDLEWARE — يُسجّل كل زيارة صفحة في Redis + TiDB
+# VISITOR TRACKING MIDDLEWARE
 # ============================================================================
 
 @app.middleware("http")
 async def visitor_tracking_middleware(request: Request, call_next):
-    """يُسجّل زيارات صفحات الموقع بشكل تلقائي (يتجاهل API والملفات الثابتة)."""
     await track_page_visit(request)
+    return await call_next(request)
+
+# ============================================================================
+# PREMIUM TOOLS GUARD MIDDLEWARE — المنطق في services/limits.py
+# ============================================================================
+
+@app.middleware("http")
+async def premium_tools_guard(request: Request, call_next):
+    rejection = await check_premium_tool_access(request)
+    if rejection is not None:
+        return rejection
     return await call_next(request)
 
 # ============================================================================
 # HEALTH CHECK & WARM-UP
 # ============================================================================
+
 @app.get("/api/health")
 async def health_check():
     return JSONResponse({
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "cache": "enabled",
-        "compression": "gzip"
+        "status":      "healthy",
+        "timestamp":   datetime.utcnow().isoformat(),
+        "cache":       "enabled",
+        "compression": "gzip",
     })
 
 @app.get("/api/ready")
@@ -190,6 +175,7 @@ async def readiness_check():
 # ============================================================================
 # Static Files Debug
 # ============================================================================
+
 @app.get("/debug/static-files")
 async def check_static_files():
     file_structure = []
@@ -203,67 +189,16 @@ async def check_static_files():
                 total_size += size
                 file_structure.append({"path": rel_path, "size_kb": round(size / 1024, 2)})
     return {
-        "base_dir": str(BASE_DIR),
-        "static_dir": str(STATIC_DIR),
-        "total_files": len(file_structure),
-        "total_size_mb": round(total_size / (1024 * 1024), 2),
-        "webp_files": [f for f in file_structure if f["path"].endswith(".webp")],
-        "found_files": file_structure[:20]
+        "base_dir":       str(BASE_DIR),
+        "static_dir":     str(STATIC_DIR),
+        "total_files":    len(file_structure),
+        "total_size_mb":  round(total_size / (1024 * 1024), 2),
+        "webp_files":     [f for f in file_structure if f["path"].endswith(".webp")],
+        "found_files":    file_structure[:20],
     }
 
 # ============================================================================
-# TEMPLATE CONTEXT HELPER
-# ============================================================================
-def get_template_context(request: Request, lang: str = "en"):
-    try:
-        context = get_auth_context(request)
-    except Exception:
-        context = {"is_logged_in": False, "user_email": "", "user_api_key": ""}
-
-    context["request"]    = request
-
-    if lang not in ["ar", "en"]:
-        lang = "en"
-    context["lang"]        = lang
-    context["api_key"]     = context.get("user_api_key", "")
-    context["user_email"]  = context.get("user_email", "")
-    context["is_logged_in"] = context.get("is_logged_in", False)
-
-    # Admin token — يُرسَل للقالب فقط للمسؤول
-    user_email = context.get("user_email", "")
-    context["admin_token"] = ADMIN_TOKEN if user_email == ADMIN_EMAIL else ""
-    context["is_admin"]    = (user_email == ADMIN_EMAIL)
-
-    models_data = []
-    for m in MODELS_METADATA:
-        if m["id"] in HIDDEN_MODELS:
-            continue
-        if len(models_data) >= 12:
-            break
-        model_copy = dict(m)
-        if "image" in model_copy and model_copy["image"]:
-            original_url = model_copy["image"]
-            if "cdn.jsdelivr.net" in original_url or "https://cdn." in original_url:
-                model_id = model_copy.get("short_key", model_copy.get("id", "")).lower()
-                if "deepseek" in original_url.lower():
-                    model_copy["image"] = "/static/deepseek.webp"
-                elif "meta" in original_url.lower() or "llama" in model_id:
-                    model_copy["image"] = "/static/meta.webp"
-                elif "gemma" in original_url.lower():
-                    model_copy["image"] = "/static/gemma.webp"
-                elif "mistral" in original_url.lower():
-                    model_copy["image"] = "/static/mistral.webp"
-                elif "kimi" in original_url.lower():
-                    model_copy["image"] = "/static/kimi.webp"
-                else:
-                    model_copy["image"] = f"/static/{model_id}.webp"
-        models_data.append(model_copy)
-
-    context["models_metadata"] = models_data
-    return context
-
-# ============================================================================
-# ROUTES
+# ROUTES — الصفحات العامة
 # ============================================================================
 
 @app.get("/", response_class=HTMLResponse)
@@ -274,322 +209,7 @@ async def root_redirect():
 async def home(request: Request, lang: str):
     return templates.TemplateResponse("index.html", get_template_context(request, lang))
 
-@app.get("/login", response_class=HTMLResponse)
-async def login_redirect(request: Request):
-    lang_cookie = request.cookies.get("preferred_lang")
-    if lang_cookie in ["ar", "en"]:
-        return RedirectResponse(f"/{lang_cookie}/auth")
-    return RedirectResponse("/en/login")
-
-@app.get("/{lang}/login", response_class=HTMLResponse)
-async def login_page(request: Request, lang: str):
-    if get_current_user_email(request):
-        return RedirectResponse(f"/{lang}/profile")
-    return templates.TemplateResponse("auth.html", get_template_context(request, lang))
-
-@app.get("/register", response_class=HTMLResponse)
-async def register_redirect(request: Request):
-    lang_cookie = request.cookies.get("preferred_lang")
-    lang = lang_cookie if lang_cookie in ["ar", "en"] else "en"
-    return RedirectResponse(f"/{lang}/auth?tab=register")
-
-@app.get("/{lang}/register", response_class=HTMLResponse)
-async def register_page(request: Request, lang: str):
-    if get_current_user_email(request):
-        return RedirectResponse(f"/{lang}/profile")
-    return templates.TemplateResponse("auth.html", get_template_context(request, lang))
-
-@app.get("/profile", response_class=HTMLResponse)
-async def profile_redirect():
-    return RedirectResponse("/en/profile")
-
-@app.get("/{lang}/profile", response_class=HTMLResponse)
-async def profile_page(request: Request, lang: str):
-    email = get_current_user_email(request)
-    if not email:
-        return RedirectResponse(f"/{lang}/login")
-    try:
-        user       = get_user_by_email(email)
-        sub_status = get_user_subscription_status(email)
-        limits, usage = get_user_limits_and_usage(email)
-        context    = get_template_context(request, lang)
-
-        active_plans = user.get("active_plans", [])
-        now          = datetime.utcnow()
-        valid_plans  = []
-        for p in active_plans:
-            try:
-                if datetime.fromisoformat(p["expires"]) > now:
-                    valid_plans.append(p)
-            except:
-                pass
-
-        plan_names        = [p["name"] for p in valid_plans]
-        display_plan_name = " + ".join(plan_names) if plan_names else "Free Tier"
-
-        def calc_pct(used, limit):
-            return min(100, (used / limit) * 100) if limit > 0 else 0
-
-        context.update({
-            "api_key":       context.get("user_api_key", ""),
-            "plan_name":     display_plan_name,
-            "active_plans":  valid_plans,
-            "is_active_sub": len(valid_plans) > 0,
-            "is_perpetual":  sub_status.get("is_perpetual", False) if sub_status else False,
-            "days_left":     sub_status.get("days_left", 0) if sub_status else 0,
-            "usage":         usage  if usage  else {},
-            "limits":        limits if limits else {},
-            "pct_deepseek":  calc_pct(usage.get("deepseek", 0),      limits.get("deepseek", 0)),
-            "pct_kimi":      calc_pct(usage.get("kimi", 0),           limits.get("kimi", 0)),
-            "pct_mistral":   calc_pct(usage.get("mistral", 0),        limits.get("mistral", 0)),
-            "pct_llama":     calc_pct(usage.get("llama", 0),          limits.get("llama", 0)),
-            "pct_gemma":     calc_pct(usage.get("gemma", 0),          limits.get("gemma", 0)),
-            "pct_extra":     calc_pct(usage.get("unified_extra", 0),  limits.get("unified_extra", 0)),
-        })
-        return templates.TemplateResponse("insights.html", context)
-    except Exception:
-        return RedirectResponse(f"/{lang}/login")
-
-# ============================================================================
-# SETTINGS PAGES
-# ============================================================================
-
-from github_integration import (
-    handle_github_login, handle_github_callback, handle_github_logout,
-    DeployRequest, is_github_connected, get_github_token, one_click_deploy,
-    get_github_context
-)
-
-@app.get("/settings", response_class=HTMLResponse)
-async def settings_redirect():
-    return RedirectResponse("/ar/settings/account")
-
-@app.get("/{lang}/settings", response_class=HTMLResponse)
-async def settings_lang_redirect(request: Request, lang: str):
-    qs  = request.url.query
-    url = f"/{lang}/settings/integrations" if "github_connected" in qs else f"/{lang}/settings/account"
-    if qs:
-        url += f"?{qs}"
-    return RedirectResponse(url)
-
-@app.get("/{lang}/settings/{tab}", response_class=HTMLResponse)
-async def settings_page_tab(request: Request, lang: str, tab: str):
-    valid_tabs = ["account", "integrations", "notifications", "billing", "security"]
-    if tab not in valid_tabs:
-        return RedirectResponse(f"/{lang}/settings/account")
-
-    email = get_current_user_email(request)
-    if not email:
-        return RedirectResponse(f"/{lang}/login?next=/{lang}/settings/{tab}")
-
-    try:
-        user = get_user_by_email(email)
-        if not user or not isinstance(user, dict):
-            request.session.clear()
-            return RedirectResponse(f"/{lang}/login")
-
-        try:
-            sub_status = get_user_subscription_status(email)
-        except Exception:
-            sub_status = {}
-
-        active_plans = user.get("active_plans", []) if user else []
-        now          = datetime.utcnow()
-        valid_plans  = []
-        if isinstance(active_plans, list):
-            for p in active_plans:
-                try:
-                    if isinstance(p, dict) and "expires" in p:
-                        if datetime.fromisoformat(p["expires"]) > now:
-                            valid_plans.append(p)
-                except Exception:
-                    pass
-
-        plan_names   = [p.get("name", "Unknown Plan") for p in valid_plans if isinstance(p, dict)]
-        display_plan = " + ".join(plan_names) if plan_names else "Free Tier"
-        days_left    = sub_status.get("days_left", 0) if isinstance(sub_status, dict) else 0
-
-        context = get_template_context(request, lang)
-
-        try:
-            sub_history = get_subscription_history(email)
-        except Exception:
-            sub_history = []
-
-        context.update({
-            "active_tab":         tab,
-            "plan_name":          display_plan,
-            "active_plans":       valid_plans,
-            "is_active_sub":      bool(valid_plans),
-            "days_left":          days_left,
-            "profile_first_name": user.get("first_name", ""),
-            "profile_last_name":  user.get("last_name", ""),
-            "subscription_history": sub_history,
-            "now":                datetime.utcnow(),
-        })
-
-        if tab == "integrations":
-            context.update(get_github_context(request))
-            context["github_just_connected"] = request.query_params.get("github_connected") == "true"
-
-        return templates.TemplateResponse("settings.html", context)
-
-    except Exception as e:
-        print(f"=== [Settings Page Error] ===\n{e}")
-        traceback.print_exc()
-        fallback_context = {
-            "request": request, "lang": lang, "active_tab": tab,
-            "user_email": email, "is_logged_in": True,
-            "plan_name": "Free Tier", "active_plans": [],
-            "is_active_sub": False, "days_left": 0,
-            "profile_first_name": "", "profile_last_name": "",
-            "subscription_history": []
-        }
-        return templates.TemplateResponse("settings.html", fallback_context)
-
-# ─── Settings API Endpoints ──────────────────────────────────────────────────
-
-class ProfileUpdateRequest(BaseModel):
-    first_name: str = ""
-    last_name:  str = ""
-
-class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password:     str
-
-class DeleteAccountRequest(BaseModel):
-    email: str
-
-
-@app.post("/api/settings/profile")
-async def update_profile(request: Request, data: ProfileUpdateRequest):
-    email = get_current_user_email(request)
-    if not email:
-        raise HTTPException(status_code=401, detail="غير مسجل الدخول")
-
-    user = get_user_by_email(email)
-    if not user:
-        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
-
-    user["first_name"] = data.first_name
-    user["last_name"]  = data.last_name
-
-    conn = get_db_connection()
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "UPDATE users SET data = %s WHERE email = %s",
-                    (json.dumps(user), email)
-                )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-        finally:
-            conn.close()
-
-    from database import redis as _redis
-    if _redis:
-        try:
-            _redis.set(f"user:{email}", json.dumps(user))
-        except Exception:
-            pass
-
-    return {"message": "تم حفظ الاسم بنجاح"}
-
-
-@app.post("/api/settings/change-password")
-async def change_password_endpoint(request: Request, data: ChangePasswordRequest):
-    import bcrypt as _bcrypt
-    email = get_current_user_email(request)
-    if not email:
-        raise HTTPException(status_code=401, detail="غير مسجل الدخول")
-
-    user = get_user_by_email(email)
-    if not user:
-        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
-
-    try:
-        valid = _bcrypt.checkpw(
-            data.current_password.encode("utf-8"),
-            user["password"].encode("utf-8")
-        )
-    except Exception:
-        valid = False
-
-    if not valid:
-        raise HTTPException(status_code=400, detail="كلمة المرور الحالية غير صحيحة")
-
-    is_valid_pw, error_msg = _validate_password(data.new_password)
-    if not is_valid_pw:
-        raise HTTPException(status_code=400, detail=error_msg)
-
-    hashed     = _bcrypt.hashpw(data.new_password.encode("utf-8"), _bcrypt.gensalt(12)).decode("utf-8")
-    user["password"] = hashed
-
-    conn = get_db_connection()
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "UPDATE users SET password_hash = %s, data = %s WHERE email = %s",
-                    (hashed, json.dumps(user), email)
-                )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-        finally:
-            conn.close()
-
-    from database import redis as _redis
-    if _redis:
-        try:
-            _redis.set(f"user:{email}", json.dumps(user))
-        except Exception:
-            pass
-
-    return {"message": "تم تغيير كلمة المرور بنجاح"}
-
-
-@app.delete("/api/settings/delete-account")
-async def delete_account_endpoint(request: Request, data: DeleteAccountRequest):
-    email = get_current_user_email(request)
-    if not email:
-        raise HTTPException(status_code=401, detail="غير مسجل الدخول")
-    if email != data.email:
-        raise HTTPException(status_code=400, detail="البريد الإلكتروني غير مطابق")
-
-    user    = get_user_by_email(email)
-    old_key = user.get("api_key") if user else None
-
-    conn = get_db_connection()
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                cur.execute("DELETE FROM users WHERE email = %s", (email,))
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-        finally:
-            conn.close()
-
-    from database import redis as _redis
-    if _redis:
-        try:
-            _redis.delete(f"user:{email}")
-            _redis.delete(f"github:{email}")
-            if old_key:
-                _redis.delete(f"api_key:{old_key}")
-        except Exception:
-            pass
-
-    request.session.clear()
-    return {"message": "تم حذف الحساب بنجاح"}
-
-
-@app.post("/auth/logout-all")
-async def logout_all_devices(request: Request):
-    request.session.clear()
-    return {"message": "تم تسجيل الخروج من جميع الأجهزة"}
-
-# ─── End Settings ─────────────────────────────────────────────────────────────
+# ─── Accesory / Tools ─────────────────────────────────────────────────────────
 
 @app.get("/accesory", response_class=HTMLResponse)
 async def accesory_redirect():
@@ -612,6 +232,8 @@ async def accesory_detail_page(request: Request, lang: str, tool_id: str):
     context["tools"]       = list(TOOLS_DB.values())
     return templates.TemplateResponse("tools.html", context)
 
+# ─── Cart / Pricing ───────────────────────────────────────────────────────────
+
 @app.get("/cart", response_class=HTMLResponse)
 async def cart_redirect():
     return RedirectResponse("/en/cart")
@@ -632,26 +254,8 @@ async def cart_page(request: Request, lang: str):
     except Exception:
         return templates.TemplateResponse("pricing.html", {
             "request": request, "lang": lang, "is_logged_in": False,
-            "user_email": "", "api_key": "", "current_plan": "Free Tier", "models_metadata": []
+            "user_email": "", "api_key": "", "current_plan": "Free Tier", "models_metadata": [],
         })
-
-@app.get("/contacts", response_class=HTMLResponse)
-async def contacts_redirect():
-    return RedirectResponse("/en/contacts")
-
-@app.get("/{lang}/contacts", response_class=HTMLResponse)
-async def contacts_page(request: Request, lang: str):
-    return templates.TemplateResponse("contacts.html", get_template_context(request, lang))
-
-@app.get("/auth", response_class=HTMLResponse)
-async def auth_redirect():
-    return RedirectResponse("/en/login")
-
-@app.get("/{lang}/auth", response_class=HTMLResponse)
-async def auth_page(request: Request, lang: str):
-    if get_current_user_email(request):
-        return RedirectResponse(f"/{lang}/profile")
-    return templates.TemplateResponse("auth.html", get_template_context(request, lang))
 
 @app.get("/pricing", response_class=HTMLResponse)
 async def pricing_redirect():
@@ -673,168 +277,18 @@ async def pricing(request: Request, lang: str):
     except Exception:
         return templates.TemplateResponse("pricing.html", {
             "request": request, "lang": lang, "is_logged_in": False,
-            "user_email": "", "api_key": "", "current_plan": "Free Tier", "models_metadata": []
+            "user_email": "", "api_key": "", "current_plan": "Free Tier", "models_metadata": [],
         })
 
-@app.get("/models", response_class=HTMLResponse)
-async def models_redirect():
-    return RedirectResponse("/en/models")
+# ─── Contacts / Enterprise / Docs ─────────────────────────────────────────────
 
-@app.get("/{lang}/models", response_class=HTMLResponse)
-async def models_page(request: Request, lang: str):
-    context = get_template_context(request, lang)
-    context["models"] = context["models_metadata"]
-    return templates.TemplateResponse("models.html", context)
+@app.get("/contacts", response_class=HTMLResponse)
+async def contacts_redirect():
+    return RedirectResponse("/en/contacts")
 
-@app.get("/{lang}/models/{model_key}", response_class=HTMLResponse)
-async def model_detail_page(request: Request, lang: str, model_key: str):
-    context    = get_template_context(request, lang)
-    model_info = next((m for m in MODELS_METADATA if m.get("short_key") == model_key or model_key in m.get("id", "")), None)
-    if not model_info:
-        return RedirectResponse(f"/{lang}/models")
-    context["model"]         = model_info
-    context["models"]        = context["models_metadata"]
-    context["seo_model_key"] = model_key
-    return templates.TemplateResponse("models.html", context)
-
-@app.get("/api/model-description/{model_key}")
-async def get_model_description(model_key: str, lang: str = "en"):
-    try:
-        file_path = STATIC_DIR / "models_translation" / f"{model_key}.html"
-        if file_path.exists():
-            with open(file_path, "r", encoding="utf-8") as f:
-                html_content = f.read()
-            return JSONResponse(
-                {"html": html_content},
-                headers={"Cache-Control": "public, max-age=3600, stale-while-revalidate=86400", "Vary": "Accept-Encoding"}
-            )
-        return JSONResponse({"error": f"Model description not found for: {model_key}"}, status_code=404)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-# ============================================================================
-# OAUTH ROUTES (GitHub & Google)
-# ============================================================================
-
-@app.get("/auth/github/login")
-async def github_login(request: Request):
-    return await handle_github_login(request)
-
-@app.get("/auth/github/callback")
-async def github_callback(request: Request, code: str, state: str):
-    return await handle_github_callback(request, code, state)
-
-@app.post("/auth/github/logout")
-async def github_logout(request: Request):
-    return await handle_github_logout(request)
-
-@app.get("/auth/google/login")
-async def google_login(request: Request):
-    return await handle_google_login(request)
-
-@app.get("/auth/google/callback")
-async def google_callback(request: Request, code: str, state: str):
-    return await handle_google_callback(request, code, state)
-
-@app.post("/api/deploy/github")
-async def deploy_to_github(request: Request, deploy_data: DeployRequest):
-    email = get_current_user_email(request)
-    if not email:
-        return JSONResponse({"error": "Unauthorized"}, 401)
-    if not is_github_connected(request):
-        return JSONResponse({"error": "GitHub not connected", "connect_url": "/auth/github/login"}, 403)
-    token = get_github_token(request)
-    try:
-        body  = await request.json()
-        files = body.get("files", [])
-        if not files:
-            return JSONResponse({"error": "No files provided"}, 400)
-        result = await one_click_deploy(
-            access_token=token,
-            project_name=deploy_data.repo_name,
-            files=files,
-            description=deploy_data.description,
-            is_private=deploy_data.is_private,
-            enable_pages=deploy_data.enable_pages
-        )
-        return JSONResponse(result)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, 500)
-
-@app.get("/api/github/repos")
-async def get_user_repos(request: Request):
-    email = get_current_user_email(request)
-    if not email or not is_github_connected(request):
-        return JSONResponse({"error": "GitHub not connected"}, 403)
-    from github_integration import GitHubDeployer
-    token    = get_github_token(request)
-    deployer = GitHubDeployer(token)
-    repos    = deployer.get_repos()
-    return {"repos": repos}
-
-app.include_router(tools_router, prefix="/api")
-app.include_router(tools_router, prefix="/v1")
-
-# ============================================================================
-# PREMIUM TOOLS MIDDLEWARE — حماية أدوات OCR و RAG
-# ============================================================================
-PREMIUM_TOOL_IDS = {"nexus-ocr", "orgteh-ocr", "nexus-rag", "orgteh-rag"}
-
-@app.middleware("http")
-async def premium_tools_guard(request: Request, call_next):
-    path = request.url.path
-    if "/tools/execute/" in path:
-        parts = path.split("/tools/execute/")
-        if len(parts) == 2:
-            tool_id = parts[1].strip("/").split("/")[0]
-            if tool_id in PREMIUM_TOOL_IDS:
-                email = get_current_user_email(request)
-                if not email:
-                    return JSONResponse(
-                        {"error": "يجب تسجيل الدخول لاستخدام هذه الأداة. / Login required to use this tool."},
-                        status_code=401
-                    )
-                if not has_active_paid_subscription(email):
-                    return JSONResponse(
-                        {
-                            "error": "هذه الأداة متاحة للمشتركين فقط. / This tool requires an active paid subscription.",
-                            "upgrade_url": "/cart"
-                        },
-                        status_code=403
-                    )
-    return await call_next(request)
-
-# ─── Redirects ───────────────────────────────────────────────────────────────
-
-@app.get("/tools", response_class=HTMLResponse)
-async def tools_legacy_redirect():
-    return RedirectResponse("/en/accesory")
-
-@app.get("/{lang}/tools", response_class=HTMLResponse)
-async def tools_legacy_lang_redirect(lang: str):
-    return RedirectResponse(f"/{lang}/accesory")
-
-@app.get("/code-hub", response_class=HTMLResponse)
-async def code_hub_redirect():
-    return RedirectResponse("/en/code-hub")
-
-@app.get("/{lang}/code-hub", response_class=HTMLResponse)
-async def code_hub_page(request: Request, lang: str):
-    context = get_template_context(request, lang)
-    context["mode"] = "standard"
-    merged_models   = []
-    for m in MODELS_METADATA:
-        if m["id"] in HIDDEN_MODELS:
-            continue
-        model_entry = m.copy()
-        if m["id"] in CODE_HUB_MODELS_INFO:
-            model_entry.update(CODE_HUB_MODELS_INFO[m["id"]])
-        else:
-            model_entry.update({"desc_en": "General AI", "desc_ar": "ذكاء اصطناعي عام", "badge_en": "", "badge_ar": ""})
-        merged_models.append(model_entry)
-    context["models"] = merged_models
-    context["tools"]  = list(TOOLS_DB.values())
-    return templates.TemplateResponse("code_hub/index.html", context)
+@app.get("/{lang}/contacts", response_class=HTMLResponse)
+async def contacts_page(request: Request, lang: str):
+    return templates.TemplateResponse("contacts.html", get_template_context(request, lang))
 
 @app.get("/enterprise", response_class=HTMLResponse)
 async def ent_redirect():
@@ -852,169 +306,7 @@ async def docs_redirect():
 async def docs_page(request: Request, lang: str):
     return templates.TemplateResponse("docs.html", get_template_context(request, lang))
 
-# ============================================================================
-# WIDGET ROUTES
-# ============================================================================
-
-@app.get("/widget", response_class=HTMLResponse)
-async def widget_redirect(request: Request):
-    lang_cookie = request.cookies.get("preferred_lang")
-    lang = lang_cookie if lang_cookie in ["ar", "en"] else "en"
-    return RedirectResponse(f"/{lang}/widget")
-
-@app.get("/{lang}/widget", response_class=HTMLResponse)
-async def widget_page(request: Request, lang: str):
-    return templates.TemplateResponse("widget.html", get_template_context(request, lang))
-
-
-class WidgetCreateRequest(BaseModel):
-    name: str = "مساعد ذكي"
-
-class WidgetUpdateRequest(BaseModel):
-    name:              Optional[str]   = None
-    knowledge_mode:    Optional[str]   = None
-    manual_content:    Optional[str]   = None
-    urls:              Optional[list]  = None
-    personality:       Optional[str]   = None
-    color:             Optional[str]   = None
-    assistant_name_ar: Optional[str]   = None
-    assistant_name_en: Optional[str]   = None
-    welcome_ar:        Optional[str]   = None
-    welcome_en:        Optional[str]   = None
-    position:          Optional[str]   = None
-    active:            Optional[bool]  = None
-    widget_style:      Optional[str]   = None
-    widget_size:       Optional[str]   = None
-    # ─── SECURITY: النطاقات المسموح بها لتضمين الـ Widget ───────────────
-    allowed_domains:   Optional[list]  = None   # ["example.com", "*.shop.com"]
-    # ⛔ show_branding مُقفَل server-side — لا تُضف حقلاً له هنا أبداً
-
-class WidgetCrawlRequest(BaseModel):
-    url: str
-
-class WidgetChatRequest(BaseModel):
-    message: str
-    history: list = []
-    lang:    str  = "ar"
-
-
-@app.get("/api/widget/list")
-async def widget_list(request: Request):
-    email = get_current_user_email(request)
-    if not email:
-        return JSONResponse({"error": "Unauthorized"}, 401)
-    return JSONResponse({"widgets": get_user_widgets(email)})
-
-
-@app.post("/api/widget/create")
-async def widget_create(request: Request, data: WidgetCreateRequest):
-    email = get_current_user_email(request)
-    if not email:
-        return JSONResponse({"error": "Unauthorized"}, 401)
-    w = _create_widget(email, data.name.strip() or "مساعد ذكي")
-    return JSONResponse({"ok": True, "widget": w})
-
-
-@app.put("/api/widget/{widget_id}")
-async def widget_update(request: Request, widget_id: str, data: WidgetUpdateRequest):
-    email = get_current_user_email(request)
-    if not email:
-        return JSONResponse({"error": "Unauthorized"}, 401)
-    updates = {k: v for k, v in data.dict().items() if v is not None}
-    w = _update_widget(widget_id, email, updates)
-    if not w:
-        return JSONResponse({"error": "Widget not found"}, 404)
-    return JSONResponse({"ok": True, "widget": w})
-
-
-@app.delete("/api/widget/{widget_id}")
-async def widget_delete(request: Request, widget_id: str):
-    email = get_current_user_email(request)
-    if not email:
-        return JSONResponse({"error": "Unauthorized"}, 401)
-    ok = _delete_widget(widget_id, email)
-    return JSONResponse({"ok": ok})
-
-
-@app.post("/api/widget/{widget_id}/crawl")
-async def widget_crawl(request: Request, widget_id: str, data: WidgetCrawlRequest):
-    email = get_current_user_email(request)
-    if not email:
-        return JSONResponse({"error": "Unauthorized"}, 401)
-    result = await _crawl_url(widget_id, email, data.url)
-    return JSONResponse(result)
-
-
-@app.post("/api/widget/{widget_id}/chat")
-async def widget_chat(request: Request, widget_id: str, data: WidgetChatRequest):
-    """نقطة محادثة الودجت العامة — كل الأمان داخل widget_chat_stream."""
-    client_ip = (
-        request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-        or getattr(request.client, "host", "unknown")
-    )
-    raw_origin  = request.headers.get("Origin", "")
-    raw_referer = request.headers.get("Referer", "")
-    if raw_origin:
-        origin = raw_origin
-    elif raw_referer and len(raw_referer.split("/")) >= 3:
-        origin = "/".join(raw_referer.split("/")[:3])
-    else:
-        origin = ""
-
-    # طلب بلا Origin = طلب API مباشر → ارفض فوراً
-    if not origin:
-        return JSONResponse({"error": "Access denied"}, status_code=403)
-
-    embed_token = request.headers.get("X-Widget-Token", "")
-
-    return StreamingResponse(
-        widget_chat_stream(
-            widget_id, data.message, data.history, data.lang,
-            origin=origin, embed_token=embed_token, client_ip=client_ip,
-        ),
-        media_type="text/event-stream",
-        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
-    )
-
-
-# ─── Embed Token Generator ────────────────────────────────────────────────
-@app.get("/api/widget/{widget_id}/token")
-async def widget_get_token(request: Request, widget_id: str):
-    """يُصدر Embed Token مؤقت — widget-loader.js يطلبه تلقائياً."""
-    origin = request.headers.get("Origin", "")
-    w      = _get_widget(widget_id)
-    if not w or not w.get("active", True):
-        return JSONResponse({"error": "Widget not found"}, status_code=404)
-    if not _is_origin_allowed(origin, w.get("allowed_domains", [])):
-        return JSONResponse({"error": "Domain not authorized"}, status_code=403)
-    token = generate_embed_token(widget_id, origin)
-    return JSONResponse({"token": token, "expires": 3600})
-
-
-from services.admin import verify_admin as _verify_admin
-
-@app.get("/api/admin/widget-stats")
-async def admin_widget_stats(request: Request):
-    _verify_admin(request)
-    return JSONResponse(get_widget_stats_admin())
-
-@app.get("/api/admin/widgets")
-async def admin_widgets_list(request: Request):
-    _verify_admin(request)
-    return JSONResponse({"widgets": get_all_widgets_admin()})
-
-@app.get("/api/admin/widget-security-log")
-async def admin_security_log(request: Request, limit: int = 100):
-    _verify_admin(request)
-    return JSONResponse({"log": get_security_log(limit)})
-
-@app.delete("/api/admin/widget-unblock/{ip}")
-async def admin_unblock_ip(request: Request, ip: str):
-    _verify_admin(request)
-    unblock_ip(ip)
-    return JSONResponse({"ok": True, "ip": ip})
-
-
+# ─── Policy / Performance ─────────────────────────────────────────────────────
 
 @app.get("/policy", response_class=HTMLResponse)
 async def policy_redirect():
@@ -1046,156 +338,150 @@ async def performance_page_lang(request: Request, lang: str):
     context.update({"stats": stats, "last_update": datetime.utcnow().isoformat(), "active_nodes": 5})
     return templates.TemplateResponse("performance.html", context)
 
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dash_redirect():
-    return RedirectResponse("/en/profile")
+# ─── Models ───────────────────────────────────────────────────────────────────
 
-@app.get("/{lang}/dashboard", response_class=HTMLResponse)
-async def dashboard_page(request: Request, lang: str):
-    return RedirectResponse(f"/{lang}/profile")
+@app.get("/models", response_class=HTMLResponse)
+async def models_redirect():
+    return RedirectResponse("/en/models")
 
-# ============================================================================
-# AUTH API ENDPOINTS
-# ============================================================================
+@app.get("/{lang}/models", response_class=HTMLResponse)
+async def models_page(request: Request, lang: str):
+    context = get_template_context(request, lang)
+    context["models"] = context["models_metadata"]
+    return templates.TemplateResponse("models.html", context)
 
-@app.post("/auth/check-email")
-async def check_email_endpoint(data: CheckEmailRequest):
-    return await handle_check_email(data)
+@app.get("/{lang}/models/{model_key}", response_class=HTMLResponse)
+async def model_detail_page(request: Request, lang: str, model_key: str):
+    context    = get_template_context(request, lang)
+    model_info = next((m for m in MODELS_METADATA if m.get("short_key") == model_key or model_key in m.get("id", "")), None)
+    if not model_info:
+        return RedirectResponse(f"/{lang}/models")
+    context["model"]         = model_info
+    context["models"]        = context["models_metadata"]
+    context["seo_model_key"] = model_key
+    return templates.TemplateResponse("models.html", context)
 
-@app.post("/auth/send-verification")
-async def send_verification(request: Request, data: SendVerificationRequest):
-    return await handle_send_verification(request, data)
-
-@app.post("/auth/register")
-async def register(request: Request, data: RegisterRequest):
-    return await handle_register(request, data)
-
-@app.post("/auth/login")
-async def login(request: Request, data: LoginRequest):
-    return await handle_login(request, data)
-
-@app.post("/auth/logout")
-async def logout(request: Request):
-    return await handle_logout(request)
-
-@app.post("/api/set-language")
-async def set_language(request: Request):
-    body = await request.json()
-    lang = body.get("lang", "en")
-    if lang not in ["ar", "en"]:
-        lang = "en"
-    response = JSONResponse({"ok": True, "lang": lang})
-    response.set_cookie("preferred_lang", lang, max_age=60 * 60 * 24 * 365, path="/", samesite="lax")
-    return response
-
-# ============================================================================
-# CHAT ENDPOINTS
-# ============================================================================
-
-@app.post("/api/chat/trial")
-async def trial_chat_endpoint(request: Request):
+@app.get("/api/model-description/{model_key}")
+async def get_model_description(model_key: str, lang: str = "en"):
     try:
-        data  = await request.json()
-        email = get_current_user_email(request)
-        if not email:
-            return JSONResponse({"error": "Unauthorized"}, 401)
-
-        model_id = data.get("model_id")
-        if model_id in HIDDEN_MODELS:
-            return JSONResponse({"error": {"message": "Model unavailable.", "code": "model_unavailable"}}, 404)
-
-        allowed = await check_trial_allowance(email, model_id)
-        if not allowed:
-            return JSONResponse({"error": "Daily trial limit reached (10 msgs)."}, 429)
-
-        payload = {
-            "model":       model_id,
-            "messages":    data.get("messages", []),
-            "temperature": float(data.get("temperature", 0.5)),
-            "top_p":       float(data.get("top_p", 0.7)),
-            "max_tokens":  int(data.get("max_tokens", 1024)),
-            "stream":      data.get("stream", True)
-        }
-        if "extra_params" in data:
-            payload.update(data["extra_params"])
-        if "deepseek" in payload["model"] and "chat_template_kwargs" not in payload:
-            payload["chat_template_kwargs"] = {"thinking": True}
-
-        await acquire_provider_slot(is_priority=False)
-        return StreamingResponse(smart_chat_stream(payload, email, is_trial=True), media_type="text/event-stream")
-
+        file_path = STATIC_DIR / "models_translation" / f"{model_key}.html"
+        if file_path.exists():
+            with open(file_path, "r", encoding="utf-8") as f:
+                html_content = f.read()
+            return JSONResponse(
+                {"html": html_content},
+                headers={"Cache-Control": "public, max-age=3600, stale-while-revalidate=86400", "Vary": "Accept-Encoding"},
+            )
+        return JSONResponse({"error": f"Model description not found for: {model_key}"}, status_code=404)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+# ─── Tools / Code Hub ─────────────────────────────────────────────────────────
 
-@app.post("/api/chat")
-async def internal_chat_ui(request: Request):
+app.include_router(tools_router, prefix="/api")
+app.include_router(tools_router, prefix="/v1")
+app.include_router(agent_v2_router)
+
+@app.get("/tools", response_class=HTMLResponse)
+async def tools_legacy_redirect():
+    return RedirectResponse("/en/accesory")
+
+@app.get("/{lang}/tools", response_class=HTMLResponse)
+async def tools_legacy_lang_redirect(lang: str):
+    return RedirectResponse(f"/{lang}/accesory")
+
+@app.get("/code-hub", response_class=HTMLResponse)
+async def code_hub_redirect():
+    return RedirectResponse("/en/code-hub")
+
+@app.get("/{lang}/code-hub", response_class=HTMLResponse)
+async def code_hub_page(request: Request, lang: str, mode: str = "classic"):
+    context = get_template_context(request, lang)
+    context["mode"]     = "standard"
+    context["hub_mode"] = mode
+    merged_models = []
+    for m in MODELS_METADATA:
+        if m["id"] in HIDDEN_MODELS:
+            continue
+        model_entry = m.copy()
+        if m["id"] in CODE_HUB_MODELS_INFO:
+            model_entry.update(CODE_HUB_MODELS_INFO[m["id"]])
+        else:
+            model_entry.update({"desc_en": "General AI", "desc_ar": "ذكاء اصطناعي عام", "badge_en": "", "badge_ar": ""})
+        merged_models.append(model_entry)
+    context["models"] = merged_models
+    context["tools"]  = list(TOOLS_DB.values())
+    return templates.TemplateResponse("code_hub/index.html", context)
+
+# ============================================================================
+# HUB CHAT HISTORY (V1 Classic)
+# ============================================================================
+
+@app.post("/api/hub/save-chat")
+async def hub_save_chat_endpoint(request: Request):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Login required"}, 401)
     try:
-        data  = await request.json()
-        email = get_current_user_email(request)
-        if not email:
-            return JSONResponse({"error": "Unauthorized"}, 401)
-
-        is_trial = data.get("is_trial", False)
-        if is_trial:
-            model_id = data.get("model_id")
-            allowed  = await check_trial_allowance(email, model_id)
-            if not allowed:
-                return JSONResponse({"error": "Daily trial limit reached."}, 429)
-            payload = {
-                "model":       model_id,
-                "messages":    data.get("messages", [{"role": "user", "content": data.get("message")}]),
-                "temperature": float(data.get("temperature", 0.5)),
-                "stream":      data.get("stream", False)
-            }
-            if "deepseek" in payload["model"]:
-                payload["chat_template_kwargs"] = {"thinking": True}
-            await acquire_provider_slot(is_priority=False)
-            return StreamingResponse(smart_chat_stream(payload, email, is_trial=True), media_type="text/event-stream")
-
-        payload = {
-            "model":       data.get("model_id"),
-            "messages":    [{"role": "user", "content": data.get("message")}],
-            "temperature": float(data.get("temperature", 0.5)),
-            "stream":      data.get("stream", False)
-        }
-        if "deepseek" in payload["model"]:
-            payload["chat_template_kwargs"] = {"thinking": True}
-
-        return await handle_chat_request(email, payload)
-
+        body       = await request.json()
+        session_id = body.get("session_id") or f"v1_{int(__import__('time').time())}"
+        title      = body.get("title", "محادثة")[:80]
+        history    = body.get("history", [])
+        files      = body.get("files", {})
+        result     = hub_save_chat(email, session_id, title, history, files)
+        if not result.get("ok"):
+            return JSONResponse({"error": result.get("error", "Unknown error")}, 500)
+        return JSONResponse(result)
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": str(e)}, 500)
 
-
-@app.post("/v1/chat/completions")
-async def openai_compatible_proxy(request: Request):
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return JSONResponse({"error": "Invalid Orgteh API Key"}, 401)
-
-    api_key = auth_header.split(" ")[1]
-    user    = get_user_by_api_key(api_key)
-    if not user:
-        return JSONResponse({"error": "Invalid Orgteh API Key"}, 401)
-
+@app.get("/api/hub/chats")
+async def hub_list_chats_endpoint(request: Request):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"chats": []})
     try:
-        body = await request.json()
-    except Exception:
-        return JSONResponse({"error": "Invalid JSON"}, 400)
+        return JSONResponse({"chats": hub_list_chats(email)})
+    except Exception as e:
+        return JSONResponse({"chats": [], "error": str(e)})
 
-    return await handle_chat_request(user["email"], body)
+@app.get("/api/hub/chat/{session_id}")
+async def hub_get_chat_endpoint(request: Request, session_id: str):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Login required"}, 401)
+    try:
+        data = hub_get_chat(email, session_id)
+        if not data:
+            return JSONResponse({"error": "Not found"}, 404)
+        return JSONResponse(data)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, 500)
 
+@app.delete("/api/hub/chat/{session_id}")
+async def hub_delete_chat_endpoint(request: Request, session_id: str):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Login required"}, 401)
+    try:
+        hub_delete_chat(email, session_id)
+        return JSONResponse({"ok": True})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, 500)
+
+# ============================================================================
+# CODE PROCESSOR
+# ============================================================================
 
 @app.post("/api/process-code")
 async def process_code_endpoint(
     request:      Request,
-    instruction:  str          = Form(...),
-    target_model: str          = Form("deepseek-ai/deepseek-v3.2"),
-    target_tools: str          = Form(""),
-    chat_history: str          = Form("[]"),
-    chat_mode:    str          = Form("build"),
-    files:        list[UploadFile] = File(default=[])
+    instruction:  str               = Form(...),
+    target_model: str               = Form("deepseek-ai/deepseek-v3.2"),
+    target_tools: str               = Form(""),
+    chat_history: str               = Form("[]"),
+    chat_mode:    str               = Form("build"),
+    files:        list[UploadFile]  = File(default=[]),
 ):
     if target_model in HIDDEN_MODELS:
         return JSONResponse({"error": "Target model unavailable"}, 400)
@@ -1221,6 +507,15 @@ async def process_code_endpoint(
                 except Exception:
                     pass
 
+    from telegram_bot import schedule_log_v1
+    await schedule_log_v1(
+        email       = email,
+        instruction = instruction,
+        chat_mode   = chat_mode,
+        model_id    = target_model,
+        files_count = len(files_data),
+    )
+
     async def event_generator():
         async for event in process_code_merge_stream(instruction, files_data, user_api_key, target_model, history_list, target_tools, chat_mode):
             if event["type"] in ["thinking", "code", "error"]:
@@ -1230,473 +525,45 @@ async def process_code_endpoint(
     return StreamingResponse(
         event_generator(),
         media_type="application/x-ndjson",
-        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache, no-transform", "Content-Encoding": "identity"}
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache, no-transform", "Content-Encoding": "identity"},
     )
 
+# ============================================================================
+# SUPPORT & CONTACT
+# ============================================================================
 
-@app.post("/api/generate-key")
-async def regenerate_my_key(request: Request):
-    email = get_current_user_email(request)
-    if not email:
-        return JSONResponse({"error": "Unauthorized"}, 401)
-    try:
-        from services.auth import generate_nexus_key
-        from database import update_api_key as _update_key
-        new_key = generate_nexus_key()
-        success = _update_key(email, new_key)
-        if success:
-            return JSONResponse({"key": new_key, "ok": True})
-        return JSONResponse({"error": "Failed to save new key"}, status_code=500)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+from telegram_bot import handle_contact_form, handle_enterprise_form
 
-
-from telegram_bot import notify_contact_form, notify_enterprise_form
-
-
-@app.post("/api/support/chat")
-async def support_chat(request: Request):
-    try:
-        # ─── Rate Limiting ────────────────────────────────────────
-        from database import redis as _redis
-        client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip() \
-                    or getattr(request.client, "host", "unknown")
-        if _redis:
-            rate_key = f"support_rate:{client_ip}"
-            count    = _redis.incr(rate_key)
-            if count == 1:
-                _redis.expire(rate_key, 60)  # نافذة 60 ثانية
-            if count > 10:
-                return JSONResponse({"error": "Rate limit exceeded. Please wait a moment."}, status_code=429)
-
-        body    = await request.json()
-        message = body.get("message", "").strip()
-        lang    = body.get("lang", "en")
-
-        if not message:
-            return JSONResponse({"error": "No message provided"}, 400)
-
-        system_prompt = (
-            "أنت مساعد خدمة عملاء ذكي لموقع Orgteh Infra. "
-            "يجب أن ترد دائماً باللغة العربية فقط. "
-            "موقعنا يوفر بنية تحتية موحدة للوصول إلى نماذج الذكاء الاصطناعي. "
-            "كن مفيداً ومختصراً وودياً."
-        ) if lang == "ar" else (
-            "You are a smart customer support assistant for Orgteh Infra. "
-            "Always reply in English only. Be helpful, concise and friendly."
-        )
-
-        payload = {
-            "model":      "gpt-4o-mini",
-            "messages":   [{"role": "system", "content": system_prompt}, {"role": "user", "content": message}],
-            "max_tokens": 800,
-            "stream":     True
-        }
-
-        async def generate():
-            try:
-                async for chunk in smart_chat_stream(payload, "support@orgteh.com", is_trial=True):
-                    text = chunk.decode("utf-8", errors="ignore") if isinstance(chunk, bytes) else str(chunk)
-                    if text.startswith("data: "):
-                        text = text[6:]
-                    if text.strip() and text.strip() != "[DONE]":
-                        try:
-                            content = json.loads(text).get("choices", [{}])[0].get("delta", {}).get("content", "")
-                            if content:
-                                yield content.encode("utf-8")
-                        except Exception:
-                            pass
-            except Exception:
-                yield ("عذراً، حدث خطأ." if lang == "ar" else "Sorry, an error occurred.").encode("utf-8")
-
-        return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
-
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, 500)
-
-
-@app.get("/api/github/status")
-async def github_status(request: Request):
-    try:
-        connected = is_github_connected(request)
-        context   = {}
-        if connected:
-            email = get_current_user_email(request)
-            if email:
-                try:
-                    from database import redis as _redis
-                    if _redis:
-                        gh_info = _redis.hgetall(f"github:{email}")
-                        if gh_info:
-                            def _dec(v): return v.decode() if isinstance(v, bytes) else v
-                            context = {
-                                "login":  _dec(gh_info.get(b"login", gh_info.get("login", ""))),
-                                "avatar": _dec(gh_info.get(b"avatar", gh_info.get("avatar", "")))
-                            }
-                except Exception:
-                    pass
-        return JSONResponse({"connected": connected, "user": context if connected else None, "connect_url": "/auth/github/login"})
-    except Exception as e:
-        return JSONResponse({"connected": False, "error": str(e)}, 500)
 
 
 @app.post("/api/contact")
 async def api_contact(request: Request):
-    try:
-        body    = await request.json()
-        name    = body.get("name", "").strip()
-        email   = body.get("email", "").strip()
-        message = body.get("message", "").strip()
-        if not name or not email or not message:
-            return JSONResponse({"detail": "جميع الحقول مطلوبة."}, status_code=400)
-        await notify_contact_form(name, email, message)
-        return JSONResponse({"ok": True})
-    except Exception:
-        return JSONResponse({"detail": "خطأ في الخادم."}, status_code=500)
+    body   = await request.json()
+    result = await handle_contact_form(body)
+    return JSONResponse({"ok": True} if result["ok"] else {"detail": result["detail"]},
+                        status_code=result["status"])
 
 
 @app.post("/api/enterprise/contact")
 async def api_enterprise_contact(request: Request):
-    try:
-        body           = await request.json()
-        project_type   = body.get("projectType", "").strip()
-        volume         = body.get("volume", "").strip()
-        needs          = body.get("needs", "").strip()
-        contact_method = body.get("contactMethod", "").strip()
-        contact_value  = body.get("contactValue", "").strip()
-        description    = body.get("description", "").strip()
-        if not project_type or not volume or not needs or not contact_value:
-            return JSONResponse({"detail": "يرجى ملء الحقول المطلوبة."}, status_code=400)
-        await notify_enterprise_form(project_type, volume, needs, contact_method, contact_value, description)
-        return JSONResponse({"ok": True})
-    except Exception:
-        return JSONResponse({"detail": "خطأ في الخادم."}, status_code=500)
+    body   = await request.json()
+    result = await handle_enterprise_form(body)
+    return JSONResponse({"ok": True} if result["ok"] else {"detail": result["detail"]},
+                        status_code=result["status"])
 
-# ============================================================================
-# PAYMENT ROUTES (SpaceRemit)
-# ════════════════════════════════════════════════════════════════════════════
-
-import base64 as _b64
-
-_AR_DICT = {
-    "يتم قبول الطلبات خلال بضع دقائق او ساعات": "Orders confirmed within minutes or hours",
-    "بعد ارسال المبلغ قم بالضغط على زر": "After sending, click",
-    "الإمارات العربية المتحدة": "UAE",
-    "الى البيانات التالية": "to the following address",
-    "تحميل إثبات الدفع": "Upload Proof",
-    "البريد الإلكتروني": "Email",
-    "البيانات التالية": "the following details",
-    "الرجاء الانتظار": "Please wait",
-    "تم الدفع بنجاح": "Payment Successful",
-    "بطاقة ائتمانية": "Credit Card",
-    "جاري المعالجة": "Processing...",
-    "الاسم الكامل": "Full Name",
-    "جاري التحميل": "Loading...",
-    "إثبات الدفع": "Payment Proof",
-    "لا يوجد ملف": "No file chosen",
-    "طريقة الدفع": "Payment Method",
-    "رقم العملية": "Transaction ID",
-    "رقم الهاتف": "Phone Number",
-    "تحويل بنكي": "Bank Transfer",
-    "اكمل الدفع": "Complete Payment",
-    "موريتانيا": "Mauritania",
-    "إثبات دفع": "Payment Proof",
-    "ادفع الآن": "Pay Now",
-    "السعودية": "Saudi Arabia",
-    "الإمارات": "UAE",
-    "لقد دفعت": "I Have Paid",
-    "اختر ملف": "Choose File",
-    "الإجمالي": "Total",
-    "الجزائر": "Algeria",
-    "البحرين": "Bahrain",
-    "السودان": "Sudan",
-    "رفع ملف": "Upload File",
-    "المغرب": "Morocco",
-    "العراق": "Iraq",
-    "الكويت": "Kuwait",
-    "الأردن": "Jordan",
-    "فلسطين": "Palestine",
-    "التالي": "Next",
-    "السابق": "Back",
-    "المبلغ": "Amount",
-    "الرسوم": "Fees",
-    "العملة": "Currency",
-    "العودة": "Go Back",
-    "عالمي": "Global",
-    "ليبيا": "Libya",
-    "سوريا": "Syria",
-    "اليمن": "Yemen",
-    "عُمان": "Oman",
-    "الاسم": "Name",
-    "إلغاء": "Cancel",
-    "تأكيد": "Confirm",
-    "إرسال": "Send",
-    "انتظر": "Please Wait",
-    "دقائق": "minutes",
-    "ساعات": "hours",
-    "ثواني": "seconds",
-    "تونس": "Tunisia",
-    "أرسل": "Send",
-    "ارسل": "Send",
-    "مصر": "Egypt",
-    "قطر": "Qatar",
-    "نجح": "Success",
-    "فشل": "Failed",
-    "خطأ": "Error",
-}
-
-_SR = "https://spaceremit.com"
-_sdk_cache: dict = {"js": None, "expires": 0}
-_AR_PAT = _re.compile(r"[\u0600-\u06FF]")
-
-# iframe script stored as base64 to avoid any escaping issues
-_IFRAME_B64 = "PHNjcmlwdD4KKGZ1bmN0aW9uKCl7CnZhciBEPXsi2YrYqtmFINmC2KjZiNmEINin2YTYt9mE2KjYp9iqINiu2YTYp9mEINio2LbYuSDYr9mC2KfYptmCINin2Ygg2LPYp9i52KfYqiI6Ik9yZGVycyBjb25maXJtZWQgd2l0aGluIG1pbnV0ZXMgb3IgaG91cnMiLCLYqNi52K8g2KfYsdiz2KfZhCDYp9mE2YXYqNmE2Log2YLZhSDYqNin2YTYtti62Lcg2LnZhNmJINiy2LEiOiJBZnRlciBzZW5kaW5nLCBjbGljayIsItin2YTYpdmF2KfYsdin2Kog2KfZhNi52LHYqNmK2Kkg2KfZhNmF2KrYrdiv2KkiOiJVQUUiLCLYp9mE2Ykg2KfZhNio2YrYp9mG2KfYqiDYp9mE2KrYp9mE2YrYqSI6InRvIHRoZSBmb2xsb3dpbmcgYWRkcmVzcyIsItiq2K3ZhdmK2YQg2KXYq9io2KfYqiDYp9mE2K/Zgdi5IjoiVXBsb2FkIFByb29mIiwi2KfZhNio2LHZitivINin2YTYpdmE2YPYqtix2YjZhtmKIjoiRW1haWwiLCLYp9mE2KjZitin2YbYp9iqINin2YTYqtin2YTZitipIjoidGhlIGZvbGxvd2luZyBkZXRhaWxzIiwi2KfZhNix2KzYp9ihINin2YTYp9mG2KrYuNin2LEiOiJQbGVhc2Ugd2FpdCIsItiq2YUg2KfZhNiv2YHYuSDYqNmG2KzYp9itIjoiUGF5bWVudCBTdWNjZXNzZnVsIiwi2KjYt9in2YLYqSDYp9im2KrZhdin2YbZitipIjoiQ3JlZGl0IENhcmQiLCLYrNin2LHZiiDYp9mE2YXYudin2YTYrNipIjoiUHJvY2Vzc2luZy4uLiIsItin2YTYp9iz2YUg2KfZhNmD2KfZhdmEIjoiRnVsbCBOYW1lIiwi2KzYp9ix2Yog2KfZhNiq2K3ZhdmK2YQiOiJMb2FkaW5nLi4uIiwi2KXYq9io2KfYqiDYp9mE2K/Zgdi5IjoiUGF5bWVudCBQcm9vZiIsItmE2Kcg2YrZiNis2K8g2YXZhNmBIjoiTm8gZmlsZSBjaG9zZW4iLCLYt9ix2YrZgtipINin2YTYr9mB2LkiOiJQYXltZW50IE1ldGhvZCIsItix2YLZhSDYp9mE2LnZhdmE2YrYqSI6IlRyYW5zYWN0aW9uIElEIiwi2LHZgtmFINin2YTZh9in2KrZgSI6IlBob25lIE51bWJlciIsItiq2K3ZiNmK2YQg2KjZhtmD2YoiOiJCYW5rIFRyYW5zZmVyIiwi2KfZg9mF2YQg2KfZhNiv2YHYuSI6IkNvbXBsZXRlIFBheW1lbnQiLCLZhdmI2LHZitiq2KfZhtmK2KciOiJNYXVyaXRhbmlhIiwi2KXYq9io2KfYqiDYr9mB2LkiOiJQYXltZW50IFByb29mIiwi2KfYr9mB2Lkg2KfZhNii2YYiOiJQYXkgTm93Iiwi2KfZhNiz2LnZiNiv2YrYqSI6IlNhdWRpIEFyYWJpYSIsItin2YTYpdmF2KfYsdin2KoiOiJVQUUiLCLZhNmC2K8g2K/Zgdi52KoiOiJJIEhhdmUgUGFpZCIsItin2K7YqtixINmF2YTZgSI6IkNob29zZSBGaWxlIiwi2KfZhNil2KzZhdin2YTZiiI6IlRvdGFsIiwi2KfZhNis2LLYp9im2LEiOiJBbGdlcmlhIiwi2KfZhNio2K3YsdmK2YYiOiJCYWhyYWluIiwi2KfZhNiz2YjYr9in2YYiOiJTdWRhbiIsItix2YHYuSDZhdmE2YEiOiJVcGxvYWQgRmlsZSIsItin2YTZhdi62LHYqCI6Ik1vcm9jY28iLCLYp9mE2LnYsdin2YIiOiJJcmFxIiwi2KfZhNmD2YjZitiqIjoiS3V3YWl0Iiwi2KfZhNij2LHYr9mGIjoiSm9yZGFuIiwi2YHZhNiz2LfZitmGIjoiUGFsZXN0aW5lIiwi2KfZhNiq2KfZhNmKIjoiTmV4dCIsItin2YTYs9in2KjZgiI6IkJhY2siLCLYp9mE2YXYqNmE2LoiOiJBbW91bnQiLCLYp9mE2LHYs9mI2YUiOiJGZWVzIiwi2KfZhNi52YXZhNipIjoiQ3VycmVuY3kiLCLYp9mE2LnZiNiv2KkiOiJHbyBCYWNrIiwi2LnYp9mE2YXZiiI6Ikdsb2JhbCIsItmE2YrYqNmK2KciOiJMaWJ5YSIsItiz2YjYsdmK2KciOiJTeXJpYSIsItin2YTZitmF2YYiOiJZZW1lbiIsIti52Y/Zhdin2YYiOiJPbWFuIiwi2KfZhNin2LPZhSI6Ik5hbWUiLCLYpdmE2LrYp9ihIjoiQ2FuY2VsIiwi2KrYo9mD2YrYryI6IkNvbmZpcm0iLCLYpdix2LPYp9mEIjoiU2VuZCIsItin2YbYqti42LEiOiJQbGVhc2UgV2FpdCIsItiv2YLYp9im2YIiOiJtaW51dGVzIiwi2LPYp9i52KfYqiI6ImhvdXJzIiwi2KvZiNin2YbZiiI6InNlY29uZHMiLCLYqtmI2YbYsyI6IlR1bmlzaWEiLCLYo9ix2LPZhCI6IlNlbmQiLCLYp9ix2LPZhCI6IlNlbmQiLCLZhdi12LEiOiJFZ3lwdCIsItmC2LfYsSI6IlFhdGFyIiwi2YbYrNitIjoiU3VjY2VzcyIsItmB2LTZhCI6IkZhaWxlZCIsItiu2LfYoyI6IkVycm9yIn07CnZhciBLPU9iamVjdC5rZXlzKEQpOwp2YXIgQVI9L1tcdTA2MDAtXHUwNkZGXS87CmZ1bmN0aW9uIHRyKHMpewogIGlmKCFzfHx0eXBlb2YgcyE9PSdzdHJpbmcnfHwhQVIudGVzdChzKSlyZXR1cm4gczsKICBmb3IodmFyIGk9MDtpPEsubGVuZ3RoO2krKylpZihzLmluZGV4T2YoS1tpXSkhPT0tMSlzPXMuc3BsaXQoS1tpXSkuam9pbihEW0tbaV1dKTsKICByZXR1cm4gczsKfQpmdW5jdGlvbiB3YWxrKG4pewogIGlmKCFuKXJldHVybjsKICBpZihuLm5vZGVUeXBlPT09Myl7dmFyIHY9bi5ub2RlVmFsdWU7aWYoQVIudGVzdCh2KSl7dmFyIHQ9dHIodik7aWYodCE9PXYpbi5ub2RlVmFsdWU9dDt9fQogIGVsc2UgaWYobi5ub2RlVHlwZT09PTEpewogICAgWydwbGFjZWhvbGRlcicsJ3RpdGxlJywnYXJpYS1sYWJlbCddLmZvckVhY2goZnVuY3Rpb24oYSl7CiAgICAgIHZhciB2PW4uZ2V0QXR0cmlidXRlJiZuLmdldEF0dHJpYnV0ZShhKTsKICAgICAgaWYodiYmQVIudGVzdCh2KSluLnNldEF0dHJpYnV0ZShhLHRyKHYpKTsKICAgIH0pOwogICAgZm9yKHZhciBjPW4uZmlyc3RDaGlsZDtjO2M9Yy5uZXh0U2libGluZyl3YWxrKGMpOwogIH0KfQpuZXcgTXV0YXRpb25PYnNlcnZlcihmdW5jdGlvbihtcyl7CiAgbXMuZm9yRWFjaChmdW5jdGlvbihtKXsKICAgIGlmKG0udHlwZT09PSdjaGFyYWN0ZXJEYXRhJyl3YWxrKG0udGFyZ2V0KTsKICAgIGVsc2UgbS5hZGRlZE5vZGVzLmZvckVhY2god2Fsayk7CiAgfSk7Cn0pLm9ic2VydmUoZG9jdW1lbnQuZG9jdW1lbnRFbGVtZW50LHtjaGlsZExpc3Q6dHJ1ZSxzdWJ0cmVlOnRydWUsY2hhcmFjdGVyRGF0YTp0cnVlfSk7CnNldEludGVydmFsKGZ1bmN0aW9uKCl7aWYoZG9jdW1lbnQuYm9keSl3YWxrKGRvY3VtZW50LmJvZHkpO30sMjAwKTsKaWYoZG9jdW1lbnQucmVhZHlTdGF0ZT09PSdsb2FkaW5nJylkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCdET01Db250ZW50TG9hZGVkJyxmdW5jdGlvbigpe3dhbGsoZG9jdW1lbnQuYm9keSk7fSk7CmVsc2UgaWYoZG9jdW1lbnQuYm9keSl3YWxrKGRvY3VtZW50LmJvZHkpOwp2YXIgUEZYPScvYXBpL3Byb3h5L3NyLWZyYW1lP3VybD0nLFNSPSdodHRwczovL3NwYWNlcmVtaXQuY29tJzsKZnVuY3Rpb24gcHgodSl7CiAgaWYoIXUpcmV0dXJuIHU7CiAgaWYodS5jaGFyQXQoMCk9PT0nIycpcmV0dXJuIHU7CiAgaWYodS5pbmRleE9mKCdibG9iOicpPT09MHx8dS5pbmRleE9mKCdkYXRhOicpPT09MClyZXR1cm4gdTsKICBpZih1LmluZGV4T2YoU1IpPT09MClyZXR1cm4gUEZYK2VuY29kZVVSSUNvbXBvbmVudCh1KTsKICBpZih1LmNoYXJBdCgwKT09PScvJylyZXR1cm4gUEZYK2VuY29kZVVSSUNvbXBvbmVudChTUit1KTsKICByZXR1cm4gdTsKfQp0cnl7CiAgdmFyIF9hPXdpbmRvdy5sb2NhdGlvbi5hc3NpZ24uYmluZCh3aW5kb3cubG9jYXRpb24pOwogIHZhciBfcj13aW5kb3cubG9jYXRpb24ucmVwbGFjZS5iaW5kKHdpbmRvdy5sb2NhdGlvbik7CiAgd2luZG93LmxvY2F0aW9uLmFzc2lnbj1mdW5jdGlvbih1KXtfYShweCh1KSk7fTsKICB3aW5kb3cubG9jYXRpb24ucmVwbGFjZT1mdW5jdGlvbih1KXtfcihweCh1KSk7fTsKICBPYmplY3QuZGVmaW5lUHJvcGVydHkod2luZG93LmxvY2F0aW9uLCdocmVmJyx7CiAgICBzZXQ6ZnVuY3Rpb24odSl7X2EocHgodSkpO30sCiAgICBnZXQ6ZnVuY3Rpb24oKXtyZXR1cm4gZG9jdW1lbnQubG9jYXRpb24uaHJlZjt9LAogICAgY29uZmlndXJhYmxlOnRydWUKICB9KTsKfWNhdGNoKGUpe30KdmFyIF9vRj13aW5kb3cuZmV0Y2g7CmlmKF9vRil3aW5kb3cuZmV0Y2g9ZnVuY3Rpb24oaW5wLGluaXQpewogIHJldHVybiBfb0YuYXBwbHkodGhpcyxhcmd1bWVudHMpLnRoZW4oZnVuY3Rpb24ocil7CiAgICB2YXIgY3Q9ci5oZWFkZXJzLmdldCgnY29udGVudC10eXBlJyl8fCcnOwogICAgaWYoY3QuaW5kZXhPZignanNvbicpPT09LTEpcmV0dXJuIHI7CiAgICByZXR1cm4gci50ZXh0KCkudGhlbihmdW5jdGlvbih0KXsKICAgICAgaWYoIUFSLnRlc3QodCkpcmV0dXJuIG5ldyBSZXNwb25zZSh0LHtzdGF0dXM6ci5zdGF0dXMsaGVhZGVyczpyLmhlYWRlcnN9KTsKICAgICAgdmFyIG89dDtLLmZvckVhY2goZnVuY3Rpb24oayl7aWYoby5pbmRleE9mKGspIT09LTEpbz1vLnNwbGl0KGspLmpvaW4oRFtrXSk7fSk7CiAgICAgIHZhciBoPXt9O3IuaGVhZGVycy5mb3JFYWNoKGZ1bmN0aW9uKHYsayl7aFtrXT12O30pOwogICAgICByZXR1cm4gbmV3IFJlc3BvbnNlKG8se3N0YXR1czpyLnN0YXR1cyxzdGF0dXNUZXh0OnIuc3RhdHVzVGV4dCxoZWFkZXJzOmh9KTsKICAgIH0pOwogIH0pOwp9Owp9KSgpOwo8L3NjcmlwdD4="
-_IFRAME_SCRIPT = _b64.b64decode(_IFRAME_B64).decode("utf-8")
-
-
-def _translate(text: str) -> str:
-    if not text or not _AR_PAT.search(text):
-        return text
-    for ar, en in sorted(_AR_DICT.items(), key=lambda x: -len(x[0])):
-        if ar in text:
-            text = text.replace(ar, en)
-        esc = "".join(f"\\u{ord(c):04x}" for c in ar)
-        if esc in text:
-            text = text.replace(esc, en)
-    return text
-
-
-def _fix_urls(html: str) -> str:
-    sr = _SR
-    html = _re.sub(r'(src|href|action)="(/[^"#][^"]*)"',
-                   lambda m: f'{m.group(1)}="{sr}{m.group(2)}"', html)
-    html = _re.sub(r"(src|href|action)='(/[^'#][^']*)'" ,
-                   lambda m: f"{m.group(1)}'{sr}{m.group(2)}'", html)
-    html = _re.sub(r"url\((/[^)#][^)]*)\)",
-                   lambda m: f"url({sr}{m.group(1)})", html)
-    return html
-
-
-@app.get("/api/proxy/sr-frame")
-async def proxy_sr_frame(url: str):
-    if "spaceremit.com" not in url:
-        return JSONResponse({"error": "invalid"}, status_code=400)
-    _sr_log.info(f"[SRFrame] {url[:80]}")
-    try:
-        async with httpx.AsyncClient(timeout=25.0, follow_redirects=True) as client:
-            resp = await client.get(url, headers={
-                "Accept": "text/html,application/xhtml+xml,*/*",
-                "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36",
-                "Accept-Encoding": "identity",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Referer": "https://www.orgteh.com/",
-            })
-            raw = resp.text
-            _sr_log.info(f"[SRFrame] got {len(raw)} bytes")
-    except Exception as e:
-        _sr_log.error(f"[SRFrame] {e}")
-        return Response("<html><body>proxy error</body></html>",
-                        media_type="text/html", status_code=502)
-    html = _translate(raw)
-    html = _fix_urls(html)
-    script = _IFRAME_SCRIPT
-    if "<head>" in html:
-        html = html.replace("<head>", "<head>\n" + script, 1)
-    elif "<head " in html:
-        m = _re.search(r"<head[^>]*>", html)
-        if m:
-            pos = m.end()
-            html = html[:pos] + "\n" + script + html[pos:]
-    else:
-        html = script + html
-    _sr_log.info(f"[SRFrame] sending {len(html)} bytes")
-    return Response(
-        content=html.encode("utf-8"),
-        media_type="text/html; charset=utf-8",
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "X-Frame-Options": "ALLOWALL",
-            "Cache-Control": "no-cache, no-store",
-            "Content-Security-Policy": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;",
-        }
-    )
-
-
-@app.get("/api/proxy/spaceremit-sdk.js")
-async def proxy_spaceremit_sdk():
-    now = _time.time()
-    if _sdk_cache["js"] and now < _sdk_cache["expires"]:
-        return Response(_sdk_cache["js"], media_type="application/javascript; charset=utf-8",
-                        headers={"Cache-Control": "public, max-age=600", "Access-Control-Allow-Origin": "*"})
-    url = f"{_SR}/api/v2/js_script/spaceremit.js"
-    try:
-        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as c:
-            _sr_log.info("[SDK] fetching...")
-            r = await c.get(url, headers={"Accept": "*/*", "User-Agent": "Mozilla/5.0", "Accept-Encoding": "identity"})
-            r.raise_for_status()
-            js = _translate(r.text)
-            _sr_log.info(f"[SDK] {len(js)} bytes")
-    except Exception as e:
-        _sr_log.error(f"[SDK] {e}")
-        return RedirectResponse(url=url, status_code=302)
-    _sdk_cache.update({"js": js, "expires": now + 600})
-    return Response(js, media_type="application/javascript; charset=utf-8",
-                    headers={"Cache-Control": "public, max-age=600", "Access-Control-Allow-Origin": "*"})
-
-
-@app.get("/api/proxy/clear-sr-cache")
-async def clear_sr_cache():
-    _sdk_cache.update({"js": None, "expires": 0})
-    return JSONResponse({"status": "cleared"})
-
-
-class CheckoutRequest(BaseModel):
-    plan_name: str
-    period:    str
-    amount:    float
-
-
-@app.post("/api/payments/checkout-data")
-async def api_checkout_data(request: Request, data: CheckoutRequest):
-    email = get_current_user_email(request)
-    if not email:
-        return JSONResponse({"error": "Unauthorized. Please login."}, status_code=401)
-    try:
-        result = await generate_payment_link(email, data.plan_name, data.period, data.amount)
-        return JSONResponse(result)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-class VerifyPaymentRequest(BaseModel):
-    payment_code: str
-    plan_key:     str
-    period:       str
-
-
-@app.post("/api/payments/verify-and-activate")
-async def api_verify_and_activate(request: Request, data: VerifyPaymentRequest):
-    email = get_current_user_email(request)
-    if not email:
-        return JSONResponse({"error": "Unauthorized. Please login."}, status_code=401)
-
-    plan_name_map = {
-        "deepseek": "DeepSeek V3",  "kimi": "Kimi k2",
-        "mistral":  "Mistral Large", "gemma": "Gemma 3",
-        "llama":    "Llama 3.2",     "agents": "Chat Agents", "global": "Nexus Global"
-    }
-    plan_name = plan_name_map.get(data.plan_key)
-    if not plan_name:
-        return JSONResponse({"error": f"Unknown plan key: {data.plan_key}"}, status_code=400)
-
-    if data.period not in ("monthly", "yearly"):
-        return JSONResponse({"error": "Invalid period. Use 'monthly' or 'yearly'."}, status_code=400)
-
-    from database import redis as _redis
-    if _redis:
-        used_key = f"used_payment:{data.payment_code}"
-        if _redis.exists(used_key):
-            return JSONResponse(
-                {"error": "This payment code has already been used."},
-                status_code=400
-            )
-
-    payment_info = await verify_spaceremit_payment(data.payment_code)
-    if not payment_info:
-        return JSONResponse(
-            {"error": "Payment not verified. It may be pending, failed, or invalid."},
-            status_code=400
-        )
-
-    if _redis:
-        try:
-            _redis.setex(f"used_payment:{data.payment_code}", 365 * 24 * 3600, email)
-        except Exception:
-            pass
-
-    success = add_user_subscription(email, data.plan_key, plan_name, data.period)
-    if success:
-        return JSONResponse({"status": "success", "message": f"Subscription '{plan_name}' activated successfully."})
-    return JSONResponse(
-        {"error": "Payment verified but failed to activate subscription. Please contact support."},
-        status_code=500
-    )
-
-
-@app.post("/api/webhooks/spaceremit")
-async def spaceremit_webhook(request: Request):
-    try:
-        if SPACEREMIT_WEBHOOK_IPS:
-            client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip() \
-                        or getattr(request.client, "host", "")
-            if client_ip not in SPACEREMIT_WEBHOOK_IPS:
-                return JSONResponse({"error": "Forbidden"}, status_code=403)
-
-        payload  = await request.json()
-        tx_code  = payload.get("spaceremit_code") or payload.get("transaction_id") or payload.get("payment_id")
-
-        if not tx_code:
-            return JSONResponse({"error": "No transaction code provided"}, status_code=400)
-
-        from database import redis as _redis
-        if _redis:
-            used_key = f"used_payment:{tx_code}"
-            if _redis.exists(used_key):
-                return JSONResponse({"status": "Already processed"}, status_code=200)
-
-        payment_info = await verify_spaceremit_payment(tx_code)
-        if not payment_info:
-            return JSONResponse({"status": "Failed", "error": "Payment not verified"}, status_code=400)
-
-        notes    = payment_info.get("notes", "")
-        plan_key = period = email = ""
-        for part in notes.split("|"):
-            if part.startswith("plan:"):   plan_key = part.split(":", 1)[1].strip()
-            if part.startswith("period:"): period   = part.split(":", 1)[1].strip()
-            if part.startswith("user:"):   email    = part.split(":", 1)[1].strip()
-
-        if not email or not plan_key or not period:
-            return JSONResponse({"error": "Missing plan/period/user in notes"}, status_code=400)
-
-        plan_name_map = {
-            "deepseek": "DeepSeek V3",  "kimi": "Kimi k2",
-            "mistral":  "Mistral Large", "gemma": "Gemma 3",
-            "llama":    "Llama 3.2",     "agents": "Chat Agents", "global": "Nexus Global"
-        }
-        plan_name = plan_name_map.get(plan_key, "Free Tier")
-        success   = add_user_subscription(email, plan_key, plan_name, period)
-
-        if success:
-            if _redis:
-                try:
-                    _redis.setex(f"used_payment:{tx_code}", 365 * 24 * 3600, email)
-                except Exception:
-                    pass
-            return JSONResponse({"status": "Success", "message": "Plan activated"})
-
-        return JSONResponse({"status": "Failed", "error": "Could not activate plan"}, status_code=400)
-
-    except Exception:
-        return JSONResponse({"error": "Webhook processing failed"}, status_code=500)
-
-# ─── SEO: مسار خريطة الموقع الديناميكية (التحديث التلقائي الشامل) ─────────────
+# ─── SEO ──────────────────────────────────────────────────────────────────────
 
 @app.get("/sitemap.xml", include_in_schema=False)
 async def get_sitemap():
     today = datetime.utcnow().strftime("%Y-%m-%d")
     urls = [{"loc": "https://orgteh.com/", "changefreq": "daily", "priority": "1.0"}]
-    added_locs = set(["https://orgteh.com/"])
-
-    from services.providers import MODELS_METADATA
-    from tools.registry import TOOLS_DB
+    added_locs = {"https://orgteh.com/"}
 
     for route in app.routes:
         if hasattr(route, "methods") and "GET" in route.methods:
             path = route.path
             if "{lang}" in path:
                 paths_to_add = []
-
-                # التعامل مع المسارات التي تحتوي متغيرات معروفة
                 if "{tab}" in path:
                     for tab in ["account", "integrations", "notifications", "billing", "security"]:
                         paths_to_add.append(path.replace("{tab}", tab))
@@ -1708,45 +575,36 @@ async def get_sitemap():
                 elif "{tool_id}" in path:
                     for tid in TOOLS_DB.keys():
                         paths_to_add.append(path.replace("{tool_id}", tid))
-                # إضافة المسارات الأساسية التي لا تحوي متغيرات إضافية سوى اللغة
                 elif "{" not in path.replace("{lang}", ""):
                     paths_to_add.append(path)
 
-                # توليد النسخ (عربي / انجليزي) وتسجيلها
                 for p in paths_to_add:
                     for lang in ["ar", "en"]:
                         final_path = p.replace("{lang}", lang)
                         loc = f"https://orgteh.com{final_path}"
                         if loc not in added_locs:
                             urls.append({
-                                "loc": loc, 
-                                "changefreq": "weekly" if "models" in loc or "accesory" in loc else "monthly", 
-                                "priority": "0.9" if "models" in loc else "0.8"
+                                "loc":        loc,
+                                "changefreq": "weekly" if "models" in loc or "accesory" in loc else "monthly",
+                                "priority":   "0.9" if "models" in loc else "0.8",
                             })
                             added_locs.add(loc)
 
     xml_content  = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     for url in urls:
-        xml_content += "  <url>\n"
-        xml_content += f"    <loc>{url['loc']}</loc>\n"
-        xml_content += f"    <lastmod>{today}</lastmod>\n"
-        xml_content += f"    <changefreq>{url['changefreq']}</changefreq>\n"
-        xml_content += f"    <priority>{url['priority']}</priority>\n"
-        xml_content += "  </url>\n"
+        xml_content += f'  <url>\n    <loc>{url["loc"]}</loc>\n    <lastmod>{today}</lastmod>\n'
+        xml_content += f'    <changefreq>{url["changefreq"]}</changefreq>\n    <priority>{url["priority"]}</priority>\n  </url>\n'
     xml_content += '</urlset>'
-
     return Response(content=xml_content, media_type="application/xml")
 
-# ─── SEO: مسار ملف الروبوتات ─────────────────────────────────────────────────
 
 @app.get("/robots.txt", include_in_schema=False)
 async def get_robots_txt():
     robots_path = BASE_DIR / "robots.txt"
     if robots_path.exists():
         return FileResponse(str(robots_path), media_type="text/plain")
-    fallback_content = "User-agent: *\nAllow: /\n"
-    return Response(content=fallback_content, media_type="text/plain")
+    return Response(content="User-agent: *\nAllow: /\n", media_type="text/plain")
 
 # ============================================================================
 # ENTRY POINT

@@ -1,1224 +1,2377 @@
-<script src="[https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js](https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js)"></script>
-<script src="[https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js](https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js)"></script>
-<script src="[https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js](https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js)"></script>
+<div style="display:none !important;"><iframe id="sandbox-frame"></iframe></div>
 
-<div style="display: none !important;">
-    <iframe id="sandbox-frame"></iframe>
-</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-    // ==========================================
-    // [1] GLOBAL RESOURCES & TRANSLATIONS
-    // ==========================================
-    const ideTranslations = {
-        en: {
-            welcome_title: "👋 Welcome to Orgteh Code",
-            welcome_desc: "Generate code snippets & applications instantly.",
-            input_placeholder: "Ask Orgteh to build something...",
-            tab_chat: "Chat",
-            tab_preview: "Preview",
-            no_preview: "Start building a project to be showcased here.",
-            analyzing: "Analyzing...",
-            download_files: "Download Project (ZIP)",
-            file_attached: "Files attached",
-            writing_files: "Writing files...",
-            thinking_process: "Thinking...",
-            thinking_finished: "Reasoning Completed",
-            verifying: "Verifying...",
-            menu_title: "Orgteh Options",
-            menu_models: "AI Models",
-            menu_tools: "Tools Library",
-            menu_github: "Deploy to GitHub",
-            menu_github_desc: "Publish your project to GitHub Pages",
-            select_model_desc: "Select the AI model for this project",
-            select_tool_desc: "Enable extra capabilities",
-            select_model_title: "Choose AI Model",
-            select_tool_title: "Select Tools",
-            edit_file: "Edit File",
-            ask_about_file: "Ask about this file",
-            download_file: "Download",
-            models: {
-                "deepseek-ai/deepseek-v3.2": { name: "DeepSeek V3.2", desc: "Best Architect. Excellent logic.", badge: "Recommended" },
-                "mistralai/mistral-large-3-675b-instruct-2512": { name: "Mistral Large 3", desc: "High precision & Documentation.", badge: "Stable" },
-                "moonshotai/kimi-k2-thinking": { name: "Kimi K2 thinking", desc: "Deep Reasoning capabilities.", badge: "Reasoning" },
-                "meta/llama-3.2-3b-instruct": { name: "Llama 3.2", desc: "Fast & Lightweight.", badge: "Fast" },
-                "google/gemma-3n-e4b-it": { name: "Gemma 3n", desc: "Balanced performance.", badge: "New" }
-            },
-            tools: {
-                "orgteh-finance-rss": { name: "Global Market Pulse", desc: "Real-time financial news." },
-                "orgteh-news-general": { name: "World News", desc: "Global news coverage." },
-                "orgteh-vision-ocr": { name: "OCR Vision", desc: "Extract text from images." },
-                "orgteh-semantic-embed": { name: "Semantic Core", desc: "Vector embeddings." },
-                "orgteh-web-scraper": { name: "Orgteh Web Extractor", desc: "Extract structured data from any web page." }
-            }
+// ════════════════════════════════════════════════════════════════════════
+//  [1] TRANSLATIONS — Complete AR + EN
+// ════════════════════════════════════════════════════════════════════════
+const ideTranslations = {
+    en: {
+        welcome_title: "👋 Welcome to Orgteh Code",
+        welcome_desc: "Generate code snippets & applications instantly.",
+        input_placeholder: "Ask Orgteh to build something...",
+        input_placeholder_v2: "🤖 Describe your project, the agent will plan & execute...",
+        tab_chat: "Chat",
+        tab_preview: "Preview",
+        no_preview: "Start building a project to be showcased here.",
+        analyzing: "Analyzing...",
+        download_files: "Download Project (ZIP)",
+        file_attached: "files attached",
+        writing_files: "Writing files...",
+        thinking_process: "Thinking...",
+        thinking_finished: "Reasoning Completed",
+        verifying: "Verifying...",
+        menu_title: "Orgteh Options",
+        menu_models: "AI Models",
+        menu_tools: "Tools Library",
+        menu_github: "Deploy / Import GitHub",
+        menu_github_desc: "Publish or import GitHub projects",
+        select_model_desc: "Select the AI model for this project",
+        select_tool_desc: "Enable extra capabilities",
+        select_model_title: "Choose AI Model",
+        select_model_note: "Optional — embedded in AI calls inside generated code",
+        select_tool_title: "Select Tools",
+        clear_model: "✕ Clear",
+        edit_file: "Edit File",
+        ask_about_file: "Ask about this file",
+        download_file: "Download",
+        ver_classic: "Classic",
+        ver_agent: "Agent",
+        ver_classic_desc: "Direct fast generation",
+        ver_agent_desc: "Plans, executes & tests automatically",
+        history_title: "History",
+        history_new: "New",
+        history_loading: "Loading...",
+        history_tab_classic: "Classic",
+        history_tab_agent: "Agent",
+        history_empty: "No history yet",
+        agent_session_title: "Agent Session",
+        agent_ready: "Ready",
+        mode_auto: "Auto",
+        mode_build: "Build",
+        mode_chat: "Chat",
+        models: {
+            "deepseek-ai/deepseek-v3.2": { name: "DeepSeek V3.2", desc: "Best Architect. Excellent logic.", badge: "Recommended" },
+            "mistralai/mistral-large-3-675b-instruct-2512": { name: "Mistral Large 3", desc: "High precision & Documentation.", badge: "Stable" },
+            "moonshotai/kimi-k2-thinking": { name: "Kimi K2 Thinking", desc: "Deep Reasoning capabilities.", badge: "Reasoning" },
+            "meta/llama-3.2-3b-instruct": { name: "Llama 3.2", desc: "Fast & Lightweight.", badge: "Fast" },
+            "google/gemma-3n-e4b-it": { name: "Gemma 3n", desc: "Balanced performance.", badge: "New" }
         },
-        ar: {
-            welcome_title: "👋 مرحباً بك في Orgteh Code",
-            welcome_desc: "توليد سريع للأكواد والنصوص للمهام اليومية.",
-            input_placeholder: "اطلب من Orgteh بناء مشروع...",
-            tab_chat: "المحادثة",
-            tab_preview: "المعاينة",
-            no_preview: ".ابدأ بناء مشروع ليتم عرضه هنا",
-            analyzing: "جاري التحليل...",
-            download_files: "تحميل المشروع (ZIP)",
-            file_attached: "ملفات مرفقة",
-            writing_files: "جاري كتابة الملفات...",
-            thinking_process: "جاري التفكير...",
-            thinking_finished: "تم الانتهاء من التفكير",
-            verifying: "جاري التحقق...",
-            menu_title: "خيارات Orgteh",
-            menu_models: "نماذج الذكاء",
-            menu_tools: "مكتبة الأدوات",
-            menu_github: "نشر في GitHub",
-            menu_github_desc: "انشر مشروعك على GitHub Pages",
-            select_model_desc: "اختر النموذج المناسب لمشروعك",
-            select_tool_desc: "قم بتفعيل الأدوات الإضافية",
-            select_model_title: "اختيار نموذج الذكاء",
-            select_tool_title: "اختيار الأدوات",
-            edit_file: "تعديل الملف",
-            ask_about_file: "استفسار عن الملف",
-            download_file: "تحميل",
-            models: {
-                "deepseek-ai/deepseek-v3.2": { name: "DeepSeek V3.2", desc: "المهندس الأفضل. ممتاز في المنطق.", badge: "موصى به" },
-                "mistralai/mistral-large-3-675b-instruct-2512": { name: "Mistral Large 3", desc: "دقة عالية وتوثيق ممتاز.", badge: "مستقر" },
-                "moonshotai/kimi-k2-thinking": { name: "Kimi K2 thinking", desc: "قدرات تفكير منطقي عميقة.", badge: "تفكير" },
-                "meta/llama-3.2-3b-instruct": { name: "Llama 3.2", desc: "سريع وخفيف للأكواد البسيطة.", badge: "سريع" },
-                "google/gemma-3n-e4b-it": { name: "Gemma 3n", desc: "أداء متوازن.", badge: "جديد" }
-            },
-            tools: {
-                "orgteh-finance-rss": { name: "نبض الأسواق المالية", desc: "أخبار مالية لحظية." },
-                "orgteh-news-general": { name: "أخبار العالم", desc: "تغطية شاملة للأخبار." },
-                "orgteh-vision-ocr": { name: "محرك الرؤية (OCR)", desc: "استخراج النصوص من الصور." },
-                "orgteh-semantic-embed": { name: "المحرك الدلالي", desc: "توليد متجهات للبحث." },
-                "orgteh-web-scraper": { name: "محرك استخراج الويب", desc: "استخراج بيانات منظمة من أي صفحة ويب." }
-            }
+        tools: {
+            "orgteh-finance-rss": { name: "Global Market Pulse", desc: "Real-time financial news." },
+            "orgteh-news-general": { name: "World News", desc: "Global news coverage." },
+            "orgteh-vision-ocr": { name: "OCR Vision", desc: "Extract text from images." },
+            "orgteh-semantic-embed": { name: "Semantic Core", desc: "Vector embeddings." },
+            "orgteh-web-scraper": { name: "Orgteh Web Extractor", desc: "Extract structured data from any web page." }
         }
-    };
+    },
+    ar: {
+        welcome_title: "👋 مرحباً بك في Orgteh Code",
+        welcome_desc: "توليد سريع للأكواد والتطبيقات بشكل فوري.",
+        input_placeholder: "اطلب من Orgteh بناء شيء...",
+        input_placeholder_v2: "🤖 اشرح المشروع وسيخطط الوكيل وينفذه تلقائياً...",
+        tab_chat: "المحادثة",
+        tab_preview: "المعاينة",
+        no_preview: "ابدأ بناء مشروع ليتم عرضه هنا.",
+        analyzing: "جاري التحليل...",
+        download_files: "تحميل المشروع (ZIP)",
+        file_attached: "ملفات مرفقة",
+        writing_files: "جاري كتابة الملفات...",
+        thinking_process: "جاري التفكير...",
+        thinking_finished: "تم الانتهاء من التفكير",
+        verifying: "جاري التحقق...",
+        menu_title: "خيارات Orgteh",
+        menu_models: "نماذج الذكاء",
+        menu_tools: "مكتبة الأدوات",
+        menu_github: "نشر / استيراد GitHub",
+        menu_github_desc: "انشر أو استورد مشاريع GitHub",
+        select_model_desc: "اختر النموذج المناسب لمشروعك",
+        select_tool_desc: "قم بتفعيل الأدوات الإضافية",
+        select_model_title: "اختيار نموذج الذكاء",
+        select_model_note: "اختياري — يُضمَّن في استدعاءات الذكاء داخل الكود المولَّد",
+        select_tool_title: "اختيار الأدوات",
+        clear_model: "✕ مسح",
+        edit_file: "تعديل الملف",
+        ask_about_file: "استفسار عن الملف",
+        download_file: "تحميل",
+        ver_classic: "كلاسيك",
+        ver_agent: "وكيل",
+        ver_classic_desc: "توليد مباشر وسريع",
+        ver_agent_desc: "يخطط وينفذ ويختبر تلقائياً",
+        history_title: "السجلات",
+        history_new: "جديد",
+        history_loading: "جاري التحميل...",
+        history_tab_classic: "كلاسيكي",
+        history_tab_agent: "وكيل",
+        history_empty: "لا توجد سجلات بعد",
+        agent_session_title: "جلسة الوكيل",
+        agent_ready: "جاهز",
+        mode_auto: "تلقائي",
+        mode_build: "البناء",
+        mode_chat: "محادثة",
+        models: {
+            "deepseek-ai/deepseek-v3.2": { name: "DeepSeek V3.2", desc: "المهندس الأفضل. ممتاز في المنطق.", badge: "موصى به" },
+            "mistralai/mistral-large-3-675b-instruct-2512": { name: "Mistral Large 3", desc: "دقة عالية وتوثيق ممتاز.", badge: "مستقر" },
+            "moonshotai/kimi-k2-thinking": { name: "Kimi K2 Thinking", desc: "قدرات تفكير منطقي عميقة.", badge: "تفكير" },
+            "meta/llama-3.2-3b-instruct": { name: "Llama 3.2", desc: "سريع وخفيف للأكواد البسيطة.", badge: "سريع" },
+            "google/gemma-3n-e4b-it": { name: "Gemma 3n", desc: "أداء متوازن.", badge: "جديد" }
+        },
+        tools: {
+            "orgteh-finance-rss": { name: "نبض الأسواق المالية", desc: "أخبار مالية لحظية." },
+            "orgteh-news-general": { name: "أخبار العالم", desc: "تغطية شاملة للأخبار." },
+            "orgteh-vision-ocr": { name: "محرك الرؤية (OCR)", desc: "استخراج النصوص من الصور." },
+            "orgteh-semantic-embed": { name: "المحرك الدلالي", desc: "توليد متجهات للبحث." },
+            "orgteh-web-scraper": { name: "محرك استخراج الويب", desc: "استخراج بيانات منظمة من أي صفحة ويب." }
+        }
+    }
+};
 
-    // --- [2] STATE MANAGEMENT ---
-    let chatHistory = [];
-    let currentFiles = {};
-    let filesBuffer = {}; 
-    let selectedItems = { models: [], tools: [] };
-    let isPreviewDirty = false;
-    let currentPreviewFile = "index.html";
+// ════════════════════════════════════════════════════════════════════════
+//  [2] GLOBAL STATE
+// ════════════════════════════════════════════════════════════════════════
+let chatHistory    = [];
+let currentFiles   = {};
+let filesBuffer    = {};
+let selectedItems  = { models: [], tools: [] };
+let isPreviewDirty = false;
+let currentPreviewFile = 'index.html';
+let currentMode    = 'auto';        // 'auto' | 'build' | 'chat'
+let currentVersion = 'v1';         // 'v1' | 'v2' — set early from HUB_MODE
+let activeAgentV2  = null;
 
-    // ── MODE STATE: 'auto' | 'build' | 'chat' ──────────────────────────
-    let currentMode = 'auto';
+// VERSION_INFO tooltip data
+const VERSION_INFO = {
+    v1: {
+        ar: { title: 'V1 — الوضع الكلاسيكي', items: ['⚡ توليد مباشر وسريع', '🔨 بناء أو محادثة', '📁 ملفات متعددة آنياً', '✅ مثالي للمشاريع البسيطة'] },
+        en: { title: 'V1 — Classic Mode',     items: ['⚡ Direct fast generation', '🔨 Build or chat', '📁 Multiple files at once', '✅ Best for simple projects'] }
+    },
+    v2: {
+        ar: { title: 'V2 — وضع الوكيل الذكي', items: ['🧠 يسأل ويخطط أولاً', '🔨 ينفذ مهمة مهمة', '🧪 يختبر الكود تلقائياً', '🛠 يصلح الأخطاء بذاتية', '💾 يحفظ الحالة تلقائياً'] },
+        en: { title: 'V2 — Intelligent Agent', items: ['🧠 Plans before building', '🔨 Executes task by task', '🧪 Tests code automatically', '🛠 Self-heals errors', '💾 Auto-saves state'] }
+    }
+};
 
-    // --- [3] INITIALIZATION & LOCALIZATION ---
-    document.addEventListener('DOMContentLoaded', () => {
-        const serverLang = (window.SERVER_LANG
-            || document.documentElement.getAttribute('lang')
-            || (location.pathname.startsWith('/ar/') ? 'ar' : location.pathname.startsWith('/en/') ? 'en' : null)
-            || localStorage.getItem('lang')
-            || 'ar');
-        localStorage.setItem('lang', serverLang);
-        document.documentElement.dir = serverLang === 'ar' ? 'rtl' : 'ltr';
-        document.documentElement.lang = serverLang;
+// ════════════════════════════════════════════════════════════════════════
+//  [3] HELPERS
+// ════════════════════════════════════════════════════════════════════════
+function getTrans() {
+    return ideTranslations[localStorage.getItem('lang') || 'ar'];
+}
 
-        applyIdeTranslations();
+function applyIdeTranslations() {
+    const lang = localStorage.getItem('lang') || 'ar';
+    const t = ideTranslations[lang];
 
-        const firstModelCard = document.querySelector('#model-list-container .option-card');
-        if (firstModelCard) {
-            const onclickAttr = firstModelCard.getAttribute('onclick');
-            const match = onclickAttr.match(/'([^']+)'/g);
-            if (match && match[1]) {
-                const modelId = match[1].replace(/'/g, "");
-                selectedItems.models = [modelId];
-                firstModelCard.classList.add('selected');
-                firstModelCard.querySelector('.check-icon').classList.remove('hidden');
-            }
+    document.querySelectorAll('[data-i18n-ide]').forEach(el => {
+        const key = el.getAttribute('data-i18n-ide');
+        if (t[key]) {
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.placeholder = t[key];
+            else el.innerHTML = t[key];
         }
     });
 
-    function getTrans() {
-        return ideTranslations[localStorage.getItem('lang') || 'ar'];
+    updateCardsContent('model-list-container', 'models', t.models);
+    updateCardsContent('tool-list-container', 'tools', t.tools);
+
+    // ── Welcome message — skip if V2 mode is active (V2 sets its own) ──
+    if (currentVersion === 'v2') return;
+
+    const welcomeContainer = document.getElementById('welcome-message-container');
+    if (chatHistory.length === 0 && welcomeContainer) {
+        welcomeContainer.innerHTML = `
+            <div class="msg-bubble msg-ai" style="width:100%">
+                <div class="p-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl shadow-lg">
+                    <h2 class="text-xl font-bold mb-2">${t.welcome_title}</h2>
+                    <p class="opacity-90 text-sm">${t.welcome_desc}</p>
+                </div>
+            </div>`;
     }
+}
 
-    function applyIdeTranslations() {
-        const lang = localStorage.getItem('lang') || 'ar';
-        const t = ideTranslations[lang];
-        document.querySelectorAll('[data-i18n-ide]').forEach(el => {
-            const key = el.getAttribute('data-i18n-ide');
-            if (t[key]) {
-                if(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.placeholder = t[key];
-                else el.innerHTML = t[key];
-            }
-        });
-        updateCardsContent('model-list-container', 'models', t.models);
-        updateCardsContent('tool-list-container', 'tools', t.tools);
-
-        const welcomeContainer = document.getElementById('welcome-message-container');
-        if (chatHistory.length === 0 && welcomeContainer) {
-            const title = t.welcome_title;
-            const desc = t.welcome_desc;
-            const gradient = "bg-gradient-to-r from-indigo-600 to-purple-600";
-            welcomeContainer.innerHTML = `
-                <div class="msg-bubble msg-ai" style="width: 100%">
-                    <div class="p-6 ${gradient} text-white rounded-2xl shadow-lg">
-                        <h2 class="text-xl font-bold mb-2">${title}</h2>
-                        <p class="opacity-90 text-sm">${desc}</p>
-                    </div>
-                </div>`;
-        }
-    }
-
-    function updateCardsContent(containerId, type, dataObj) {
-        const container = document.getElementById(containerId);
-        if(!container) return;
-        const cards = container.querySelectorAll('.option-card');
-        cards.forEach(card => {
-            const onclickStr = card.getAttribute('onclick');
-            if(!onclickStr) return;
-            const match = onclickStr.match(/selectItem\('[^']+',\s*'([^']+)'/);
-            if(match && match[1]) {
-                const id = match[1];
-                const info = dataObj[id];
-                if(info) {
-                    const nameEl = card.querySelector('.font-bold');
-                    if(nameEl) nameEl.innerText = info.name;
-                    const descEl = card.querySelector('.text-xs, .text-sm.text-gray-500'); 
-                    if(descEl) descEl.innerText = info.desc;
-                }
-            }
-        });
-    }
-
-    window.addEventListener('langChange', applyIdeTranslations);
-
-    // ══════════════════════════════════════════════════
-    // [MODE SELECTOR]
-    // ══════════════════════════════════════════════════
-    function toggleModeDropdown(e) {
-        e.stopPropagation();
-        var dd = document.getElementById('mode-dropdown');
-        if (dd) dd.classList.toggle('show');
-    }
-
-    function selectMode(mode, isManual) {
-        currentMode = mode;
-        if (isManual !== undefined) window._manualModeSet = isManual;
-
-        var icons = { auto: 'fa-wand-magic-sparkles', build: 'fa-hammer', chat: 'fa-comments' };
-        var labelsAr = { auto: 'تلقائي', build: 'البناء', chat: 'محادثة' };
-        var labelsEn = { auto: 'Auto', build: 'Build', chat: 'Chat' };
-        var colors   = { auto: '', build: 'mode-build', chat: 'mode-chat' };
-
-        var lang = localStorage.getItem('lang') || 'ar';
-        var iconEl  = document.getElementById('mode-icon');
-        var labelEl = document.getElementById('mode-label');
-        var btn     = document.getElementById('mode-btn');
-        var dd      = document.getElementById('mode-dropdown');
-
-        if (iconEl)  iconEl.className  = 'fa-solid ' + icons[mode];
-        if (labelEl) labelEl.textContent = (lang === 'ar') ? labelsAr[mode] : labelsEn[mode];
-        if (btn)     btn.className = 'mode-btn ' + colors[mode];
-        if (dd)      dd.classList.remove('show');
-
-        ['auto','build','chat'].forEach(function(m) {
-            var opt = document.getElementById('mode-opt-' + m);
-            if (opt) opt.classList.toggle('active', m === mode);
-        });
-
-        var input = document.getElementById('prompt-input');
-        if (input) {
-            if (mode === 'build') {
-                input.placeholder = (lang === 'ar') ? 'اطلب من Orgteh بناء مشروع...' : 'Ask Orgteh to build something...';
-            } else if (mode === 'chat') {
-                input.placeholder = (lang === 'ar') ? 'استفسر أو اطرح سؤالك...' : 'Ask a question or discuss...';
-            } else {
-                var t = getTrans();
-                input.placeholder = t.input_placeholder || 'Ask Orgteh...';
-            }
-        }
-    }
-
-    document.addEventListener('click', function(evt) {
-        var wrapper = document.querySelector('.mode-toggle-wrapper');
-        if (wrapper && !wrapper.contains(evt.target)) {
-            var dd = document.getElementById('mode-dropdown');
-            if (dd) dd.classList.remove('show');
+function updateCardsContent(containerId, type, dataObj) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.querySelectorAll('.option-card').forEach(card => {
+        const m = (card.getAttribute('onclick') || '').match(/selectItem\('[^']+',\s*'([^']+)'/);
+        if (m && dataObj[m[1]]) {
+            const info = dataObj[m[1]];
+            const nameEl = card.querySelector('.font-bold');
+            if (nameEl) nameEl.innerText = info.name;
+            const descEl = card.querySelector('.text-xs, .text-sm.text-gray-500');
+            if (descEl) descEl.innerText = info.desc;
         }
     });
+}
 
-    // ══════════════════════════════════════════════════
-    // [4] MAIN CHAT HANDLER
-    // ══════════════════════════════════════════════════
-    async function sendMessage() {
-        var input    = document.getElementById('prompt-input');
-        var fileInput = document.getElementById('file-input');
-        let text = input.value.trim();
-        if (!text && fileInput.files.length === 0) return;
+window.addEventListener('langChange', applyIdeTranslations);
 
-        if (window.event) window.event.preventDefault();
+// ════════════════════════════════════════════════════════════════════════
+//  [4] INITIALIZATION
+// ════════════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    const serverLang = (window.SERVER_LANG
+        || document.documentElement.getAttribute('lang')
+        || (location.pathname.startsWith('/ar/') ? 'ar' : location.pathname.startsWith('/en/') ? 'en' : null)
+        || localStorage.getItem('lang')
+        || 'ar');
+    localStorage.setItem('lang', serverLang);
+    document.documentElement.dir  = serverLang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = serverLang;
 
-        var t = getTrans();
+    // ── Set currentVersion FIRST from server-side HUB_MODE ──
+    currentVersion = (window.HUB_MODE === 'agent') ? 'v2' : 'v1';
 
-        var resolvedMode = currentMode;
+    // ── Apply V1 translations (skips welcome in V2) ──
+    applyIdeTranslations();
 
-        if (window._pendingFileContext) {
-            var fc = window._pendingFileContext;
-            text = text + '\n\n[File context: ' + fc.name + ']\n' + fc.content;
-            resolvedMode = 'chat';
-            clearFloatingChipSilent();
-        }
+    // ── Initialize version UI buttons ──
+    _initVerBtn();
 
-        let displayMsg = input.value.trim().replace(/\n/g, '<br>');
-        if (fileInput.files.length > 0) {
-            displayMsg += '<div class="text-xs opacity-70 mt-1"><i class="fa-solid fa-paperclip"></i> ' + fileInput.files.length + ' ' + t.file_attached + '</div>';
-        }
+    // ── If V2 mode, apply V2 UI overrides ──
+    if (currentVersion === 'v2') {
+        _applyVersionUI('v2');
+    }
+});
 
-        addMessageUI('user', displayMsg);
-        chatHistory.push({ role: 'user', content: text });
-        input.value = ''; input.style.height = 'auto';
-        filesBuffer = {};
-        isPreviewDirty = true;
-        switchView('chat');
+// ════════════════════════════════════════════════════════════════════════
+//  [5] MODE SELECTOR
+// ════════════════════════════════════════════════════════════════════════
+function toggleHeaderModeDropdown(e) {
+    e.stopPropagation();
+    const dd = document.getElementById('header-mode-dropdown');
+    if (dd) dd.classList.toggle('show');
+}
 
-        if (resolvedMode === 'chat') {
-            await handleChatStream(text, fileInput.files);
+function selectMode(mode, isManual) {
+    currentMode = mode;
+    if (isManual !== undefined) window._manualModeSet = isManual;
+
+    const icons    = { auto: 'fa-wand-magic-sparkles', build: 'fa-hammer', chat: 'fa-comments' };
+    const lang     = localStorage.getItem('lang') || 'ar';
+    const t        = getTrans();
+    const labelsKey = { auto: 'mode_auto', build: 'mode_build', chat: 'mode_chat' };
+
+    // Header mode button
+    const hi = document.getElementById('header-mode-icon');
+    const hl = document.getElementById('header-mode-label');
+    const hb = document.getElementById('header-mode-btn');
+    const hd = document.getElementById('header-mode-dropdown');
+    if (hi) hi.className = 'fa-solid ' + icons[mode];
+    if (hl) hl.textContent = t[labelsKey[mode]] || mode;
+    if (hb) hb.className = 'header-mode-btn' + (mode === 'build' ? ' mode-build' : mode === 'chat' ? ' mode-chat' : '');
+    if (hd) hd.classList.remove('show');
+
+    // Update active state in dropdown options
+    ['auto', 'build', 'chat'].forEach(m => {
+        const opt = document.getElementById('hmode-opt-' + m);
+        if (opt) opt.classList.toggle('active', m === mode);
+    });
+
+    // Update placeholder
+    const input = document.getElementById('prompt-input');
+    if (input) {
+        if (currentVersion === 'v2') {
+            input.placeholder = t.input_placeholder_v2;
+        } else if (mode === 'build') {
+            input.placeholder = lang === 'ar' ? 'اطلب من Orgteh بناء مشروع...' : 'Ask Orgteh to build something...';
+        } else if (mode === 'chat') {
+            input.placeholder = lang === 'ar' ? 'استفسر أو اطرح سؤالك...' : 'Ask a question or discuss...';
         } else {
-            await handleV1Stream(text, fileInput.files, resolvedMode);
+            input.placeholder = t.input_placeholder;
         }
+    }
+}
 
-        fileInput.value = '';
-        updateFileBadge();
+document.addEventListener('click', function(evt) {
+    const hd = document.getElementById('header-mode-dropdown');
+    if (hd) hd.classList.remove('show');
+    const vd = document.getElementById('ver-dropdown');
+    if (vd) vd.classList.remove('show');
+    const modeWrapper = document.querySelector('.mode-toggle-wrapper');
+    if (modeWrapper && !modeWrapper.contains(evt.target)) {
+        const dd = document.getElementById('mode-dropdown');
+        if (dd) dd.classList.remove('show');
+    }
+});
+
+// ════════════════════════════════════════════════════════════════════════
+//  [6] VERSION SWITCHER
+// ════════════════════════════════════════════════════════════════════════
+
+/** Reload page with ?mode= param — single source of truth */
+window.switchVersion = function(v) {
+    const url  = new URL(window.location.href);
+    const mode = (v === 'v2') ? 'agent' : 'classic';
+    if (url.searchParams.get('mode') === mode) { window.closeVerDropdown(); return; }
+    url.searchParams.set('mode', mode);
+    window.location.href = url.toString();
+};
+
+window.toggleVerDropdown = function(ev) {
+    ev.stopPropagation();
+    const d = document.getElementById('ver-dropdown');
+    if (d) d.classList.toggle('show');
+};
+window.closeVerDropdown = function() {
+    const d = document.getElementById('ver-dropdown');
+    if (d) d.classList.remove('show');
+};
+
+/** Apply V2 UI changes WITHOUT reload (called after init) */
+function _applyVersionUI(v) {
+    currentVersion = v;
+    const lang = localStorage.getItem('lang') || 'ar';
+    const t    = getTrans();
+
+    // Placeholder
+    const input = document.getElementById('prompt-input');
+    if (input) {
+        input.placeholder = v === 'v2' ? t.input_placeholder_v2 : t.input_placeholder;
     }
 
-    async function handleV1Stream(text, files, mode) {
-        mode = mode || 'build';
-        var feed = document.getElementById('chat-container');
-        var t    = getTrans();
+    // V2-only elements
+    const sessionsBtn = document.getElementById('agent-sessions-btn');
+    const titleBar    = document.getElementById('agent-session-title-bar');
+    const idleLayout  = document.getElementById('ide-layout');
+    if (sessionsBtn) sessionsBtn.classList.toggle('hidden', v !== 'v2');
+    if (titleBar)    titleBar.classList.toggle('hidden', v !== 'v2');
+    if (idleLayout)  idleLayout.classList.toggle('v2-mode', v === 'v2');
 
-        var formData = new FormData();
-        formData.append('instruction', text);
-        var targetModel = selectedItems.models.length > 0
-            ? selectedItems.models[0]
-            : 'deepseek-ai/deepseek-v3.2';
-        formData.append('target_model', targetModel);
-        formData.append('target_tools', selectedItems.tools.join(','));
-        formData.append('chat_history', JSON.stringify(chatHistory));
-        formData.append('current_files', JSON.stringify(currentFiles));
-        formData.append('chat_mode', mode);
-        for (var fi = 0; fi < files.length; fi++) formData.append('files', files[fi]);
+    // Update phase badge text
+    const badge = document.getElementById('agent-phase-badge');
+    if (badge) badge.textContent = v === 'v2' ? (lang === 'ar' ? 'جاهز' : 'Ready') : '';
 
-        var row = document.createElement('div');
-        row.className = 'msg-row ai v1-msg-row';
-        row.innerHTML =
-            '<div class="msg-bubble msg-ai" style="width:100%">' +
-                '<div class="thinking-wrapper open">' +
-                    '<div class="thinking-header" onclick="toggleThinking(this)">' +
-                        '<i class="fa-solid fa-circle-notch fa-spin"></i> ' + t.thinking_process +
-                    '</div>' +
-                    '<div class="thinking-body"></div>' +
+    // Welcome message
+    const welcome = document.getElementById('welcome-message-container');
+    if (welcome && chatHistory.length === 0) {
+        if (v === 'v2') {
+            welcome.innerHTML = `
+            <div class="msg-bubble msg-ai" style="width:100%;padding:0;">
+                <div style="padding:12px 14px;border-radius:12px;border:1px solid rgba(99,102,241,.2);background:rgba(99,102,241,.04);">
+                    <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;">
+                        <i class="fa-solid fa-robot" style="color:#818cf8;font-size:13px;"></i>
+                        <span style="font-size:12px;font-weight:700;color:#a5b4fc;">${lang==='ar'?'وضع الوكيل — Agent Mode':'Agent Mode'}</span>
+                        <span style="font-size:9px;padding:1px 6px;border-radius:99px;background:rgba(99,102,241,.2);color:#818cf8;">V2</span>
+                    </div>
+                    <p style="font-size:11px;color:#64748b;margin:0;line-height:1.6;">
+                        ${lang==='ar'
+                            ? 'يحلل طلبك، يضع خطة تنفيذ تلقائية، ثم يبني كل ملف على حدة مع اختبار ذاتي وإصلاح الأخطاء.'
+                            : 'Analyzes your request, creates an execution plan, then builds each file independently with self-testing and error fixing.'}
+                    </p>
+                </div>
+            </div>`;
+        } else {
+            applyIdeTranslations(); // restore V1 welcome
+        }
+    }
+}
+// expose for backward compat
+window._applyVersion = _applyVersionUI;
+
+/** Initialize version buttons from HUB_MODE */
+function _initVerBtn() {
+    const v    = (window.HUB_MODE === 'agent') ? 'v2' : 'v1';
+    const lang = localStorage.getItem('lang') || 'ar';
+    const t    = getTrans();
+    const e    = id => document.getElementById(id);
+
+    // Bottom ver-btn
+    const btn = e('ver-btn'), lbl = e('ver-label'), ico = e('ver-icon');
+    if (btn) btn.classList.toggle('agent', v === 'v2');
+    if (lbl) lbl.textContent = v === 'v2' ? t.ver_agent : t.ver_classic;
+    if (ico) ico.className = v === 'v2' ? 'fa-solid fa-robot' : 'fa-solid fa-bolt';
+
+    const o1 = e('ver-opt-v1'), o2 = e('ver-opt-v2');
+    if (o1) o1.classList.toggle('active', v === 'v1');
+    if (o2) o2.classList.toggle('active', v === 'v2');
+
+    const t1 = e('ver-v1-title'), d1 = e('ver-v1-desc'),
+          t2 = e('ver-v2-title'), d2 = e('ver-v2-desc');
+    if (t1) t1.textContent = t.ver_classic;
+    if (d1) d1.textContent = t.ver_classic_desc;
+    if (t2) t2.textContent = t.ver_agent;
+    if (d2) d2.textContent = t.ver_agent_desc;
+
+    // Header mode label
+    const hml = e('header-mode-label');
+    if (hml) hml.textContent = t.mode_auto;
+
+    // Agent session title
+    const ast = e('agent-session-title');
+    if (ast) ast.textContent = t.agent_session_title;
+
+    // History button always visible
+    const hBtn = e('hub-history-btn');
+    if (hBtn) hBtn.classList.remove('hidden');
+
+    // V2-only elements
+    const bar  = e('agent-session-title-bar');
+    const sBtn = e('agent-sessions-btn');
+    if (bar)  bar.classList.toggle('hidden', v !== 'v2');
+    if (sBtn) sBtn.classList.toggle('hidden', v !== 'v2');
+}
+window._syncVersionBtns = _initVerBtn;
+
+// ════════════════════════════════════════════════════════════════════════
+//  [7] MAIN CHAT HANDLER (V1)
+// ════════════════════════════════════════════════════════════════════════
+async function sendMessage() {
+    // Redirect to V2 handler if in agent mode
+    if (currentVersion === 'v2') {
+        return _sendMessageV2();
+    }
+
+    const input     = document.getElementById('prompt-input');
+    const fileInput = document.getElementById('file-input');
+    let text = input.value.trim();
+    if (!text && fileInput.files.length === 0) return;
+    if (window.event) window.event.preventDefault();
+
+    const t = getTrans();
+    let resolvedMode = currentMode;
+
+    if (window._pendingFileContext) {
+        const fc = window._pendingFileContext;
+        text = text + '\n\n[File context: ' + fc.name + ']\n' + fc.content;
+        resolvedMode = 'chat';
+        clearFloatingChipSilent();
+    }
+
+    let displayMsg = input.value.trim().replace(/\n/g, '<br>');
+    if (fileInput.files.length > 0) {
+        displayMsg += `<div class="text-xs opacity-70 mt-1"><i class="fa-solid fa-paperclip"></i> ${fileInput.files.length} ${t.file_attached}</div>`;
+    }
+
+    addMessageUI('user', displayMsg);
+    chatHistory.push({ role: 'user', content: text });
+    input.value = ''; input.style.height = 'auto';
+    filesBuffer = {};
+    isPreviewDirty = true;
+    switchView('chat');
+
+    if (resolvedMode === 'chat') {
+        await handleChatStream(text, fileInput.files);
+    } else {
+        await handleV1Stream(text, fileInput.files, resolvedMode);
+    }
+
+    fileInput.value = '';
+    updateFileBadge();
+    if (typeof window._scheduleV1Save === 'function') window._scheduleV1Save();
+}
+window.sendMessage = sendMessage;
+
+async function handleV1Stream(text, files, mode) {
+    mode = mode || 'build';
+    const feed = document.getElementById('chat-container');
+    const t    = getTrans();
+
+    const formData = new FormData();
+    formData.append('instruction', text);
+    const targetModel = selectedItems.models.length > 0 ? selectedItems.models[0] : '';
+    formData.append('target_model', targetModel);
+    formData.append('target_tools', selectedItems.tools.join(','));
+    formData.append('chat_history', JSON.stringify(chatHistory));
+    formData.append('current_files', JSON.stringify(currentFiles));
+    formData.append('chat_mode', mode);
+    for (let i = 0; i < files.length; i++) formData.append('files', files[i]);
+
+    const row = document.createElement('div');
+    row.className = 'msg-row ai v1-msg-row';
+    row.innerHTML =
+        '<div class="msg-bubble msg-ai" style="width:100%">' +
+            '<div class="thinking-wrapper open">' +
+                '<div class="thinking-header" onclick="toggleThinking(this)">' +
+                    '<i class="fa-solid fa-circle-notch fa-spin"></i> ' + t.thinking_process +
                 '</div>' +
-                '<div class="progress-container hidden"><div class="progress-track"><div class="progress-fill"></div></div></div>' +
-                '<div class="file-artifacts mt-2 pl-1"></div>' +
-                '<div class="chat-response-bubble" style="display:none;"></div>' +
-            '</div>';
-        feed.appendChild(row);
-        feed.scrollTop = feed.scrollHeight;
+                '<div class="thinking-body"></div>' +
+            '</div>' +
+            '<div class="progress-container hidden"><div class="progress-track"><div class="progress-fill"></div></div></div>' +
+            '<div class="file-artifacts mt-2 pl-1"></div>' +
+            '<div class="chat-response-bubble" style="display:none;"></div>' +
+        '</div>';
+    feed.appendChild(row);
+    feed.scrollTop = feed.scrollHeight;
 
-        var thinkWrapper = row.querySelector('.thinking-wrapper');
-        var thinkHeader  = row.querySelector('.thinking-header');
-        var thinkBody    = row.querySelector('.thinking-body');
-        var progressBox  = row.querySelector('.progress-container');
-        var progressFill = row.querySelector('.progress-fill');
-        var chatBubble   = row.querySelector('.chat-response-bubble');
+    const thinkWrapper = row.querySelector('.thinking-wrapper');
+    const thinkHeader  = row.querySelector('.thinking-header');
+    const thinkBody    = row.querySelector('.thinking-body');
+    const progressBox  = row.querySelector('.progress-container');
+    const progressFill = row.querySelector('.progress-fill');
+    const chatBubble   = row.querySelector('.chat-response-bubble');
 
-        var fullText     = '';
-        var thinkingDone = false;
-        var renderPath   = null;
+    let fullText = '', thinkingDone = false, renderPath = null;
 
-        function markThinkingDone() {
-            if (thinkingDone) return;
-            thinkingDone = true;
-            thinkWrapper.classList.add('done');
-            thinkWrapper.classList.remove('open');
-            thinkHeader.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i> ' + t.thinking_finished;
+    function markThinkingDone() {
+        if (thinkingDone) return;
+        thinkingDone = true;
+        thinkWrapper.classList.add('done');
+        thinkWrapper.classList.remove('open');
+        thinkHeader.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i> ' + t.thinking_finished;
+    }
+
+    try {
+        const response = await fetch('/api/process-code', { method: 'POST', body: formData });
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop();
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                let data;
+                try { data = JSON.parse(line); } catch { continue; }
+
+                if (data.type === 'thinking') { thinkBody.innerText += data.content; feed.scrollTop = feed.scrollHeight; continue; }
+                if (data.type !== 'code') continue;
+
+                fullText += data.content;
+
+                if (renderPath === null) {
+                    markThinkingDone();
+                    const trimmed = fullText.trimStart();
+                    if (mode === 'build' || trimmed.startsWith('###')) {
+                        renderPath = 'build';
+                        progressBox.classList.remove('hidden');
+                    } else {
+                        renderPath = 'chat';
+                        chatBubble.style.display = 'block';
+                    }
+                }
+
+                if (renderPath === 'chat') {
+                    chatBubble.innerHTML = chatMarkdown(fullText);
+                } else {
+                    progressFill.style.width = Math.min(30 + (fullText.length / 100), 95) + '%';
+                }
+                feed.scrollTop = feed.scrollHeight;
+            }
         }
 
-        try {
-            var response = await fetch('/api/process-code', { method: 'POST', body: formData });
-            var reader   = response.body.getReader();
-            var decoder  = new TextDecoder();
-            var buf = '';
+        markThinkingDone();
 
-            while (true) {
-                var rd = await reader.read();
-                if (rd.done) break;
-                buf += decoder.decode(rd.value, { stream: true });
-                var lines = buf.split('\n');
-                buf = lines.pop();
-
-                for (var i = 0; i < lines.length; i++) {
-                    var line = lines[i];
-                    if (!line.trim()) continue;
-                    var data;
-                    try { data = JSON.parse(line); } catch(pe) { continue; }
-
-                    if (data.type === 'thinking') {
-                        thinkBody.innerText += data.content;
-                        feed.scrollTop = feed.scrollHeight;
-                        continue;
-                    }
-                    if (data.type !== 'code') continue;
-
-                    fullText += data.content;
-
-                    if (renderPath === null) {
-                        markThinkingDone();
-                        var trimmed = fullText.trimStart();
-                        if (mode === 'build' || trimmed.startsWith('###')) {
-                            renderPath = 'build';
-                            progressBox.classList.remove('hidden');
-                        } else {
-                            renderPath = 'chat';
-                            chatBubble.style.display = 'block';
-                        }
-                    }
-
-                    if (renderPath === 'chat') {
-                        chatBubble.innerHTML = chatMarkdown(fullText);
-                    } else {
-                        // Dynamic Progress Bar updates
-                        let currentProgress = Math.min(30 + (fullText.length / 100), 95);
-                        progressFill.style.width = currentProgress + '%';
-                    }
-                    feed.scrollTop = feed.scrollHeight;
-                }
-            }
-
-            markThinkingDone();
-
-            if (renderPath === 'build' || (mode === 'build' && renderPath === null)) {
-                progressFill.style.width = '100%';
-                if (fullText.trim()) {
-                    var newFiles = parseFilesStrict(fullText);
-                    if (Object.keys(newFiles).length > 0) {
-                        Object.assign(currentFiles, newFiles);
-                        updateCurrentPreviewFile(newFiles);
-                        chatHistory.push({ role: 'assistant', content: fullText });
-                        Object.keys(newFiles).forEach(function(f) { renderArtifactBadge(row, f); });
-                        renderDownloadAllBtn(row);
-                        isPreviewDirty = false;
-                        renderPreview(currentPreviewFile);
-                    } else {
-                        chatBubble.style.display = 'block';
-                        chatBubble.innerHTML = chatMarkdown(fullText);
-                        chatHistory.push({ role: 'assistant', content: fullText });
-                        progressBox.classList.add('hidden');
-                    }
-                }
-            } else {
-                if (fullText.trim()) {
+        if (renderPath === 'build' || (mode === 'build' && renderPath === null)) {
+            progressFill.style.width = '100%';
+            if (fullText.trim()) {
+                const newFiles = parseFilesStrict(fullText);
+                if (Object.keys(newFiles).length > 0) {
+                    Object.assign(currentFiles, newFiles);
+                    updateCurrentPreviewFile(newFiles);
+                    chatHistory.push({ role: 'assistant', content: fullText });
+                    Object.keys(newFiles).forEach(f => renderArtifactBadge(row, f));
+                    renderDownloadAllBtn(row);
+                    isPreviewDirty = false;
+                    renderPreview(currentPreviewFile);
+                } else {
                     chatBubble.style.display = 'block';
                     chatBubble.innerHTML = chatMarkdown(fullText);
                     chatHistory.push({ role: 'assistant', content: fullText });
+                    progressBox.classList.add('hidden');
                 }
             }
-
-        } catch(e) {
-            markThinkingDone();
-            chatBubble.style.display = 'block';
-            chatBubble.innerHTML = '<span style="color:#ef4444">Error: ' + e.message + '</span>';
+        } else {
+            if (fullText.trim()) {
+                chatBubble.style.display = 'block';
+                chatBubble.innerHTML = chatMarkdown(fullText);
+                chatHistory.push({ role: 'assistant', content: fullText });
+            }
         }
+    } catch(e) {
+        markThinkingDone();
+        chatBubble.style.display = 'block';
+        chatBubble.innerHTML = '<span style="color:#ef4444">Error: ' + e.message + '</span>';
     }
+}
 
-    function parseFilesStrict(text) {
-        var cleanText = text.replace(/```\w+\n/g, '').replace(/```/g, '');
-        var regex = /###\s*([\w\.\-\/]+)(?:\s*###)?\s*\n([\s\S]*?)(?=###\s*[\w\.\-\/]|$)/g;
-        var match;
-        var files = {};
-        while ((match = regex.exec(cleanText)) !== null) {
-            var name    = match[1].trim();
-            var content = match[2].trim();
-            if (name && content) files[name] = content;
-        }
-        return files;
-    }
+async function handleChatStream(text, files, forceMode) {
+    const feed = document.getElementById('chat-container');
+    const t = getTrans();
 
-    function updateCurrentPreviewFile(newFiles) {
-        var allHtml = Object.keys(currentFiles).filter(function(f) { return f.endsWith('.html'); });
-        if (allHtml.length === 0) return; 
-
-        var newHtml = Object.keys(newFiles).filter(function(f) { return f.endsWith('.html'); });
-        var pool = newHtml.length > 0 ? newHtml : allHtml;
-
-        var best = pool.find(function(f) { return f.replace(/.*\//, '').toLowerCase() === 'index.html'; })
-            || pool.find(function(f) { return f.toLowerCase().includes('index'); })
-            || pool.find(function(f) { return f.toLowerCase().includes('home'); })
-            || pool[0];
-
-        if (best) {
-            currentPreviewFile = best;
-            console.log('[Preview] currentPreviewFile updated to:', best);
-        }
-    }
-
-    async function handleChatStream(text, files) {
-        const feed = document.getElementById('chat-container');
-        const t = getTrans();
-
-        const row = document.createElement('div');
-        row.className = 'msg-row ai';
-        row.innerHTML =
-            '<div class="msg-bubble msg-ai" style="width:100%">' +
-                '<div class="thinking-wrapper open" id="chat-thinking-tmp">' +
-                    '<div class="thinking-header" onclick="toggleThinking(this)">' +
-                        '<i class="fa-solid fa-circle-notch fa-spin"></i> ' + t.thinking_process +
-                    '</div>' +
-                    '<div class="thinking-body"></div>' +
+    const row = document.createElement('div');
+    row.className = 'msg-row ai';
+    row.innerHTML =
+        '<div class="msg-bubble msg-ai" style="width:100%">' +
+            '<div class="thinking-wrapper open">' +
+                '<div class="thinking-header" onclick="toggleThinking(this)">' +
+                    '<i class="fa-solid fa-circle-notch fa-spin"></i> ' + t.thinking_process +
                 '</div>' +
-                '<div class="chat-response-bubble" style="display:none;"></div>' +
-            '</div>';
-        feed.appendChild(row);
-        feed.scrollTop = feed.scrollHeight;
+                '<div class="thinking-body"></div>' +
+            '</div>' +
+            '<div class="chat-response-bubble" style="display:none;"></div>' +
+        '</div>';
+    feed.appendChild(row);
+    feed.scrollTop = feed.scrollHeight;
 
-        const thinkWrapper = row.querySelector('.thinking-wrapper');
-        const thinkHeader  = row.querySelector('.thinking-header');
-        const thinkBody    = row.querySelector('.thinking-body');
-        const respBubble   = row.querySelector('.chat-response-bubble');
+    const thinkWrapper = row.querySelector('.thinking-wrapper');
+    const thinkHeader  = row.querySelector('.thinking-header');
+    const thinkBody    = row.querySelector('.thinking-body');
+    const respBubble   = row.querySelector('.chat-response-bubble');
 
-        const formData = new FormData();
-        formData.append('instruction', text);
-        const targetModel = selectedItems.models.length > 0 ? selectedItems.models[0] : 'deepseek-ai/deepseek-v3.2';
-        formData.append('target_model', targetModel);
-        formData.append('target_tools', selectedItems.tools.join(','));
-        formData.append('chat_history', JSON.stringify(chatHistory));
-        formData.append('current_files', JSON.stringify(currentFiles));
-        formData.append('chat_mode', 'chat');
-        for (let f of files) formData.append('files', f);
+    const formData = new FormData();
+    formData.append('instruction', text);
+    const targetModel = selectedItems.models.length > 0 ? selectedItems.models[0] : 'deepseek-ai/deepseek-v3.2';
+    formData.append('target_model', targetModel);
+    formData.append('target_tools', selectedItems.tools.join(','));
+    formData.append('chat_history', JSON.stringify(chatHistory));
+    formData.append('current_files', JSON.stringify(currentFiles));
+    formData.append('chat_mode', forceMode || 'chat');
+    for (const f of files) formData.append('files', f);
 
-        let fullText = '';
-        let thinkingDone = false;
+    let fullText = '', thinkingDone = false;
 
-        try {
-            const response = await fetch('/api/process-code', { method: 'POST', body: formData });
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buf = '';
+    try {
+        const response = await fetch('/api/process-code', { method: 'POST', body: formData });
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                buf += decoder.decode(value, { stream: true });
-                const lines = buf.split('\n');
-                buf = lines.pop();
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    try {
-                        const data = JSON.parse(line);
-                        if (data.type === 'thinking') {
-                            thinkBody.innerText += data.content;
-                            feed.scrollTop = feed.scrollHeight;
-                        } else if (data.type === 'code') {
-                            if (!thinkingDone) {
-                                thinkingDone = true;
-                                thinkWrapper.classList.add('done');
-                                thinkWrapper.classList.remove('open');
-                                thinkHeader.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i> ' + t.thinking_finished;
-                                respBubble.style.display = 'block';
-                            }
-                            fullText += data.content;
-                            respBubble.innerHTML = chatMarkdown(fullText);
-                            feed.scrollTop = feed.scrollHeight;
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop();
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const data = JSON.parse(line);
+                    if (data.type === 'thinking') {
+                        thinkBody.innerText += data.content;
+                        feed.scrollTop = feed.scrollHeight;
+                    } else if (data.type === 'code') {
+                        if (!thinkingDone) {
+                            thinkingDone = true;
+                            thinkWrapper.classList.add('done');
+                            thinkWrapper.classList.remove('open');
+                            thinkHeader.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i> ' + t.thinking_finished;
+                            respBubble.style.display = 'block';
                         }
-                    } catch(e2) {}
-                }
+                        fullText += data.content;
+                        respBubble.innerHTML = chatMarkdown(fullText);
+                        feed.scrollTop = feed.scrollHeight;
+                    }
+                } catch {}
             }
-        } catch(e) {
-            respBubble.style.display = 'block';
-            respBubble.innerHTML = '<span style="color:#ef4444">Error: ' + e.message + '</span>';
         }
-
-        if (!thinkingDone) {
-            thinkWrapper.classList.add('done');
-            thinkWrapper.classList.remove('open');
-            thinkHeader.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i> ' + t.thinking_finished;
-        }
-        if (fullText) {
-            respBubble.style.display = 'block';
-            respBubble.innerHTML = chatMarkdown(fullText);
-            chatHistory.push({ role: 'assistant', content: fullText });
-        }
+    } catch(e) {
+        respBubble.style.display = 'block';
+        respBubble.innerHTML = '<span style="color:#ef4444">Error: ' + e.message + '</span>';
     }
 
-    function chatMarkdown(text) {
-        var html = text.replace(/```(\w*)\n?([\s\S]*?)```/g, function(_, lang, code) {
-            return '<pre><code>' + code.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</code></pre>';
-        });
-        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-        html = html.replace(/\n/g, '<br>');
-        return html;
+    if (!thinkingDone) {
+        thinkWrapper.classList.add('done');
+        thinkWrapper.classList.remove('open');
+        thinkHeader.innerHTML = '<i class="fa-solid fa-circle-check text-green-500"></i> ' + getTrans().thinking_finished;
     }
-
-    function toggleThinking(el) {
-        const wrapper = el.closest('.thinking-wrapper');
-        if (wrapper) wrapper.classList.toggle('open');
+    if (fullText) {
+        respBubble.style.display = 'block';
+        respBubble.innerHTML = chatMarkdown(fullText);
+        chatHistory.push({ role: 'assistant', content: fullText });
     }
+}
 
-    function addMessageUI(role, html) {
-        const feed = document.getElementById('chat-container');
-        const row = document.createElement('div');
-        row.className = `msg-row ${role}`;
-        row.innerHTML = `<div class="msg-bubble msg-${role}">${html}</div>`;
-        feed.appendChild(row);
-        feed.scrollTop = feed.scrollHeight;
+// ════════════════════════════════════════════════════════════════════════
+//  [8] UTILITIES
+// ════════════════════════════════════════════════════════════════════════
+function parseFilesStrict(text) {
+    const cleanText = text.replace(/```\w*\n/g, '').replace(/```/g, '');
+    const regex = /###\s*([\w\.\-\/]+)(?:\s*###)?\s*\n([\s\S]*?)(?=###\s*[\w\.\-\/]|$)/g;
+    let match, files = {};
+    while ((match = regex.exec(cleanText)) !== null) {
+        const name = match[1].trim(), content = match[2].trim();
+        if (name && content) files[name] = content;
     }
+    return files;
+}
 
-    function createAIContainer(type) {
-        const feed = document.getElementById('chat-container');
-        const row = document.createElement('div');
-        row.className = `msg-row ai ${type}-msg-row`;
-        const t = getTrans();
-        row.innerHTML = `
-            <div class="msg-bubble msg-ai" style="width: 100%">
-                 <div class="thinking-wrapper open">
-                    <div class="thinking-header" onclick="toggleThinking(this)">
-                        <i class="fa-solid fa-circle-notch fa-spin"></i> ${t.thinking_process}
+function updateCurrentPreviewFile(newFiles) {
+    const allHtml = Object.keys(currentFiles).filter(f => f.endsWith('.html'));
+    if (!allHtml.length) return;
+    const newHtml = Object.keys(newFiles).filter(f => f.endsWith('.html'));
+    const pool = newHtml.length > 0 ? newHtml : allHtml;
+    const best = pool.find(f => f.replace(/.*\//, '').toLowerCase() === 'index.html')
+        || pool.find(f => f.toLowerCase().includes('index'))
+        || pool[0];
+    if (best) currentPreviewFile = best;
+}
+
+function chatMarkdown(text) {
+    let html = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
+        '<pre><code>' + code.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</code></pre>');
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\n/g, '<br>');
+    return html;
+}
+
+function toggleThinking(el) {
+    const wrapper = el.closest('.thinking-wrapper');
+    if (wrapper) wrapper.classList.toggle('open');
+}
+
+function addMessageUI(role, html) {
+    const feed = document.getElementById('chat-container');
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + role;
+    row.innerHTML = `<div class="msg-bubble msg-${role}">${html}</div>`;
+    feed.appendChild(row);
+    feed.scrollTop = feed.scrollHeight;
+}
+
+function updateFileBadge() {
+    const c = document.getElementById('file-input').files.length;
+    const b = document.getElementById('file-badge');
+    if (b) { b.innerText = c; b.classList.toggle('hidden', c === 0); }
+}
+
+function renderArtifactBadge(container, filename) {
+    const artDiv = container.querySelector('.file-artifacts');
+    if (!artDiv || [...artDiv.children].some(c => c.dataset.file === filename)) return;
+    const t = getTrans();
+    const ext = filename.split('.').pop().toLowerCase();
+    const iconMap = { html:'fa-html5 text-orange-500', css:'fa-css3-alt text-blue-500', js:'fa-js text-yellow-500', py:'fa-python text-green-500' };
+    const badge = document.createElement('div');
+    badge.className = 'artifact-badge animate-fadeIn';
+    badge.dataset.file = filename;
+    badge.innerHTML = `
+        <i class="fab ${iconMap[ext] || 'fa-file-code text-indigo-500'} ml-2"></i>
+        <span class="font-medium">${filename}</span>
+        <div class="artifact-actions" style="display:flex;gap:4px;margin-right:4px;">
+            <button title="${t.edit_file}" onclick="event.stopPropagation();openFileEditor('${filename}')"
+                    style="background:rgba(99,102,241,0.15);border:none;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:0.75rem;color:#818cf8;">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            <button title="${t.ask_about_file}" onclick="event.stopPropagation();askAboutFile('${filename}')"
+                    style="background:rgba(16,185,129,0.15);border:none;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:0.75rem;color:#34d399;">
+                <i class="fa-solid fa-message"></i>
+            </button>
+            <button title="${t.download_file}" onclick="event.stopPropagation();downloadSingle('${filename}')"
+                    style="background:rgba(107,114,128,0.15);border:none;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:0.75rem;color:#9ca3af;">
+                <i class="fa-solid fa-download"></i>
+            </button>
+        </div>`;
+    artDiv.appendChild(badge);
+}
+
+function openFileEditor(filename) {
+    const content = currentFiles[filename] || '';
+    let modal = document.getElementById('file-editor-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'file-editor-modal';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:20000;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);';
+        modal.innerHTML = `
+            <div style="background:var(--bg-card);width:100%;max-width:700px;border-radius:24px 24px 0 0;padding:20px;border:1px solid var(--border-color);max-height:85vh;display:flex;flex-direction:column;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <i class="fa-solid fa-file-code text-indigo-500"></i>
+                        <span id="editor-filename" style="font-weight:bold;font-size:0.95rem;color:var(--text-primary);"></span>
                     </div>
-                    <div class="thinking-body"></div>
-                 </div>
-                 <div class="progress-container hidden"><div class="progress-track"><div class="progress-fill"></div></div></div>
-                <div class="file-artifacts mt-2 pl-1"></div>
+                    <div style="display:flex;gap:8px;">
+                        <button id="editor-save-btn" style="background:#4f46e5;color:white;border:none;border-radius:10px;padding:8px 18px;font-weight:bold;cursor:pointer;font-size:0.85rem;">
+                            <i class="fa-solid fa-floppy-disk mr-1"></i> حفظ / Save
+                        </button>
+                        <button onclick="document.getElementById('file-editor-modal').style.display='none'"
+                                style="background:var(--bg-body);border:1px solid var(--border-color);color:var(--text-secondary);border-radius:10px;padding:8px 14px;cursor:pointer;">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <textarea id="editor-textarea" style="flex:1;background:var(--bg-input);border:1px solid var(--border-color);border-radius:12px;padding:14px;color:var(--text-primary);font-family:'Courier New',monospace;font-size:0.85rem;resize:none;outline:none;min-height:300px;line-height:1.6;"></textarea>
             </div>`;
-        feed.appendChild(row);
-        feed.scrollTop = feed.scrollHeight;
-        return row;
+        document.body.appendChild(modal);
     }
+    modal.style.display = 'flex';
+    document.getElementById('editor-filename').textContent = filename;
+    const ta = document.getElementById('editor-textarea');
+    ta.value = content;
+    document.getElementById('editor-save-btn').onclick = () => {
+        currentFiles[filename] = ta.value;
+        isPreviewDirty = false;
+        modal.style.display = 'none';
+        renderPreview(currentPreviewFile);
+        showSaveToast(filename);
+    };
+}
 
-    function parseFiles(text) {
-        return parseFilesStrict(text);
+function askAboutFile(filename) {
+    const content = currentFiles[filename] || '';
+    const lang = localStorage.getItem('lang') || 'ar';
+    window._pendingFileContext = { name: filename, content: content.slice(0, 3000) };
+    window._manualModeSet = false;
+    selectMode('chat');
+    showFloatingChip(filename);
+    const input = document.getElementById('prompt-input');
+    if (input) {
+        input.value = '';
+        input.placeholder = lang === 'ar' ? ('اسأل عن ' + filename + '...') : ('Ask about ' + filename + '...');
+        input.focus();
     }
+}
 
-    function updateFileBadge() {
-        const c = document.getElementById('file-input').files.length;
-        const b = document.getElementById('file-badge');
-        if(b) { b.innerText = c; b.classList.toggle('hidden', c===0); }
+function showFloatingChip(filename) {
+    const area = document.getElementById('floating-file-area');
+    if (!area) return;
+    const ext = filename.split('.').pop().toLowerCase();
+    const iconMap = { html:'fa-html5', css:'fa-css3-alt', js:'fa-js', py:'fa-python' };
+    area.style.display = 'block';
+    area.innerHTML = `<div class="floating-file-chip"><i class="fab ${iconMap[ext]||'fa-file-code'} chip-icon"></i><span class="chip-name">${filename}</span><button class="chip-close" onclick="clearFloatingChip()"><i class="fa-solid fa-xmark"></i></button></div>`;
+}
+
+function clearFloatingChip() {
+    clearFloatingChipSilent();
+    if (currentMode === 'chat' && !window._manualModeSet) selectMode('auto');
+}
+
+function clearFloatingChipSilent() {
+    window._pendingFileContext = null;
+    const area = document.getElementById('floating-file-area');
+    if (area) { area.style.display = 'none'; area.innerHTML = ''; }
+    const input = document.getElementById('prompt-input');
+    if (input) input.placeholder = getTrans().input_placeholder;
+}
+
+function showSaveToast(filename) {
+    let toast = document.getElementById('save-toast');
+    if (!toast) { toast = document.createElement('div'); toast.id = 'save-toast'; document.body.appendChild(toast); }
+    const lang = localStorage.getItem('lang') || 'ar';
+    toast.innerHTML = '<i class="fa-solid fa-check" style="margin:0 6px;"></i>' + (lang === 'ar' ? ('تم حفظ ' + filename) : (filename + ' saved'));
+    toast.style.opacity = '1';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+}
+
+function renderDownloadAllBtn(container) {
+    if (!container.querySelector('.dl-all-btn')) {
+        const btn = document.createElement('button');
+        const t = getTrans();
+        btn.className = 'dl-all-btn mt-4 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition shadow-md';
+        btn.innerHTML = `<i class="fa-solid fa-download mr-2"></i> ${t.download_files}`;
+        btn.onclick = downloadAll;
+        container.querySelector('.msg-bubble').appendChild(btn);
     }
+}
 
-    function renderArtifactBadge(container, filename) {
-        const artDiv = container.querySelector('.file-artifacts');
-        if(artDiv && ![...artDiv.children].some(c => c.dataset.file === filename)) {
-            const t = getTrans();
-            const badge = document.createElement('div');
-            badge.className = "artifact-badge animate-fadeIn";
-            badge.dataset.file = filename;
+function downloadSingle(fname) {
+    saveAs(new Blob([currentFiles[fname]], { type: 'text/plain;charset=utf-8' }), fname);
+}
 
-            const ext = filename.split('.').pop().toLowerCase();
-            const iconMap = { html: 'fa-html5 text-orange-500', css: 'fa-css3-alt text-blue-500', js: 'fa-js text-yellow-500', py: 'fa-python text-green-500' };
-            const iconClass = iconMap[ext] || 'fa-file-code text-indigo-500';
+function downloadAll() {
+    const zip = new JSZip();
+    Object.keys(currentFiles).forEach(f => zip.file(f, currentFiles[f]));
+    zip.generateAsync({ type: 'blob' }).then(c => saveAs(c, 'orgteh-project.zip'));
+}
+window.downloadProject = downloadAll;
 
-            badge.innerHTML = `
-                <i class="fab ${iconClass} ml-2"></i>
-                <span class="font-medium">${filename}</span>
-                <div class="artifact-actions" style="display:flex;gap:4px;margin-right:4px;">
-                    <button title="${t.edit_file}" onclick="event.stopPropagation();openFileEditor('${filename}')" 
-                            style="background:rgba(99,102,241,0.15);border:none;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:0.75rem;color:#818cf8;">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                    </button>
-                    <button title="${t.ask_about_file}" onclick="event.stopPropagation();askAboutFile('${filename}')" 
-                            style="background:rgba(16,185,129,0.15);border:none;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:0.75rem;color:#34d399;">
-                        <i class="fa-solid fa-message"></i>
-                    </button>
-                    <button title="${t.download_file}" onclick="event.stopPropagation();downloadSingle('${filename}')" 
-                            style="background:rgba(107,114,128,0.15);border:none;border-radius:6px;padding:3px 7px;cursor:pointer;font-size:0.75rem;color:#9ca3af;">
-                        <i class="fa-solid fa-download"></i>
-                    </button>
-                </div>`;
-            artDiv.appendChild(badge);
+function clearEmbeddedModel() {
+    selectedItems.models = [];
+    document.querySelectorAll('#model-list-container .option-card').forEach(c => {
+        c.classList.remove('selected');
+        const chk = c.querySelector('.check-icon');
+        if (chk) chk.classList.add('hidden');
+    });
+    const clearBtn = document.getElementById('clear-model-btn');
+    if (clearBtn) clearBtn.style.display = 'none';
+}
+
+function selectItem(category, itemId, elemId) {
+    if (category === 'models') {
+        document.querySelectorAll('#model-list-container .option-card').forEach(c => {
+            c.classList.remove('selected');
+            c.querySelector('.check-icon')?.classList.add('hidden');
+        });
+        selectedItems.models = [itemId];
+        const elem = document.getElementById(elemId);
+        if (elem) { elem.classList.add('selected'); elem.querySelector('.check-icon')?.classList.remove('hidden'); }
+        const clearBtn = document.getElementById('clear-model-btn');
+        if (clearBtn) clearBtn.style.display = 'block';
+        return;
+    }
+    const list = selectedItems[category];
+    const index = list.indexOf(itemId);
+    const elem = document.getElementById(elemId);
+    if (index > -1) { list.splice(index, 1); elem?.classList.remove('selected'); elem?.querySelector('.check-icon')?.classList.add('hidden'); }
+    else { list.push(itemId); elem?.classList.add('selected'); elem?.querySelector('.check-icon')?.classList.remove('hidden'); }
+}
+
+function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  [9] PREVIEW & NAVIGATION
+// ════════════════════════════════════════════════════════════════════════
+function cleanCodeFence(content) {
+    if (!content) return '';
+    const match = content.match(/```(?:\w+)?\s*([\s\S]*?)\s*```/);
+    return (match && match[1]) ? match[1].trim() : content.replace(/^```[a-z]*\n/i, '').replace(/```$/, '').trim();
+}
+
+function navigateVirtualPage(targetFile) {
+    if (currentFiles[targetFile]) {
+        currentPreviewFile = targetFile;
+        renderPreview(targetFile);
+    } else {
+        const fallback = Object.keys(currentFiles).find(f => f.endsWith(targetFile) || targetFile.endsWith(f));
+        if (fallback) { currentPreviewFile = fallback; renderPreview(fallback); }
+    }
+}
+window.navigateVirtualPage = navigateVirtualPage;
+
+// Listen for navigation messages from the preview iframe (postMessage, sandbox-safe)
+window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'orgteh_nav' && e.data.file) {
+        navigateVirtualPage(e.data.file);
+    }
+});
+
+// ── محرر الملفات المباشر ──────────────────────────────────────────────────────
+window.openFileEditor = function(filename) {
+    const lang = localStorage.getItem('lang') || 'ar';
+    const ar = lang === 'ar';
+    const content = currentFiles[filename] || '';
+    const existing = document.getElementById('orgteh-file-editor');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'orgteh-file-editor';
+    const ext = filename.split('.').pop().toLowerCase();
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;';
+    overlay.innerHTML = `
+    <div style="width:100%;max-height:85vh;background:#0d0d14;border-top:1px solid rgba(99,102,241,.3);border-radius:16px 16px 0 0;display:flex;flex-direction:column;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.07);">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-pen-to-square" style="color:#818cf8;"></i>
+                <span style="font-weight:700;font-size:13px;color:#e2e8f0;">${filename}</span>
+                <span style="font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(99,102,241,.15);color:#818cf8;">${ext.toUpperCase()}</span>
+            </div>
+            <div style="display:flex;gap:6px;">
+                <button id="editor-save"
+                    style="padding:5px 14px;border-radius:8px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;font-size:12px;font-weight:700;cursor:pointer;">
+                    ${ar?'حفظ ومعاينة':'Save & Preview'}
+                </button>
+                <button onclick="document.getElementById('orgteh-file-editor').remove()"
+                    style="padding:5px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#94a3b8;font-size:12px;cursor:pointer;">
+                    ${ar?'إغلاق':'Close'}
+                </button>
+            </div>
+        </div>
+        <div style="font-size:10px;color:#334155;padding:4px 14px;background:#080810;font-family:monospace;">
+            ${ar?'✏️ عدّل الكود مباشرةً — الحفظ يُحدّث المعاينة فوراً':'✏️ Edit code directly — saving updates preview instantly'}
+        </div>
+        <textarea id="editor-textarea"
+            spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
+            style="flex:1;padding:14px;background:#080810;color:#e2e8f0;font-family:monospace;font-size:12px;line-height:1.7;border:none;outline:none;resize:none;overflow-y:auto;min-height:300px;max-height:60vh;tab-size:2;"
+        >${content.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+    </div>`;
+
+    document.body.appendChild(overlay);
+
+    // Handle Tab key in textarea
+    const ta = overlay.querySelector('#editor-textarea');
+    ta.addEventListener('keydown', function(e) {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const s = this.selectionStart, end = this.selectionEnd;
+            this.value = this.value.substring(0,s) + '  ' + this.value.substring(end);
+            this.selectionStart = this.selectionEnd = s + 2;
         }
+    });
+
+    overlay.querySelector('#editor-save').onclick = function() {
+        const newContent = ta.value;
+        currentFiles[filename] = newContent;
+        isPreviewDirty = true;
+        overlay.remove();
+        currentPreviewFile = filename;
+        renderPreview(filename);
+        switchView('preview');
+    };
+
+    // Close on backdrop click
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.remove();
+    });
+};
+
+function renderPreview(targetFilename) {
+    targetFilename = targetFilename || 'index.html';
+    const frame = document.getElementById('preview-frame');
+    const empty = document.getElementById('preview-empty');
+
+    if (Object.keys(currentFiles).length === 0) {
+        frame.style.display = 'none'; empty.style.display = 'flex'; return;
     }
 
-    function openFileEditor(filename) {
-        const content = currentFiles[filename] || '';
-        let modal = document.getElementById('file-editor-modal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'file-editor-modal';
-            modal.style.cssText = `
-                position:fixed;inset:0;z-index:20000;display:flex;align-items:flex-end;justify-content:center;
-                background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);
-            `;
-            modal.innerHTML = `
-                <div style="background:var(--bg-card);width:100%;max-width:700px;border-radius:24px 24px 0 0;
-                            padding:20px;border:1px solid var(--border-color);max-height:85vh;display:flex;flex-direction:column;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <i class="fa-solid fa-file-code text-indigo-500"></i>
-                            <span id="editor-filename" style="font-weight:bold;font-size:0.95rem;color:var(--text-primary);"></span>
-                        </div>
-                        <div style="display:flex;gap:8px;">
-                            <button id="editor-save-btn" style="background:#4f46e5;color:white;border:none;border-radius:10px;padding:8px 18px;font-weight:bold;cursor:pointer;font-size:0.85rem;">
-                                <i class="fa-solid fa-floppy-disk mr-1"></i> حفظ
-                            </button>
-                            <button onclick="document.getElementById('file-editor-modal').style.display='none'" 
-                                    style="background:var(--bg-body);border:1px solid var(--border-color);color:var(--text-secondary);border-radius:10px;padding:8px 14px;cursor:pointer;">
-                                <i class="fa-solid fa-times"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <textarea id="editor-textarea" style="flex:1;background:var(--bg-input);border:1px solid var(--border-color);
-                        border-radius:12px;padding:14px;color:var(--text-primary);font-family:'Courier New',monospace;
-                        font-size:0.85rem;resize:none;outline:none;min-height:300px;line-height:1.6;"></textarea>
-                </div>`;
-            document.body.appendChild(modal);
-        }
-        modal.style.display = 'flex';
-        document.getElementById('editor-filename').textContent = filename;
-        const ta = document.getElementById('editor-textarea');
-        ta.value = content;
-        document.getElementById('editor-save-btn').onclick = () => {
-            currentFiles[filename] = ta.value;
-            isPreviewDirty = false;
-            modal.style.display = 'none';
-            renderPreview(currentPreviewFile);
-            showSaveToast(filename);
-        };
+    let htmlFileName = targetFilename;
+    if (!currentFiles[htmlFileName] && targetFilename === 'index.html') {
+        htmlFileName = Object.keys(currentFiles).find(f => f.endsWith('.html') && (f.includes('index') || f.includes('home')))
+            || Object.keys(currentFiles).find(f => f.endsWith('.html'));
     }
 
-    function askAboutFile(filename) {
-        const content = currentFiles[filename] || '';
-        const lang = localStorage.getItem('lang') || 'ar';
-
-        window._pendingFileContext = { name: filename, content: content.slice(0, 3000) };
-
-        window._manualModeSet = false;
-        selectMode('chat');
-
-        showFloatingChip(filename);
-
-        const input = document.getElementById('prompt-input');
-        if (input) {
-            input.value = '';
-            input.placeholder = (lang === 'ar') ? ('اسأل عن ' + filename + '...') : ('Ask about ' + filename + '...');
-            input.focus();
-        }
+    if (!htmlFileName || !currentFiles[htmlFileName]) {
+        frame.style.display = 'block'; empty.style.display = 'none';
+        const doc = frame.contentWindow.document;
+        doc.open(); doc.write(`<div style="font-family:system-ui;text-align:center;padding:50px;color:#666;"><h2>404 Not Found</h2><p>File '<b>${targetFilename}</b>' does not exist.</p></div>`); doc.close();
+        return;
     }
 
-    function showFloatingChip(filename) {
-        var area = document.getElementById('floating-file-area');
-        if (!area) return;
-        var ext = filename.split('.').pop().toLowerCase();
-        var iconMap = { html:'fa-html5', css:'fa-css3-alt', js:'fa-js', py:'fa-python' };
-        var icon = iconMap[ext] || 'fa-file-code';
-        area.style.display = 'block';
-        area.innerHTML =
-            '<div class="floating-file-chip">' +
-                '<i class="fab ' + icon + ' chip-icon"></i>' +
-                '<span class="chip-name">' + filename + '</span>' +
-                '<button class="chip-close" onclick="clearFloatingChip()">' +
-                    '<i class="fa-solid fa-xmark"></i>' +
-                '</button>' +
-            '</div>';
-    }
+    let html = cleanCodeFence(currentFiles[htmlFileName]);
 
-    function clearFloatingChip() {
-        clearFloatingChipSilent();
-        if (currentMode === 'chat' && !window._manualModeSet) {
-            selectMode('auto');
-        }
-    }
+    Object.keys(currentFiles).forEach(fname => {
+        if (fname === htmlFileName) return;
+        const content  = cleanCodeFence(currentFiles[fname]);
+        const baseName = fname.includes('/') ? fname.split('/').pop() : fname;
 
-    function clearFloatingChipSilent() {
-        window._pendingFileContext = null;
-        var area = document.getElementById('floating-file-area');
-        if (area) { area.style.display = 'none'; area.innerHTML = ''; }
-        var input = document.getElementById('prompt-input');
-        if (input) {
-            var t = getTrans();
-            input.placeholder = t.input_placeholder || 'Ask Orgteh...';
-        }
-    }
-
-    function showSaveToast(filename) {
-        var toast = document.getElementById('save-toast');
-        if (!toast) {
-            toast = document.createElement('div');
-            toast.id = 'save-toast';
-            document.body.appendChild(toast);
-        }
-        var lang = localStorage.getItem('lang') || 'ar';
-        toast.innerHTML = '<i class="fa-solid fa-check" style="margin-left:6px;margin-right:6px;"></i>' +
-            (lang === 'ar' ? ('تم حفظ ' + filename) : (filename + ' saved'));
-        toast.style.opacity = '1';
-        clearTimeout(toast._t);
-        toast._t = setTimeout(function() { toast.style.opacity = '0'; }, 2000);
-    }
-
-    function renderDownloadAllBtn(container) {
-         if(!container.querySelector('.dl-all-btn')) {
-             const btn = document.createElement('button');
-             const t = getTrans();
-             btn.className = "dl-all-btn mt-4 text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition shadow-md";
-             btn.innerHTML = `<i class="fa-solid fa-download mr-2"></i> ${t.download_files}`;
-             btn.onclick = downloadAll;
-             container.querySelector('.msg-bubble').appendChild(btn);
-         }
-    }
-
-    function downloadSingle(fname) { 
-        saveAs(new Blob([currentFiles[fname]], {type: "text/plain;charset=utf-8"}), fname); 
-    }
-
-    function downloadAll() {
-        const zip = new JSZip();
-        Object.keys(currentFiles).forEach(f => zip.file(f, currentFiles[f]));
-        zip.generateAsync({type:"blob"}).then(c => saveAs(c, "orgteh-project.zip"));
-    }
-
-    function switchView(view) {
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        document.getElementById(`view-${view}`).classList.add('active');
-
-        const mainTabChat = document.getElementById('tab-chat');
-        const mainTabPreview = document.getElementById('tab-preview');
-        if (mainTabChat) mainTabChat.classList.toggle('active', view === 'chat');
-        if (mainTabPreview) mainTabPreview.classList.toggle('active', view === 'preview');
-
-        const inputRow = document.getElementById('main-input-row');
-        const bottomControls = document.querySelector('.bottom-controls-layer');
-
-        if (view === 'preview') {
-            inputRow.classList.add('hidden');
-            document.body.classList.add('preview-active');
-            if (bottomControls) bottomControls.style.display = 'none';
-            showPreviewNav();
-
-            const pTabChat = document.getElementById('preview-tab-chat');
-            const pTabPreview = document.getElementById('preview-tab-preview');
-            if (pTabChat) pTabChat.classList.remove('active');
-            if (pTabPreview) pTabPreview.classList.add('active');
-
-            if (isPreviewDirty || Object.keys(currentFiles).length > 0) {
-                renderPreview(currentPreviewFile);
-                isPreviewDirty = false;
+        if (fname.endsWith('.css')) {
+            const ref = html.includes(fname) ? fname : (html.includes(baseName) ? baseName : null);
+            if (ref) {
+                const re = new RegExp(`<link[^>]+href=["']${ref.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}["'][^>]*>`, 'i');
+                html = re.test(html) ? html.replace(re, `<style>\n${content}\n</style>`) : html.replace('</head>', `<style>\n${content}\n</style></head>`);
+            } else {
+                html = html.replace('</head>', `<style>\n${content}\n</style></head>`);
             }
-        } else {
-            inputRow.classList.remove('hidden');
-            document.body.classList.remove('preview-active');
-            if (bottomControls) bottomControls.style.display = '';
-            hidePreviewNav();
         }
-    }
 
-    function showPreviewNav() {
-        let pNav = document.getElementById('preview-nav-bar');
-        if (!pNav) {
-            pNav = document.createElement('div');
-            pNav.id = 'preview-nav-bar';
-            pNav.style.cssText = `direction: ltr;
-                position: fixed; bottom: 0; left: 0; right: 0;
-                z-index: 9999; display: flex; justify-content: center;
-                padding: 10px 16px 16px;
-                background: linear-gradient(to top, var(--bg-body) 70%, transparent);
-                transition: opacity 0.3s ease;
-            `;
-            pNav.innerHTML = `
-                <div class="nav-container" style="pointer-events:auto;">
-                    <div onclick="togglePreviewNavVisibility()" class="visibility-btn" id="preview-visibility-btn" title="إخفاء/إظهار الشريط">
-                        <i id="eye-icon-preview" class="fa-solid fa-eye-slash"></i>
-                    </div>
-                    <div class="tab-pill" id="preview-tab-pill">
-                        <div onclick="switchView('chat')" id="preview-tab-chat" class="tab-item">
-                            <span>${getTrans().tab_chat}</span>
-                        </div>
-                        <div onclick="switchView('preview')" id="preview-tab-preview" class="tab-item active">
-                            <span>${getTrans().tab_preview}</span>
-                        </div>
-                    </div>
-                    <button onclick="renderPreview(currentPreviewFile)" class="preview-refresh-btn" id="preview-refresh-btn" title="تحديث المعاينة">
-                        <i class="fa-solid fa-rotate-right"></i>
-                    </button>
-                    <button onclick="openSpecificModal('main-menu-modal')" class="action-btn model-trigger" id="preview-menu-btn">
-                        <i class="fa-solid fa-ellipsis"></i>
-                    </button>
-                </div>`;
-            document.body.appendChild(pNav);
-        } else {
-            const pTabChat = document.getElementById('preview-tab-chat');
-            const pTabPreview = document.getElementById('preview-tab-preview');
-            if (pTabChat) pTabChat.classList.remove('active');
-            if (pTabPreview) pTabPreview.classList.add('active');
+        if (fname.endsWith('.js')) {
+            const ref = html.includes(fname) ? fname : (html.includes(baseName) ? baseName : null);
+            if (ref) {
+                const re = new RegExp(`<script[^>]+src=["']${ref.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}["'][^>]*>[\\s\\S]*?<\\/script>`, 'i');
+                html = re.test(html) ? html.replace(re, `<script>\n${content}\n<\/script>`) : html.replace('</body>', `<script>\n${content}\n<\/script></body>`);
+            } else {
+                html = html.replace('</body>', `<script>\n${content}\n<\/script></body>`);
+            }
         }
-        const pill = pNav.querySelector('#preview-tab-pill');
-        const menuBtn = pNav.querySelector('#preview-menu-btn');
-        const eyeIcon = pNav.querySelector('#eye-icon-preview');
-        if (pill) pill.style.display = '';
-        if (menuBtn) menuBtn.style.display = '';
-        if (eyeIcon) { eyeIcon.className = 'fa-solid fa-eye-slash'; }
+    });
+
+    // Navigation interceptor — injected in <head>, capture phase, Replit srcdoc safe
+    const interceptor = `<script>(function(){var _i=function(){document.addEventListener('click',function(e){var el=e.target;for(var i=0;i<5;i++){if(!el||el===document)break;if(el.tagName==='A'){var h=el.getAttribute('href');if(h&&h!==''&&!h.startsWith('http')&&!h.startsWith('//')&&!h.startsWith('#')&&!h.startsWith('mailto')&&!h.startsWith('javascript')){e.preventDefault();e.stopImmediatePropagation();try{window.parent.postMessage({type:'orgteh_nav',file:h},'*');}catch(_){}}break;}el=el.parentElement;}},true);};if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',_i);}else{_i();}})();<\/script>`;
+    if (html.includes('<head>')) html = html.replace('<head>', '<head>' + interceptor);
+    else if (html.includes('<html')) html = html.replace(/(<html[^>]*>)/i, '$1' + interceptor);
+    else html = interceptor + html;
+
+    // Use srcdoc — no contentWindow.document needed
+    frame.srcdoc = html;
+    frame.style.display = 'block'; empty.style.display = 'none';
+}
+
+function switchView(view) {
+    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+    document.getElementById('view-' + view)?.classList.add('active');
+
+    document.getElementById('tab-chat')?.classList.toggle('active', view === 'chat');
+    document.getElementById('tab-preview')?.classList.toggle('active', view === 'preview');
+
+    const inputRow = document.getElementById('main-input-row');
+    const bottomControls = document.querySelector('.bottom-controls-layer');
+
+    if (view === 'preview') {
+        inputRow?.classList.add('hidden');
+        document.body.classList.add('preview-active');
+        if (bottomControls) bottomControls.style.display = 'none';
+        showPreviewNav();
+        if (isPreviewDirty || Object.keys(currentFiles).length > 0) { renderPreview(currentPreviewFile); isPreviewDirty = false; }
+    } else {
+        inputRow?.classList.remove('hidden');
+        document.body.classList.remove('preview-active');
+        if (bottomControls) bottomControls.style.display = '';
+        hidePreviewNav();
+    }
+}
+
+function showPreviewNav() {
+    let pNav = document.getElementById('preview-nav-bar');
+    if (!pNav) {
+        pNav = document.createElement('div');
+        pNav.id = 'preview-nav-bar';
+        pNav.style.cssText = 'direction:ltr;position:fixed;bottom:0;left:0;right:0;z-index:9999;display:flex;justify-content:center;padding:10px 16px 16px;background:linear-gradient(to top,var(--bg-body) 70%,transparent);transition:opacity 0.3s ease;';
+        const t = getTrans();
+        pNav.innerHTML = `
+            <div class="nav-container" style="pointer-events:auto;">
+                <div onclick="togglePreviewNavVisibility()" class="visibility-btn" id="preview-visibility-btn">
+                    <i id="eye-icon-preview" class="fa-solid fa-eye-slash"></i>
+                </div>
+                <div class="tab-pill" id="preview-tab-pill">
+                    <div onclick="switchView('chat')" id="preview-tab-chat" class="tab-item"><span>${t.tab_chat}</span></div>
+                    <div onclick="switchView('preview')" id="preview-tab-preview" class="tab-item active"><span>${t.tab_preview}</span></div>
+                </div>
+                <button onclick="renderPreview(currentPreviewFile)" class="preview-refresh-btn" id="preview-refresh-btn">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+                <button onclick="openSpecificModal('main-menu-modal')" class="action-btn model-trigger" id="preview-menu-btn">
+                    <i class="fa-solid fa-ellipsis"></i>
+                </button>
+            </div>`;
+        document.body.appendChild(pNav);
+    } else {
+        document.getElementById('preview-tab-chat')?.classList.remove('active');
+        document.getElementById('preview-tab-preview')?.classList.add('active');
         pNav.style.display = 'flex';
     }
+}
 
-    function togglePreviewNavVisibility() {
-        const pNav = document.getElementById('preview-nav-bar');
-        if (!pNav) return;
-        const pill = document.getElementById('preview-tab-pill');
-        const menuBtn = document.getElementById('preview-menu-btn');
-        const refreshBtn = document.getElementById('preview-refresh-btn');
-        const eyeIcon = document.getElementById('eye-icon-preview');
-        const isHidden = pill && pill.style.display === 'none';
-        if (isHidden) {
-            if (pill) pill.style.display = '';
-            if (menuBtn) menuBtn.style.display = '';
-            if (refreshBtn) refreshBtn.style.display = '';
-            if (eyeIcon) eyeIcon.className = 'fa-solid fa-eye-slash';
-        } else {
-            if (pill) pill.style.display = 'none';
-            if (menuBtn) menuBtn.style.display = 'none';
-            if (refreshBtn) refreshBtn.style.display = 'none';
-            if (eyeIcon) eyeIcon.className = 'fa-solid fa-eye';
-        }
+function togglePreviewNavVisibility() {
+    const pill = document.getElementById('preview-tab-pill');
+    const menuBtn = document.getElementById('preview-menu-btn');
+    const refreshBtn = document.getElementById('preview-refresh-btn');
+    const eyeIcon = document.getElementById('eye-icon-preview');
+    const isHidden = pill && pill.style.display === 'none';
+    [pill, menuBtn, refreshBtn].forEach(el => { if (el) el.style.display = isHidden ? '' : 'none'; });
+    if (eyeIcon) eyeIcon.className = isHidden ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+}
+
+function hidePreviewNav() {
+    const pNav = document.getElementById('preview-nav-bar');
+    if (pNav) pNav.style.display = 'none';
+}
+
+function toggleNavVisibility() {
+    const nav = document.getElementById('nav-container');
+    if (nav) {
+        nav.classList.toggle('minimized');
+        document.getElementById('eye-icon').className = nav.classList.contains('minimized') ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash';
     }
+}
 
-    function hidePreviewNav() {
-        const pNav = document.getElementById('preview-nav-bar');
-        if (pNav) pNav.style.display = 'none';
-    }
+// ════════════════════════════════════════════════════════════════════════
+//  [10] MODALS & GITHUB
+// ════════════════════════════════════════════════════════════════════════
+function openSpecificModal(id) { document.getElementById(id)?.classList.add('open'); }
+function closeSpecificModal(id) { document.getElementById(id)?.classList.remove('open'); }
+function switchModal(c, o) { closeSpecificModal(c); setTimeout(() => openSpecificModal(o), 100); }
 
-    function cleanCodeFence(content) {
-        if (!content) return "";
-        const match = content.match(/```(?:\w+)?\s*([\s\S]*?)\s*```/);
-        return (match && match[1]) ? match[1].trim() : content.replace(/^```[a-z]*\n/i, '').replace(/```$/, '').trim();
-    }
-
-    function navigateVirtualPage(targetFile) {
-        console.log(`[VirtualRouter] Request to navigate to: ${targetFile}`);
-        if(currentFiles[targetFile]) {
-            currentPreviewFile = targetFile;
-            renderPreview(targetFile);
-        } else {
-            const fallback = Object.keys(currentFiles).find(f => f.endsWith(targetFile) || targetFile.endsWith(f));
-            if(fallback) {
-                 currentPreviewFile = fallback;
-                 renderPreview(fallback);
+function openGitHubDeployModal() {
+    const modal = document.getElementById('github-deploy-modal');
+    if (!modal) return;
+    ['gh-not-connected','gh-no-files','gh-deploy-form','gh-import-form','gh-loading','gh-success'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+    switchGhTab('deploy');
+    const repoInput = document.getElementById('gh-repo-name');
+    if (repoInput && !repoInput.value) repoInput.value = 'orgteh-project-' + Date.now().toString(36);
+    fetch('/api/github/status').then(r => r.json()).then(data => {
+        if (data.connected) {
+            if (!Object.keys(currentFiles).length) { document.getElementById('gh-no-files')?.classList.remove('hidden'); }
+            else {
+                const list = document.getElementById('gh-files-list');
+                if (list) list.innerHTML = Object.keys(currentFiles).map(f => `<li class="flex items-center gap-2"><i class="fas fa-file-code text-indigo-500"></i> ${f}</li>`).join('');
+                document.getElementById('gh-deploy-form')?.classList.remove('hidden');
             }
-        }
+        } else { document.getElementById('gh-not-connected')?.classList.remove('hidden'); }
+    }).catch(() => document.getElementById('gh-not-connected')?.classList.remove('hidden'));
+    openSpecificModal('github-deploy-modal');
+}
+
+function switchGhTab(tab) {
+    const dBtn = document.getElementById('gh-tab-deploy'), iBtn = document.getElementById('gh-tab-import');
+    const dForm = document.getElementById('gh-deploy-form'), iForm = document.getElementById('gh-import-form');
+    const noFiles = document.getElementById('gh-no-files');
+    if (tab === 'deploy') {
+        if (dBtn) { dBtn.style.background='var(--bg-card)'; dBtn.style.color='var(--text-primary)'; }
+        if (iBtn) { iBtn.style.background='transparent'; iBtn.style.color='var(--text-secondary)'; }
+        iForm?.classList.add('hidden');
+        if (Object.keys(currentFiles).length) { dForm?.classList.remove('hidden'); noFiles?.classList.add('hidden'); }
+        else { dForm?.classList.add('hidden'); noFiles?.classList.remove('hidden'); }
+    } else {
+        if (iBtn) { iBtn.style.background='var(--bg-card)'; iBtn.style.color='var(--text-primary)'; }
+        if (dBtn) { dBtn.style.background='transparent'; dBtn.style.color='var(--text-secondary)'; }
+        dForm?.classList.add('hidden'); noFiles?.classList.add('hidden'); iForm?.classList.remove('hidden');
     }
-    window.navigateVirtualPage = navigateVirtualPage;
+}
 
-    function renderPreview(targetFilename = "index.html") {
-        const frame = document.getElementById('preview-frame');
-        const empty = document.getElementById('preview-empty');
-        const t = getTrans();
-
-        if(Object.keys(currentFiles).length === 0) { 
-            frame.style.display = 'none'; empty.style.display = 'flex'; 
-            return; 
-        }
-
-        let htmlFileName = targetFilename;
-        if (!currentFiles[htmlFileName] && targetFilename === "index.html") {
-             htmlFileName = Object.keys(currentFiles).find(f => f.endsWith('.html') && (f.includes('index') || f.includes('home'))) || Object.keys(currentFiles).find(f => f.endsWith('.html'));
-        }
-
-        if(!htmlFileName || !currentFiles[htmlFileName]) {
-            frame.style.display = 'block'; empty.style.display = 'none';
-            const doc = frame.contentWindow.document;
-            doc.open();
-            doc.write(`<div style="font-family:system-ui; text-align:center; padding:50px; color:#666;">
-                        <h2>404 Not Found</h2>
-                        <p>File '<b>${targetFilename}</b>' does not exist in the project.</p>
-                       </div>`);
-            doc.close();
-            return;
-        }
-
-        let html = currentFiles[htmlFileName]; 
-        html = cleanCodeFence(html);
-
-        Object.keys(currentFiles).forEach(fname => {
-            if (fname === htmlFileName) return;
-            const content = cleanCodeFence(currentFiles[fname]);
-            const baseName = fname.includes('/') ? fname.split('/').pop() : fname;
-
-            if(fname.endsWith('.css')) {
-                 const cssRef = html.includes(fname) ? fname : (html.includes(baseName) ? baseName : null);
-                 if(cssRef) {
-                     const cssRegex = new RegExp(`<link[^>]+href=["']${cssRef.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}["'][^>]*>`, 'i');
-                     if (cssRegex.test(html)) {
-                         html = html.replace(cssRegex, `<style>\n${content}\n</style>`);
-                     } else {
-                         html = html.replace('</head>', `<style>\n${content}\n</style></head>`);
-                     }
-                 } else {
-                     html = html.replace('</head>', `<style>\n${content}\n</style></head>`);
-                 }
-            }
-
-            if(fname.endsWith('.js')) {
-                 const closingScript = '<\/script>';
-                 const jsRef = html.includes(fname) ? fname : (html.includes(baseName) ? baseName : null);
-                 if(jsRef) {
-                     const jsRegex = new RegExp(`<script[^>]+src=["']${jsRef.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}["'][^>]*>[\s\S]*?<\/script>`, 'i');
-                     if(jsRegex.test(html)) {
-                         html = html.replace(jsRegex, `<script>\n${content}\n` + closingScript);
-                     } else {
-                         html = html.replace('</body>', `<script>\n${content}\n` + closingScript + '</body>');
-                     }
-                 } else {
-                     html = html.replace('</body>', `<script>\n${content}\n` + closingScript + '</body>');
-                 }
-            }
-        });
-
-        const interceptorScript = `
-        <script>
-            document.addEventListener('click', function(e) {
-                const link = e.target.closest('a');
-                if (link) {
-                    const href = link.getAttribute('href');
-                    if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto')) {
-                        e.preventDefault();
-                        if(window.parent && window.parent.navigateVirtualPage) {
-                            window.parent.navigateVirtualPage(href);
-                        }
-                    }
-                }
-            });
-        <\/script>
-        `;
-
-        html = html.replace('</body>', interceptorScript + '</body>');
-
-        const doc = frame.contentWindow.document; 
-        doc.open(); doc.write(html); doc.close();
-
-        frame.style.display = 'block'; empty.style.display = 'none';
+async function executeGitHubImport() {
+    const repoUrl = document.getElementById('gh-import-url')?.value.trim();
+    if (!repoUrl) { alert(localStorage.getItem('lang')==='ar' ? 'يرجى إدخال رابط المستودع' : 'Please enter a repository URL'); return; }
+    document.getElementById('gh-import-form')?.classList.add('hidden');
+    document.getElementById('gh-loading')?.classList.remove('hidden');
+    const loadingTitle = document.getElementById('gh-loading-title');
+    const statusEl = document.getElementById('gh-status-text');
+    if (loadingTitle) loadingTitle.textContent = localStorage.getItem('lang')==='ar' ? 'جاري الاستيراد...' : 'Importing...';
+    if (statusEl) statusEl.textContent = localStorage.getItem('lang')==='ar' ? 'جلب الملفات من GitHub' : 'Fetching files from GitHub';
+    try {
+        const res = await fetch('/api/import/github', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ repo_url: repoUrl, branch: document.getElementById('gh-import-branch')?.value.trim()||'main' }) });
+        const result = await res.json();
+        document.getElementById('gh-loading')?.classList.add('hidden');
+        if (result.success && result.files) {
+            Object.assign(currentFiles, result.files);
+            isPreviewDirty = true;
+            closeSpecificModal('github-deploy-modal');
+            addMessageUI('ai', `<div style="padding:12px 16px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;"><div style="font-weight:bold;margin-bottom:6px;color:#22c55e;"><i class="fab fa-github mr-2"></i> ${localStorage.getItem('lang')==='ar'?'تم الاستيراد بنجاح!':'Import successful!'}</div><div style="font-size:0.85rem;color:var(--text-secondary);">${Object.keys(result.files).length} files from <code>${repoUrl}</code></div></div>`);
+            if (Object.keys(result.files).some(f => f.endsWith('.html'))) renderPreview('index.html');
+        } else { throw new Error(result.error || 'Failed'); }
+    } catch(error) {
+        document.getElementById('gh-loading')?.classList.add('hidden');
+        document.getElementById('gh-import-form')?.classList.remove('hidden');
+        alert('Error: ' + error.message);
     }
+}
 
-    function toggleNavVisibility() { 
-        const nav = document.getElementById('nav-container'); 
-        if(nav) {
-            nav.classList.toggle('minimized'); 
-            document.getElementById('eye-icon').className = nav.classList.contains('minimized') ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'; 
-        }
+async function executeGitHubDeploy() {
+    const repoName = document.getElementById('gh-repo-name').value.trim();
+    if (!repoName) { alert(localStorage.getItem('lang')==='ar' ? 'يرجى إدخال اسم المستودع' : 'Please enter a repository name'); return; }
+    const filesArr = Object.entries(currentFiles).map(([path, content]) => ({ path, content }));
+    document.getElementById('gh-deploy-form')?.classList.add('hidden');
+    document.getElementById('gh-loading')?.classList.remove('hidden');
+    try {
+        const statusEl = document.getElementById('gh-status-text');
+        if (statusEl) statusEl.textContent = localStorage.getItem('lang')==='ar' ? 'إنشاء المستودع...' : 'Creating repository...';
+        const res = await fetch('/api/deploy/github', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ repo_name:repoName, description:document.getElementById('gh-repo-desc')?.value||'Generated by Orgteh Infra', is_private:document.getElementById('gh-private')?.checked||false, enable_pages:document.getElementById('gh-pages')?.checked||true, files:filesArr }) });
+        const result = await res.json();
+        document.getElementById('gh-loading')?.classList.add('hidden');
+        if (result.success) {
+            document.getElementById('gh-success')?.classList.remove('hidden');
+            if (result.repo_url)  document.getElementById('gh-repo-link').href  = result.repo_url;
+            if (result.pages_url) document.getElementById('gh-pages-link').href = result.pages_url;
+            else document.getElementById('gh-pages-link')?.classList.add('hidden');
+        } else { throw new Error(result.error || 'Failed'); }
+    } catch(error) {
+        document.getElementById('gh-loading')?.classList.add('hidden');
+        document.getElementById('gh-deploy-form')?.classList.remove('hidden');
+        alert('Error: ' + error.message);
     }
+}
 
-    function openSpecificModal(id) { document.getElementById(id)?.classList.add('open'); }
-    function closeSpecificModal(id) { document.getElementById(id)?.classList.remove('open'); }
-    function switchModal(c, o) { closeSpecificModal(c); setTimeout(() => openSpecificModal(o), 100); }
+// ════════════════════════════════════════════════════════════════════════
+//  [11] UNIFIED HISTORY MODAL (V1 Classic + V2 Agent)
+// ════════════════════════════════════════════════════════════════════════
+(function() {
+    let _currentHistoryTab = (window.HUB_MODE === 'agent') ? 'v2' : 'v1';
 
-    function selectItem(category, itemId, elemId) {
-        if (category === 'models') {
-             const allCards = document.querySelectorAll('#model-list-container .option-card');
-             allCards.forEach(c => {
-                 c.classList.remove('selected');
-                 c.querySelector('.check-icon').classList.add('hidden');
-             });
-             selectedItems.models = [itemId];
-             const elem = document.getElementById(elemId);
-             elem.classList.add('selected');
-             elem.querySelector('.check-icon').classList.remove('hidden');
-             return;
-        }
-
-        const list = selectedItems[category]; 
-        const index = list.indexOf(itemId); 
-        const elem = document.getElementById(elemId);
-        if (index > -1) { 
-            list.splice(index, 1); 
-            elem.classList.remove('selected'); 
-            elem.querySelector('.check-icon').classList.add('hidden'); 
-        } else { 
-            list.push(itemId); 
-            elem.classList.add('selected'); 
-            elem.querySelector('.check-icon').classList.remove('hidden'); 
-        }
-    }
-
-    function autoResize(el) {
-        el.style.height = 'auto';
-        el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-    }
-
-    function openGitHubDeployModal() {
-        const modal = document.getElementById('github-deploy-modal');
+    window.openHubHistory = function() {
+        const modal = document.getElementById('hub-history-modal');
+        const panel = document.getElementById('hub-history-panel');
         if (!modal) return;
+        modal.classList.remove('hidden');
+        setTimeout(() => { if (panel) panel.style.transform = 'translateX(0)'; }, 10);
+        _initHistoryUI();
+        _loadHistoryTab(_currentHistoryTab);
+    };
 
-        ['gh-not-connected','gh-no-files','gh-deploy-form','gh-import-form','gh-loading','gh-success'].forEach(id => {
-            document.getElementById(id)?.classList.add('hidden');
+    window.closeHubHistory = function() {
+        const modal = document.getElementById('hub-history-modal');
+        const panel = document.getElementById('hub-history-panel');
+        if (panel) panel.style.transform = 'translateX(100%)';
+        setTimeout(() => { modal?.classList.add('hidden'); }, 260);
+    };
+
+    // Aliases for backward compat with agent_v2_scripts
+    window.openAgentSessions  = function() { _currentHistoryTab = 'v2'; window.openHubHistory(); };
+    window.closeAgentSessions = window.closeHubHistory;
+
+    function _initHistoryUI() {
+        const lang = localStorage.getItem('lang') || 'ar';
+        const t = getTrans();
+        const e = id => document.getElementById(id);
+        if (e('hh-title'))      e('hh-title').textContent      = t.history_title;
+        if (e('hh-new-label'))  e('hh-new-label').textContent  = t.history_new;
+        if (e('hh-loading'))    e('hh-loading').textContent    = t.history_loading;
+        if (e('hh-tab-v1-lbl')) e('hh-tab-v1-lbl').textContent = t.history_tab_classic;
+        if (e('hh-tab-v2-lbl')) e('hh-tab-v2-lbl').textContent = t.history_tab_agent;
+    }
+
+    window.switchHistoryTab = function(tab) {
+        _currentHistoryTab = tab;
+        const t1 = document.getElementById('hh-tab-v1');
+        const t2 = document.getElementById('hh-tab-v2');
+        if (t1) { t1.style.background = tab==='v1' ? 'rgba(255,255,255,.08)' : 'transparent'; t1.style.color = tab==='v1' ? '#e2e8f0' : '#475569'; }
+        if (t2) { t2.style.background = tab==='v2' ? 'rgba(255,255,255,.08)' : 'transparent'; t2.style.color = tab==='v2' ? '#e2e8f0' : '#475569'; }
+        _loadHistoryTab(tab);
+    };
+
+    async function _loadHistoryTab(tab) {
+        const list = document.getElementById('hub-history-list');
+        const t = getTrans();
+        if (!list) return;
+        list.innerHTML = `<div style="text-align:center;padding:40px;color:#334155;font-size:12px;"><i class="fa-solid fa-spinner fa-spin" style="font-size:18px;display:block;margin-bottom:8px;"></i>${t.history_loading}</div>`;
+        try {
+            const url  = tab === 'v2' ? '/api/agent/v2/sessions' : '/api/hub/chats';
+            const res  = await fetch(url);
+            const data = await res.json();
+            const items = tab === 'v2' ? (data.sessions || []) : (data.chats || []);
+
+            if (!items.length) {
+                list.innerHTML = `<div style="text-align:center;padding:40px 16px;color:#334155;"><i class="fa-solid fa-${tab==='v2'?'robot':'comments'}" style="font-size:24px;display:block;margin-bottom:10px;color:#1e293b;"></i><div style="font-size:12px;font-weight:600;color:#475569;">${t.history_empty}</div></div>`;
+                return;
+            }
+
+            const now = Date.now()/1000, DAY = 86400;
+            const G = { today:[], yesterday:[], week:[], older:[] };
+            const GL = { today: localStorage.getItem('lang')==='ar'?'اليوم':'Today', yesterday: localStorage.getItem('lang')==='ar'?'الأمس':'Yesterday', week: localStorage.getItem('lang')==='ar'?'هذا الأسبوع':'This Week', older: localStorage.getItem('lang')==='ar'?'أقدم':'Older' };
+            items.forEach(s => {
+                const age = now - (s.updated_at || now);
+                if (age < DAY) G.today.push(s);
+                else if (age < 2*DAY) G.yesterday.push(s);
+                else if (age < 7*DAY) G.week.push(s);
+                else G.older.push(s);
+            });
+
+            let html = '';
+            ['today','yesterday','week','older'].forEach(k => {
+                if (!G[k].length) return;
+                html += `<div style="padding:8px 6px 3px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#1e293b;">${GL[k]}</div>`;
+                G[k].forEach(s => {
+                    const sid   = s.session_id;
+                    const title = _esc(s.title || (localStorage.getItem('lang')==='ar'?'محادثة':'Chat'));
+                    const sub   = tab === 'v2' ? (s.file_count||0)+' '+(localStorage.getItem('lang')==='ar'?'ملفات':'files') : (s.msg_count||0)+' '+(localStorage.getItem('lang')==='ar'?'رسالة':'msgs');
+                    const ico   = tab === 'v2' ? 'fa-robot' : 'fa-comments';
+                    const clr   = tab === 'v2' ? '#818cf8' : '#4ade80';
+                    html += `<div onclick="_loadSession('${tab}','${sid}')" role="button" style="display:flex;align-items:center;gap:9px;padding:8px;border-radius:9px;cursor:pointer;transition:background .12s;margin-bottom:1px;" onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background='transparent'">
+                        <div style="width:34px;height:34px;border-radius:8px;flex-shrink:0;background:rgba(99,102,241,.1);display:flex;align-items:center;justify-content:center;">
+                            <i class="fa-solid ${ico}" style="color:${clr};font-size:13px;"></i>
+                        </div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:12px;font-weight:600;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${title}</div>
+                            <div style="font-size:10px;color:#334155;margin-top:1px;">${sub}</div>
+                        </div>
+                        <button onclick="event.stopPropagation();_deleteSession('${tab}','${sid}',this.closest('[role=button]'))" style="padding:3px 6px;border-radius:5px;border:none;background:transparent;color:#334155;font-size:10px;cursor:pointer;opacity:0;" onmouseenter="this.style.opacity='1';this.style.color='#ef4444'" onmouseleave="this.style.opacity='0'">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>`;
+                });
+            });
+            list.innerHTML = html;
+        } catch {
+            list.innerHTML = `<div style="text-align:center;padding:20px;color:#ef4444;font-size:11px;"><i class="fa-solid fa-triangle-exclamation" style="display:block;margin-bottom:6px;"></i>${localStorage.getItem('lang')==='ar'?'خطأ في التحميل':'Load error'}</div>`;
+        }
+    }
+
+    function _esc(t) { return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    window._loadSession = async function(tab, sid) {
+        window.closeHubHistory();
+        try {
+            const url = tab === 'v2' ? '/api/agent/v2/session/' + sid : '/api/hub/chat/' + sid;
+            const d = await (await fetch(url)).json();
+            if (d.files)   Object.assign(currentFiles, d.files);
+            if (d.history) chatHistory = d.history;
+            const feed = document.getElementById('chat-container');
+            if (feed && d.history && d.history.length) {
+                feed.innerHTML = '';
+                d.history.forEach(m => addMessageUI(m.role === 'user' ? 'user' : 'ai', m.content || ''));
+            }
+            if (d.files && Object.keys(d.files).some(f => f.endsWith('.html'))) {
+                renderPreview('index.html');
+                switchView('preview');
+            }
+        } catch {
+            addMessageUI('ai', `<span style="color:#f87171">⚠️ ${localStorage.getItem('lang')==='ar'?'تعذّر التحميل':'Failed to load'}</span>`);
+        }
+    };
+
+    window._deleteSession = async function(tab, sid, rowEl) {
+        const url = tab === 'v2' ? '/api/agent/v2/session/' + sid : '/api/hub/chat/' + sid;
+        try {
+            await fetch(url, { method: 'DELETE' });
+            if (rowEl) { rowEl.style.opacity = '0'; setTimeout(() => rowEl.parentNode?.removeChild(rowEl), 200); }
+        } catch {}
+    };
+
+    window.newHubChat = function() {
+        window.closeHubHistory();
+        chatHistory = []; currentFiles = {};
+        const feed = document.getElementById('chat-container');
+        if (feed) {
+            feed.innerHTML = '<div id="welcome-message-container" class="msg-row ai"></div>';
+            if (currentVersion === 'v2') _applyVersionUI('v2');
+            else applyIdeTranslations();
+        }
+        const frame = document.getElementById('preview-frame');
+        if (frame) frame.srcdoc = '';
+        const empty = document.getElementById('preview-empty');
+        if (empty) empty.style.display = '';
+    };
+
+    // Auto-save V1 chat history
+    let _v1SaveTimer = null;
+    window._scheduleV1Save = function() {
+        if (window.HUB_MODE === 'agent') return;
+        clearTimeout(_v1SaveTimer);
+        _v1SaveTimer = setTimeout(function() {
+            if (!chatHistory.length) return;
+            const sid = window._v1SessionId = window._v1SessionId || ('v1_' + Date.now());
+            let firstUser = '';
+            for (let i = 0; i < chatHistory.length; i++) { if (chatHistory[i].role==='user') { firstUser=chatHistory[i].content||''; break; } }
+            fetch('/api/hub/save-chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ session_id:sid, title:firstUser.slice(0,60)||'محادثة', history:chatHistory, files:currentFiles }) }).catch(() => {});
+        }, 3000);
+    };
+
+    // Resume V2 session (called from history list)
+    window.resumeAgentSession = async function(sessionId) {
+        window.closeHubHistory();
+        try {
+            const data = await (await fetch('/api/agent/v2/session/' + sessionId)).json();
+            if (data.files)   Object.assign(currentFiles, data.files);
+            if (data.history) chatHistory = data.history;
+            const lang = localStorage.getItem('lang') || 'ar';
+            addMessageUI('ai', `<div class="agent-header-card"><div style="font-weight:700;color:#38bdf8;margin-bottom:4px;"><i class="fa-solid fa-robot mr-2"></i>${lang==='ar'?'استئناف جلسة الوكيل':'Resuming Agent Session'}</div><div style="font-size:12px;color:#64748b;">${data.title||'Session'} — ${Object.keys(data.files||{}).length} ${lang==='ar'?'ملف':'files'}</div></div>`);
+            if (data.files && Object.keys(data.files).some(f => f.endsWith('.html'))) renderPreview('index.html');
+        } catch {
+            addMessageUI('ai', `<div style="color:#f87171">⚠️ ${localStorage.getItem('lang')==='ar'?'تعذّر استئناف الجلسة':'Failed to resume session'}</div>`);
+        }
+    };
+})();
+
+// ════════════════════════════════════════════════════════════════════════
+//  [12] BROWSER RUNTIME (Python/SQL/JS/HTML in browser)
+// ════════════════════════════════════════════════════════════════════════
+window.BrowserRuntime = (function() {
+    const CDN = {
+        pyodide: 'https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js',
+        sqljs:   'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/sql-wasm.js',
+    };
+    const state = { pyodide: null, sqlReady: false, loading: {} };
+
+    function loadScript(url) {
+        if (state.loading[url]) return state.loading[url];
+        state.loading[url] = new Promise((res, rej) => {
+            const s = document.createElement('script');
+            s.src = url; s.async = true;
+            s.onload = res; s.onerror = () => rej(new Error('Failed to load: ' + url));
+            document.head.appendChild(s);
+        });
+        return state.loading[url];
+    }
+
+    async function ensurePyodide(onOutput) {
+        if (state.pyodide) return state.pyodide;
+        onOutput?.({ type: 'system', text: '⏳ Loading Python runtime (Pyodide)…' });
+        await loadScript(CDN.pyodide);
+        state.pyodide = await loadPyodide({
+            indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.27.5/full/',
+            stdout: t => onOutput?.({ type: 'stdout', text: t }),
+            stderr: t => onOutput?.({ type: 'stderr', text: t }),
+        });
+        onOutput?.({ type: 'system', text: '✅ Python ready' });
+        return state.pyodide;
+    }
+
+    async function runPython(code, onOutput) {
+        const py = await ensurePyodide(onOutput);
+        py.setStdout({ batched: t => onOutput?.({ type: 'stdout', text: t }) });
+        py.setStderr({ batched: t => onOutput?.({ type: 'stderr', text: t }) });
+        try {
+            const result = await py.runPythonAsync(code);
+            if (result !== undefined && result !== null) onOutput?.({ type: 'result', text: String(result) });
+            return { ok: true };
+        } catch(err) {
+            const clean = (err.message||String(err)).split('\n').filter(l => !l.includes('pyodide')).join('\n') || String(err);
+            onOutput?.({ type: 'error', text: clean });
+            return { ok: false, error: clean };
+        }
+    }
+
+    async function runSQL(code, onOutput) {
+        if (!state.sqlReady) { onOutput?.({ type: 'system', text: '⏳ Loading SQL engine…' }); await loadScript(CDN.sqljs); state.sqlReady = true; }
+        try {
+            const SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/${f}` });
+            const db = new SQL.Database();
+            code.split(';').map(s => s.trim()).filter(Boolean).forEach(stmt => {
+                const res = db.exec(stmt);
+                if (res.length > 0) {
+                    const { columns, values } = res[0];
+                    const header = columns.join(' | ');
+                    onOutput?.({ type: 'stdout', text: header + '\n' + '-'.repeat(header.length) });
+                    values.forEach(row => onOutput?.({ type: 'stdout', text: row.join(' | ') }));
+                }
+            });
+            db.close();
+            return { ok: true };
+        } catch(err) { onOutput?.({ type: 'error', text: err.message }); return { ok: false, error: err.message }; }
+    }
+
+    function runHTML(files, onOutput) {
+        const htmlFile = Object.keys(files).find(f => f.match(/\.html?$/i)) || 'index.html';
+        let html = files[htmlFile] || '';
+        const cssFile = Object.keys(files).find(f => f.endsWith('.css'));
+        const jsFile  = Object.keys(files).find(f => f.endsWith('.js') && !f.includes('node_modules'));
+        if (cssFile && files[cssFile] && !html.includes(cssFile)) html = html.replace('</head>', `<style>${files[cssFile]}</style></head>`);
+        if (jsFile  && files[jsFile]  && !html.includes(jsFile))  html = html.replace('</body>', `<script>${files[jsFile]}<\/script></body>`);
+        const interceptor = `<script>window.onerror=function(m,s,l){parent.postMessage({type:'runtime_error',message:m+' (line '+l+')'},'*');};const _l=console.log.bind(console);console.log=function(){const a=Array.from(arguments).map(String).join(' ');parent.postMessage({type:'console_log',message:a},'*');_l.apply(console,arguments);};<\/script>`;
+        html = html.replace('<head>', '<head>' + interceptor);
+        const handler = e => {
+            if (e.data?.type === 'runtime_error') onOutput?.({ type: 'error', text: e.data.message });
+            else if (e.data?.type === 'console_log') onOutput?.({ type: 'stdout', text: e.data.message });
+        };
+        window.addEventListener('message', handler);
+        setTimeout(() => window.removeEventListener('message', handler), 10000);
+        return { ok: true, html, type: 'preview' };
+    }
+
+    function runJS(code, onOutput) {
+        const fc = { log:(...a)=>{const t=a.map(String).join(' ');onOutput?.({type:'stdout',text:t});}, error:(...a)=>{onOutput?.({type:'error',text:a.map(String).join(' ')});}, warn:(...a)=>{onOutput?.({type:'warn',text:a.map(String).join(' ')});} };
+        try { new Function('console', code)(fc); return { ok: true }; }
+        catch(err) { onOutput?.({ type: 'error', text: err.message }); return { ok: false, error: err.message }; }
+    }
+
+    function detect(files) {
+        const names = Object.keys(files || {}).map(f => f.toLowerCase());
+        if (names.some(f => f.endsWith('.py')))   return 'python';
+        if (names.some(f => f.endsWith('.sql')))  return 'sql';
+        if (names.some(f => f.endsWith('.html') || f.endsWith('.htm'))) return 'html';
+        if (names.some(f => f.endsWith('.js') || f.endsWith('.ts')))    return 'javascript';
+        return null;
+    }
+
+    async function run(codeOrFiles, language, onOutput) {
+        const lang = (language || '').toLowerCase();
+        if (lang === 'python' || lang === 'py') return runPython(typeof codeOrFiles==='string'?codeOrFiles:Object.values(codeOrFiles).join('\n'), onOutput);
+        if (lang === 'sql') return runSQL(typeof codeOrFiles==='string'?codeOrFiles:Object.values(codeOrFiles).join('\n'), onOutput);
+        if (lang === 'html' || lang === 'web') return runHTML(typeof codeOrFiles==='string'?{'index.html':codeOrFiles}:codeOrFiles, onOutput);
+        if (lang === 'javascript' || lang === 'js') return runJS(typeof codeOrFiles==='string'?codeOrFiles:Object.values(codeOrFiles).join('\n'), onOutput);
+        onOutput?.({ type: 'system', text: `⚠️ Language '${lang}' runs natively in preview.` });
+        return { ok: true, note: 'preview_only' };
+    }
+
+    return { run, detect, ensurePyodide, runPython, runSQL, runHTML, runJS, isReady: lang => lang==='python'?!!state.pyodide:lang==='sql'?state.sqlReady:true };
+})();
+
+// ════════════════════════════════════════════════════════════════════════
+//  [13] AGENT V2 — CLASS & ENGINE
+// ════════════════════════════════════════════════════════════════════════
+class AgentV2 {
+    constructor(uiContainer, opts = {}) {
+        this.container  = uiContainer;
+        this.sessionId  = 'ag_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        this.model      = opts.model || 'deepseek-ai/deepseek-v3.2';
+        this.lang       = localStorage.getItem('lang') || 'ar';
+        this.plan       = null; this.files = {}; this.history = [];
+        this.phase      = 'idle'; this.aborted = false; this.taskIndex = 0;
+        this.logEl      = null; this.progressEl = null; this.taskListEl = null;
+        this.phaseBadge = document.getElementById('agent-phase-badge');
+        this.titleBar   = document.getElementById('agent-session-title');
+    }
+
+    abort() { this.aborted = true; }
+
+    setPhase(phase) {
+        this.phase = phase;
+        const map = {
+            planning:  { cls:'phase-planning',  icon:'🧠', ar:'التخطيط', en:'Planning' },
+            executing: { cls:'phase-executing', icon:'⚙️', ar:'التنفيذ', en:'Executing' },
+            testing:   { cls:'phase-testing',   icon:'🧪', ar:'الاختبار', en:'Testing' },
+            fixing:    { cls:'phase-fixing',    icon:'🔧', ar:'الإصلاح', en:'Fixing' },
+            complete:  { cls:'phase-complete',  icon:'✅', ar:'مكتمل', en:'Complete' },
+            error:     { cls:'phase-error',     icon:'❌', ar:'خطأ', en:'Error' },
+        };
+        const p = map[phase] || map.executing;
+        if (this.phaseBadge) {
+            this.phaseBadge.className = 'agent-phase-badge ' + p.cls;
+            this.phaseBadge.textContent = p.icon + ' ' + (this.lang === 'ar' ? p.ar : p.en);
+        }
+    }
+
+    log(type, message) {
+        if (!this.logEl) return;
+        const time  = new Date().toLocaleTimeString('en', { hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        const entry = document.createElement('div');
+        entry.className = 'agent-log-entry';
+        entry.innerHTML = `<span class="agent-log-time">${time}</span><span class="agent-log-text log-${type}">${message}</span>`;
+        this.logEl.appendChild(entry);
+        this.logEl.scrollTop = this.logEl.scrollHeight;
+    }
+
+    setProgress(pct) { if (this.progressEl) this.progressEl.style.width = Math.min(100, pct) + '%'; }
+
+    setTaskStatus(taskId, status) {
+        const card = document.getElementById('tc-' + taskId);
+        if (!card) return;
+        card.className = 'task-card ' + status;
+        const icon = card.querySelector('.task-icon');
+        if (icon) {
+            icon.className = 'task-icon ' + status;
+            const icons = { pending:'fa-clock', active:'fa-circle-notch fa-spin', completed:'fa-check', failed:'fa-times', fixing:'fa-wrench fa-spin' };
+            icon.innerHTML = `<i class="fa-solid ${icons[status]||'fa-clock'}"></i>`;
+        }
+        const shine = card.querySelector('.task-card-shine');
+        if (shine && status !== 'active') shine.style.display = 'none';
+    }
+
+    async gather_requirements(userRequest) {
+        // Detect language from user request itself
+        const arabicPattern = /[\u0600-\u06FF]/;
+        const lang = arabicPattern.test(userRequest) ? 'ar' : (this.lang || 'en');
+        const ar = lang === 'ar';
+
+        // Step 1: Quick API call to generate smart questions based on user's request
+        let aiQuestions = null;
+        try {
+            const sysPrompt = `You are a technical project assistant. Generate exactly 2 smart clarifying questions for the user's project request.
+
+IMPORTANT — These are the ONLY languages this system can actually execute and test (all run in the USER'S BROWSER, zero load on our server):
+
+┌─ NATIVE / WASM (instant, no network) ──────────────────────────────┐
+│  HTML + CSS + JavaScript   → full web apps, visual browser preview  │
+│  JavaScript (standalone)   → sandboxed Function execution           │
+│  TypeScript                → compiled by TypeScript CDN → JS        │
+│  Python 3                  → Pyodide WASM (stdlib, no file I/O)     │
+│  SQL / SQLite              → SQL.js WASM                            │
+└────────────────────────────────────────────────────────────────────┘
+┌─ PISTON API (called from browser, zero load on our server) ─────────┐
+│  Java · C · C++ · C# · Go · Rust · Swift · Kotlin · PHP · Ruby      │
+└────────────────────────────────────────────────────────────────────┘
+
+QUESTION GENERATION RULES:
+1. Read the request carefully: web UI / game / dashboard → HTML/CSS/JS; script / algorithm / CLI → Python or JS/TS; backend API → choose language; data → SQL.
+2. If request needs server-side logic or a compiled language → ask which one from the Piston list above.
+3. If purely frontend / web → ask about UI style or data handling (localStorage, SQL, API).
+4. Each question must have 3–5 options chosen ONLY from the supported languages above.
+5. NEVER suggest unsupported environments (native mobile, desktop GUI, browser extensions).
+6. Make questions specific to THIS project — not generic.
+
+Return ONLY valid JSON, no markdown, no preamble:
+{
+  "questions": [
+    {
+      "id": "stack",
+      "text_ar": "اختر تقنية المشروع",
+      "text_en": "Choose project technology",
+      "options": [{"value":"web","icon":"🌐","ar":"تطبيق ويب (HTML/CSS/JS)","en":"Web App (HTML/CSS/JS)"}]
+    },
+    {
+      "id": "data",
+      "text_ar": "كيف سيتعامل المشروع مع البيانات؟",
+      "text_en": "How will the project handle data?",
+      "options": [{"value":"mock","icon":"🧪","ar":"بيانات تجريبية واقعية","en":"Realistic sample data"}]
+    }
+  ]
+}`;
+            let qJson = '';
+            for await (const chunk of this.streamFromAPI([
+                { role:'system', content: sysPrompt },
+                { role:'user', content: `User project request: "${userRequest}"\n\nGenerate 2 smart questions tailored to this specific request. If it involves server/backend logic, ask about backend language (Python vs Node.js). Include relevant options (3-5 options each):` }
+            ], 'plan')) {
+                if (this.aborted) break;
+                if (chunk.type === 'content') qJson += chunk.content;
+            }
+            const cleaned = qJson.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+            const s = cleaned.indexOf('{'), e = cleaned.lastIndexOf('}');
+            if (s !== -1 && e !== -1) aiQuestions = JSON.parse(cleaned.slice(s, e+1));
+        } catch {}
+
+        // Fallback questions if AI call failed
+        if (!aiQuestions?.questions?.length) {
+            aiQuestions = {
+                questions: [
+                    { id:'stack', text_ar:'ما نوع المشروع؟', text_en:'What type of project?',
+                      options:[
+                        {value:'web',    icon:'🌐', ar:'تطبيق ويب (HTML/CSS/JS)', en:'Web App (HTML/CSS/JS)'},
+                        {value:'python', icon:'🐍', ar:'سكريبت Python',            en:'Python Script'},
+                        {value:'sql',    icon:'🗄️', ar:'تطبيق SQL',               en:'SQL App'},
+                        {value:'other',  icon:'✏️', ar:'آخر (اكتب)',              en:'Other (describe)'},
+                      ]
+                    },
+                    { id:'data', text_ar:'كيف سيتعامل المشروع مع البيانات؟', text_en:'How will data be handled?',
+                      options:[
+                        {value:'mock',  icon:'🧪', ar:'بيانات تجريبية واقعية',          en:'Realistic sample data'},
+                        {value:'local', icon:'💾', ar:'localStorage (يحفظ في المتصفح)', en:'localStorage (persists locally)'},
+                        {value:'api',   icon:'🔗', ar:'API خارجي',                      en:'External API'},
+                        {value:'none',  icon:'🚫', ar:'لا أحتاج بيانات',               en:'No data needed'},
+                      ]
+                    },
+                ]
+            };
+        }
+
+        // Add "Other" option to every question if not already there
+        aiQuestions.questions.forEach(q => {
+            if (!q.options.find(o => o.value === 'other')) {
+                q.options.push({value:'other', icon:'✏️', ar:'آخر (اكتب)', en:'Other (describe)'});
+            }
         });
 
-        switchGhTab('deploy');
+        // Step 2: Show step-by-step wizard UI
+        return new Promise(resolve => {
+            const answers = {};
+            let step = 0;
+            const qs = aiQuestions.questions;
 
-        const files = Object.keys(currentFiles);
+            const card = document.createElement('div');
+            card.style.cssText = 'padding:14px;';
+            this.container.appendChild(card);
 
-        const repoInput = document.getElementById('gh-repo-name');
-        if (repoInput && !repoInput.value) {
-            repoInput.value = 'orgteh-project-' + Date.now().toString(36);
-        }
+            const render = () => {
+                const q = qs[step];
+                const isLast = step === qs.length - 1;
+                const progress = Math.round(((step) / qs.length) * 100);
 
-        fetch('/api/github/status')
-            .then(r => r.json())
-            .then(data => {
-                if (data.connected) {
-                    if (files.length === 0) {
-                        document.getElementById('gh-no-files').classList.remove('hidden');
-                    } else {
-                        const list = document.getElementById('gh-files-list');
-                        if (list) list.innerHTML = files.map(f => 
-                            `<li class="flex items-center gap-2"><i class="fas fa-file-code text-indigo-500"></i> ${f}</li>`
-                        ).join('');
-                        document.getElementById('gh-deploy-form').classList.remove('hidden');
+                card.innerHTML = `
+                <div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:14px;padding:16px;max-width:520px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <span style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">
+                            ${ar?'سؤال':'Question'} ${step+1}/${qs.length}
+                        </span>
+                        <div style="height:4px;flex:1;background:rgba(255,255,255,.08);border-radius:99px;margin:0 10px;overflow:hidden;">
+                            <div style="height:100%;width:${progress}%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:99px;transition:width .3s;"></div>
+                        </div>
+                        <span style="font-size:10px;color:#818cf8;">${progress}%</span>
+                    </div>
+
+                    <div style="font-weight:700;font-size:13px;color:#e2e8f0;margin-bottom:12px;">
+                        ${ar ? q.text_ar : q.text_en}
+                    </div>
+
+                    <div id="wizard-opts" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+                        ${q.options.map(o => `
+                        <button data-v="${o.value}" onclick="
+                            this.closest('#wizard-opts,div').querySelectorAll('[data-v]').forEach(b=>{b.style.background='rgba(255,255,255,.04)';b.style.borderColor='rgba(255,255,255,.1)';b.removeAttribute('data-sel');});
+                            this.style.background='rgba(99,102,241,.2)';this.style.borderColor='rgba(99,102,241,.5)';this.setAttribute('data-sel','1');
+                            ${o.value==='other' ? "document.getElementById('other-input-"+q.id+"').style.display='block';" : "var oi=document.getElementById('other-input-"+q.id+"');if(oi)oi.style.display='none';"}"
+                            style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#cbd5e1;font-size:12px;cursor:pointer;text-align:${ar?'right':'left'};transition:.15s;width:100%;">
+                            <span style="font-size:16px;flex-shrink:0;">${o.icon}</span>
+                            <span>${ar?o.ar:o.en}</span>
+                        </button>`).join('')}
+                    </div>
+
+                    <div id="other-input-${q.id}" style="display:none;margin-bottom:12px;">
+                        <input id="other-text-${q.id}" placeholder="${ar?'اكتب تفاصيل أكثر...':'Describe your preference...'}"
+                            style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(99,102,241,.3);background:rgba(0,0,0,.3);color:#e2e8f0;font-size:12px;outline:none;box-sizing:border-box;">
+                    </div>
+
+                    <div style="display:flex;gap:8px;">
+                        ${step > 0 ? `<button id="wiz-back"
+                            style="padding:8px 16px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;">
+                            ${ar?'← رجوع':'← Back'}
+                        </button>` : ''}
+                        <button id="wiz-next"
+                            style="flex:1;padding:9px;border-radius:9px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;font-size:13px;font-weight:700;cursor:pointer;">
+                            ${isLast ? (ar?'🚀 ابدأ البناء':'🚀 Start Building') : (ar?'التالي ←':'Next →')}
+                        </button>
+                    </div>
+                </div>`;
+
+                // Back button
+                const backBtn = card.querySelector('#wiz-back');
+                if (backBtn) backBtn.onclick = () => { step--; render(); };
+
+                // Next button
+                card.querySelector('#wiz-next').onclick = () => {
+                    const sel = card.querySelector('[data-sel="1"]');
+                    let val = sel ? sel.getAttribute('data-v') : q.options[0].value;
+                    if (val === 'other') {
+                        const customTxt = card.querySelector(`#other-text-${q.id}`)?.value?.trim();
+                        val = customTxt ? `other:${customTxt}` : 'other';
                     }
-                } else {
-                    document.getElementById('gh-not-connected').classList.remove('hidden');
-                }
-            })
-            .catch(() => {
-                document.getElementById('gh-not-connected').classList.remove('hidden');
-            });
+                    answers[q.id] = val;
+                    if (isLast) {
+                        // Show language field before resolving
+                        card.innerHTML = `
+                        <div style="background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:14px;padding:16px;max-width:520px;">
+                            <div style="font-weight:700;font-size:13px;color:#e2e8f0;margin-bottom:6px;">
+                                ${ar ? '🌍 لغة الواجهة (اختياري)' : '🌍 Interface Language (optional)'}
+                            </div>
+                            <div style="font-size:11px;color:#64748b;margin-bottom:10px;">
+                                ${ar
+                                    ? 'بأي لغة تريد نصوص الواجهة؟ اتركه فارغاً لاستخدام لغة طلبك تلقائياً. يمكنك كتابة أكثر من لغة.'
+                                    : 'What language(s) should the UI text be in? Leave blank to match your input language. You can list multiple languages.'}
+                            </div>
+                            <input id="lang-pref-input"
+                                placeholder="${ar ? 'مثال: العربية، أو العربية والإنجليزية معاً...' : 'e.g. English, or Arabic + English...'}"
+                                style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid rgba(99,102,241,.3);background:rgba(0,0,0,.3);color:#e2e8f0;font-size:12px;outline:none;box-sizing:border-box;margin-bottom:12px;">
+                            <div style="display:flex;gap:8px;">
+                                <button id="lang-skip" style="flex:1;padding:9px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;">
+                                    ${ar ? '⏭ تخطي' : '⏭ Skip'}
+                                </button>
+                                <button id="lang-confirm" style="flex:2;padding:9px;border-radius:9px;border:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;font-size:13px;font-weight:700;cursor:pointer;">
+                                    🚀 ${ar ? 'ابدأ البناء' : 'Start Building'}
+                                </button>
+                            </div>
+                        </div>`;
+                        const finalize = (langVal) => {
+                            if (langVal) answers['ui_language'] = langVal;
+                            card.remove();
+                            resolve(answers);
+                        };
+                        card.querySelector('#lang-confirm').onclick = () => {
+                            const langVal = card.querySelector('#lang-pref-input')?.value?.trim();
+                            finalize(langVal);
+                        };
+                        card.querySelector('#lang-skip').onclick = () => finalize('');
+                        // Allow Enter key
+                        card.querySelector('#lang-pref-input').onkeydown = (e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); finalize(e.target.value.trim()); }
+                        };
+                    }
+                    else { step++; render(); }
+                };
+            };
 
-        openSpecificModal('github-deploy-modal');
+            render();
+        });
     }
 
-    function switchGhTab(tab) {
-        const deployBtn = document.getElementById('gh-tab-deploy');
-        const importBtn = document.getElementById('gh-tab-import');
-        const deployForm = document.getElementById('gh-deploy-form');
-        const importForm = document.getElementById('gh-import-form');
-        const noFiles = document.getElementById('gh-no-files');
-
-        if (tab === 'deploy') {
-            if (deployBtn) { deployBtn.style.background = 'var(--bg-card)'; deployBtn.style.color = 'var(--text-primary)'; deployBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'; }
-            if (importBtn) { importBtn.style.background = 'transparent'; importBtn.style.color = 'var(--text-secondary)'; importBtn.style.boxShadow = 'none'; }
-            if (importForm) importForm.classList.add('hidden');
-            const files = Object.keys(currentFiles);
-            if (files.length > 0) {
-                if (deployForm) deployForm.classList.remove('hidden');
-                if (noFiles) noFiles.classList.add('hidden');
-            } else {
-                if (deployForm) deployForm.classList.add('hidden');
-                if (noFiles) noFiles.classList.remove('hidden');
+    async plan_task(userRequest) {
+        this.setPhase('planning');
+        this.log('planning', this.lang==='ar' ? '🧠 تحليل الطلب وإعداد الخطة...' : '🧠 Analyzing request and building plan...');
+        const systemPrompt = `You are an expert AI Software Agent Planner. Analyze the user's request and create a detailed execution plan.\nIMPORTANT: Respond ONLY with a valid JSON object. No preamble, no markdown, no explanation.\n\nJSON Schema:\n{"title":"Short project title","description":"Brief description","type":"frontend|backend|fullstack|script","tech_stack":["HTML","CSS","JS"],"tasks":[{"id":"task_1","title":"Short task title","description":"What to implement","type":"file","filename":"index.html","language":"html","testable":true,"test_type":"visual|syntax|run|none","depends_on":[]}]}\n\nRules:\n- Break into 3-8 focused tasks. Each task creates ONE file.\n- Order logically. Max 8 tasks. Keep filenames simple.`;
+        const messages = [{ role:'system', content:systemPrompt }, { role:'user', content:`User request: ${userRequest}\n\nCreate the execution plan:` }];
+        let jsonText = '';
+        try {
+            for await (const chunk of this.streamFromAPI(messages, 'plan')) {
+                if (this.aborted) throw new Error('Aborted');
+                if (chunk.type === 'content') jsonText += chunk.content;
             }
-        } else {
-            if (importBtn) { importBtn.style.background = 'var(--bg-card)'; importBtn.style.color = 'var(--text-primary)'; importBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'; }
-            if (deployBtn) { deployBtn.style.background = 'transparent'; deployBtn.style.color = 'var(--text-secondary)'; deployBtn.style.boxShadow = 'none'; }
-            if (deployForm) deployForm.classList.add('hidden');
-            if (noFiles) noFiles.classList.add('hidden');
-            if (importForm) importForm.classList.remove('hidden');
+        } catch(e) { throw new Error(`Planning failed: ${e.message}`); }
+        let planData;
+        try {
+            const cleaned = jsonText.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+            const start = cleaned.indexOf('{'), end = cleaned.lastIndexOf('}');
+            if (start === -1 || end === -1) throw new Error('No JSON');
+            planData = JSON.parse(cleaned.slice(start, end+1));
+        } catch { planData = this._fallbackPlan(userRequest); }
+        this.plan = planData;
+        this.log('success', `✅ ${this.lang==='ar'?'الخطة جاهزة':'Plan ready'}: ${planData.tasks?.length||0} ${this.lang==='ar'?'مهام':'tasks'}`);
+        return planData;
+    }
+
+    _fallbackPlan(request) {
+        return { title:request.slice(0,50), description:request, type:'frontend', tech_stack:['HTML','CSS','JavaScript'], tasks:[{ id:'task_1', title:'Build application', description:`Build: ${request}`, type:'file', filename:'index.html', language:'html', testable:true, test_type:'visual', depends_on:[] }] };
+    }
+
+    async execute_task(task, taskIndex) {
+        this.setPhase('executing');
+        this.setTaskStatus(task.id, 'active');
+        this.log('executing', `⚙️ ${task.title} (${task.filename})`);
+        this.setProgress(10 + (taskIndex / this.plan.tasks.length) * 60);
+
+        let existingContext = '';
+        if (Object.keys(this.files).length > 0) {
+            existingContext = '\n\n[EXISTING PROJECT FILES]\n';
+            Object.entries(this.files).forEach(([fname, content]) => {
+                existingContext += `\n--- ${fname} ---\n${content.slice(0, 1500)}${content.length>1500?'\n...(truncated)':''}\n`;
+            });
+        }
+
+        const arabicPattern = /[\u0600-\u06FF]/;
+        const detectedLang = arabicPattern.test(this._originalRequest || '') ? 'Arabic' : 'the same language the user wrote in';
+        const uiLangInstruction = this.requirements?.ui_language
+            ? `UI LANGUAGE: Generate ALL interface text, labels, buttons, and content in: ${this.requirements.ui_language}.`
+            : `UI LANGUAGE: Generate ALL interface text in ${detectedLang} (auto-detected from user input).`;
+
+        const systemPrompt = `You are an expert AI Software Agent. Implement ONE specific file perfectly.
+PROJECT: ${this.plan.title}
+TECH STACK: ${this.plan.tech_stack?.join(', ')}
+REQUIREMENTS CONTEXT: ${this.requirements ? JSON.stringify(this.requirements) : 'standard web project'}
+${uiLangInstruction}
+
+EXECUTION ENVIRONMENT (all runs in USER'S BROWSER — write code accordingly):
+  Native/WASM:  HTML+CSS+JS · JavaScript · TypeScript · Python (Pyodide, no file I/O) · SQL (SQLite)
+  Via Piston:   Java · C · C++ · C# · Go · Rust · Swift · Kotlin · PHP · Ruby
+  NEVER write:  code that assumes a real filesystem, network sockets, or OS system calls in Pyodide
+
+CRITICAL RULES:
+1. Output ONLY the complete file content for "${task.filename}"
+2. NO explanations, NO markdown fences, NO preamble — start directly with file content
+3. Write complete, production-ready, working code
+4. For HTML: Use Tailwind CSS CDN, dark theme, mobile-first, modern UI
+5. ALL navigation links MUST use exact filenames (e.g. href="patients.html")
+6. NEVER use hardcoded fake statistics — use dynamic JS with localStorage or editable demo arrays
+7. ALL interactive features must actually work (forms, tables, modals, buttons)
+8. If data is needed: define a JS array/object with 3–5 realistic sample entries at top of script
+${existingContext}`;
+        const userMsg = `Implement task: ${task.title}\nDescription: ${task.description}\nOutput the complete content for: ${task.filename}\nLanguage: ${task.language}\nStart directly with file content:`;
+        const messages = [{ role:'system', content:systemPrompt }, ...this.history.slice(-6), { role:'user', content:userMsg }];
+
+        let content = '';
+        try {
+            for await (const chunk of this.streamFromAPI(messages, 'execute')) {
+                if (this.aborted) throw new Error('Aborted');
+                if (chunk.type === 'content') content += chunk.content;
+            }
+        } catch(e) { this.setTaskStatus(task.id, 'failed'); throw new Error(`Execution failed for ${task.filename}: ${e.message}`); }
+
+        content = this._cleanCode(content, task.language);
+        this.files[task.filename] = content;
+        currentFiles[task.filename] = content;
+        isPreviewDirty = true;
+        this.log('success', `✅ ${task.filename} (${content.length.toLocaleString()} chars)`);
+        this._updateFileTreeUI(task.filename, content);
+        return content;
+    }
+
+    _cleanCode(content, language) {
+        if (content == null) return '';
+        let c = String(content).trim();
+        const fenceMatch = c.match(/^```[a-zA-Z]*\n?/);
+        if (fenceMatch) c = c.slice(fenceMatch[0].length).trim();
+        if (c.endsWith('```')) c = c.slice(0, -3).trim();
+        return c;
+    }
+
+    _updateFileTreeUI(filename, content) {
+        const tree = this.container?.querySelector('#agent-file-tree');
+        if (!tree) return;
+        let item = tree.querySelector(`[data-file="${filename}"]`);
+        if (!item) {
+            item = document.createElement('div');
+            item.className = 'agent-file-item new';
+            item.setAttribute('data-file', filename);
+            tree.appendChild(item);
+        }
+        const ext = filename.split('.').pop();
+        const icons = { html:'fa-html5 text-orange-400', css:'fa-css3-alt text-blue-400', js:'fa-js text-yellow-400', py:'fa-python text-sky-400' };
+        const size = content.length > 1024 ? (content.length/1024).toFixed(1)+'KB' : content.length+'B';
+        const safeFile = filename.replace(/'/g, "\\'");
+        item.innerHTML = `
+            <i class="fa-brands ${icons[ext]||'fa-file text-gray-400'}" style="font-size:12px;width:16px;text-align:center;"></i>
+            <span style="flex:1;cursor:pointer;" onclick="currentPreviewFile='${safeFile}';renderPreview('${safeFile}');switchView('preview')">${filename}</span>
+            <span style="font-size:10px;color:#666;margin-inline-end:6px;">${size}</span>
+            <button onclick="event.stopPropagation();openFileEditor('${safeFile}')"
+                style="padding:2px 7px;border-radius:5px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.1);color:#818cf8;font-size:10px;cursor:pointer;flex-shrink:0;">
+                <i class="fa-solid fa-pen-to-square" style="font-size:9px;"></i>
+            </button>`;
+    }
+
+    async test_file(task, content) {
+        this.setPhase('testing');
+        this.log('testing', `🧪 ${this.lang==='ar'?'اختبار':'Testing'}: ${task.filename}`);
+        if (!task.testable || task.test_type === 'none') return { passed:true, errors:[], type:'skipped' };
+
+        // ── HTML → فحص بنيوي في المتصفح ────────────────────────────────
+        if (task.test_type === 'visual' && task.language === 'html') return this._testHTML(content);
+
+        // ── syntax check → BrowserExecutor (متصفح فقط، لا سيرفر) ────────
+        if (task.test_type === 'syntax') {
+            const result = window.BrowserExecutor
+                ? window.BrowserExecutor.checkSyntax(content, task.language)
+                : { valid: true, errors: [], note: 'BrowserExecutor not loaded' };
+            return { passed: result.valid, errors: result.errors || [], type: 'syntax' };
+        }
+
+        // ── تشغيل فعلي → BrowserExecutor (متصفح/Piston، لا سيرفر) ──────
+        if (task.test_type === 'run') {
+            if (!window.BrowserExecutor) return { passed: true, errors: [], type: 'run-skip' };
+            try {
+                const result = await window.BrowserExecutor.execute(content, task.language, 15000);
+                if (result.stdout) this.log('success', result.stdout.slice(0, 200));
+                if (result.stderr) this.log('error',   result.stderr.slice(0, 200));
+                return {
+                    passed:    result.passed,
+                    errors:    result.passed ? [] : [result.stderr || 'Execution failed'],
+                    stdout:    result.stdout,
+                    stderr:    result.stderr,
+                    type:      'run',
+                };
+            } catch(e) {
+                return { passed: false, errors: [e.message], type: 'run-error' };
+            }
+        }
+
+        return { passed:true, errors:[], type:'unknown' };
+    }
+
+    async _testHTML(htmlContent) {
+        // Structural validation — works in all environments including Replit sandbox
+        try {
+            const errors = [];
+            const s = String(htmlContent || '');
+            if (s.length < 50) { errors.push('File appears empty or too short'); }
+            if (!/<html/i.test(s) && !/<body/i.test(s)) { errors.push('Missing basic HTML structure'); }
+            // Check inline JS syntax
+            const scripts = [...s.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]).filter(sc => sc.trim().length > 10);
+            for (const sc of scripts) {
+                try { new Function(sc); } catch(e) { errors.push(`JS: ${e.message.slice(0, 80)}`); break; }
+            }
+            return { passed: errors.length === 0, errors, type: 'structural' };
+        } catch(e) {
+            return { passed: true, errors: [], type: 'structural-skip' };
         }
     }
 
-    async function executeGitHubImport() {
-        const urlInput = document.getElementById('gh-import-url');
-        const branchInput = document.getElementById('gh-import-branch');
-        const repoUrl = urlInput?.value.trim();
-        if (!repoUrl) { alert('يرجى إدخال رابط المستودع'); return; }
+    async fix_errors(task, content, errors, attempt) {
+        this.setPhase('fixing');
+        this.setTaskStatus(task.id, 'fixing');
+        this.log('fixing', `🔧 ${this.lang==='ar'?'إصلاح محاولة':'Fix attempt'} #${attempt}: ${errors.slice(0,2).join(' | ')}`);
+        const messages = [
+            { role:'system', content:'You are an expert AI debugger. Fix the code and output ONLY the corrected complete content. NO explanations, NO markdown fences, NO preamble.' },
+            { role:'user',   content:`File: ${task.filename}\nLanguage: ${task.language}\n\nERRORS:\n${errors.join('\n')}\n\nCURRENT CODE:\n${content}\n\nOutput the COMPLETE fixed file content:` }
+        ];
+        let fixed = '';
+        for await (const chunk of this.streamFromAPI(messages, 'fix')) {
+            if (this.aborted) throw new Error('Aborted');
+            if (chunk.type === 'content') fixed += chunk.content;
+        }
+        fixed = this._cleanCode(fixed, task.language);
+        this.files[task.filename] = fixed;
+        currentFiles[task.filename] = fixed;
+        return fixed;
+    }
 
-        document.getElementById('gh-import-form')?.classList.add('hidden');
-        const loading = document.getElementById('gh-loading');
-        if (loading) loading.classList.remove('hidden');
-        const loadingTitle = document.getElementById('gh-loading-title');
-        if (loadingTitle) loadingTitle.textContent = 'جاري الاستيراد...';
-        const statusEl = document.getElementById('gh-status-text');
-        if (statusEl) statusEl.textContent = 'جلب الملفات من GitHub';
+    async *streamFromAPI(messages, phase = 'execute') {
+        const t0 = performance.now();
+        const primaryModel = 'minimaxai/minimax-m2.5';   // NVIDIA endpoint
+        const fallbackModel = this.model;                  // deepseek-v3.1-terminus
 
+        // Try primary (NVIDIA MiniMax-M2.5) first
+        let useNvidia = true;
+        let res;
         try {
-            const response = await fetch('/api/import/github', {
+            console.log(`[AgentV2][${phase}] → primary: ${primaryModel} | msgs: ${messages.length}`);
+            res = await fetch('/api/agent/v2/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    repo_url: repoUrl,
-                    branch: branchInput?.value.trim() || 'main'
-                })
+                body: JSON.stringify({ messages, model: primaryModel, phase, session_id: this.sessionId, provider: 'nvidia' })
             });
-            const result = await response.json();
-            loading?.classList.add('hidden');
-
-            if (result.success && result.files) {
-                Object.assign(currentFiles, result.files);
-                isPreviewDirty = true;
-                closeSpecificModal('github-deploy-modal');
-
-                addMessageUI('ai', `<div style="padding:12px 16px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;">
-                    <div style="font-weight:bold;margin-bottom:6px;color:#22c55e;"><i class="fab fa-github mr-2"></i> تم الاستيراد بنجاح!</div>
-                    <div style="font-size:0.85rem;color:var(--text-secondary);">تم تحميل ${Object.keys(result.files).length} ملف من <code>${repoUrl}</code>. يمكنك الآن تعديلها أو طلب تحسينات.</div>
-                </div>`);
-
-                if (Object.keys(result.files).some(f => f.endsWith('.html'))) {
-                    renderPreview('index.html');
-                }
-            } else {
-                throw new Error(result.error || 'فشل الاستيراد');
+            if (!res.ok) {
+                const errTxt = await res.text();
+                console.warn(`[AgentV2][${phase}] primary failed ${res.status}: ${errTxt.slice(0,120)} → falling back`);
+                useNvidia = false;
             }
-        } catch (error) {
-            loading?.classList.add('hidden');
-            document.getElementById('gh-import-form')?.classList.remove('hidden');
-            alert('خطأ في الاستيراد: ' + error.message);
-        }
-    }
-
-    async function executeGitHubDeploy() {
-        const repoName = document.getElementById('gh-repo-name').value.trim();
-        if (!repoName) { 
-            alert('يرجى إدخال اسم المستودع'); 
-            return; 
+        } catch(e) {
+            console.warn(`[AgentV2][${phase}] primary error: ${e.message} → falling back`);
+            useNvidia = false;
         }
 
-        const filesArr = Object.entries(currentFiles).map(([path, content]) => ({ path, content }));
-
-        ['gh-deploy-form'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
-        document.getElementById('gh-loading').classList.remove('hidden');
-
-        const statusEl = document.getElementById('gh-status-text');
-
-        try {
-            statusEl.textContent = 'إنشاء المستودع...';
-            const response = await fetch('/api/deploy/github', {
+        // Fallback to V1 model
+        if (!useNvidia) {
+            console.log(`[AgentV2][${phase}] → fallback: ${fallbackModel}`);
+            res = await fetch('/api/agent/v2/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    repo_name: repoName,
-                    description: document.getElementById('gh-repo-desc').value || 'Generated by Orgteh Infra',
-                    is_private: document.getElementById('gh-private').checked,
-                    enable_pages: document.getElementById('gh-pages').checked,
-                    files: filesArr
-                })
+                body: JSON.stringify({ messages, model: fallbackModel, phase, session_id: this.sessionId })
             });
+            if (!res.ok) { const err = await res.text(); throw new Error(`API error ${res.status}: ${err.slice(0,200)}`); }
+        }
 
-            const result = await response.json();
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '', totalChars = 0;
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const raw = line.slice(6);
+                if (raw === '[DONE]') {
+                    const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+                    console.log(`[AgentV2][${phase}] ✅ done | ${totalChars} chars | ${elapsed}s | model: ${useNvidia ? primaryModel : fallbackModel}`);
+                    return;
+                }
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (parsed.type === 'content') totalChars += (parsed.content || '').length;
+                    yield parsed;
+                } catch {}
+            }
+        }
+        const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+        console.log(`[AgentV2][${phase}] ✅ stream end | ${totalChars} chars | ${elapsed}s`);
+    }
 
-            document.getElementById('gh-loading').classList.add('hidden');
+    async saveState(status = 'running') {
+        try {
+            await fetch('/api/agent/v2/save-state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id:this.sessionId, title:this.plan?.title||'Agent Session', status, plan:this.plan, files:this.files, history:chatHistory.slice(-20), current_task_index:this.taskIndex, total_tasks:this.plan?.tasks?.length||0, metadata:{ model:this.model, lang:this.lang } })
+            });
+        } catch {}
+    }
 
-            if (result.success) {
-                document.getElementById('gh-success').classList.remove('hidden');
-                if (result.repo_url) document.getElementById('gh-repo-link').href = result.repo_url;
-                if (result.pages_url) {
-                    document.getElementById('gh-pages-link').href = result.pages_url;
-                    document.getElementById('gh-pages-link').classList.remove('hidden');
-                } else {
-                    document.getElementById('gh-pages-link').classList.add('hidden');
+    async run(userRequest) {
+        const MAX_RETRIES = 3;
+        const lang = this.lang;
+        this._originalRequest = userRequest;  // store for language detection
+        try {
+            this._buildAgentUI();
+
+            // Phase 0: gather requirements only on first build (not follow-up fixes)
+            const hasExistingFiles = Object.keys(currentFiles).length > 0;
+            if (!hasExistingFiles) {
+                this.requirements = await this.gather_requirements(userRequest);
+            } else {
+                // Follow-up: inherit context from existing session or use defaults
+                this.requirements = { stack: 'web', data: 'mock' };
+            }
+            const reqSummary = Object.entries(this.requirements).map(([k,v]) => `${k}:${v}`).join(', ');
+            const fullRequest = userRequest + `\n[Requirements: ${reqSummary}]`;
+
+            const plan = await this.plan_task(fullRequest);
+            this._renderPlan(plan);
+            await this.saveState('running');
+
+            for (let i = 0; i < plan.tasks.length; i++) {
+                if (this.aborted) break;
+                this.taskIndex = i;
+                const task = plan.tasks[i];
+                this.setProgress(10 + (i / plan.tasks.length) * 80);
+                let content;
+                try { content = await this.execute_task(task, i); }
+                catch(e) { this.setTaskStatus(task.id, 'failed'); this.log('error', `❌ ${task.filename}: ${e.message}`); await this.saveState('running'); continue; }
+
+                if (task.testable && task.test_type !== 'none') {
+                    try {
+                        let testResult = await this.test_file(task, content);
+                        this._renderTestResult(task, testResult);
+                        if (!testResult.passed && testResult.errors?.length > 0) {
+                            let fixedContent = content, fixed = false;
+                            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                                if (this.aborted) break;
+                                try {
+                                    fixedContent = await this.fix_errors(task, fixedContent, testResult.errors, attempt);
+                                    testResult = await this.test_file(task, fixedContent);
+                                    this._renderTestResult(task, testResult);
+                                    if (testResult.passed) { fixed = true; break; }
+                                } catch(e) { this.log('error', `Fix attempt ${attempt} failed: ${e.message}`); break; }
+                            }
+                            this.log(fixed ? 'success' : 'error', fixed ? `🔧 ${lang==='ar'?'تم إصلاح':'Fixed'}: ${task.filename}` : `⚠️ ${lang==='ar'?'تعذّر إصلاح':'Could not fix'}: ${task.filename}`);
+                        }
+                    } catch(testErr) {
+                        this.log('warn', `⚠️ ${lang==='ar'?'تخطي الاختبار':'Test skipped'}: ${testErr.message?.slice(0,100)}`);
+                    }
+                }
+                this.setTaskStatus(task.id, 'completed');
+                await this.saveState('running');
+            }
+
+            if (!this.aborted) {
+                this.setPhase('complete'); this.setProgress(100);
+                await this.saveState('completed');
+                this._renderComplete();
+                this._restoreSendBtn();
+                const htmlFiles = Object.keys(this.files).filter(f => f.endsWith('.html'));
+                if (htmlFiles.length > 0) {
+                    const main = htmlFiles.find(f => f === 'index.html') || htmlFiles[0];
+                    currentPreviewFile = main;
+                    renderPreview(main);
+                    setTimeout(() => switchView('preview'), 800);
                 }
             } else {
-                throw new Error(result.error || 'فشل النشر');
+                this._restoreSendBtn();
             }
-        } catch (error) {
-            document.getElementById('gh-loading').classList.add('hidden');
-            document.getElementById('gh-deploy-form').classList.remove('hidden');
-            alert('خطأ: ' + error.message);
+        } catch(e) {
+            this.setPhase('error');
+            this.log('error', `❌ ${lang==='ar'?'خطأ فادح':'Fatal error'}: ${e.message}`);
+            await this.saveState('failed');
+            this._renderError(e.message);
+            this._restoreSendBtn();
         }
     }
+
+    _buildAgentUI() {
+        const lang = this.lang;
+        // Convert send button → stop button
+        const sendBtn = document.getElementById('send-btn') || document.querySelector('.send-btn');
+        if (sendBtn) {
+            sendBtn.dataset.origHtml = sendBtn.innerHTML;
+            sendBtn.innerHTML = '<i class="fa-solid fa-stop" style="font-size:14px;"></i>';
+            sendBtn.style.background = 'rgba(239,68,68,0.15)';
+            sendBtn.style.borderColor = 'rgba(239,68,68,0.4)';
+            sendBtn.onclick = () => { this.abort(); this._restoreSendBtn(); };
+            this._sendBtnRef = sendBtn;
+        }
+
+        this.container.innerHTML = `
+        <div class="msg-row ai agent-session-wrapper">
+        <div class="msg-bubble msg-ai" style="width:100%;padding:14px 16px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <div class="agent-progress-bar" style="flex:1;margin:0;">
+                    <div class="agent-progress-fill" id="agent-progress-fill" style="width:3%;"></div>
+                </div>
+                <span style="font-size:10px;color:#64748b;flex-shrink:0;" id="agent-status-text">${lang==='ar'?'يبدأ...':'Starting...'}</span>
+            </div>
+            <div id="agent-task-list" class="task-plan-container"></div>
+            <div class="agent-log" id="agent-log-${this.sessionId}"></div>
+            <div class="agent-file-tree" id="agent-file-tree" style="display:none;">
+                <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:4px;">
+                    <i class="fa-solid fa-folder-open" style="margin-inline-end:4px;"></i>${lang==='ar'?'الملفات المنشأة':'Created Files'}
+                </div>
+            </div>
+            <div id="agent-test-results"></div>
+            <div id="agent-complete-area"></div>
+        </div>
+        </div>`;
+
+        this.logEl      = this.container.querySelector(`#agent-log-${this.sessionId}`);
+        this.progressEl = this.container.querySelector('#agent-progress-fill');
+        this.taskListEl = this.container.querySelector('#agent-task-list');
+        this.statusEl   = this.container.querySelector('#agent-status-text');
+        const chat = document.getElementById('chat-container');
+        if (chat) chat.scrollTop = chat.scrollHeight;
+    }
+
+    _restoreSendBtn() {
+        const btn = this._sendBtnRef;
+        if (!btn) return;
+        btn.innerHTML = btn.dataset.origHtml || '<i class="fa-solid fa-arrow-up"></i>';
+        btn.style.background = '';
+        btn.style.borderColor = '';
+        btn.onclick = () => sendMessage();
+        this._sendBtnRef = null;
+    }
+
+    _renderPlan(plan) {
+        if (!this.taskListEl) return;
+        const lang = this.lang;
+        if (this.titleBar) this.titleBar.textContent = plan.title || (lang==='ar'?'جلسة الوكيل':'Agent Session');
+        const stackBadges = (plan.tech_stack||[]).map(t => `<span style="padding:2px 8px;border-radius:999px;font-size:9.5px;font-weight:700;background:rgba(139,92,246,0.15);color:#a78bfa;border:1px solid rgba(139,92,246,0.2);">${t}</span>`).join('');
+        this.taskListEl.innerHTML = `
+            <div style="margin-bottom:8px;">
+                <div style="font-weight:700;font-size:13px;margin-bottom:4px;">${plan.title}</div>
+                <div style="font-size:11px;color:#64748b;margin-bottom:6px;">${plan.description||''}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;">${stackBadges}</div>
+            </div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">
+                ${lang==='ar'?'خطة التنفيذ':'EXECUTION PLAN'} — ${plan.tasks?.length||0} ${lang==='ar'?'مهمة':'tasks'}
+            </div>`;
+        const langIcons = { html:'fa-html5', css:'fa-css3-alt', js:'fa-js', javascript:'fa-js', py:'fa-python', python:'fa-python', ts:'fa-code', json:'fa-brackets-curly', md:'fa-file-alt' };
+        (plan.tasks||[]).forEach(task => {
+            const ext  = (task.filename||'').split('.').pop().toLowerCase();
+            const icon = langIcons[task.language] || langIcons[ext] || 'fa-file';
+            const card = document.createElement('div');
+            card.className = 'task-card pending'; card.id = 'tc-' + task.id;
+            card.innerHTML = `<div class="task-card-shine"></div><div class="task-icon pending"><i class="fa-solid fa-clock"></i></div><div class="task-info"><div class="task-title">${task.title}</div><div class="task-desc">${task.filename} — ${(task.description||'').slice(0,50)}</div></div><span class="task-lang-badge">${task.language||ext}</span>`;
+            this.taskListEl.appendChild(card);
+        });
+        const ftree = this.container?.querySelector('#agent-file-tree');
+        if (ftree) ftree.style.display = 'block';
+    }
+
+    _renderTestResult(task, result) {
+        const area = this.container?.querySelector('#agent-test-results');
+        if (!area) return;
+        const passed = result.passed || result.valid;
+        const icon   = passed ? '✅' : '⚠️';
+        const cls    = passed ? 'passed' : 'failed';
+        const errHtml = (!passed && result.errors?.length) ? `<div class="test-output">${result.errors.slice(0,3).join('\n')}</div>` : '';
+        const stdoutHtml = result.stdout?.trim() ? `<div class="test-output" style="color:#4ade80;">${result.stdout.slice(0,300)}</div>` : '';
+        area.innerHTML = `<div class="test-result-card ${cls}"><div style="font-weight:600;font-size:12px;">${icon} ${task.filename} — ${passed?(this.lang==='ar'?'اجتاز الاختبار':'Test Passed'):(this.lang==='ar'?'أخطاء موجودة':'Errors Found')}</div>${errHtml}${stdoutHtml}</div>`;
+    }
+
+    _renderComplete() {
+        const area = this.container?.querySelector('#agent-complete-area');
+        if (!area) return;
+        const lang = this.lang;
+
+        // Hide the plan task list — no longer needed after completion
+        if (this.taskListEl) this.taskListEl.style.display = 'none';
+        const count = Object.keys(this.files).length;
+        const fileList = Object.keys(this.files).map(f => {
+            const sf = f.replace(/'/g,"\\'");
+            return `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px 2px 8px;border-radius:6px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);">
+                <span onclick="renderPreview('${sf}');switchView('preview')" style="cursor:pointer;color:#4ade80;font-size:11px;">${f}</span>
+                <button onclick="openFileEditor('${sf}')" style="padding:1px 6px;border-radius:4px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.1);color:#818cf8;font-size:9px;cursor:pointer;" title="${lang==='ar'?'تعديل':'Edit'}"><i class="fa-solid fa-pen-to-square"></i></button>
+            </span>`;
+        }).join('');
+        area.innerHTML = `
+            <div class="agent-complete-banner">
+                <div style="font-size:28px;margin-bottom:6px;">🎉</div>
+                <div style="font-weight:700;font-size:15px;color:#4ade80;margin-bottom:4px;">${lang==='ar'?'اكتمل المشروع!':'Project Complete!'}</div>
+                <div style="font-size:12px;color:#64748b;margin-bottom:10px;">${count} ${lang==='ar'?'ملفات تم إنشاؤها بنجاح':'files created successfully'}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-bottom:12px;">${fileList}</div>
+                <button onclick="downloadAll()" style="padding:6px 18px;border-radius:20px;background:linear-gradient(135deg,#0ea5e9,#8b5cf6);color:white;font-size:12px;font-weight:600;cursor:pointer;border:none;">
+                    <i class="fa-solid fa-download mr-1"></i>${lang==='ar'?'تحميل المشروع':'Download Project'}
+                </button>
+            </div>`;
+        if (this.statusEl) this.statusEl.textContent = lang==='ar' ? 'اكتمل ✅' : 'Complete ✅';
+    }
+
+    _renderError(message) {
+        const area = this.container?.querySelector('#agent-complete-area');
+        if (!area) return;
+        const lang = this.lang;
+        area.innerHTML = `<div class="test-result-card failed" style="text-align:center;padding:16px;"><div style="font-size:24px;margin-bottom:6px;">⚠️</div><div style="font-weight:600;margin-bottom:4px;">${lang==='ar'?'حدث خطأ':'An error occurred'}</div><div class="test-output" style="text-align:left;">${message}</div><button onclick="this.closest('.msg-bubble').remove()" style="margin-top:10px;padding:4px 14px;border-radius:20px;border:1px solid rgba(239,68,68,0.3);background:transparent;color:#f87171;font-size:11px;cursor:pointer;">${lang==='ar'?'إغلاق':'Close'}</button></div>`;
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  [14] V2 SEND MESSAGE HANDLER
+// ════════════════════════════════════════════════════════════════════════
+
+function _v2IsChat(text, mode) {
+    if (mode === 'chat') return true;
+    if (mode === 'build') return false;
+    const t = text.trim().toLowerCase();
+    const words = t.split(/\s+/).filter(Boolean);
+    const hasFiles = Object.keys(currentFiles).length > 0;
+
+    // ── عندما يوجد مشروع مبني: أي سؤال/استفسار → chat بالسياق ──
+    if (hasFiles) {
+        // طلبات بناء/تعديل صريحة → agent
+        const modifyKW = ['أضف','اضف','أضيف','عدّل','عدل','غيّر','غير','احذف','ابنِ من جديد','أعد بناء','rebuild','rewrite','refactor','add feature','add a','modify','delete','remove feature','update the'];
+        if (modifyKW.some(k => t.includes(k))) return false;
+        // شكاوى من أخطاء → agent (يحاول إصلاحها)
+        const fixKW = ['لا تعمل','لا يعمل','مشكلة','خطأ','broken','not work','bug','issue','error','خلل','مش شغال','crashes','يتعطل','doesn\'t work'];
+        if (fixKW.some(k => t.includes(k))) return false;
+        // أي سؤال عن المشروع القائم → chat
+        return true;
+    }
+
+    // ── لا يوجد مشروع: كلمة ≤3 بدون build keyword → chat ──
+    if (words.length <= 3) {
+        const buildKWShort = ['build','create','make','generate','ابنِ','أنشئ','اصنع','بناء','اكتب','طور','صمم'];
+        if (!buildKWShort.some(k => t.includes(k))) return true;
+    }
+    const buildKW = ['build','create','make','generate','develop','code','write','implement','design','app','website','page','tool','script','program','project','ابنِ','أنشئ','اصنع','بناء','اكتب','طور','صمم','تطبيق','موقع','صفحة','برنامج','مشروع','كود','سكريبت','أداة','نظام','انشاء','انشئ'];
+    if (buildKW.some(k => t.includes(k))) return false;
+    const chatKW = ['what','how','why','explain','tell','describe','difference','compare','ما','كيف','لماذا','اشرح','اخبرني','ما هو','ما هي','من','متى','أين','هل','فرق','مقارنة','وضح','مميزات','مزايا','خصائص','مرحبا','مرحباً','أهلا','hello','hi','hey','شكراً','شكرا','thanks','good','صباح','مساء','سؤال','features','capabilities'];
+    if (chatKW.some(k => t.includes(k))) return true;
+    return t.endsWith('?') || t.endsWith('؟');
+}
+
+async function _sendMessageV2() {
+    const input     = document.getElementById('prompt-input');
+    const fileInput = document.getElementById('file-input');
+    const text      = input?.value.trim();
+    if (!text && (!fileInput || fileInput.files.length === 0)) return;
+
+    addMessageUI('user', (text || '').replace(/\n/g, '<br>'));
+    chatHistory.push({ role: 'user', content: text });
+    input.value = ''; if (input.style) input.style.height = 'auto';
+    filesBuffer = {};
+    switchView('chat');
+
+    const feed = document.getElementById('chat-container');
+    const agentContainer = document.createElement('div');
+    feed.appendChild(agentContainer);
+
+    const isChat = _v2IsChat(text, currentMode);
+    if (isChat) {
+        feed.removeChild(agentContainer);
+        let chatText = text;
+        if (Object.keys(currentFiles).length > 0) {
+            const fileList = Object.keys(currentFiles).join(', ');
+            const preview = Object.entries(currentFiles).slice(0, 2).map(([f, c]) => `${f}:\n${c.slice(0, 400)}`).join('\n---\n');
+            // Add plan context if available (completed + pending tasks)
+            let planCtx = '';
+            if (activeAgentV2?.plan?.tasks) {
+                const done = activeAgentV2.plan.tasks.filter(t => activeAgentV2.files[t.filename]).map(t => t.filename);
+                const pending = activeAgentV2.plan.tasks.filter(t => !activeAgentV2.files[t.filename]).map(t => t.filename);
+                planCtx = `\nCompleted files: ${done.join(', ') || 'none'}\nPending files: ${pending.join(', ') || 'none'}`;
+            }
+            chatText = `[CONTEXT: Existing project files: ${fileList}${planCtx}]\n[Preview:\n${preview}\n]\n\nUser question: ${text}`;
+        }
+        await handleChatStream(chatText, fileInput ? fileInput.files : [], 'auto');
+        activeAgentV2 = null;
+        if (fileInput) { fileInput.value = ''; updateFileBadge(); }
+        return;
+    }
+
+    const agentModel = 'deepseek-ai/deepseek-v3.1-terminus';
+    activeAgentV2 = new AgentV2(agentContainer, { model: agentModel });
+    await activeAgentV2.run(text);
+    activeAgentV2 = null;
+    if (fileInput) { fileInput.value = ''; updateFileBadge(); }
+}
+
+// Keyboard shortcut for send
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('prompt-input');
+    if (input) {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    }
+});
 </script>
-
-<style>
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
-
-    /* Ensure tool icons remain visible in dark mode */
-    .text-emerald-500 { color: #10b981; }
-    .text-blue-500 { color: #3b82f6; }
-    .text-green-500 { color: #22c55e; }
-    .text-purple-500 { color: #a855f7; }
-    .text-orange-500 { color: #f97316; }
-
-    html.dark .text-emerald-500 { color: #34d399; }
-    html.dark .text-blue-500 { color: #60a5fa; }
-    html.dark .text-green-500 { color: #4ade80; }
-    html.dark .text-purple-500 { color: #c084fc; }
-    html.dark .text-orange-500 { color: #fb923c; }
-</style>

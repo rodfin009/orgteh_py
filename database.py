@@ -451,6 +451,215 @@ def create_enterprise_lead(data):
     except: return False
 
 # ============================================================================
+# REDIS HELPER — دالة مساعدة للوصول لـ Redis من الخارج
+# ============================================================================
+
+def get_redis():
+    """يُعيد كائن Redis الحالي (أو None إن لم يكن متاحاً)."""
+    return redis
+
+# ============================================================================
+# USER PROFILE OPERATIONS — عمليات تعديل بيانات المستخدم
+# ============================================================================
+
+def update_user_profile(email: str, first_name: str, last_name: str) -> dict:
+    """يحدّث الاسم الأول والأخير للمستخدم في DB وRedis."""
+    import json as _json
+    user = get_user_by_email(email)
+    if not user:
+        return {"error": "المستخدم غير موجود", "status": 404}
+
+    user["first_name"] = first_name
+    user["last_name"]  = last_name
+
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET data = %s WHERE email = %s",
+                    (_json.dumps(user), email)
+                )
+        except Exception as e:
+            return {"error": str(e), "status": 500}
+        finally:
+            conn.close()
+
+    if redis:
+        try:
+            redis.set(f"user:{email}", _json.dumps(user))
+        except Exception:
+            pass
+
+    return {"message": "تم حفظ الاسم بنجاح", "status": 200}
+
+
+def change_user_password(email: str, current_password: str, new_password: str,
+                         validate_fn=None) -> dict:
+    """
+    يُغيّر كلمة مرور المستخدم بعد التحقق من كلمة المرور الحالية.
+    validate_fn: دالة اختيارية للتحقق من قوة الكلمة الجديدة → (bool, str)
+    """
+    import bcrypt as _bcrypt
+    import json as _json
+
+    user = get_user_by_email(email)
+    if not user:
+        return {"error": "المستخدم غير موجود", "status": 404}
+
+    try:
+        valid = _bcrypt.checkpw(
+            current_password.encode("utf-8"),
+            user["password"].encode("utf-8")
+        )
+    except Exception:
+        valid = False
+
+    if not valid:
+        return {"error": "كلمة المرور الحالية غير صحيحة", "status": 400}
+
+    if validate_fn:
+        is_valid_pw, error_msg = validate_fn(new_password)
+        if not is_valid_pw:
+            return {"error": error_msg, "status": 400}
+
+    hashed = _bcrypt.hashpw(new_password.encode("utf-8"), _bcrypt.gensalt(12)).decode("utf-8")
+    user["password"] = hashed
+
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET password_hash = %s, data = %s WHERE email = %s",
+                    (hashed, _json.dumps(user), email)
+                )
+        except Exception as e:
+            return {"error": str(e), "status": 500}
+        finally:
+            conn.close()
+
+    if redis:
+        try:
+            redis.set(f"user:{email}", _json.dumps(user))
+        except Exception:
+            pass
+
+    return {"message": "تم تغيير كلمة المرور بنجاح", "status": 200}
+
+
+def delete_user_account(email: str) -> dict:
+    """يحذف حساب المستخدم كاملاً من DB وRedis."""
+    user    = get_user_by_email(email)
+    old_key = user.get("api_key") if user else None
+
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM users WHERE email = %s", (email,))
+        except Exception as e:
+            return {"error": str(e), "status": 500}
+        finally:
+            conn.close()
+
+    if redis:
+        try:
+            redis.delete(f"user:{email}")
+            redis.delete(f"github:{email}")
+            if old_key:
+                redis.delete(f"api_key:{old_key}")
+        except Exception:
+            pass
+
+    return {"message": "تم حذف الحساب بنجاح", "status": 200}
+
+# ============================================================================
+# HUB CHAT SESSIONS — جلسات محادثات Code Hub V1 (Redis)
+# ============================================================================
+
+import time as _time_module
+
+def hub_save_chat(email: str, session_id: str, title: str,
+                  history: list, files: dict) -> dict:
+    """يحفظ جلسة محادثة V1 في Redis."""
+    import json as _json
+    if not redis:
+        return {"ok": False, "error": "Redis unavailable"}
+
+    updated_at = int(_time_module.time())
+    data = _json.dumps({
+        "session_id": session_id,
+        "title":      title,
+        "history":    history[-40:],
+        "files":      files,
+        "updated_at": updated_at,
+        "version":    "v1",
+    }, ensure_ascii=False)
+
+    try:
+        key     = f"hub_chat:{email}:{session_id}"
+        idx_key = f"hub_chat_idx:{email}"
+        redis.setex(key, 60 * 60 * 24 * 30, data)
+        redis.zadd(idx_key, {session_id: updated_at})
+        redis.expire(idx_key, 60 * 60 * 24 * 30)
+        redis.zremrangebyrank(idx_key, 0, -51)   # الاحتفاظ بآخر 50 فقط
+        return {"ok": True, "session_id": session_id}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def hub_list_chats(email: str) -> list:
+    """يُعيد قائمة جلسات محادثات V1 للمستخدم."""
+    import json as _json
+    if not redis:
+        return []
+    try:
+        idx_key = f"hub_chat_idx:{email}"
+        ids     = redis.zrevrange(idx_key, 0, 49)
+        chats   = []
+        for sid in ids:
+            sid = sid if isinstance(sid, str) else sid.decode()
+            raw = redis.get(f"hub_chat:{email}:{sid}")
+            if raw:
+                d = _json.loads(raw)
+                chats.append({
+                    "session_id": d["session_id"],
+                    "title":      d.get("title", "محادثة"),
+                    "updated_at": d.get("updated_at", 0),
+                    "msg_count":  len(d.get("history", [])),
+                    "file_count": len(d.get("files", {})),
+                    "version":    d.get("version", "v1"),
+                })
+        return chats
+    except Exception:
+        return []
+
+
+def hub_get_chat(email: str, session_id: str) -> dict | None:
+    """يسترجع جلسة محادثة V1 كاملة أو None إن لم تُوجَد."""
+    import json as _json
+    if not redis:
+        return None
+    try:
+        raw = redis.get(f"hub_chat:{email}:{session_id}")
+        return _json.loads(raw) if raw else None
+    except Exception:
+        return None
+
+
+def hub_delete_chat(email: str, session_id: str) -> bool:
+    """يحذف جلسة محادثة V1 من Redis."""
+    if not redis:
+        return False
+    try:
+        redis.delete(f"hub_chat:{email}:{session_id}")
+        redis.zrem(f"hub_chat_idx:{email}", session_id)
+        return True
+    except Exception:
+        return False
+
+# ============================================================================
 # VISITOR TRACKING & GEOLOCATION
 # ============================================================================
 

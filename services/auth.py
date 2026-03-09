@@ -6,10 +6,12 @@ import bcrypt
 import smtplib
 import httpx
 from datetime import datetime
+from pathlib import Path
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pydantic import BaseModel, EmailStr
 from fastapi import HTTPException, Request
+from fastapi.templating import Jinja2Templates
 
 #Import database functions
 from database import (
@@ -17,6 +19,16 @@ from database import (
     create_user_record,
     redis
 )
+
+# ============================================================================
+# TEMPLATES — تهيئة محرك القوالب (مرجع مشترك لجميع الملفات)
+# ============================================================================
+_BASE_DIR     = Path(__file__).resolve().parent.parent   # جذر المشروع
+_TEMPLATES_DIR = _BASE_DIR / "templates"
+if not _TEMPLATES_DIR.exists():
+    _TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
+
+templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
 # ============================================================================
 # CONFIGURATION & ENVIRONMENT VARIABLES
@@ -856,3 +868,510 @@ async def handle_check_email(data: CheckEmailRequest) -> dict:
         )
 
     return {"available": True, "email": data.email}
+
+
+# ============================================================================
+# get_template_context — دالة السياق المشتركة (تُستورد من هنا في كل مكان)
+# ============================================================================
+
+def get_template_context(request: Request, lang: str = "en") -> dict:
+    """تبني سياق القالب الموحّد لجميع الصفحات."""
+    from services.providers import MODELS_METADATA, HIDDEN_MODELS
+
+    try:
+        context = get_auth_context(request)
+    except Exception:
+        context = {"is_logged_in": False, "user_email": "", "user_api_key": ""}
+
+    context["request"] = request
+
+    if lang not in ["ar", "en"]:
+        lang = "en"
+    context["lang"]         = lang
+    context["api_key"]      = context.get("user_api_key", "")
+    context["user_email"]   = context.get("user_email", "")
+    context["is_logged_in"] = context.get("is_logged_in", False)
+
+    # Admin token — استيراد متأخر لتجنب الدوران مع services.admin
+    try:
+        from services.admin import ADMIN_TOKEN, ADMIN_EMAIL
+        user_email = context.get("user_email", "")
+        context["admin_token"] = ADMIN_TOKEN if user_email == ADMIN_EMAIL else ""
+        context["is_admin"]    = (user_email == ADMIN_EMAIL)
+    except Exception:
+        context["admin_token"] = ""
+        context["is_admin"]    = False
+
+    models_data = []
+    for m in MODELS_METADATA:
+        if m["id"] in HIDDEN_MODELS:
+            continue
+        if len(models_data) >= 12:
+            break
+        model_copy = dict(m)
+        if "image" in model_copy and model_copy["image"]:
+            original_url = model_copy["image"]
+            if "cdn.jsdelivr.net" in original_url or "https://cdn." in original_url:
+                model_id = model_copy.get("short_key", model_copy.get("id", "")).lower()
+                if "deepseek" in original_url.lower():
+                    model_copy["image"] = "/static/deepseek.webp"
+                elif "meta" in original_url.lower() or "llama" in model_id:
+                    model_copy["image"] = "/static/meta.webp"
+                elif "gemma" in original_url.lower():
+                    model_copy["image"] = "/static/gemma.webp"
+                elif "mistral" in original_url.lower():
+                    model_copy["image"] = "/static/mistral.webp"
+                elif "kimi" in original_url.lower():
+                    model_copy["image"] = "/static/kimi.webp"
+                else:
+                    model_copy["image"] = f"/static/{model_id}.webp"
+        models_data.append(model_copy)
+
+    context["models_metadata"] = models_data
+    return context
+
+# ============================================================================
+# FASTAPI ROUTER — مسارات المصادقة والإعدادات والـ OAuth
+# يُستورد في main.py عبر:  from services.auth import router as auth_router
+# ============================================================================
+import traceback
+from fastapi import APIRouter
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from pydantic import BaseModel as _BaseModel
+
+from database import (
+    get_subscription_history,
+    update_user_profile,
+    change_user_password,
+    delete_user_account,
+)
+from services.subscriptions import get_user_subscription_status
+from services.limits        import get_user_limits_and_usage
+from github_integration     import (
+    DeployRequest, one_click_deploy,
+)
+
+router = APIRouter()
+
+# ── Pydantic models (إعدادات الحساب) ─────────────────────────────────────────
+
+class ProfileUpdateRequest(_BaseModel):
+    first_name: str = ""
+    last_name:  str = ""
+
+class ChangePasswordRequest(_BaseModel):
+    current_password: str
+    new_password:     str
+
+class DeleteAccountRequest(_BaseModel):
+    email: str
+
+# ══════════════════════════════════════════════════════════════════════════════
+# صفحات المصادقة (Auth Pages)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/login", response_class=HTMLResponse)
+async def login_redirect(request: Request):
+    lang_cookie = request.cookies.get("preferred_lang")
+    if lang_cookie in ["ar", "en"]:
+        return RedirectResponse(f"/{lang_cookie}/auth")
+    return RedirectResponse("/en/login")
+
+
+@router.get("/{lang}/login", response_class=HTMLResponse)
+async def login_page(request: Request, lang: str):
+    if get_current_user_email(request):
+        return RedirectResponse(f"/{lang}/profile")
+    return templates.TemplateResponse("auth.html", get_template_context(request, lang))
+
+
+@router.get("/register", response_class=HTMLResponse)
+async def register_redirect(request: Request):
+    lang_cookie = request.cookies.get("preferred_lang")
+    lang = lang_cookie if lang_cookie in ["ar", "en"] else "en"
+    return RedirectResponse(f"/{lang}/auth?tab=register")
+
+
+@router.get("/{lang}/register", response_class=HTMLResponse)
+async def register_page(request: Request, lang: str):
+    if get_current_user_email(request):
+        return RedirectResponse(f"/{lang}/profile")
+    return templates.TemplateResponse("auth.html", get_template_context(request, lang))
+
+
+@router.get("/auth", response_class=HTMLResponse)
+async def auth_redirect():
+    return RedirectResponse("/en/login")
+
+
+@router.get("/{lang}/auth", response_class=HTMLResponse)
+async def auth_page(request: Request, lang: str):
+    if get_current_user_email(request):
+        return RedirectResponse(f"/{lang}/profile")
+    return templates.TemplateResponse("auth.html", get_template_context(request, lang))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# صفحة الملف الشخصي (Profile)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/profile", response_class=HTMLResponse)
+async def profile_redirect():
+    return RedirectResponse("/en/profile")
+
+
+@router.get("/{lang}/profile", response_class=HTMLResponse)
+async def profile_page(request: Request, lang: str):
+    email = get_current_user_email(request)
+    if not email:
+        return RedirectResponse(f"/{lang}/login")
+    try:
+        from database import get_user_by_email as _get_user
+        user          = _get_user(email)
+        sub_status    = get_user_subscription_status(email)
+        limits, usage = get_user_limits_and_usage(email)
+        context       = get_template_context(request, lang)
+
+        active_plans = user.get("active_plans", [])
+        now          = datetime.utcnow()
+        valid_plans  = []
+        for p in active_plans:
+            try:
+                if datetime.fromisoformat(p["expires"]) > now:
+                    valid_plans.append(p)
+            except Exception:
+                pass
+
+        plan_names        = [p["name"] for p in valid_plans]
+        display_plan_name = " + ".join(plan_names) if plan_names else "Free Tier"
+
+        def calc_pct(used, limit):
+            return min(100, (used / limit) * 100) if limit > 0 else 0
+
+        context.update({
+            "api_key":       context.get("user_api_key", ""),
+            "plan_name":     display_plan_name,
+            "active_plans":  valid_plans,
+            "is_active_sub": len(valid_plans) > 0,
+            "is_perpetual":  sub_status.get("is_perpetual", False) if sub_status else False,
+            "days_left":     sub_status.get("days_left", 0) if sub_status else 0,
+            "usage":         usage  if usage  else {},
+            "limits":        limits if limits else {},
+            "pct_deepseek":  calc_pct(usage.get("deepseek", 0),      limits.get("deepseek", 0)),
+            "pct_kimi":      calc_pct(usage.get("kimi", 0),           limits.get("kimi", 0)),
+            "pct_mistral":   calc_pct(usage.get("mistral", 0),        limits.get("mistral", 0)),
+            "pct_llama":     calc_pct(usage.get("llama", 0),          limits.get("llama", 0)),
+            "pct_gemma":     calc_pct(usage.get("gemma", 0),          limits.get("gemma", 0)),
+            "pct_extra":     calc_pct(usage.get("unified_extra", 0),  limits.get("unified_extra", 0)),
+        })
+        return templates.TemplateResponse("insights.html", context)
+    except Exception:
+        return RedirectResponse(f"/{lang}/login")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# صفحات الإعدادات (Settings Pages)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/settings", response_class=HTMLResponse)
+async def settings_redirect():
+    return RedirectResponse("/ar/settings/account")
+
+
+@router.get("/{lang}/settings", response_class=HTMLResponse)
+async def settings_lang_redirect(request: Request, lang: str):
+    qs  = request.url.query
+    url = f"/{lang}/settings/integrations" if "github_connected" in qs else f"/{lang}/settings/account"
+    if qs:
+        url += f"?{qs}"
+    return RedirectResponse(url)
+
+
+@router.get("/{lang}/settings/{tab}", response_class=HTMLResponse)
+async def settings_page_tab(request: Request, lang: str, tab: str):
+    valid_tabs = ["account", "integrations", "notifications", "billing", "security"]
+    if tab not in valid_tabs:
+        return RedirectResponse(f"/{lang}/settings/account")
+
+    email = get_current_user_email(request)
+    if not email:
+        return RedirectResponse(f"/{lang}/login?next=/{lang}/settings/{tab}")
+
+    try:
+        from database import get_user_by_email as _get_user
+        user = _get_user(email)
+        if not user or not isinstance(user, dict):
+            request.session.clear()
+            return RedirectResponse(f"/{lang}/login")
+
+        try:
+            sub_status = get_user_subscription_status(email)
+        except Exception:
+            sub_status = {}
+
+        active_plans = user.get("active_plans", []) if user else []
+        now          = datetime.utcnow()
+        valid_plans  = []
+        if isinstance(active_plans, list):
+            for p in active_plans:
+                try:
+                    if isinstance(p, dict) and "expires" in p:
+                        if datetime.fromisoformat(p["expires"]) > now:
+                            valid_plans.append(p)
+                except Exception:
+                    pass
+
+        plan_names   = [p.get("name", "Unknown Plan") for p in valid_plans if isinstance(p, dict)]
+        display_plan = " + ".join(plan_names) if plan_names else "Free Tier"
+        days_left    = sub_status.get("days_left", 0) if isinstance(sub_status, dict) else 0
+
+        context = get_template_context(request, lang)
+
+        try:
+            sub_history = get_subscription_history(email)
+        except Exception:
+            sub_history = []
+
+        context.update({
+            "active_tab":           tab,
+            "plan_name":            display_plan,
+            "active_plans":         valid_plans,
+            "is_active_sub":        bool(valid_plans),
+            "days_left":            days_left,
+            "profile_first_name":   user.get("first_name", ""),
+            "profile_last_name":    user.get("last_name", ""),
+            "subscription_history": sub_history,
+            "now":                  datetime.utcnow(),
+        })
+
+        if tab == "integrations":
+            context.update(get_github_context(request))
+            context["github_just_connected"] = request.query_params.get("github_connected") == "true"
+
+        return templates.TemplateResponse("settings.html", context)
+
+    except Exception as e:
+        print(f"=== [Settings Page Error] ===\n{e}")
+        traceback.print_exc()
+        fallback_context = {
+            "request": request, "lang": lang, "active_tab": tab,
+            "user_email": email, "is_logged_in": True,
+            "plan_name": "Free Tier", "active_plans": [],
+            "is_active_sub": False, "days_left": 0,
+            "profile_first_name": "", "profile_last_name": "",
+            "subscription_history": []
+        }
+        return templates.TemplateResponse("settings.html", fallback_context)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Dashboard redirect
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/dashboard", response_class=HTMLResponse)
+async def dash_redirect():
+    return RedirectResponse("/en/profile")
+
+
+@router.get("/{lang}/dashboard", response_class=HTMLResponse)
+async def dashboard_page(request: Request, lang: str):
+    return RedirectResponse(f"/{lang}/profile")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Settings API Endpoints
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/api/settings/profile")
+async def update_profile(request: Request, data: ProfileUpdateRequest):
+    email = get_current_user_email(request)
+    if not email:
+        raise HTTPException(status_code=401, detail="غير مسجل الدخول")
+    result = update_user_profile(email, data.first_name, data.last_name)
+    if result.get("status") != 200:
+        raise HTTPException(status_code=result["status"], detail=result["error"])
+    return {"message": result["message"]}
+
+
+@router.post("/api/settings/change-password")
+async def change_password_endpoint(request: Request, data: ChangePasswordRequest):
+    email = get_current_user_email(request)
+    if not email:
+        raise HTTPException(status_code=401, detail="غير مسجل الدخول")
+    result = change_user_password(
+        email, data.current_password, data.new_password,
+        validate_fn=validate_password
+    )
+    if result.get("status") != 200:
+        raise HTTPException(status_code=result["status"], detail=result["error"])
+    return {"message": result["message"]}
+
+
+@router.delete("/api/settings/delete-account")
+async def delete_account_endpoint(request: Request, data: DeleteAccountRequest):
+    email = get_current_user_email(request)
+    if not email:
+        raise HTTPException(status_code=401, detail="غير مسجل الدخول")
+    if email != data.email:
+        raise HTTPException(status_code=400, detail="البريد الإلكتروني غير مطابق")
+    result = delete_user_account(email)
+    if result.get("status") != 200:
+        raise HTTPException(status_code=result["status"], detail=result["error"])
+    request.session.clear()
+    return {"message": result["message"]}
+
+
+@router.post("/auth/logout-all")
+async def logout_all_devices(request: Request):
+    request.session.clear()
+    return {"message": "تم تسجيل الخروج من جميع الأجهزة"}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Auth API Endpoints (Login / Register / Verification)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/auth/check-email")
+async def check_email_endpoint(data: CheckEmailRequest):
+    return await handle_check_email(data)
+
+
+@router.post("/auth/send-verification")
+async def send_verification(request: Request, data: SendVerificationRequest):
+    return await handle_send_verification(request, data)
+
+
+@router.post("/auth/register")
+async def register(request: Request, data: RegisterRequest):
+    return await handle_register(request, data)
+
+
+@router.post("/auth/login")
+async def login(request: Request, data: LoginRequest):
+    return await handle_login(request, data)
+
+
+@router.post("/auth/logout")
+async def logout(request: Request):
+    return await handle_logout(request)
+
+
+@router.post("/api/set-language")
+async def set_language(request: Request):
+    body = await request.json()
+    lang = body.get("lang", "en")
+    if lang not in ["ar", "en"]:
+        lang = "en"
+    response = JSONResponse({"ok": True, "lang": lang})
+    response.set_cookie("preferred_lang", lang, max_age=60 * 60 * 24 * 365, path="/", samesite="lax")
+    return response
+
+# ══════════════════════════════════════════════════════════════════════════════
+# OAuth Routes (GitHub + Google)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/auth/github/login")
+async def github_login(request: Request):
+    return await handle_github_login(request)
+
+
+@router.get("/auth/github/callback")
+async def github_callback(request: Request, code: str, state: str):
+    return await handle_github_callback(request, code, state)
+
+
+@router.post("/auth/github/logout")
+async def github_logout(request: Request):
+    return await handle_github_logout(request)
+
+
+@router.get("/auth/google/login")
+async def google_login(request: Request):
+    return await handle_google_login(request)
+
+
+@router.get("/auth/google/callback")
+async def google_callback(request: Request, code: str, state: str):
+    return await handle_google_callback(request, code, state)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# GitHub API Endpoints
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/api/deploy/github")
+async def deploy_to_github(request: Request, deploy_data: DeployRequest):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, 401)
+    if not is_github_connected(request):
+        return JSONResponse({"error": "GitHub not connected", "connect_url": "/auth/github/login"}, 403)
+    token = get_github_token(request)
+    try:
+        body  = await request.json()
+        files = body.get("files", [])
+        if not files:
+            return JSONResponse({"error": "No files provided"}, 400)
+        result = await one_click_deploy(
+            access_token=token,
+            project_name=deploy_data.repo_name,
+            files=files,
+            description=deploy_data.description,
+            is_private=deploy_data.is_private,
+            enable_pages=deploy_data.enable_pages
+        )
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, 500)
+
+
+@router.get("/api/github/repos")
+async def get_user_repos(request: Request):
+    email = get_current_user_email(request)
+    if not email or not is_github_connected(request):
+        return JSONResponse({"error": "GitHub not connected"}, 403)
+    from github_integration import GitHubDeployer
+    token    = get_github_token(request)
+    deployer = GitHubDeployer(token)
+    repos    = deployer.get_repos()
+    return {"repos": repos}
+
+
+@router.get("/api/github/status")
+async def github_status(request: Request):
+    try:
+        connected = is_github_connected(request)
+        ctx       = {}
+        if connected:
+            email = get_current_user_email(request)
+            if email:
+                try:
+                    from database import get_redis as _get_redis
+                    _r = _get_redis()
+                    if _r:
+                        gh_info = _r.hgetall(f"github:{email}")
+                        if gh_info:
+                            def _dec(v): return v.decode() if isinstance(v, bytes) else v
+                            ctx = {
+                                "login":  _dec(gh_info.get(b"login",  gh_info.get("login", ""))),
+                                "avatar": _dec(gh_info.get(b"avatar", gh_info.get("avatar", "")))
+                            }
+                except Exception:
+                    pass
+        return JSONResponse({
+            "connected":   connected,
+            "user":        ctx if connected else None,
+            "connect_url": "/auth/github/login",
+        })
+    except Exception as e:
+        return JSONResponse({"connected": False, "error": str(e)}, 500)
+
+
+@router.post("/api/generate-key")
+async def regenerate_my_key(request: Request):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, 401)
+    try:
+        from database import update_api_key as _update_key
+        new_key = generate_nexus_key()
+        success = _update_key(email, new_key)
+        if success:
+            return JSONResponse({"key": new_key, "ok": True})
+        return JSONResponse({"error": "Failed to save new key"}, status_code=500)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
