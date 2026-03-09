@@ -195,12 +195,12 @@
                       placeholder="Ask Orgteh..."
                       oninput="autoResize(this)"></textarea>
 
-            {# ── مبدّل الوضع (Classic/Agent) — زر واحد يفتح قائمة ── #}
-            <div class="mode-ver-wrapper" style="position:relative;flex-shrink:0;">
+            {# ── مبدّل الوضع — V2 مخفي إلا لصاحب الحساب ── #}
+            <div class="mode-ver-wrapper" style="position:relative;flex-shrink:0;" id="ver-wrapper">
                 <button class="mode-ver-btn" id="ver-btn" onclick="toggleVerDropdown(event)">
-                    <i class="fa-solid fa-wand-magic-sparkles" id="ver-icon"></i>
+                    <i class="fa-solid fa-bolt" id="ver-icon"></i>
                     <span id="ver-label">Classic</span>
-                    <i class="fa-solid fa-chevron-down" style="font-size:8px;opacity:.5;"></i>
+                    <i class="fa-solid fa-chevron-down" style="font-size:8px;opacity:.5;" id="ver-chevron"></i>
                 </button>
                 <div class="mode-ver-dropdown" id="ver-dropdown">
                     <div class="mode-ver-option active" id="ver-opt-v1" onclick="switchVersion('v1');closeVerDropdown()">
@@ -212,7 +212,7 @@
                             <p id="ver-v1-desc">توليد مباشر وسريع</p>
                         </div>
                     </div>
-                    <div class="mode-ver-option" id="ver-opt-v2" onclick="switchVersion('v2');closeVerDropdown()">
+                    <div class="mode-ver-option" id="ver-opt-v2" onclick="switchVersion('v2');closeVerDropdown()" style="display:none;">
                         <div class="mode-icon-box" style="background:rgba(99,102,241,.15);">
                             <i class="fa-solid fa-robot" style="color:#818cf8;"></i>
                         </div>
@@ -268,7 +268,7 @@
                 background:#0a0a0f;border-left:1px solid rgba(255,255,255,.07);
                 display:flex;flex-direction:column;transform:translateX(100%);
                 transition:transform .25s cubic-bezier(.4,0,.2,1);z-index:1;"
-         onclick="event.stopPropagation()">
+         onclick="event.stopPropagation()" id="hub-history-panel-inner">
 
         {# Header #}
         <div style="padding:16px 16px 12px;border-bottom:1px solid rgba(255,255,255,.06);
@@ -300,8 +300,8 @@
             </div>
         </div>
 
-        {# Tabs: Classic / Agent #}
-        <div style="display:flex;padding:8px 10px 0;gap:4px;border-bottom:1px solid rgba(255,255,255,.05);">
+        {# Tabs: Classic فقط — Agent مخفي إلا للمالك #}
+        <div id="hh-tabs-bar" style="display:flex;padding:8px 10px 0;gap:4px;border-bottom:1px solid rgba(255,255,255,.05);">
             <button id="hh-tab-v1" onclick="switchHistoryTab('v1')"
                     style="flex:1;padding:6px;border-radius:8px 8px 0 0;border:none;
                            font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;
@@ -312,7 +312,7 @@
             <button id="hh-tab-v2" onclick="switchHistoryTab('v2')"
                     style="flex:1;padding:6px;border-radius:8px 8px 0 0;border:none;
                            font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;
-                           background:transparent;color:#475569;">
+                           background:transparent;color:#475569;display:none;">
                 <i class="fa-solid fa-robot" style="margin-inline-end:4px;color:#818cf8;"></i>
                 <span id="hh-tab-v2-lbl">وكيل</span>
             </button>
@@ -354,8 +354,13 @@
 <script>
 (function () {
 
+    // ── المالك الوحيد المسموح له برؤية V2 ─────────────────────────────────
+    var OWNER_EMAIL = 'rodfin0202@gmail.com';
+    var isOwner = (window.USER_EMAIL || '').toLowerCase().trim() === OWNER_EMAIL;
+
     // ── تبديل الوضع: إعادة تحميل الصفحة بمعامل ?mode= ─────────────────────
     window.switchVersion = function (v) {
+        if (v === 'v2' && !isOwner) return; // غير مسموح لغير المالك
         var url  = new URL(window.location.href);
         var mode = (v === 'v2') ? 'agent' : 'classic';
         if (url.searchParams.get('mode') === mode) { window.closeVerDropdown(); return; }
@@ -365,6 +370,8 @@
 
     window.toggleVerDropdown = function(ev) {
         ev.stopPropagation();
+        // إذا لم يكن المالك ولا يوجد سوى خيار واحد، لا داعي للقائمة
+        if (!isOwner) return;
         var d = document.getElementById('ver-dropdown');
         if (d) d.classList.toggle('show');
     };
@@ -374,41 +381,73 @@
     };
     document.addEventListener('click', function() { window.closeVerDropdown(); });
 
-    // ── تهيئة الزر حسب HUB_MODE القادم من الخادم ──────────────────────────
+    // ── تهيئة واجهة V1/V2 بناءً على صلاحية المستخدم ──────────────────────
     function _initVerBtn() {
-        var v    = (window.HUB_MODE === 'agent') ? 'v2' : 'v1';
-        var lang = localStorage.getItem('lang') || 'ar';
-        var e    = function(id) { return document.getElementById(id); };
+        // إجبار V1 لغير المالك حتى لو كان URL يحتوي ?mode=agent
+        if (!isOwner && window.HUB_MODE === 'agent') {
+            var url = new URL(window.location.href);
+            url.searchParams.set('mode', 'classic');
+            window.location.replace(url.toString());
+            return;
+        }
 
-        var btn = e('ver-btn'), lbl = e('ver-label'), ico = e('ver-icon');
-        if (btn) btn.classList.toggle('agent', v === 'v2');
+        var v    = (isOwner && window.HUB_MODE === 'agent') ? 'v2' : 'v1';
+        var lang = localStorage.getItem('lang') || 'ar';
+        var $ = function(id) { return document.getElementById(id); };
+
+        // ── الزر الخارجي ─────────────────────────────────────────────────
+        var btn = $('ver-btn'), lbl = $('ver-label'), ico = $('ver-icon'), chev = $('ver-chevron');
+        if (btn) {
+            btn.classList.toggle('agent', v === 'v2');
+            // إخفاء السهم لغير المالك (لا قائمة)
+            if (chev) chev.style.display = isOwner ? '' : 'none';
+            // إلغاء pointer events لغير المالك
+            btn.style.cursor = isOwner ? 'pointer' : 'default';
+        }
         if (lbl) lbl.textContent = v === 'v2'
             ? (lang === 'ar' ? 'وكيل' : 'Agent')
             : (lang === 'ar' ? 'كلاسيك' : 'Classic');
         if (ico) ico.className = v === 'v2' ? 'fa-solid fa-robot' : 'fa-solid fa-bolt';
 
-        var o1 = e('ver-opt-v1'), o2 = e('ver-opt-v2');
+        // ── خيارات القائمة ───────────────────────────────────────────────
+        var o1 = $('ver-opt-v1'), o2 = $('ver-opt-v2');
         if (o1) o1.classList.toggle('active', v === 'v1');
-        if (o2) o2.classList.toggle('active', v === 'v2');
+        if (o2) {
+            o2.style.display = isOwner ? '' : 'none'; // مخفي لغير المالك
+            o2.classList.toggle('active', v === 'v2');
+        }
 
-        var t1=e('ver-v1-title'), d1=e('ver-v1-desc'),
-            t2=e('ver-v2-title'), d2=e('ver-v2-desc');
+        // ── نصوص الخيارات ────────────────────────────────────────────────
+        var t1=$('ver-v1-title'), d1=$('ver-v1-desc'),
+            t2=$('ver-v2-title'), d2=$('ver-v2-desc');
         if (t1) t1.textContent = lang === 'ar' ? 'الوضع الكلاسيكي' : 'Classic Mode';
         if (d1) d1.textContent = lang === 'ar' ? 'توليد مباشر وسريع' : 'Direct fast generation';
         if (t2) t2.textContent = lang === 'ar' ? 'وضع الوكيل الذكي' : 'Agent Mode';
         if (d2) d2.textContent = lang === 'ar' ? 'يخطط وينفذ ويختبر تلقائياً' : 'Plans, executes & tests automatically';
 
-        // ── زر السجلات مرئي في كلا الوضعين ─────────────────────────────
-        var hBtn = e('hub-history-btn');
+        // ── زر السجلات مرئي دائماً ──────────────────────────────────────
+        var hBtn = $('hub-history-btn');
         if (hBtn) hBtn.classList.remove('hidden');
 
-        // عناصر V2 فقط
-        var bar  = e('agent-session-title-bar');
-        var sBtn = e('agent-sessions-btn');
+        // ── تبويب V2 في السجلات: مرئي فقط للمالك ────────────────────────
+        var tabV2 = $('hh-tab-v2');
+        if (tabV2) tabV2.style.display = isOwner ? '' : 'none';
+
+        // ── عناصر V2 الأخرى في الـ header ───────────────────────────────
+        var bar  = $('agent-session-title-bar');
+        var sBtn = $('agent-sessions-btn');
         if (bar)  bar.classList.toggle('hidden', v !== 'v2');
         if (sBtn) sBtn.classList.toggle('hidden', v !== 'v2');
 
-        // تشغيل switchVersion من agent_v2_scripts إن وُجد (بدون reload)
+        // ── إصلاح top لوحة السجلات: تبدأ بعد كلا الشريطين ───────────────
+        var panel = $('hub-history-panel-inner');
+        if (panel) {
+            // الشريط الرئيسي ~64px + شريط IDE ~44px = 108px
+            panel.style.top = '0px';
+            panel.style.bottom = '0px';
+        }
+
+        // تطبيق الإصدار على agent_v2_scripts إن وُجد
         if (typeof window._applyVersion === 'function') window._applyVersion(v);
     }
     window._syncVersionBtns = _initVerBtn;

@@ -569,6 +569,8 @@ async function handleV1Stream(text, files, mode) {
                     renderDownloadAllBtn(row);
                     isPreviewDirty = false;
                     renderPreview(currentPreviewFile);
+                    // ── زر تشغيل في متصفح المستخدم (Python / SQL / JS / etc.) ──
+                    if (window.addRunButton) window.addRunButton(row, newFiles);
                 } else {
                     chatBubble.style.display = 'block';
                     chatBubble.innerHTML = chatMarkdown(fullText);
