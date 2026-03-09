@@ -1593,12 +1593,82 @@ class AgentV2 {
     }
 
     async gather_requirements(userRequest) {
-        // Detect language from user request itself
+        // ── [A] كشف إذا كان المستخدم يعمل على مشروع موجود (import/upload) ──
+        const existingFiles = Object.keys(currentFiles);
+        const hasExistingProject = existingFiles.length > 0;
+
+        // ── [B] كشف إذا كان الطلب تفصيلياً وواضحاً بلا لبس ─────────────────
+        const wordCount = userRequest.trim().split(/\s+/).length;
+        const hasDetailedPoints = /\d+[\.\-\)]\s|•|\n[-*]|يجب|يجب أن|need|must|should|require|with:?|including|يحتوي|يتضمن/.test(userRequest);
+        const isVeryDetailed = wordCount > 40 || (wordCount > 20 && hasDetailedPoints);
+
         const arabicPattern = /[\u0600-\u06FF]/;
         const lang = arabicPattern.test(userRequest) ? 'ar' : (this.lang || 'en');
         const ar = lang === 'ar';
 
-        // Step 1: Quick API call to generate smart questions based on user's request
+        // ── [C] مشروع موجود من import/upload → أسئلة تعديل ذكية ────────────
+        if (hasExistingProject) {
+            const fileTypes  = [...new Set(existingFiles.map(f => f.split('.').pop().toLowerCase()))];
+            const hasHTML    = fileTypes.includes('html') || fileTypes.includes('htm');
+            const hasPython  = fileTypes.includes('py');
+            const hasJS      = fileTypes.includes('js') || fileTypes.includes('ts');
+            const hasBackend = hasPython || existingFiles.some(f => ['server.py','app.py','main.py','index.js','server.js','app.js'].includes(f));
+
+            // اكتشاف لغة المشروع تلقائياً
+            const detectedStack = hasPython ? 'Python' : (hasHTML ? 'HTML/CSS/JS' : (hasJS ? 'JavaScript' : 'Web'));
+            const fileCount = existingFiles.length;
+
+            // أسئلة ذكية مخصصة للتعديل على مشروع موجود
+            const modifyQuestions = {
+                questions: [
+                    {
+                        id: 'modify_scope',
+                        text_ar: `لديك ${fileCount} ملف (${detectedStack}) — ماذا تريد؟`,
+                        text_en: `You have ${fileCount} existing files (${detectedStack}) — what do you want?`,
+                        options: [
+                            { value: 'add_feature',   icon: '✨', ar: 'إضافة ميزة جديدة',          en: 'Add a new feature' },
+                            { value: 'fix_bug',       icon: '🔧', ar: 'إصلاح مشكلة أو خطأ',       en: 'Fix a bug/issue' },
+                            { value: 'redesign',      icon: '🎨', ar: 'إعادة تصميم الواجهة',       en: 'Redesign the UI' },
+                            { value: 'full_rewrite',  icon: '🔄', ar: 'إعادة كتابة بالكامل',       en: 'Full rewrite' },
+                        ]
+                    },
+                    {
+                        id: 'preserve',
+                        text_ar: 'ماذا تريد الحفاظ عليه من المشروع الحالي؟',
+                        text_en: 'What should be preserved from the current project?',
+                        options: [
+                            { value: 'data',      icon: '💾', ar: 'البيانات والمنطق',       en: 'Data & logic' },
+                            { value: 'design',    icon: '🎨', ar: 'الألوان والتصميم',       en: 'Colors & design' },
+                            { value: 'structure', icon: '📁', ar: 'هيكل الملفات',           en: 'File structure' },
+                            { value: 'nothing',   icon: '🆕', ar: 'لا شيء — ابدأ من صفر',  en: 'Nothing — start fresh' },
+                        ]
+                    }
+                ]
+            };
+            return this._runWizard(modifyQuestions, ar);
+        }
+
+        // ── [D] طلب تفصيلي جداً وواضح → تخطي الـ wizard ────────────────────
+        if (isVeryDetailed) {
+            this.log('info', ar ? '📋 الطلب واضح ومفصّل — بدء التنفيذ مباشرة...' : '📋 Detailed request detected — skipping questions...');
+            // استخراج اللغة تلقائياً من الطلب
+            const langHints = {
+                python:     /python|بايثون|بيثون/i,
+                javascript: /javascript|nodejs|node\.js|جافاسكريبت/i,
+                java:       /\bjava\b|جافا/i,
+                cpp:        /c\+\+|cpp/i,
+                go:         /\bgolang\b|\bgo\b/i,
+                rust:       /\brust\b/i,
+                sql:        /\bsql\b|قاعدة بيانات/i,
+            };
+            let detectedLang = 'web';
+            for (const [l, rx] of Object.entries(langHints)) {
+                if (rx.test(userRequest)) { detectedLang = l; break; }
+            }
+            return { stack: detectedLang, data: 'auto', ui_language: ar ? 'Arabic' : 'English', auto_detected: true };
+        }
+
+        // ── [E] الحالة العادية → AI wizard (السلوك الأصلي) ─────────────────
         let aiQuestions = null;
         try {
             const sysPrompt = `You are a technical project assistant. Generate exactly 2 smart clarifying questions for the user's project request.
@@ -1670,7 +1740,7 @@ Return ONLY valid JSON, no markdown, no preamble:
                       options:[
                         {value:'mock',  icon:'🧪', ar:'بيانات تجريبية واقعية',          en:'Realistic sample data'},
                         {value:'local', icon:'💾', ar:'localStorage (يحفظ في المتصفح)', en:'localStorage (persists locally)'},
-                        {value:'api',   icon:'🔗', ar:'API خارجي',                      en:'External API'},
+                        {value:'sql',   icon:'🗄️', ar:'قاعدة بيانات SQL',              en:'SQL Database'},
                         {value:'none',  icon:'🚫', ar:'لا أحتاج بيانات',               en:'No data needed'},
                       ]
                     },
@@ -1685,7 +1755,11 @@ Return ONLY valid JSON, no markdown, no preamble:
             }
         });
 
-        // Step 2: Show step-by-step wizard UI
+        return this._runWizard(aiQuestions, ar);
+    }
+
+    // ── Wizard UI مستخلص لإعادة الاستخدام ────────────────────────────────────
+    _runWizard(aiQuestions, ar) {
         return new Promise(resolve => {
             const answers = {};
             let step = 0;
@@ -1897,9 +1971,46 @@ ${existingContext}`;
     _cleanCode(content, language) {
         if (content == null) return '';
         let c = String(content).trim();
+
+        // ── حذف code fences ──────────────────────────────────────────────
         const fenceMatch = c.match(/^```[a-zA-Z]*\n?/);
         if (fenceMatch) c = c.slice(fenceMatch[0].length).trim();
         if (c.endsWith('```')) c = c.slice(0, -3).trim();
+
+        // ── حذف أي نص توضيحي قبل بداية الملف الفعلية ────────────────────
+        // HTML: ابحث عن أول <!DOCTYPE أو <html أو <
+        if (language === 'html') {
+            const doctype = c.search(/<!DOCTYPE\s+html/i);
+            const htmlTag = c.search(/<html[\s>]/i);
+            const firstTag = c.indexOf('<');
+            const start = doctype !== -1 ? doctype : (htmlTag !== -1 ? htmlTag : firstTag);
+            if (start > 0 && start < 300) c = c.slice(start).trim(); // فقط إذا كان النص قصيراً (< 300 حرف)
+        }
+
+        // CSS: ابحث عن أول { أو selector
+        if (language === 'css') {
+            const firstBrace = c.indexOf('{');
+            const firstSelector = c.search(/^[a-zA-Z.*#:@\[]/m);
+            if (firstBrace > 0 && firstBrace < 200) {
+                const start = firstSelector !== -1 && firstSelector < firstBrace ? firstSelector : 0;
+                if (start > 0 && start < 200) c = c.slice(start).trim();
+            }
+        }
+
+        // JS/TS: ابحث عن أول سطر كود حقيقي (ليس نثراً إنجليزياً)
+        if (language === 'javascript' || language === 'js' || language === 'typescript') {
+            const lines = c.split('\n');
+            const codeStart = lines.findIndex(l => {
+                const t = l.trim();
+                return t.startsWith('//') || t.startsWith('/*') || t.startsWith('const ') ||
+                       t.startsWith('let ') || t.startsWith('var ') || t.startsWith('function ') ||
+                       t.startsWith('class ') || t.startsWith('import ') || t.startsWith('export ') ||
+                       t.startsWith('(') || t.startsWith("'use strict'") || t.startsWith('"use strict"') ||
+                       /^[a-zA-Z_$][\w$]*\s*[=({]/.test(t) || t.startsWith('window.') || t.startsWith('document.');
+            });
+            if (codeStart > 0 && codeStart < 5) c = lines.slice(codeStart).join('\n').trim();
+        }
+
         return c;
     }
 
@@ -2083,16 +2194,20 @@ ${existingContext}`;
         try {
             this._buildAgentUI();
 
-            // Phase 0: gather requirements only on first build (not follow-up fixes)
+            // Phase 0: gather requirements
             const hasExistingFiles = Object.keys(currentFiles).length > 0;
             if (!hasExistingFiles) {
                 this.requirements = await this.gather_requirements(userRequest);
-            } else {
-                // Follow-up: inherit context from existing session or use defaults
-                this.requirements = { stack: 'web', data: 'mock' };
+            } else if (hasExistingFiles && !this.requirements) {
+                // مشروع موجود من import/upload — اسأل أسئلة التعديل
+                this.requirements = await this.gather_requirements(userRequest);
             }
-            const reqSummary = Object.entries(this.requirements).map(([k,v]) => `${k}:${v}`).join(', ');
-            const fullRequest = userRequest + `\n[Requirements: ${reqSummary}]`;
+
+            // إذا كان الطلب واضحاً ومُكتشَف تلقائياً، لا نضيف [Requirements] ضجيجاً
+            const reqSummary = this.requirements?.auto_detected
+                ? ''
+                : Object.entries(this.requirements || {}).map(([k,v]) => `${k}:${v}`).join(', ');
+            const fullRequest = reqSummary ? userRequest + `\n[Requirements: ${reqSummary}]` : userRequest;
 
             const plan = await this.plan_task(fullRequest);
             this._renderPlan(plan);
