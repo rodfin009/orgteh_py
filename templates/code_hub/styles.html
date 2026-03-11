@@ -47,8 +47,21 @@ html, body { height: 100%; overflow: hidden; }
     height: calc(100vh - 64px);
     height: calc(100dvh - 64px);
     position: relative;
-    padding-top: 44px; /* IDE header height */
+    padding-top: 48px; /* IDE header height - default */
     overflow: hidden;
+}
+
+/* Mobile responsive layout padding */
+@media (max-width: 768px) {
+    #ide-layout {
+        padding-top: 52px;
+    }
+}
+
+@media (max-width: 480px) {
+    #ide-layout {
+        padding-top: 56px;
+    }
 }
 
 /* --- IDE HEADER BAR (V2) --- */
@@ -56,15 +69,33 @@ html, body { height: 100%; overflow: hidden; }
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 14px;
+    padding: 10px 16px;
     background: var(--bg-header);
     border-bottom: 1px solid var(--border-color);
-    min-height: 44px;
+    min-height: 48px;
+    height: auto;
     position: fixed;
     top: 64px; /* below main navbar */
     left: 0; right: 0;
     z-index: 40;
     flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+/* Mobile responsive header */
+@media (max-width: 768px) {
+    #ide-header {
+        padding: 12px 14px;
+        min-height: 52px;
+        gap: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    #ide-header {
+        padding: 14px 12px;
+        min-height: 56px;
+    }
 }
 
 .ide-header-left  { display: flex; align-items: center; gap: 8px; flex: 1; }
@@ -128,19 +159,61 @@ body.preview-active #main-navbar { display: none !important; }
 .input-row { display: flex; align-items: flex-end; gap: 8px; background: var(--blur-bg); border: 1px solid var(--border-color); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-radius: 24px; padding: 8px 12px; transition: all 0.3s ease; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
 .input-row:focus-within { border-color: var(--accent-color); box-shadow: 0 8px 32px rgba(79,70,229,0.25); }
 textarea { flex: 1; background: transparent; border: none; outline: none; color: var(--text-primary); resize: none; max-height: 120px; padding: 10px 4px; font-family: 'Cairo', sans-serif; font-size: 0.95rem; }
-.action-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: var(--text-secondary); transition: 0.2s; cursor: pointer; }
+.action-btn { 
+    width: 38px; 
+    height: 38px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    border-radius: 50%; 
+    color: var(--text-secondary); 
+    transition: 0.2s; 
+    cursor: pointer;
+    flex-shrink: 0;
+}
 .action-btn:hover { color: var(--text-primary); background: var(--bg-body); }
+
+/* Mobile responsive action button */
+@media (max-width: 768px) {
+    .action-btn {
+        width: 42px;
+        height: 42px;
+    }
+    .action-btn i {
+        font-size: 15px;
+    }
+}
 .send-btn { background: var(--text-primary); color: var(--bg-card); border-radius: 12px; width: 36px; height: 36px; flex-shrink: 0; }
 html.dark .send-btn { background: #4f46e5; color: white; }
 
 /* --- MODE TOGGLE (header) --- */
 #header-mode-btn {
     display: flex; align-items: center; gap: 6px;
-    padding: 5px 11px; border-radius: 20px;
+    padding: 8px 14px; border-radius: 20px;
     border: 1px solid rgba(139,92,246,0.3);
     background: rgba(139,92,246,0.08);
-    color: #a78bfa; font-size: 12px; font-weight: 600;
+    color: #a78bfa; font-size: 13px; font-weight: 600;
     cursor: pointer; transition: all 0.2s; position: relative;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Mobile responsive mode button */
+@media (max-width: 768px) {
+    #header-mode-btn {
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+    #header-mode-btn i {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    #header-mode-btn {
+        padding: 12px 14px;
+        font-size: 13px;
+    }
 }
 #header-mode-btn:hover { background: rgba(139,92,246,0.18); border-color: rgba(139,92,246,0.6); }
 #header-mode-btn.mode-build { color: #f59e0b; border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.08); }
@@ -330,4 +403,67 @@ html:not(.dark) .agent-log { background: rgba(0,0,0,0.04); border-color: rgba(0,
 /* --- Agent icon pulse --- */
 @keyframes agentPulse { 0%,100%{transform:scale(1);opacity:1;} 50%{transform:scale(1.15);opacity:0.7;} }
 .agent-icon-pulse { animation: agentPulse 1.5s ease-in-out infinite; }
+
+
+/* ═══════════════════════════════════════════════════
+   HISTORY PANEL FIX — Avoid overlap with IDE header
+   ═══════════════════════════════════════════════════ */
+:root {
+    --main-nav-height: 64px;
+    --ide-header-height: 48px;
+}
+
+@media (max-width: 768px) {
+    :root {
+        --ide-header-height: 52px;
+    }
+}
+
+@media (max-width: 480px) {
+    :root {
+        --ide-header-height: 56px;
+    }
+}
+
+#hub-history-panel {
+    top: calc(var(--main-nav-height) + var(--ide-header-height)) !important;
+}
+
+/* Mobile responsive history panel */
+@media (max-width: 768px) {
+    #hub-history-panel {
+        width: min(360px, 92vw) !important;
+    }
+}
+
+@media (max-width: 480px) {
+    #hub-history-panel {
+        width: 100% !important;
+        border-radius: 16px 16px 0 0 !important;
+    }
+}
+
+/* Ensure header elements are not cut off */
+.ide-header-left, .ide-header-right {
+    display: flex;
+    align-items: center;
+    min-height: 100%;
+}
+
+#hub-history-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#hub-history-btn i {
+    font-size: 15px;
+}
+
+@media (max-width: 768px) {
+    #hub-history-btn i {
+        font-size: 17px;
+    }
+}
+
 </style>

@@ -376,6 +376,22 @@ function _initVerBtn() {
     const t    = getTrans();
     const e    = id => document.getElementById(id);
 
+    // ── Check if user is owner ─────────────────────────────────────────
+    const OWNER_EMAIL = 'rodfin0202@gmail.com';
+    const isOwner = (window.USER_EMAIL || '').toLowerCase().trim() === OWNER_EMAIL;
+
+    // ── Bottom ver-wrapper: hidden for non-owners ──────────────────────
+    const verWrapper = e('ver-wrapper');
+    if (verWrapper) {
+        verWrapper.style.display = isOwner ? '' : 'none';
+    }
+
+    // ── History tabs bar: hidden for non-owners ────────────────────────
+    const tabsBar = e('hh-tabs-bar');
+    if (tabsBar) {
+        tabsBar.style.display = isOwner ? 'flex' : 'none';
+    }
+
     // Bottom ver-btn
     const btn = e('ver-btn'), lbl = e('ver-label'), ico = e('ver-icon');
     if (btn) btn.classList.toggle('agent', v === 'v2');

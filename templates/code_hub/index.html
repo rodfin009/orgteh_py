@@ -27,6 +27,13 @@
 
 {# ── CSS مبدّل V1/V2 السفلي ────────────────────────────────────────────────── #}
 <style>
+/* ── Responsive fixes for header elements ─────────────────────── */
+@media (max-width: 768px) {
+    #ide-header {
+        top: 60px !important; /* Adjust for potentially taller mobile nav */
+    }
+}
+
 /* ── مبدّل الوضع (Classic / Agent) ──────────────────────────────── */
 .mode-ver-btn {
     display: inline-flex;
@@ -196,7 +203,7 @@
                       oninput="autoResize(this)"></textarea>
 
             {# ── مبدّل الوضع — V2 مخفي إلا لصاحب الحساب ── #}
-            <div class="mode-ver-wrapper" style="position:relative;flex-shrink:0;" id="ver-wrapper">
+            <div class="mode-ver-wrapper" style="position:relative;flex-shrink:0;display:none;" id="ver-wrapper">
                 <button class="mode-ver-btn" id="ver-btn" onclick="toggleVerDropdown(event)">
                     <i class="fa-solid fa-bolt" id="ver-icon"></i>
                     <span id="ver-label">Classic</span>
@@ -300,8 +307,8 @@
             </div>
         </div>
 
-        {# Tabs: Classic فقط — Agent مخفي إلا للمالك #}
-        <div id="hh-tabs-bar" style="display:flex;padding:8px 10px 0;gap:4px;border-bottom:1px solid rgba(255,255,255,.05);">
+        {# Tabs: مخفية تماماً — تظهر فقط للمالك #}
+        <div id="hh-tabs-bar" style="display:none;padding:8px 10px 0;gap:4px;border-bottom:1px solid rgba(255,255,255,.05);">
             <button id="hh-tab-v1" onclick="switchHistoryTab('v1')"
                     style="flex:1;padding:6px;border-radius:8px 8px 0 0;border:none;
                            font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;
@@ -432,6 +439,14 @@
         // ── تبويب V2 في السجلات: مرئي فقط للمالك ────────────────────────
         var tabV2 = $('hh-tab-v2');
         if (tabV2) tabV2.style.display = isOwner ? '' : 'none';
+
+        // ── شريط التبويبات الكامل: مخفي لغير المالك ──────────────────────
+        var tabsBar = $('hh-tabs-bar');
+        if (tabsBar) tabsBar.style.display = isOwner ? 'flex' : 'none';
+
+        // ── مبدل الإصدار في الأسفل: مخفي لغير المالك ────────────────────
+        var verWrapper = $('ver-wrapper');
+        if (verWrapper) verWrapper.style.display = isOwner ? '' : 'none';
 
         // ── عناصر V2 الأخرى في الـ header ───────────────────────────────
         var bar  = $('agent-session-title-bar');
