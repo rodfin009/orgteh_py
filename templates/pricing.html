@@ -704,7 +704,11 @@
             "modal.verify_fail": "❌ Verification failed: ",
             "modal.footer":      "Secured by",
             "modal.per":         "/",
-            "modal.pay_btn":     "Proceed to Payment"
+            "modal.pay_btn":     "Proceed to Payment",
+            "modal.pending":     "⏳ Payment received and under review. You'll get an email once activated.",
+            "modal.pending_btn": "Awaiting Confirmation",
+            "modal.pending_notice_title": "Subscription Confirmation in Progress",
+            "modal.pending_notice_body":  "Your payment has been received. Subscription activation may take up to 24 hours. You'll receive a confirmation email once it's active."
         },
         ar: {
             "pricing.lbl_plans_header": "خطط الاشتراكات",
@@ -781,7 +785,11 @@
             "modal.verify_fail": "❌ فشل التحقق: ",
             "modal.footer":      "مدعوم بأمان من",
             "modal.per":         "/",
-            "modal.pay_btn":     "إتمام الدفع"
+            "modal.pay_btn":     "إتمام الدفع",
+            "modal.pending":     "⏳ تم استلام دفعتك وهي قيد المراجعة. سنرسل لك إيميلاً عند التفعيل.",
+            "modal.pending_btn": "جاري تأكيد الطلب",
+            "modal.pending_notice_title": "جاري تأكيد الاشتراك",
+            "modal.pending_notice_body":  "تم استلام دفعتك بنجاح. قد تستغرق عملية تفعيل الاشتراك ما يصل إلى 24 ساعة. ستصلك رسالة بريد إلكتروني عند التفعيل."
         }
     };
 
@@ -863,12 +871,67 @@
             if (r.ok && d.status === 'success') {
                 showSpStatus('success', spT('modal.success'));
                 setTimeout(() => { closeSpOverlay(); window.location.reload(); }, 2000);
+            } else if (r.status === 202 && d.status === 'pending') {
+                closeSpOverlay();
+                showPendingNotice();
+                markPlanAsPending(_currentPlanKey);
             } else {
                 showSpStatus('error', spT('modal.verify_fail') + (d.error||'Error'));
             }
         } catch(e) {
             showSpStatus('error', spT('modal.net_error'));
         }
+    }
+
+    function showPendingNotice() {
+        const el = document.getElementById('sp-pending-notice');
+        if (!el) return;
+        document.getElementById('sp-pending-notice-title').textContent = spT('modal.pending_notice_title');
+        document.getElementById('sp-pending-notice-body').textContent  = spT('modal.pending_notice_body');
+        el.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+        el.classList.add('opacity-100', 'translate-y-0');
+        // يختفي تلقائياً بعد 12 ثانية
+        setTimeout(() => closePendingNotice(), 12000);
+    }
+
+    function closePendingNotice() {
+        const el = document.getElementById('sp-pending-notice');
+        if (!el) return;
+        el.classList.remove('opacity-100', 'translate-y-0');
+        el.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
+    }
+
+    function markPlanAsPending(planKey) {
+        const pending = JSON.parse(sessionStorage.getItem('pendingPlans') || '[]');
+        if (!pending.includes(planKey)) pending.push(planKey);
+        sessionStorage.setItem('pendingPlans', JSON.stringify(pending));
+        applyPendingButtons();
+    }
+
+    function applyPendingButtons() {
+        const pending = JSON.parse(sessionStorage.getItem('pendingPlans') || '[]');
+        if (!pending.length) return;
+        document.querySelectorAll('button[onclick*="initiateCheckout"]').forEach(btn => {
+            const match = btn.getAttribute('onclick')?.match(/initiateCheckout\('([^']+)'/);
+            if (match && pending.includes(match[1])) {
+                btn.disabled = true;
+                btn.classList.remove('bg-primary', 'bg-gray-100', 'dark:bg-gray-700');
+                btn.classList.add('bg-amber-500/20', 'border', 'border-amber-500/50', 'cursor-not-allowed');
+                btn.innerHTML = `<i class="fa-solid fa-clock text-amber-500 mr-2"></i><span class="text-amber-600 dark:text-amber-400 font-bold">${spT('modal.pending_btn')}</span>`;
+            }
+        });
+    }
+
+    async function fetchAndApplyPendingPlans() {
+        try {
+            const r = await fetch('/api/payments/pending-plans');
+            if (!r.ok) return;
+            const d = await r.json();
+            if (d.pending && d.pending.length) {
+                sessionStorage.setItem('pendingPlans', JSON.stringify(d.pending));
+                applyPendingButtons();
+            }
+        } catch(e) { /* صامت */ }
     }
 
     function setSpGlobals(publicKey) {
@@ -1064,4 +1127,29 @@
 
     window.addEventListener('langChange', () => { applyLocalTranslations(); });
 </script>
+<!-- ── Pending Notice Toast ──────────────────────────────────────────────── -->
+<div id="sp-pending-notice"
+     class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-full max-w-md px-4
+            opacity-0 translate-y-4 pointer-events-none
+            transition-all duration-500 ease-out">
+    <div class="bg-white dark:bg-[#111] border border-amber-300 dark:border-amber-700
+                rounded-2xl shadow-2xl shadow-amber-500/10 p-5 flex gap-4 items-start">
+        <div class="shrink-0 w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40
+                    flex items-center justify-center text-amber-500 text-lg">
+            <i class="fa-solid fa-clock"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+            <p id="sp-pending-notice-title"
+               class="font-bold text-gray-900 dark:text-white text-sm mb-1"></p>
+            <p id="sp-pending-notice-body"
+               class="text-gray-500 dark:text-gray-400 text-xs leading-relaxed"></p>
+        </div>
+        <button onclick="closePendingNotice()"
+                class="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition mt-0.5">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+</div>
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+
 {% endblock %}

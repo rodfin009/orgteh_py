@@ -1041,6 +1041,25 @@ async def profile_page(request: Request, lang: str):
             except Exception:
                 pass
 
+        # ── جلب الخطط المعلقة من Redis ────────────────────────────────────────
+        pending_plan_keys = []
+        try:
+            from database import get_redis as _get_redis
+            import json as _json
+            _r = _get_redis()
+            if _r:
+                for key in _r.scan_iter(f"pending_payment:{email}:*"):
+                    raw = _r.get(key)
+                    if raw:
+                        data = _json.loads(raw) if isinstance(raw, str) else _json.loads(raw.decode())
+                        plan_key = data.get("plan_key", "")
+                        plan_name_pending = data.get("plan_name", plan_key)
+                        if plan_key and plan_name_pending not in [p["name"] for p in valid_plans]:
+                            pending_plan_keys.append({"key": plan_key, "name": plan_name_pending})
+        except Exception:
+            pass
+        # ─────────────────────────────────────────────────────────────────────
+
         plan_names        = [p["name"] for p in valid_plans]
         display_plan_name = " + ".join(plan_names) if plan_names else "Free Tier"
 
@@ -1051,6 +1070,7 @@ async def profile_page(request: Request, lang: str):
             "api_key":       context.get("user_api_key", ""),
             "plan_name":     display_plan_name,
             "active_plans":  valid_plans,
+            "pending_plans": pending_plan_keys,
             "is_active_sub": len(valid_plans) > 0,
             "is_perpetual":  sub_status.get("is_perpetual", False) if sub_status else False,
             "days_left":     sub_status.get("days_left", 0) if sub_status else 0,

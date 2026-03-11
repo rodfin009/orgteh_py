@@ -186,20 +186,48 @@ async def api_verify_and_activate(request: Request, data: VerifyPaymentRequest):
             return JSONResponse({"error": "This payment code has already been used."}, status_code=400)
 
     payment_info = await verify_spaceremit_payment(data.payment_code)
+
+    # ── الدفع لا يزال قيد التأكيد (pending) ──────────────────────────────────
     if not payment_info:
+        if _redis:
+            import json
+            pending_data = json.dumps({
+                "plan_key":      data.plan_key,
+                "plan_name":     plan_name,
+                "period":        data.period,
+                "payment_code":  data.payment_code,
+                "submitted_at":  __import__('datetime').datetime.utcnow().isoformat()
+            })
+            # نحتفظ بالطلب المعلق لمدة 7 أيام — يُحذف تلقائياً بعدها
+            _redis.setex(f"pending_payment:{email}:{data.plan_key}", 7 * 24 * 3600, pending_data)
+            logger.info(f"Payment pending for {email} plan={plan_name} code={data.payment_code}")
         return JSONResponse(
-            {"error": "Payment not verified. It may be pending, failed, or invalid."},
-            status_code=400,
+            {"status": "pending", "message": "Your payment is being reviewed. We'll email you once confirmed."},
+            status_code=202,
         )
+    # ─────────────────────────────────────────────────────────────────────────
 
     if _redis:
         try:
             _redis.setex(f"used_payment:{data.payment_code}", 365 * 24 * 3600, email)
+            # حذف أي pending قديم لهذه الخطة
+            _redis.delete(f"pending_payment:{email}:{data.plan_key}")
         except Exception:
             pass
 
     success = add_user_subscription(email, data.plan_key, plan_name, data.period)
     if success:
+        # ── إرسال إيميل تأكيد التفعيل ────────────────────────────────────────
+        try:
+            from datetime import datetime, timedelta
+            from services.auth import send_subscription_email
+            days = 365 if data.period == "yearly" else 30
+            expires_date = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d")
+            send_subscription_email(email, plan_name, expires_date, event="new")
+            logger.info(f"Activation email sent to {email} for plan={plan_name}")
+        except Exception as e:
+            logger.warning(f"Failed to send activation email to {email}: {e}")
+        # ─────────────────────────────────────────────────────────────────────
         return JSONResponse({"status": "success", "message": f"Subscription '{plan_name}' activated successfully."})
     return JSONResponse(
         {"error": "Payment verified but failed to activate subscription. Please contact support."},
@@ -257,11 +285,54 @@ async def spaceremit_webhook(request: Request):
             if _redis:
                 try:
                     _redis.setex(f"used_payment:{tx_code}", 365 * 24 * 3600, email)
+                    # حذف الـ pending عند التفعيل الناجح عبر Webhook
+                    _redis.delete(f"pending_payment:{email}:{plan_key}")
                 except Exception:
                     pass
+            # ── إرسال إيميل تأكيد التفعيل عبر Webhook ───────────────────────
+            try:
+                from datetime import datetime, timedelta
+                from services.auth import send_subscription_email
+                days = 365 if period == "yearly" else 30
+                expires_date = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d")
+                send_subscription_email(email, plan_name, expires_date, event="new")
+                logger.info(f"[Webhook] Activation email sent to {email} plan={plan_name}")
+            except Exception as e:
+                logger.warning(f"[Webhook] Failed to send activation email to {email}: {e}")
+            # ─────────────────────────────────────────────────────────────────
             return JSONResponse({"status": "Success", "message": "Plan activated"})
 
         return JSONResponse({"status": "Failed", "error": "Could not activate plan"}, status_code=400)
 
     except Exception:
         return JSONResponse({"error": "Webhook processing failed"}, status_code=500)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# /api/payments/pending-plans  — جلب الخطط المعلقة للمستخدم الحالي
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/api/payments/pending-plans")
+async def get_pending_plans(request: Request):
+    """يُعيد قائمة بمفاتيح الخطط التي دفع المستخدم ثمنها وتنتظر التأكيد."""
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"pending": []})
+
+    _redis = get_redis()
+    if not _redis:
+        return JSONResponse({"pending": []})
+
+    import json
+    pending = []
+    try:
+        pattern = f"pending_payment:{email}:*"
+        for key in _redis.scan_iter(pattern):
+            raw = _redis.get(key)
+            if raw:
+                data = json.loads(raw) if isinstance(raw, str) else json.loads(raw.decode())
+                pending.append(data.get("plan_key"))
+    except Exception as e:
+        logger.warning(f"Failed to fetch pending plans for {email}: {e}")
+
+    return JSONResponse({"pending": pending})

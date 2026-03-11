@@ -44,7 +44,28 @@
                     </div>
                 </div>
                 {% endfor %}
-            {% else %}
+            {% endif %}
+
+            {% if pending_plans and pending_plans|length > 0 %}
+                {% for plan in pending_plans %}
+                <div class="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/10 p-2 rounded-xl border border-amber-200 dark:border-amber-800/50" title="Awaiting payment confirmation">
+                    <div class="px-3 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold flex items-center gap-2 whitespace-nowrap">
+                        <span class="relative flex h-2 w-2">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                        </span>
+                        {{ plan.name }}
+                    </div>
+                    <div class="h-8 w-px bg-amber-200 dark:bg-amber-800 mx-1"></div>
+                    <div class="flex flex-col pr-2 whitespace-nowrap">
+                        <span class="text-[10px] text-amber-500 uppercase font-bold" data-i18n="dash_pending">Pending</span>
+                        <span class="text-xs font-bold text-amber-600 dark:text-amber-400" data-i18n="dash_awaiting_confirm">Awaiting confirmation</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            {% if (not active_plans or active_plans|length == 0) and (not pending_plans or pending_plans|length == 0) %}
                 <div class="flex items-center gap-3 bg-gray-50 dark:bg-darkbg/50 p-2 rounded-xl border border-gray-100 dark:border-gray-700">
                     <div class="px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-400 text-xs font-bold flex items-center gap-2 whitespace-nowrap">
                         <span class="relative flex h-2 w-2">
