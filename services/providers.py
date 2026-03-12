@@ -269,6 +269,7 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
 
     # نماذج NVIDIA — مع دعم إعادة المحاولة والطوارئ
     max_attempts = 2
+    FIRST_CHUNK_TIMEOUT = 3.0  # ثوانٍ قبل التبديل لنموذج الطوارئ
 
     for attempt in range(max_attempts):
         current_api_key = get_next_api_key()
@@ -299,19 +300,32 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
                     if response.status_code != 200:
                         raise Exception(f"Status {response.status_code}")
 
-                    first_chunk = True
-                    async for chunk in response.aiter_bytes(): 
-                        if first_chunk:
-                            ttft_latency = int((time.time() - start_time) * 1000)
-                            first_chunk = False
+                    # قياس أول chunk — إذا تجاوز FIRST_CHUNK_TIMEOUT نتحول للطوارئ
+                    byte_iter = response.aiter_bytes().__aiter__()
+                    try:
+                        first_byte = await asyncio.wait_for(
+                            byte_iter.__anext__(),
+                            timeout=FIRST_CHUNK_TIMEOUT
+                        )
+                    except asyncio.TimeoutError:
+                        print(f"[Provider] ⏱ First chunk timeout (>{FIRST_CHUNK_TIMEOUT}s). Triggering emergency fallback.")
+                        raise Exception(f"First chunk timeout after {FIRST_CHUNK_TIMEOUT}s")
 
-                        response_tokens += 1 
+                    # أول chunk وصل — نسجّل TTFT ونُرسله
+                    ttft_latency = int((time.time() - start_time) * 1000)
+                    response_tokens += 1
+                    yield first_byte
+
+                    # باقي الـ stream بدون timeout إضافي
+                    async for chunk in byte_iter:
+                        response_tokens += 1
                         yield chunk
 
                     break 
 
         except Exception as e:
             if attempt < max_attempts - 1:
+                print(f"[Provider] Attempt {attempt+1} failed: {e}. Retrying with emergency model...")
                 continue
 
             error_json = json.dumps({"error": f"Provider Error: {str(e)}"}).encode()
