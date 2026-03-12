@@ -23,7 +23,7 @@ if not API_KEYS:
 _keys_cycle = cycle(API_KEYS) if API_KEYS else cycle(["no-key"])
 
 # HuggingFace Space API (for qwen-mini)
-HF_BASE_URL = os.environ.get("HF_SPACE_BASE_URL", "https://riy777-qw.hf.space/v1")
+HF_BASE_URL = os.environ.get("HF_SPACE_BASE_URL", "https://riy777-qw.hf.space/v1/chat/stream")
 HF_API_KEY  = os.environ.get("HF_TOKEN", "no-key-needed")
 
 # الثوابت
