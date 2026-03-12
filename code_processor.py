@@ -44,6 +44,30 @@ CODE_HUB_MODELS_INFO = {
         "desc_ar": "أداء متوازن للنصوص البرمجية العامة.",
         "badge_en": "New",
         "badge_ar": "جديد"
+    },
+    "meta/llama-3.3-70b-instruct": {
+        "desc_en": "Powerful 70B Meta model. Best for complex logic, architecture design, and large-scale apps.",
+        "desc_ar": "نموذج Meta القوي 70 مليار معامل. الأفضل للمنطق المعقد، تصميم المعماريات، والتطبيقات الكبيرة.",
+        "badge_en": "Powerful",
+        "badge_ar": "قوي"
+    },
+    "minimaxai/minimax-m2.1": {
+        "desc_en": "Frontier model with 1M token context. Ideal for large codebases, multi-file analysis, and long documentation.",
+        "desc_ar": "نموذج حدودي بسياق مليون توكن. مثالي للمشاريع الضخمة، تحليل الملفات المتعددة، والتوثيق الطويل.",
+        "badge_en": "Long Context",
+        "badge_ar": "سياق طويل"
+    },
+    "qwen/qwen2.5-coder-32b-instruct": {
+        "desc_en": "Specialized coding model supporting 92 languages. Excellent for code generation, refactoring, debugging, and translation between languages.",
+        "desc_ar": "نموذج متخصص في البرمجة يدعم 92 لغة. ممتاز لتوليد الكود، إعادة الهيكلة، تصحيح الأخطاء، والترجمة بين اللغات.",
+        "badge_en": "Coder",
+        "badge_ar": "مبرمج"
+    },
+    "Qwen/Qwen2.5-0.5B-Instruct": {
+        "desc_en": "Ultra-lightweight free model (0.5B). Perfect for simple HTML/CSS snippets, quick scripts, and lightweight chatbot APIs.",
+        "desc_ar": "نموذج خفيف جداً ومجاني (0.5 مليار معامل). مثالي لأكواد HTML/CSS البسيطة، السكريبتات السريعة، وواجهات الدردشة الخفيفة.",
+        "badge_en": "Free",
+        "badge_ar": "مجاني"
     }
 }
 

@@ -22,6 +22,10 @@ if not API_KEYS:
 
 _keys_cycle = cycle(API_KEYS) if API_KEYS else cycle(["no-key"])
 
+# HuggingFace Space API (for qwen-mini)
+HF_BASE_URL = os.environ.get("HF_SPACE_BASE_URL", "https://riy777-qw.hf.space/v1")
+HF_API_KEY  = os.environ.get("HF_TOKEN", "no-key-needed")
+
 # الثوابت
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 RATE_LIMIT_PER_KEY = 40  
@@ -95,16 +99,61 @@ MODELS_METADATA = [
         "name": "Gemma 3", 
         "provider": "Google",
         "image": "https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png@latest/light/gemma-color.png"
-    }
+    },
+    # ── NEW MODELS ──────────────────────────────────────────────────────────────
+    {
+        "id": "meta/llama-3.3-70b-instruct",
+        "short_key": "llama-large",
+        "name": "Llama 3.3 70B",
+        "provider": "Meta",
+        "image": "/static/meta.webp"
+    },
+    {
+        "id": "minimaxai/minimax-m2.1",
+        "short_key": "minimax",
+        "name": "MiniMax M2.1",
+        "provider": "MiniMax",
+        "image": "/static/minimax.webp"
+    },
+    {
+        "id": "qwen/qwen2.5-coder-32b-instruct",
+        "short_key": "qwen-coder",
+        "name": "Qwen 2.5 Coder",
+        "provider": "Qwen",
+        "image": "/static/qwen-coder.webp"
+    },
+    {
+        "id": "Qwen/Qwen2.5-0.5B-Instruct",
+        "short_key": "qwen-mini",
+        "name": "Qwen 2.5 Mini",
+        "provider": "Qwen",
+        "image": "/static/qwen-coder.webp",
+        "base_url": "https://riy777-qw.hf.space/v1",  # HuggingFace Space
+        "use_hf": True
+    },
 ]
 
 MODEL_MAPPING = { m["id"]: m["short_key"] for m in MODELS_METADATA }
 MODEL_MAPPING[EMERGENCY_MODEL_ID] = "deepseek" 
 
+# خريطة المعرفات لمعرفة ما إذا كان النموذج يستخدم HF Space
+HF_MODEL_IDS = {m["id"] for m in MODELS_METADATA if m.get("use_hf")}
+
 HIDDEN_MODELS = []
 
 def estimate_tokens(text):
     return len(text) // 4 if text else 0
+
+
+def get_provider_config(model_id: str) -> tuple[str, str]:
+    """
+    يُعيد (base_url, api_key) للنموذج المطلوب.
+    يدعم كلاً من NVIDIA API و HuggingFace Spaces.
+    """
+    if model_id in HF_MODEL_IDS:
+        return HF_BASE_URL, HF_API_KEY
+    return NVIDIA_BASE_URL, get_next_api_key() or "no-key"
+
 
 # --- 4. STREAMING LOGIC (With TTFT) ---
 
@@ -114,21 +163,68 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
     - إذا كان True: لا يتم خصم من رصيد المستخدم ولا يُحتسب في لوحة التحكم الخاصة به
     - إذا كان False: يتم التتبع العادي
     """
-    print(f"[DEBUG] smart_chat_stream called with is_trial={is_trial}, user={user_email}")  # DEBUG
+    print(f"[DEBUG] smart_chat_stream called with is_trial={is_trial}, user={user_email}")
 
     current_body = original_body.copy()
     target_model_id = current_body.get("model")
     internal_key = MODEL_MAPPING.get(target_model_id, "unknown")
 
     start_time = time.time()
-    ttft_latency = 0 # Time To First Token
+    ttft_latency = 0
 
     tokens_est = 0
     for m in current_body.get("messages", []): 
         tokens_est += estimate_tokens(m.get("content", ""))
 
     response_tokens = 0
-    max_attempts = 2 
+
+    # نموذج HuggingFace Space — محاولة واحدة فقط
+    if target_model_id in HF_MODEL_IDS:
+        base_url, api_key = get_provider_config(target_model_id)
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                async with client.stream(
+                    "POST",
+                    f"{base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                        "Accept": "text/event-stream"
+                    },
+                    json=current_body
+                ) as response:
+                    if response.status_code != 200:
+                        raise Exception(f"HF Space Status {response.status_code}")
+
+                    first_chunk = True
+                    async for chunk in response.aiter_bytes():
+                        if first_chunk:
+                            ttft_latency = int((time.time() - start_time) * 1000)
+                            first_chunk = False
+                        response_tokens += 1
+                        yield chunk
+
+        except Exception as e:
+            error_json = json.dumps({"error": f"Provider Error: {str(e)}"}).encode()
+            yield error_json
+            final_latency = int((time.time() - start_time) * 1000)
+            if user_email:
+                if is_trial:
+                    update_global_stats(final_latency, tokens_est, model_key=internal_key, is_error=True)
+                else:
+                    track_request_metrics(user_email, final_latency, tokens_est, model_key=internal_key, is_error=True)
+            return
+
+        final_metric_latency = ttft_latency if ttft_latency > 0 else int((time.time() - start_time) * 1000)
+        if response_tokens > 0 and user_email:
+            if is_trial:
+                update_global_stats(final_metric_latency, tokens_est + response_tokens, model_key=internal_key)
+            else:
+                track_request_metrics(user_email, final_metric_latency, tokens_est + response_tokens, model_key=internal_key)
+        return
+
+    # نماذج NVIDIA — مع دعم إعادة المحاولة والطوارئ
+    max_attempts = 2
 
     for attempt in range(max_attempts):
         current_api_key = get_next_api_key()
@@ -161,7 +257,6 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
 
                     first_chunk = True
                     async for chunk in response.aiter_bytes(): 
-                        # TTFT Logic: Capture time of first byte
                         if first_chunk:
                             ttft_latency = int((time.time() - start_time) * 1000)
                             first_chunk = False
@@ -178,26 +273,22 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
             error_json = json.dumps({"error": f"Provider Error: {str(e)}"}).encode()
             yield error_json
 
-            # في حالة الخطأ، الزمن هو الوقت المستغرق حتى ظهور الخطأ
             final_latency = int((time.time() - start_time) * 1000)
             if user_email:
                 if is_trial:
-                    print(f"[DEBUG] Trial mode - Error tracked in global stats only")  # DEBUG
+                    print(f"[DEBUG] Trial mode - Error tracked in global stats only")
                     update_global_stats(final_latency, tokens_est, model_key=internal_key, is_error=True, is_internal=False, is_blocked=False)
                 else:
-                    print(f"[DEBUG] Normal mode - Error tracked in user stats")  # DEBUG
+                    print(f"[DEBUG] Normal mode - Error tracked in user stats")
                     track_request_metrics(user_email, final_latency, tokens_est, model_key=internal_key, is_error=True)
             return
 
-    # Use TTFT for metrics if available, else total time
     final_metric_latency = ttft_latency if ttft_latency > 0 else int((time.time() - start_time) * 1000)
 
     if response_tokens > 0 and user_email:
         if is_trial:
-            # FIX: في حالة التجربة، نحدث الإحصائيات العامة فقط ولا نخصم من المستخدم
-            print(f"[DEBUG] Trial mode - Success tracked in global stats only (NOT user dashboard)")  # DEBUG
+            print(f"[DEBUG] Trial mode - Success tracked in global stats only (NOT user dashboard)")
             update_global_stats(final_metric_latency, tokens_est + response_tokens, model_key=internal_key, is_error=False, is_internal=False, is_blocked=False)
         else:
-            # الحالة العادية: تحديث إحصائيات المستخدم
-            print(f"[DEBUG] Normal mode - Success tracked in user stats (DEDUCTED from quota)")  # DEBUG
+            print(f"[DEBUG] Normal mode - Success tracked in user stats (DEDUCTED from quota)")
             track_request_metrics(user_email, final_metric_latency, tokens_est + response_tokens, model_key=internal_key, is_error=False)

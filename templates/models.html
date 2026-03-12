@@ -50,7 +50,7 @@
       "position": {{ loop.index }},
       "name": "{{ model.name }}",
       "description": "{{ model.provider }} AI model",
-      "url": "https://orgteh.com/{{ lang }}/models/{{ 'deepseek' if 'deepseek' in model.id else 'mistral' if 'mistral' in model.id else 'kimi' if 'kimi' in model.id else 'llama' if 'llama' in model.id else 'gemma' }}"
+      "url": "https://orgteh.com/{{ lang }}/models/{{ model.short_key }}"
     }{% if not loop.last %},{% endif %}
     {% endfor %}
   ]
@@ -179,6 +179,26 @@
                     name: "Gemma 3n E4B",
                     desc: "Google's Gemma 3n E4B (Efficient 4B) is a next-generation on-device model from the Gemma 3 Nano family. Using a novel per-layer embedding architecture it achieves ~4B effective active parameters while understanding text, images, audio, and video — purpose-built for multimodal tasks that demand efficiency without sacrificing capability.",
                     hasThinking: false
+                },
+                "llama-large": {
+                    name: "Llama 3.3 70B",
+                    desc: "Meta's Llama 3.3 70B Instruct is the most powerful open-weight model in the Llama 3 family — 70 billion parameters of instruction-tuned intelligence delivering enterprise-grade multilingual reasoning, complex dialogue management, and deep document comprehension. It rivals top proprietary models at a fraction of the cost.",
+                    hasThinking: false
+                },
+                "minimax": {
+                    name: "MiniMax M2.1",
+                    desc: "MiniMax M2.1 is a large-scale frontier language model built on a highly efficient hybrid architecture, delivering world-class performance across analytical reasoning, multilingual communication, and long-context document Q&A. Supports context windows up to 1 million tokens — purpose-built for complex agentic workflows and knowledge synthesis.",
+                    hasThinking: false
+                },
+                "qwen-coder": {
+                    name: "Qwen 2.5 Coder 32B",
+                    desc: "Alibaba's Qwen 2.5 Coder 32B Instruct is a dedicated code-specialized 32B model supporting 92+ programming languages — delivering expert-level code generation, debugging, refactoring, and cross-language translation. With a 128K context window, it competes with leading proprietary coding assistants.",
+                    hasThinking: false
+                },
+                "qwen-mini": {
+                    name: "Qwen 2.5 Mini",
+                    desc: "Qwen 2.5 Mini (0.5B) proves compact AI can still be capable — a 500M parameter model delivering solid instruction-following, multilingual conversation, and text understanding at an ultra-low computational cost. Ideal for high-volume APIs, lightweight chatbots, and any scenario where cost-per-token is critical.",
+                    hasThinking: false
                 }
             }
         },
@@ -214,6 +234,26 @@
                 "gemma": {
                     name: "Gemma 3n E4B",
                     desc: "نموذج Gemma 3n E4B (الكفء 4B) من Google — الجيل التالي من عائلة Gemma 3 Nano. يستخدم بنية تضمين طبقية مبتكرة تحقق ~4 مليار معامل فعّال مع فهم النصوص والصور والصوت والفيديو في سياق واحد — مُصمَّم لمهام متعددة الوسائط تتطلب كفاءة حقيقية دون التضحية بالقدرات.",
+                    hasThinking: false
+                },
+                "llama-large": {
+                    name: "Llama 3.3 70B",
+                    desc: "نموذج Llama 3.3 70B Instruct من Meta هو أقوى نموذج مفتوح الأوزان في عائلة Llama 3 — 70 مليار معامل من الذكاء الموجَّه بالتعليمات يُقدِّم استدلالاً متعدد اللغات بمستوى مؤسسات، وإدارة حوار معقد، وفهماً عميقاً للوثائق. يُنافس النماذج المدفوعة الكبرى بتكلفة أقل بكثير.",
+                    hasThinking: false
+                },
+                "minimax": {
+                    name: "MiniMax M2.1",
+                    desc: "MiniMax M2.1 نموذج لغوي ضخم من الجيل الأمامي مبني على بنية هجينة عالية الكفاءة، يُقدِّم أداءً عالمياً في الاستدلال التحليلي، التواصل متعدد اللغات، والإجابة على الوثائق طويلة السياق. يدعم نوافذ سياق تصل لمليون توكن — مُصمَّم لمسارات عمل الوكلاء الذكية المعقدة.",
+                    hasThinking: false
+                },
+                "qwen-coder": {
+                    name: "Qwen 2.5 Coder 32B",
+                    desc: "Qwen 2.5 Coder 32B Instruct من Alibaba نموذج متخصص في البرمجة بـ 32 مليار معامل يدعم أكثر من 92 لغة برمجية — يُقدِّم توليداً للكود بمستوى الخبراء، تصحيح الأخطاء، إعادة الهيكلة، والترجمة بين اللغات. بنافذة سياق 128K توكن، يُنافس أفضل المساعدين البرمجيين المدفوعين.",
+                    hasThinking: false
+                },
+                "qwen-mini": {
+                    name: "Qwen 2.5 Mini",
+                    desc: "Qwen 2.5 Mini (0.5B) يُثبِت أن الذكاء الاصطناعي المدمج يمكن أن يكون فعّالاً — نموذج بـ 500 مليون معامل يُقدِّم اتباعاً جيداً للتعليمات، محادثة متعددة اللغات، وفهماً نصياً بموارد حوسبة استثنائية الانخفاض. مثالي لـ APIs عالية الحجم وروبوتات المحادثة الخفيفة.",
                     hasThinking: false
                 }
             }
@@ -275,7 +315,7 @@
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {% for model in models %}
-                {% set short_name = "deepseek" if "deepseek" in model.id else "mistral" if "mistral" in model.id else "kimi" if "kimi" in model.id else "llama" if "llama" in model.id else "gemma" %}
+                {% set short_name = model.short_key %}
                 <div onclick="openModelDetails('{{ model.id }}', '{{ short_name }}')" onmouseenter="_prefetchDescription('{{ short_name }}')" class="group bg-white dark:bg-[#1e293b] rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col cursor-pointer min-h-[200px]">
                     <div class="p-6 flex items-start justify-between border-b border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/30">
                         <div class="flex items-center gap-4">

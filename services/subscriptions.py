@@ -3,14 +3,19 @@ from database import get_user_by_email, activate_subscription as db_activate
 from services.limits import get_limits_for_new_subscription, PLAN_NAME_MAP
 
 PLAN_DETAILS = {
-    "Free Tier": { "key": "free_tier", "name_en": "Free Tier", "is_perpetual": True, "has_overdraft": False },
-    "Chat Agents": { "key": "chat_agents", "name_en": "Chat Agents Bundle", "is_perpetual": False, "has_overdraft": True },
-    "Nexus Global": { "key": "nexus_global", "name_en": "Nexus Global", "is_perpetual": False, "has_overdraft": True },
-    "DeepSeek V3": { "key": "deepseek", "name_en": "DeepSeek V3", "is_perpetual": False, "has_overdraft": True },
-    "Kimi k2": { "key": "kimi", "name_en": "Kimi k2", "is_perpetual": False, "has_overdraft": True },
-    "Mistral Large": { "key": "mistral", "name_en": "Mistral Large", "is_perpetual": False, "has_overdraft": True },
-    "Gemma 3": { "key": "gemma", "name_en": "Gemma 3", "is_perpetual": False, "has_overdraft": True },
-    "Llama 3.2": { "key": "llama", "name_en": "Llama 3.2", "is_perpetual": False, "has_overdraft": True }
+    "Free Tier":      { "key": "free_tier",   "name_en": "Free Tier",         "is_perpetual": True,  "has_overdraft": False },
+    "Chat Agents":    { "key": "chat_agents",  "name_en": "Chat Agents Bundle", "is_perpetual": False, "has_overdraft": True  },
+    "Nexus Global":   { "key": "nexus_global", "name_en": "Nexus Global",       "is_perpetual": False, "has_overdraft": True  },
+    "DeepSeek V3":    { "key": "deepseek",     "name_en": "DeepSeek V3",        "is_perpetual": False, "has_overdraft": True  },
+    "Kimi k2":        { "key": "kimi",         "name_en": "Kimi k2",            "is_perpetual": False, "has_overdraft": True  },
+    "Mistral Large":  { "key": "mistral",      "name_en": "Mistral Large",      "is_perpetual": False, "has_overdraft": True  },
+    "Gemma 3":        { "key": "gemma",        "name_en": "Gemma 3",            "is_perpetual": False, "has_overdraft": True  },
+    "Llama 3.2":      { "key": "llama",        "name_en": "Llama 3.2",          "is_perpetual": False, "has_overdraft": True  },
+    # ── NEW PLANS ─────────────────────────────────────────────────────────────
+    "Llama 3.3 70B":  { "key": "llama-large",  "name_en": "Llama 3.3 70B",      "is_perpetual": False, "has_overdraft": True  },
+    "MiniMax M2.1":   { "key": "minimax",      "name_en": "MiniMax M2.1",       "is_perpetual": False, "has_overdraft": True  },
+    "Qwen Coder 32B": { "key": "qwen-coder",   "name_en": "Qwen Coder 32B",     "is_perpetual": False, "has_overdraft": True  },
+    # Qwen Mini (0.5B) is FREE — no paid plan
 }
 
 def calculate_days_duration(period: str) -> int:

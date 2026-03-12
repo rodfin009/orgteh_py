@@ -72,6 +72,36 @@ PRICING_DATA = {
                 "monthly": {"price": "$2.49", "bonus": "+800"},
                 "yearly": {"price": "$24.99", "bonus": "+2500"}
             }
+        },
+        "llama-large": {
+            "name_ar": "Llama 3.3 70B",
+            "name_en": "Llama 3.3 70B",
+            "limits": "200 طلب/يوم",
+            "limits_en": "200 req/day",
+            "prices": {
+                "monthly": {"price": "$3.99", "bonus": "+400"},
+                "yearly": {"price": "$39.99", "bonus": "+1000"}
+            }
+        },
+        "minimax": {
+            "name_ar": "MiniMax M2.1",
+            "name_en": "MiniMax M2.1",
+            "limits": "150 طلب/يوم",
+            "limits_en": "150 req/day",
+            "prices": {
+                "monthly": {"price": "$4.99", "bonus": "+300"},
+                "yearly": {"price": "$49.99", "bonus": "+800"}
+            }
+        },
+        "qwen-coder": {
+            "name_ar": "Qwen 2.5 Coder 32B",
+            "name_en": "Qwen 2.5 Coder 32B",
+            "limits": "200 طلب/يوم",
+            "limits_en": "200 req/day",
+            "prices": {
+                "monthly": {"price": "$3.49", "bonus": "+400"},
+                "yearly": {"price": "$34.99", "bonus": "+1000"}
+            }
         }
     },
     "bundles": {
@@ -86,21 +116,21 @@ PRICING_DATA = {
             }
         },
         "global": {
-            "name_ar": "Orgteh Global (الوصول الشامل)",
-            "name_en": "Orgteh Global (All Access)",
-            "limits": "DeepSeek: 150/يوم + Kimi: 100/يوم + Mistral: 50/يوم",
-            "limits_en": "DeepSeek: 150/day + Kimi: 100/day + Mistral: 50/day",
+            "name_ar": "Orgteh Global (الوصول الشامل لـ 9 نماذج)",
+            "name_en": "Orgteh Global (All 9 Models Access)",
+            "limits": "DeepSeek: 150/يوم + Kimi: 100/يوم + Mistral: 50/يوم + Llama 3.3: 50/يوم + MiniMax: 40/يوم + Qwen Coder: 60/يوم + Qwen Mini: 100/يوم",
+            "limits_en": "DeepSeek: 150/day + Kimi: 100/day + Mistral: 50/day + Llama 3.3: 50/day + MiniMax: 40/day + Qwen Coder: 60/day + Qwen Mini: 100/day",
             "prices": {
-                "monthly": {"price": "$18.99", "bonus": "+200"},
-                "yearly": {"price": "$189.99", "bonus": "+500"}
+                "monthly": {"price": "$20.99", "bonus": "+200"},
+                "yearly": {"price": "$209.99", "bonus": "+500"}
             }
         }
     },
     "free": {
         "name_ar": "الباقة المجانية",
         "name_en": "Free Tier",
-        "limits": "Llama: 10/يوم + Kimi: 5/يوم",
-        "limits_en": "Llama: 10/day + Kimi: 5/day",
+        "limits": "Llama: 10/يوم + Kimi: 5/يوم + Qwen Mini: غير محدود",
+        "limits_en": "Llama: 10/day + Kimi: 5/day + Qwen Mini: Unlimited",
         "price": "$0 دائماً",
         "price_en": "$0 forever"
     }
@@ -154,36 +184,51 @@ Orgteh هي منصة API متكاملة للذكاء الاصطناعي توفر
 • منشئ كود ذكي (AI Code Builder)
 
 === النماذج المتاحة ===
+النماذج الأساسية (مدعومة من NVIDIA):
 1. DeepSeek V3.2 - الأفضل للبرمجة والسرعة (300 طلب/يوم)
 2. Kimi K2 Thinking - للتفكير العميق والسياق الطويل 256K (200 طلب/يوم)
 3. Mistral Large 3 - للدقة ودعم اللغات الأوروبية (100 طلب/يوم)
-4. Llama 3.2 - سريع وخفيف للمهام البسيطة (400 طلب/يوم)
-5. Gemma 3 - نموذج متوازن من Google (500 طلب/يوم)
+4. Llama 3.2 3B - سريع وخفيف للمهام البسيطة (400 طلب/يوم)
+5. Gemma 3n - نموذج متوازن من Google (500 طلب/يوم)
+
+النماذج الجديدة:
+6. Llama 3.3 70B - نموذج Meta القوي 70 مليار معامل، ممتاز للمشاريع الكبيرة والمنطق المعقد (200 طلب/يوم)
+7. MiniMax M2.1 - نموذج حدودي بسياق مليون توكن، مثالي لقواعد الكود الضخمة والوثائق الطويلة (150 طلب/يوم)
+8. Qwen 2.5 Coder 32B - نموذج متخصص في البرمجة من Alibaba، يدعم 92 لغة برمجية، ممتاز للتوليد والتصحيح والترجمة بين اللغات (200 طلب/يوم)
+9. Qwen 2.5 Mini (0.5B) - نموذج خفيف جداً ومجاني تماماً، مثالي للأكواد البسيطة وواجهات الدردشة الخفيفة (غير محدود)
+
+=== متى تستخدم كل نموذج؟ ===
+• تصميم معمارية أو منطق معقد → DeepSeek V3.2 أو Llama 3.3 70B
+• تصحيح أخطاء صعبة أو استدلال → Kimi K2 Thinking
+• مشاريع ضخمة أو تحليل ملفات كثيرة → MiniMax M2.1
+• كود متخصص أو 92 لغة برمجية → Qwen 2.5 Coder 32B
+• توثيق متعدد اللغات → Mistral Large 3
+• أكواد HTML/CSS بسيطة وسريعة → Llama 3.2 أو Qwen Mini
+• مهام عامة متوازنة → Gemma 3n
 
 === التسعيرات الدقيقة (شهري وسنوي فقط) ===
 
 【الباقة المجانية】
 • السعر: $0 دائماً
-• الحدود: Llama 10/يوم + Kimi 5/يوم
+• الحدود: Llama 10/يوم + Kimi 5/يوم + Qwen Mini غير محدود ♾️
 • مميزات: الوصول للأدوات، دعم المجتمع
 
 【الخطط الفردية - شهري وسنوي فقط】
-• DeepSeek V3: $3.99/شهر أو $39.99/سنة
-  - الحد: 300 طلب/يوم + رصيد إضافي
-• Kimi k2: $6.99/شهر أو $69.99/سنة
-  - الحد: 200 طلب/يوم + رصيد إضافي
-• Mistral Large: $11.99/شهر أو $119.99/سنة
-  - الحد: 100 طلب/يوم + رصيد إضافي
-• Gemma 3: $3.49/شهر أو $34.99/سنة
-  - الحد: 500 طلب/يوم + رصيد إضافي
-• Llama 3.2: $2.49/شهر أو $24.99/سنة
-  - الحد: 400 طلب/يوم + رصيد إضافي
+• DeepSeek V3: $3.99/شهر أو $39.99/سنة — 300 طلب/يوم
+• Kimi k2: $6.99/شهر أو $69.99/سنة — 200 طلب/يوم
+• Mistral Large: $11.99/شهر أو $119.99/سنة — 100 طلب/يوم
+• Gemma 3: $3.49/شهر أو $34.99/سنة — 500 طلب/يوم
+• Llama 3.2: $2.49/شهر أو $24.99/سنة — 400 طلب/يوم
+• Llama 3.3 70B: $3.99/شهر أو $39.99/سنة — 200 طلب/يوم
+• MiniMax M2.1: $4.99/شهر أو $49.99/سنة — 150 طلب/يوم
+• Qwen 2.5 Coder 32B: $3.49/شهر أو $34.99/سنة — 200 طلب/يوم
+• Qwen 2.5 Mini: مجاني تماماً ♾️ (غير محدود في الباقة المجانية)
 
 【الباقات المجمعة - شهري وسنوي فقط】
 • Chat Agents: $6.99/شهر أو $69.99/سنة
   - يشمل: Gemma 270/يوم + Llama 200/يوم + Kimi 30/يوم
-• Orgteh Global: $18.99/شهر أو $189.99/سنة
-  - يشمل: DeepSeek 150/يوم + Kimi 100/يوم + Mistral 50/يوم
+• Orgteh Global (9 نماذج): $20.99/شهر أو $209.99/سنة
+  - يشمل جميع النماذج التسعة مع حصص يومية لكل نموذج
   - مميزات: أولوية في الدعم، رصيد إضافي موحد
 
 === الأدوات المتاحة (Tools Hub) ===
@@ -273,36 +318,51 @@ Orgteh is a comprehensive AI API platform providing:
 • AI Code Builder for rapid development
 
 === Available Models ===
+Core Models (NVIDIA-powered):
 1. DeepSeek V3.2 - Best for coding and speed (300 req/day)
 2. Kimi K2 Thinking - For deep reasoning, 256K context (200 req/day)
 3. Mistral Large 3 - For precision and European language support (100 req/day)
-4. Llama 3.2 - Fast and lightweight for simple tasks (400 req/day)
-5. Gemma 3 - Balanced model from Google (500 req/day)
+4. Llama 3.2 3B - Fast and lightweight for simple tasks (400 req/day)
+5. Gemma 3n - Balanced model from Google (500 req/day)
+
+New Models:
+6. Llama 3.3 70B - Powerful 70B Meta model. Excellent for large-scale apps and complex logic (200 req/day)
+7. MiniMax M2.1 - Frontier model with 1M token context. Ideal for huge codebases and long documents (150 req/day)
+8. Qwen 2.5 Coder 32B - Alibaba's specialized coding model supporting 92 programming languages. Best for code generation, refactoring, debugging (200 req/day)
+9. Qwen 2.5 Mini (0.5B) - Ultra-lightweight, completely FREE model. Perfect for simple snippets and lightweight chatbot APIs (Unlimited ♾️)
+
+=== When to Use Which Model? ===
+• Architecture design or complex logic → DeepSeek V3.2 or Llama 3.3 70B
+• Hard debugging or deep reasoning → Kimi K2 Thinking
+• Huge projects or multi-file analysis → MiniMax M2.1
+• Specialized code or 92 programming languages → Qwen 2.5 Coder 32B
+• Multi-language documentation → Mistral Large 3
+• Simple HTML/CSS quick snippets → Llama 3.2 or Qwen Mini (free)
+• General balanced tasks → Gemma 3n
 
 === Detailed Pricing (Monthly & Yearly Only) ===
 
 【Free Tier】
 • Price: $0 forever
-• Limits: Llama 10/day + Kimi 5/day
+• Limits: Llama 10/day + Kimi 5/day + Qwen Mini Unlimited ♾️
 • Features: Tool access, community support
 
 【Individual Plans - Monthly & Yearly Only】
-• DeepSeek V3: $3.99/month or $39.99/year
-  - Limit: 300 req/day + extra credit
-• Kimi k2: $6.99/month or $69.99/year
-  - Limit: 200 req/day + extra credit
-• Mistral Large: $11.99/month or $119.99/year
-  - Limit: 100 req/day + extra credit
-• Gemma 3: $3.49/month or $34.99/year
-  - Limit: 500 req/day + extra credit
-• Llama 3.2: $2.49/month or $24.99/year
-  - Limit: 400 req/day + extra credit
+• DeepSeek V3: $3.99/month or $39.99/year — 300 req/day
+• Kimi k2: $6.99/month or $69.99/year — 200 req/day
+• Mistral Large: $11.99/month or $119.99/year — 100 req/day
+• Gemma 3: $3.49/month or $34.99/year — 500 req/day
+• Llama 3.2: $2.49/month or $24.99/year — 400 req/day
+• Llama 3.3 70B: $3.99/month or $39.99/year — 200 req/day
+• MiniMax M2.1: $4.99/month or $49.99/year — 150 req/day
+• Qwen 2.5 Coder 32B: $3.49/month or $34.99/year — 200 req/day
+• Qwen 2.5 Mini: FREE forever ♾️ (unlimited in free tier, no paid plan needed)
 
 【Bundle Plans - Monthly & Yearly Only】
 • Chat Agents: $6.99/month or $69.99/year
   - Includes: Gemma 270/day + Llama 200/day + Kimi 30/day
-• Orgteh Global: $18.99/month or $189.99/year
-  - Includes: DeepSeek 150/day + Kimi 100/day + Mistral 50/day
+• Orgteh Global (All 9 Models): $20.99/month or $209.99/year
+  - Includes all 9 models with daily quotas for each
   - Features: Priority support, unified extra credit
 
 === Available Tools (Tools Hub) ===

@@ -356,6 +356,142 @@
                     {% endif %}
                 </div>
 
+                <!-- ═══════ Llama 3.3 70B ═══════ -->
+                <div class="relative flex flex-col rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-cardbg p-6 shadow-lg hover:border-orange-500/50 transition-all">
+                    <div class="mb-4 text-center mt-2">
+                        <img src="/static/meta.webp" alt="Meta AI" class="mx-auto mb-4 w-16 h-16 bg-white p-2 rounded-xl shadow-sm object-contain drop-shadow-md hover:scale-110 transition-transform duration-300">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Llama 3.3 70B</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Meta AI</p>
+                    </div>
+                    <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-llama-large">
+                        <button onclick="setPeriod('llama-large', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
+                        <button onclick="setPeriod('llama-large', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly" data-i18n="pricing.btn_yearly">Yearly</button>
+                    </div>
+                    <div class="mb-4 text-center">
+                        <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-llama-large">$3.99</span>
+                        <span class="text-gray-500 price-label" data-i18n="pricing.lbl_per_month">/month</span>
+                    </div>
+                    <div class="mb-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                        <div class="text-2xl font-bold text-primary">200</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.lbl_req_day">req/day</div>
+                    </div>
+                    <div class="mb-4 relative overflow-hidden rounded-xl border-2 border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 via-yellow-400/20 to-yellow-500/10 p-4">
+                        <div class="relative flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-bolt text-xl text-yellow-500 bonus-glow"></i>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-yellow-600 dark:text-yellow-500" id="bonus-llama-large">+400</div>
+                                <div class="text-sm font-semibold text-yellow-700 dark:text-yellow-600" data-i18n="pricing.lbl_extra_credit">Extra Credit</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if current_plan == 'Llama 3.3 70B' %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_llama_large_1">200 req/day · Llama 3.3 70B</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_llama_large_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_llama_large_3">RAG Tool (Premium)</span></li>
+                        </ul>
+                        <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
+                    {% else %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_llama_large_1">200 req/day · Llama 3.3 70B</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_llama_large_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_llama_large_3">RAG Tool (Premium)</span></li>
+                        </ul>
+                        <button onclick="initiateCheckout('llama-large', document.querySelector('#period-llama-large .bg-white, #period-llama-large .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-orange-500 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                    {% endif %}
+                </div>
+
+                <!-- ═══════ MiniMax M2.1 ═══════ -->
+                <div class="relative flex flex-col rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-cardbg p-6 shadow-lg hover:border-pink-500/50 transition-all">
+                    <div class="mb-4 text-center mt-2">
+                        <img src="/static/minimax.webp" alt="MiniMax AI" class="mx-auto mb-4 w-16 h-16 bg-white p-2 rounded-xl shadow-sm object-contain drop-shadow-md hover:scale-110 transition-transform duration-300">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">MiniMax M2.1</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">MiniMax AI</p>
+                    </div>
+                    <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-minimax">
+                        <button onclick="setPeriod('minimax', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
+                        <button onclick="setPeriod('minimax', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly" data-i18n="pricing.btn_yearly">Yearly</button>
+                    </div>
+                    <div class="mb-4 text-center">
+                        <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-minimax">$4.99</span>
+                        <span class="text-gray-500 price-label" data-i18n="pricing.lbl_per_month">/month</span>
+                    </div>
+                    <div class="mb-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                        <div class="text-2xl font-bold text-primary">150</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.lbl_req_day">req/day</div>
+                    </div>
+                    <div class="mb-4 relative overflow-hidden rounded-xl border-2 border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 via-yellow-400/20 to-yellow-500/10 p-4">
+                        <div class="relative flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-bolt text-xl text-yellow-500 bonus-glow"></i>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-yellow-600 dark:text-yellow-500" id="bonus-minimax">+300</div>
+                                <div class="text-sm font-semibold text-yellow-700 dark:text-yellow-600" data-i18n="pricing.lbl_extra_credit">Extra Credit</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if current_plan == 'MiniMax M2.1' %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_minimax_1">150 req/day · MiniMax M2.1</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_minimax_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_minimax_3">RAG Tool (Premium)</span></li>
+                        </ul>
+                        <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
+                    {% else %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_minimax_1">150 req/day · MiniMax M2.1</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_minimax_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_minimax_3">RAG Tool (Premium)</span></li>
+                        </ul>
+                        <button onclick="initiateCheckout('minimax', document.querySelector('#period-minimax .bg-white, #period-minimax .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-pink-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                    {% endif %}
+                </div>
+
+                <!-- ═══════ Qwen 2.5 Coder 32B ═══════ -->
+                <div class="relative flex flex-col rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-cardbg p-6 shadow-lg hover:border-violet-500/50 transition-all">
+                    <div class="mb-4 text-center mt-2">
+                        <img src="/static/qwen-coder.webp" alt="Qwen Coder" class="mx-auto mb-4 w-16 h-16 bg-white p-2 rounded-xl shadow-sm object-contain drop-shadow-md hover:scale-110 transition-transform duration-300">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Qwen 2.5 Coder 32B</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Alibaba / Qwen</p>
+                    </div>
+                    <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-qwen-coder">
+                        <button onclick="setPeriod('qwen-coder', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
+                        <button onclick="setPeriod('qwen-coder', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly" data-i18n="pricing.btn_yearly">Yearly</button>
+                    </div>
+                    <div class="mb-4 text-center">
+                        <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-qwen-coder">$3.49</span>
+                        <span class="text-gray-500 price-label" data-i18n="pricing.lbl_per_month">/month</span>
+                    </div>
+                    <div class="mb-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                        <div class="text-2xl font-bold text-primary">200</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.lbl_req_day">req/day</div>
+                    </div>
+                    <div class="mb-4 relative overflow-hidden rounded-xl border-2 border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 via-yellow-400/20 to-yellow-500/10 p-4">
+                        <div class="relative flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-bolt text-xl text-yellow-500 bonus-glow"></i>
+                            <div class="text-center">
+                                <div class="text-lg font-bold text-yellow-600 dark:text-yellow-500" id="bonus-qwen-coder">+400</div>
+                                <div class="text-sm font-semibold text-yellow-700 dark:text-yellow-600" data-i18n="pricing.lbl_extra_credit">Extra Credit</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if current_plan == 'Qwen Coder 32B' %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_qwen_coder_1">200 req/day · Qwen 2.5 Coder 32B</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_qwen_coder_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_qwen_coder_3">RAG Tool (Premium)</span></li>
+                        </ul>
+                        <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
+                    {% else %}
+                        <ul class="mb-4 flex-1 space-y-2 text-sm">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_qwen_coder_1">200 req/day · Qwen 2.5 Coder 32B</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_qwen_coder_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_qwen_coder_3">RAG Tool (Premium)</span></li>
+                        </ul>
+                        <button onclick="initiateCheckout('qwen-coder', document.querySelector('#period-qwen-coder .bg-white, #period-qwen-coder .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-violet-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                    {% endif %}
+                </div>
+
+
             </div>
         </div>
 
@@ -387,14 +523,18 @@
                         <span class="text-gray-500 price-label" data-i18n="pricing.lbl_forever">/forever</span>
                     </div>
 
-                    <div class="mb-4 grid grid-cols-2 gap-2 text-center">
+                    <div class="mb-4 grid grid-cols-3 gap-2 text-center">
                         <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-2">
                             <div class="text-lg font-bold text-primary">10</div>
                             <div class="text-xs text-gray-500">Llama</div>
                         </div>
-                         <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-2">
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-2">
                             <div class="text-lg font-bold text-primary">5</div>
                             <div class="text-xs text-gray-500">Kimi</div>
+                        </div>
+                        <div class="rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-700/50 p-2">
+                            <div class="text-lg font-bold text-teal-600 dark:text-teal-400">∞</div>
+                            <div class="text-xs text-teal-600 dark:text-teal-400">Qwen Mini</div>
                         </div>
                     </div>
 
@@ -405,6 +545,7 @@
                     <ul class="mb-6 flex-1 space-y-3">
                          <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_free_1">Access to Llama 3.2</span></li>
                          <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_free_2">Access to Kimi K2</span></li>
+                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-infinity text-teal-500"></i> <span data-i18n="feat_free_4" class="text-teal-600 dark:text-teal-400 font-semibold">Qwen 2.5 Mini — Unlimited</span></li>
                          <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_free_3">Community Support</span></li>
                     </ul>
 
@@ -510,7 +651,7 @@
                     </div>
 
                     <div class="mb-4 text-center">
-                        <span class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600" id="price-global">$18.99</span>
+                        <span class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600" id="price-global">$20.99</span>
                         <span class="text-gray-500 price-label" data-i18n="pricing.lbl_per_month">/month</span>
                     </div>
 
@@ -531,9 +672,25 @@
                             <div class="text-lg font-bold text-primary">120</div>
                             <div class="text-xs text-gray-500">Gemma 3</div>
                         </div>
-                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center col-span-2">
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
                             <div class="text-lg font-bold text-primary">100</div>
                             <div class="text-xs text-gray-500">Llama 3.2</div>
+                        </div>
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                            <div class="text-lg font-bold text-primary">50</div>
+                            <div class="text-xs text-gray-500">Llama 70B</div>
+                        </div>
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                            <div class="text-lg font-bold text-primary">40</div>
+                            <div class="text-xs text-gray-500">MiniMax</div>
+                        </div>
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                            <div class="text-lg font-bold text-primary">60</div>
+                            <div class="text-xs text-gray-500">Qwen Coder</div>
+                        </div>
+                        <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
+                            <div class="text-lg font-bold text-primary">100</div>
+                            <div class="text-xs text-gray-500">Qwen Mini</div>
                         </div>
                     </div>
 
@@ -549,7 +706,7 @@
                     </div>
 
                     <ul class="mb-6 flex-1 space-y-3">
-                        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_global_1">All 5 models</span></li>
+                        <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_global_1">All 9 models</span></li>
                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_global_2">Seamless switching</span></li>
                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_global_3">Unified extra credit</span></li>
                         <li class="flex items-center gap-2 text-sm"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_global_4">Priority support</span></li>
@@ -668,11 +825,12 @@
             "pricing.no_overdraft": "No Overdraft",
             "feat_free_1": "Access to Llama 3.2 (10/day)",
             "feat_free_2": "Access to Kimi K2 (5/day)",
+            "feat_free_4": "Qwen 2.5 Mini — Unlimited",
             "feat_free_3": "Community Support",
             "feat_agents_1": "High volume Gemma",
             "feat_agents_2": "Optimized for Chat",
             "feat_agents_3": "Unified Backup",
-            "feat_global_1": "Access to all 5 models",
+            "feat_global_1": "Access to all 9 models",
             "feat_global_2": "Seamless switching",
             "feat_global_3": "Unified extra credit",
             "feat_global_4": "Priority support",
@@ -695,6 +853,20 @@
             "feat_llama_1": "400 req/day · Llama 3.2",
             "feat_llama_2": "🔐 OCR Tool (Premium)",
             "feat_llama_3": "🔐 RAG Tool (Premium)",
+            "feat_llama_large_1": "200 req/day · Llama 3.3 70B",
+            "feat_llama_large_2": "🔐 OCR Tool (Premium)",
+            "feat_llama_large_3": "🔐 RAG Tool (Premium)",
+            "feat_minimax_1": "150 req/day · MiniMax M2.1",
+            "feat_minimax_2": "🔐 OCR Tool (Premium)",
+            "feat_minimax_3": "🔐 RAG Tool (Premium)",
+            "feat_qwen_coder_1": "200 req/day · Qwen 2.5 Coder 32B",
+            "feat_qwen_coder_2": "🔐 OCR Tool (Premium)",
+            "feat_qwen_coder_3": "🔐 RAG Tool (Premium)",
+            "feat_qwen_mini_1": "500 req/day · Qwen 2.5 Mini",
+            "feat_qwen_mini_2": "Ultra-low cost per token",
+            "feat_qwen_mini_3": "🔐 OCR Tool (Premium)",
+            "feat_global_1": "Access to all 9 models",
+            "pricing.ribbon_best_value": "Best Value",
             "modal.title":       "Complete Payment",
             "modal.loading":     "Initializing payment gateway...",
             "modal.verifying":   "Verifying payment...",
@@ -749,11 +921,12 @@
             "pricing.no_overdraft": "لا يوجد رصيد إضافي",
             "feat_free_1": "وصول لـ Llama 3.2 (10/يوم)",
             "feat_free_2": "وصول لـ Kimi K2 (5/يوم)",
+            "feat_free_4": "Qwen 2.5 Mini — غير محدود",
             "feat_free_3": "دعم مجتمعي",
             "feat_agents_1": "وصول ضخم لـ Gemma",
             "feat_agents_2": "مُحسّنة للمحادثات الطويلة",
             "feat_agents_3": "رصيد موحد للطوارئ",
-            "feat_global_1": "وصول لجميع النماذج الخمسة معاً",
+            "feat_global_1": "وصول لجميع النماذج التسعة معاً",
             "feat_global_2": "تبديل سلس بين النماذج",
             "feat_global_3": "رصيد إضافي موحد للطوارئ",
             "feat_global_4": "أولوية قصوى في الدعم الفني",
@@ -776,6 +949,19 @@
             "feat_llama_1": "400 طلب/يوم · Llama 3.2",
             "feat_llama_2": "🔐 أداة OCR (مدفوعة)",
             "feat_llama_3": "🔐 أداة RAG (مدفوعة)",
+            "feat_llama_large_1": "200 طلب/يوم · Llama 3.3 70B",
+            "feat_llama_large_2": "🔐 أداة OCR (مدفوعة)",
+            "feat_llama_large_3": "🔐 أداة RAG (مدفوعة)",
+            "feat_minimax_1": "150 طلب/يوم · MiniMax M2.1",
+            "feat_minimax_2": "🔐 أداة OCR (مدفوعة)",
+            "feat_minimax_3": "🔐 أداة RAG (مدفوعة)",
+            "feat_qwen_coder_1": "200 طلب/يوم · Qwen 2.5 Coder 32B",
+            "feat_qwen_coder_2": "🔐 أداة OCR (مدفوعة)",
+            "feat_qwen_coder_3": "🔐 أداة RAG (مدفوعة)",
+            "feat_qwen_mini_1": "500 طلب/يوم · Qwen 2.5 Mini",
+            "feat_qwen_mini_2": "أقل تكلفة للتوكن",
+            "feat_qwen_mini_3": "🔐 أداة OCR (مدفوعة)",
+            "pricing.ribbon_best_value": "الأفضل قيمةً",
             "modal.title":       "إتمام الدفع",
             "modal.loading":     "جاري تهيئة بوابة الدفع...",
             "modal.verifying":   "جاري التحقق من الدفع...",
@@ -794,13 +980,16 @@
     };
 
     const pricingData = {
-        deepseek: { monthly: { price: 3.99, bonus: 600 }, yearly: { price: 39.99, bonus: 1500 } },
-        kimi: { monthly: { price: 6.99, bonus: 300 }, yearly: { price: 69.99, bonus: 1000 } },
-        mistral: { monthly: { price: 11.99, bonus: 200 }, yearly: { price: 119.99, bonus: 500 } },
-        gemma: { monthly: { price: 3.49, bonus: 1000 }, yearly: { price: 34.99, bonus: 3000 } },
-        llama: { monthly: { price: 2.49, bonus: 800 }, yearly: { price: 24.99, bonus: 2500 } },
-        agents: { monthly: { price: 6.99, bonus: 750 }, yearly: { price: 69.99, bonus: 2000 } },
-        global: { monthly: { price: 18.99, bonus: 200 }, yearly: { price: 189.99, bonus: 500 } }
+        deepseek:    { monthly: { price: 3.99, bonus: 600 },   yearly: { price: 39.99, bonus: 1500 } },
+        kimi:        { monthly: { price: 6.99, bonus: 300 },   yearly: { price: 69.99, bonus: 1000 } },
+        mistral:     { monthly: { price: 11.99, bonus: 200 },  yearly: { price: 119.99, bonus: 500 } },
+        gemma:       { monthly: { price: 3.49, bonus: 1000 },  yearly: { price: 34.99, bonus: 3000 } },
+        llama:       { monthly: { price: 2.49, bonus: 800 },   yearly: { price: 24.99, bonus: 2500 } },
+        "llama-large":  { monthly: { price: 3.99, bonus: 400 },  yearly: { price: 39.99, bonus: 1000 } },
+        minimax:     { monthly: { price: 4.99, bonus: 300 },   yearly: { price: 49.99, bonus: 800 } },
+        "qwen-coder":   { monthly: { price: 3.49, bonus: 400 },  yearly: { price: 34.99, bonus: 1000 } },
+        agents:      { monthly: { price: 6.99, bonus: 750 },   yearly: { price: 69.99, bonus: 2000 } },
+        global:      { monthly: { price: 20.99, bonus: 200 },  yearly: { price: 209.99, bonus: 500 } }
     };
 
     const labelKeys = { monthly: 'pricing.lbl_per_month', yearly: 'pricing.lbl_per_year' };
@@ -990,7 +1179,8 @@
 
         const planNameMap = {
             'deepseek':'Deepseek 3.2','kimi':'Kimi K2 thinking','mistral':'Mistral Large',
-            'gemma':'Gemma 3n E4B','llama':'Llama 3.2','agents':'Chat Agents','global':'Orgteh Global'
+            'gemma':'Gemma 3n E4B','llama':'Llama 3.2','agents':'Chat Agents','global':'Orgteh Global',
+            'llama-large':'Llama 3.3 70B','minimax':'MiniMax M2.1','qwen-coder':'Qwen Coder 32B'
         };
         const planLabel = planNameMap[planKey] || planKey;
         const lang      = getActiveLang();
@@ -1119,7 +1309,7 @@
            Object.assign(window.translations.ar, pageTranslations.ar);
        }
        applyLocalTranslations();
-       ['deepseek','kimi','mistral','gemma','llama','agents','global'].forEach(p => setPeriod(p, 'monthly'));
+       ['deepseek','kimi','mistral','gemma','llama','agents','global','llama-large','minimax','qwen-coder'].forEach(p => setPeriod(p, 'monthly'));
     });
 
     window.addEventListener('langChange', () => { applyLocalTranslations(); });
