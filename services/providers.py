@@ -23,7 +23,7 @@ if not API_KEYS:
 _keys_cycle = cycle(API_KEYS) if API_KEYS else cycle(["no-key"])
 
 # HuggingFace Space API (for qwen-mini)
-HF_BASE_URL = os.environ.get("HF_SPACE_BASE_URL", "https://riy777-qw.hf.space/v1/chat/stream")
+HF_BASE_URL = os.environ.get("HF_SPACE_BASE_URL", "https://riy777-qw.hf.space/v1")
 HF_API_KEY  = os.environ.get("HF_TOKEN", "no-key-needed")
 
 # الثوابت
@@ -178,31 +178,75 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
 
     response_tokens = 0
 
-    # نموذج HuggingFace Space — محاولة واحدة فقط
+    # نموذج HuggingFace Space — API مخصص (ليس OpenAI-compatible)
+    # الـ Space يستخدم: POST /v1/chat/stream مع {"prompt": "...", "max_tokens": N}
+    # والرد SSE بصيغة: data: {"text": "..."}
     if target_model_id in HF_MODEL_IDS:
         base_url, api_key = get_provider_config(target_model_id)
+
+        # بناء prompt نصي من messages array
+        messages = current_body.get("messages", [])
+        prompt_parts = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
+                prompt_parts.append(f"[System]: {content}")
+            elif role == "user":
+                prompt_parts.append(f"[User]: {content}")
+            elif role == "assistant":
+                prompt_parts.append(f"[Assistant]: {content}")
+        prompt_text = "\n".join(prompt_parts)
+
+        hf_payload = {
+            "prompt": prompt_text,
+            "temperature": current_body.get("temperature", 0.7),
+            "max_tokens": current_body.get("max_tokens", 512)
+        }
+
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=90.0) as client:
                 async with client.stream(
                     "POST",
-                    f"{base_url}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                        "Accept": "text/event-stream"
-                    },
-                    json=current_body
+                    f"https://riy777-qw.hf.space/v1/chat/stream",
+                    headers={"Content-Type": "application/json"},
+                    json=hf_payload
                 ) as response:
                     if response.status_code != 200:
                         raise Exception(f"HF Space Status {response.status_code}")
 
                     first_chunk = True
-                    async for chunk in response.aiter_bytes():
-                        if first_chunk:
-                            ttft_latency = int((time.time() - start_time) * 1000)
-                            first_chunk = False
-                        response_tokens += 1
-                        yield chunk
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        if line.startswith("data: "):
+                            data_str = line[6:]
+                            if data_str.strip() == "[DONE]":
+                                # إرسال [DONE] بصيغة OpenAI
+                                yield b"data: [DONE]\n\n"
+                                break
+                            try:
+                                hf_data = json.loads(data_str)
+                                text_chunk = hf_data.get("text", "")
+                                if not text_chunk:
+                                    continue
+                                if first_chunk:
+                                    ttft_latency = int((time.time() - start_time) * 1000)
+                                    first_chunk = False
+                                # تحويل إلى صيغة OpenAI SSE
+                                openai_chunk = {
+                                    "id": "chatcmpl-hf",
+                                    "object": "chat.completion.chunk",
+                                    "choices": [{
+                                        "index": 0,
+                                        "delta": {"content": text_chunk},
+                                        "finish_reason": None
+                                    }]
+                                }
+                                response_tokens += 1
+                                yield f"data: {json.dumps(openai_chunk, ensure_ascii=False)}\n\n".encode()
+                            except json.JSONDecodeError:
+                                pass
 
         except Exception as e:
             error_json = json.dumps({"error": f"Provider Error: {str(e)}"}).encode()
