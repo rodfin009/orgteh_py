@@ -97,46 +97,50 @@
         const useStream = params.stream !== false;
         if(loadingDiv) loadingDiv.remove();
 
+        const lang    = document.documentElement.lang || 'ar';
+        const thinkLabel_active = lang === 'ar' ? 'يفكر...' : 'Thinking...';
+        const thinkLabel_done   = lang === 'ar' ? 'انتهى التفكير' : 'Done Thinking';
+
         const botMsgId = `bot-${Date.now()}`;
         const thinkId  = `think-${Date.now()}`;
 
         const botDiv = document.createElement('div');
         botDiv.className = "flex w-full mt-2 space-x-3 max-w-full";
-
-        // صندوق التفكير مخفي بالبداية — يظهر تلقائياً عند وصول <think>
         botDiv.innerHTML = `
             <div class="chat-bubble bot" id="${botMsgId}-bubble">
-                <div id="think-box-${thinkId}" class="think-box hidden">
-                    <div class="think-header" onclick="toggleThinkBox('${thinkId}')">
-                        <i id="${thinkId}-icon" class="fa-solid fa-circle-notch think-spinner text-primary"></i>
-                        <span id="${thinkId}-label">جاري التفكير...</span>
+                <div id="thinking-box-${thinkId}" class="thinking-box hidden">
+                    <div class="thinking-header" onclick="toggleThinkBox('${thinkId}')">
+                        <div class="think-dots"><span></span><span></span><span></span></div>
+                        <svg class="think-check" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,7 5.5,10.5 12,3.5"/></svg>
+                        <span id="think-label-${thinkId}">${thinkLabel_active}</span>
+                        <i id="think-icon-${thinkId}" class="fa-solid fa-chevron-right thinking-icon text-xs"></i>
                     </div>
-                    <div id="think-content-${thinkId}" class="think-content hidden-content"></div>
+                    <div id="think-content-${thinkId}" class="thinking-content show"></div>
                 </div>
                 <div id="${botMsgId}-text" class="whitespace-pre-wrap"></div>
             </div>`;
         chatBox.appendChild(botDiv);
         chatBox.scrollTop = chatBox.scrollHeight;
 
-        const thinkBoxEl     = document.getElementById(`think-box-${thinkId}`);
+        const thinkBoxEl     = document.getElementById(`thinking-box-${thinkId}`);
         const thinkContentEl = document.getElementById(`think-content-${thinkId}`);
-        const thinkIcon      = document.getElementById(`${thinkId}-icon`);
-        const thinkLabel     = document.getElementById(`${thinkId}-label`);
+        const thinkLabelEl   = document.getElementById(`think-label-${thinkId}`);
         const textContentEl  = document.getElementById(`${botMsgId}-text`);
 
-        let fullThinking = "", fullContent = "", isThinkingFinished = false;
-        // حالة المحلل اللغوي للتعامل مع <think> الممتدة عبر عدة chunks
-        let inThinkBlock = false, pendingThink = "";
+        let fullThinking = "", fullContent = "";
+        let isThinkingDone = false, inThinkBlock = false;
 
-        const showThinkingBox = () => {
+        const showThinkBox = () => {
             if (thinkBoxEl && thinkBoxEl.classList.contains('hidden'))
                 thinkBoxEl.classList.remove('hidden');
         };
+
         const finishThinking = () => {
-            if (isThinkingFinished || !fullThinking) return;
-            isThinkingFinished = true;
-            if (thinkIcon) { thinkIcon.classList.remove('fa-circle-notch','think-spinner','text-primary'); thinkIcon.classList.add('fa-check','text-green-500'); }
-            if (thinkLabel) thinkLabel.textContent = "انتهى التفكير";
+            if (isThinkingDone || !fullThinking) return;
+            isThinkingDone = true;
+            if (thinkBoxEl) thinkBoxEl.classList.add('done');
+            if (thinkLabelEl) thinkLabelEl.textContent = thinkLabel_done;
+            if (thinkContentEl) thinkContentEl.classList.remove('show');
         };
 
         try {
@@ -152,74 +156,50 @@
             if (useStream) {
                 const reader  = response.body.getReader();
                 const decoder = new TextDecoder();
-
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
-
                     const raw = decoder.decode(value, { stream: true });
                     for (const line of raw.split('\n')) {
                         if (!line.startsWith('data: ')) continue;
                         const jsonStr = line.slice(6).trim();
-                        if (jsonStr === '[DONE]') break;
+                        if (jsonStr === '[DONE]') { finishThinking(); break; }
                         try {
                             const data = JSON.parse(jsonStr);
                             if (data.error) throw new Error(data.error);
-
                             const delta = data.choices?.[0]?.delta || {};
-                            // MiniMax قد يُرسل reasoning_content مستقلاً
                             let reasoning = delta.reasoning_content || "";
                             let content   = delta.content || "";
 
-                            // اكتشاف <think> داخل content إذا جاء مدمجاً
                             if (content.includes('<think>')) {
                                 const parts = content.split('<think>');
-                                // ما قبل <think> هو نص عادي
                                 if (parts[0]) { finishThinking(); fullContent += parts[0]; textContentEl.textContent = fullContent; }
-                                reasoning += parts.slice(1).join('<think>');
-                                inThinkBlock = true;
-                                content = "";
+                                reasoning += parts.slice(1).join('');
+                                inThinkBlock = true; content = "";
                             }
                             if (content.includes('</think>')) {
                                 const parts = content.split('</think>');
                                 reasoning += parts[0];
-                                content    = parts.slice(1).join('</think>');
-                                inThinkBlock = false;
-                                finishThinking();
+                                content    = parts.slice(1).join('');
+                                inThinkBlock = false; finishThinking();
                             }
-                            // إذا كنا داخل كتلة <think> والـ content لم يُحلَّل بعد
                             if (inThinkBlock && content) { reasoning += content; content = ""; }
 
-                            if (reasoning) {
-                                showThinkingBox();
-                                fullThinking += reasoning;
-                                if (thinkContentEl) thinkContentEl.textContent = fullThinking;
-                            }
-                            if (content) {
-                                finishThinking();
-                                fullContent += content;
-                                textContentEl.textContent = fullContent;
-                            }
+                            if (reasoning) { showThinkBox(); fullThinking += reasoning; if (thinkContentEl) thinkContentEl.textContent = fullThinking; }
+                            if (content)   { finishThinking(); fullContent += content; textContentEl.textContent = fullContent; }
                             chatBox.scrollTop = chatBox.scrollHeight;
-                        } catch (e) {
-                            if (e.message?.includes('Provider Error'))
-                                textContentEl.textContent += `\n[Error: ${e.message}]`;
-                        }
+                        } catch (e) { if (e.message?.includes('Error')) textContentEl.textContent += `\n[Error: ${e.message}]`; }
                     }
                 }
             } else {
                 const data = await response.json();
-                const raw = data.choices ? data.choices[0].message.content : (data.error || "Error");
-                // في الوضع غير المتدفق — إزالة أي <think> من النص
+                const raw  = data.choices ? data.choices[0].message.content : (data.error || "Error");
                 const thinkMatch = raw.match(/<think>([\s\S]*?)<\/think>/);
                 if (thinkMatch) {
-                    fullThinking = thinkMatch[1];
-                    showThinkingBox(); finishThinking();
+                    fullThinking = thinkMatch[1]; showThinkBox();
                     if (thinkContentEl) thinkContentEl.textContent = fullThinking;
                     textContentEl.textContent = raw.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-                } else {
-                    textContentEl.textContent = raw;
-                }
+                } else { textContentEl.textContent = raw; }
             }
         } catch (err) {
             if (err.name !== 'AbortError') textContentEl.textContent = "Error: " + err.message;
