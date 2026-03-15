@@ -558,21 +558,30 @@ async function handleV1Stream(text, files, mode) {
 
                 fullText += data.content;
 
-                if (renderPath === null) {
-                    markThinkingDone();
+                // ── اكتشاف مسار العرض: نتحقق في كل chunk حتى لا نعرض ### خاماً ──
+                if (renderPath === null || renderPath === 'chat') {
                     const trimmed = fullText.trimStart();
-                    if (mode === 'build' || trimmed.startsWith('###')) {
+                    const hasBuildMarker = mode === 'build' || trimmed.includes('###');
+                    if (hasBuildMarker) {
+                        if (renderPath === 'chat') {
+                            // تحويل من chat إلى build — نخفي الفقاعة الخاطئة
+                            chatBubble.style.display = 'none';
+                            chatBubble.innerHTML = '';
+                        }
                         renderPath = 'build';
+                        markThinkingDone();
                         progressBox.classList.remove('hidden');
-                    } else {
+                    } else if (renderPath === null && fullText.length > 60) {
+                        // نتأكد بعد 60 حرف أنه ليس build
                         renderPath = 'chat';
+                        markThinkingDone();
                         chatBubble.style.display = 'block';
                     }
                 }
 
                 if (renderPath === 'chat') {
                     chatBubble.innerHTML = chatMarkdown(fullText);
-                } else {
+                } else if (renderPath === 'build') {
                     progressFill.style.width = Math.min(30 + (fullText.length / 100), 95) + '%';
                 }
                 feed.scrollTop = feed.scrollHeight;
@@ -580,6 +589,7 @@ async function handleV1Stream(text, files, mode) {
         }
 
         markThinkingDone();
+        const _thinkingText = thinkBody.innerText || '';
 
         if (renderPath === 'build' || (mode === 'build' && renderPath === null)) {
             progressFill.style.width = '100%';
@@ -588,25 +598,28 @@ async function handleV1Stream(text, files, mode) {
                 if (Object.keys(newFiles).length > 0) {
                     Object.assign(currentFiles, newFiles);
                     updateCurrentPreviewFile(newFiles);
-                    chatHistory.push({ role: 'assistant', content: fullText });
+                    chatHistory.push({ role: 'assistant', content: fullText, thinking: _thinkingText });
                     Object.keys(newFiles).forEach(f => renderArtifactBadge(row, f));
                     renderDownloadAllBtn(row);
                     isPreviewDirty = false;
                     renderPreview(currentPreviewFile);
-                    // ── زر تشغيل في متصفح المستخدم (Python / SQL / JS / etc.) ──
                     if (window.addRunButton) window.addRunButton(row, newFiles);
+                    // ── حفظ الدورة الكاملة في Telegram ──
+                    _saveTurnToTelegram(text, files, _thinkingText, fullText, mode, Object.keys(newFiles));
                 } else {
                     chatBubble.style.display = 'block';
                     chatBubble.innerHTML = chatMarkdown(fullText);
-                    chatHistory.push({ role: 'assistant', content: fullText });
+                    chatHistory.push({ role: 'assistant', content: fullText, thinking: _thinkingText });
                     progressBox.classList.add('hidden');
+                    _saveTurnToTelegram(text, files, _thinkingText, fullText, mode, []);
                 }
             }
         } else {
             if (fullText.trim()) {
                 chatBubble.style.display = 'block';
                 chatBubble.innerHTML = chatMarkdown(fullText);
-                chatHistory.push({ role: 'assistant', content: fullText });
+                chatHistory.push({ role: 'assistant', content: fullText, thinking: _thinkingText });
+                _saveTurnToTelegram(text, files, _thinkingText, fullText, mode, []);
             }
         }
     } catch(e) {
@@ -699,8 +712,32 @@ async function handleChatStream(text, files, forceMode) {
     if (fullText) {
         respBubble.style.display = 'block';
         respBubble.innerHTML = chatMarkdown(fullText);
-        chatHistory.push({ role: 'assistant', content: fullText });
+        const _thinkChatText = thinkBody.innerText || '';
+        chatHistory.push({ role: 'assistant', content: fullText, thinking: _thinkChatText });
+        _saveTurnToTelegram(text, files, _thinkChatText, fullText, forceMode || 'chat', []);
     }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  [7b] SAVE TURN TO TELEGRAM — يُرسل الدورة كاملة بعد اكتمال البث
+// ════════════════════════════════════════════════════════════════════════
+function _saveTurnToTelegram(userText, files, thinkingText, responseText, chatMode, generatedFiles) {
+    const sid = window._v1SessionId = window._v1SessionId || ('v1_' + Date.now());
+    const attached = files ? Array.from(files).map(f => f.name) : [];
+    fetch('/api/hub/save-turn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            session_id:      sid,
+            model_id:        selectedItems.models[0] || '',
+            chat_mode:       chatMode,
+            user_msg:        userText || '',
+            thinking:        thinkingText || '',
+            response:        responseText || '',
+            files_attached:  attached,
+            files_generated: generatedFiles || [],
+        }),
+    }).catch(() => {});
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -1084,8 +1121,13 @@ function renderPreview(targetFilename) {
     else if (html.includes('<html')) html = html.replace(/(<html[^>]*>)/i, '$1' + interceptor);
     else html = interceptor + html;
 
-    // Use srcdoc — no contentWindow.document needed
-    frame.srcdoc = html;
+    // Use blob URL — gives a real origin (blob:https://orgteh.com/...)
+    // so CORS requests from within the iframe work correctly (not blocked as null origin)
+    const blob    = new Blob([html], { type: 'text/html; charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
+    if (frame._blobUrl) URL.revokeObjectURL(frame._blobUrl);
+    frame._blobUrl = blobUrl;
+    frame.src = blobUrl;
     frame.style.display = 'block'; empty.style.display = 'none';
 }
 
@@ -1385,6 +1427,17 @@ async function executeGitHubDeploy() {
                     } else {
                         // رسالة المساعد: هل تحتوي ملفات مُنشأة؟
                         const hasFiles = typeof m.content === 'string' && m.content.includes('###');
+                        // ── بناء صندوق التفكير إن كان محفوظاً ──
+                        const thinkingHtml = m.thinking
+                            ? '<div class="thinking-wrapper done">' +
+                                  '<div class="thinking-header" onclick="toggleThinking(this)">' +
+                                      '<i class="fa-solid fa-circle-check text-green-500"></i> ' + getTrans().thinking_finished +
+                                  '</div>' +
+                                  '<div class="thinking-body" style="white-space:pre-wrap">' +
+                                      m.thinking.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') +
+                                  '</div>' +
+                              '</div>'
+                            : '<div class="thinking-wrapper done" style="display:none"></div>';
                         if (hasFiles) {
                             // استخرج أسماء الملفات وأظهرها كأيقونات فقط (لا كود خام)
                             const fileNames = [];
@@ -1395,15 +1448,30 @@ async function executeGitHubDeploy() {
                             row.className = 'msg-row ai v1-msg-row';
                             row.innerHTML =
                                 '<div class="msg-bubble msg-ai" style="width:100%">' +
-                                    '<div class="thinking-wrapper done" style="display:none"></div>' +
+                                    thinkingHtml +
                                     '<div class="file-artifacts mt-2 pl-1"></div>' +
                                 '</div>';
                             feed.appendChild(row);
                             fileNames.forEach(function(fn) { renderArtifactBadge(row, fn); });
                             renderDownloadAllBtn(row);
                         } else {
-                            // رسالة نصية عادية (chat mode)
-                            addMessageUI('ai', m.content || '');
+                            // رسالة نصية — نعرضها مع صندوق التفكير إن وُجد
+                            if (m.thinking) {
+                                const row = document.createElement('div');
+                                row.className = 'msg-row ai';
+                                row.innerHTML =
+                                    '<div class="msg-bubble msg-ai" style="width:100%">' +
+                                        thinkingHtml +
+                                        '<div class="chat-response-bubble" style="display:block;">' +
+                                            chatMarkdown(m.content || '') +
+                                        '</div>' +
+                                    '</div>';
+                                feed.appendChild(row);
+                                feed.scrollTop = feed.scrollHeight;
+                            } else {
+                                // رسالة نصية عادية بدون تفكير
+                                addMessageUI('ai', chatMarkdown(m.content || ''));
+                            }
                         }
                     }
                 });

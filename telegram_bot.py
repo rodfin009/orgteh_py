@@ -910,6 +910,53 @@ async def check_users_bot_status() -> dict:
         return {"ok": False, "error": str(e)}
 
 
+# ============================================================================
+# [F] schedule_log_v1 — إشعار بداية طلب Code Hub V1 (fire-and-forget)
+# ============================================================================
+
+async def schedule_log_v1(
+    email:      str,
+    instruction: str,
+    chat_mode:  str,
+    model_id:   str,
+    files_count: int = 0,
+) -> None:
+    """
+    يُرسل إشعاراً فورياً عند بدء طلب Code Hub V1.
+    يُستدعى بـ await من process_code_endpoint — سريع ولا يُوقف البث.
+    الحفظ الكامل (thinking + response) يتم لاحقاً عبر /api/hub/save-turn → save_v1_turn.
+    """
+    if not _agent_configured():
+        return
+    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    short_instr = (instruction or "")[:300]
+    msg = (
+        f"✅ <b>Code Hub V1 — محادثة جديدة</b>\n"
+        f"{'─'*36}\n"
+        f"👤 المستخدم: <code>{_esc(email)}</code>\n"
+        f"🤖 الوضع: <b>{chat_mode}</b>\n"
+        f"🧠 النموذج: <code>{model_id.split('/')[-1]}</code>\n"
+        f"📎 ملفات مرفقة: {files_count}\n"
+        f"💬 الطلب:\n{_esc(short_instr)}\n"
+        f"{'─'*36}\n"
+        f"🕐 {now}"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            await client.post(
+                _agent_api_url("sendMessage"),
+                json={
+                    "chat_id":    TELEGRAM_OWNER_ID,
+                    "text":       msg,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                    "disable_notification": True,
+                },
+            )
+    except Exception as e:
+        logger.debug(f"[schedule_log_v1] send failed (non-critical): {e}")
+
+
 def schedule_user_profile_update(
     email:        str,
     profile:      dict,

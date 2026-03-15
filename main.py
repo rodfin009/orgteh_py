@@ -451,6 +451,34 @@ async def hub_save_chat_endpoint(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, 500)
 
+@app.post("/api/hub/save-turn")
+async def hub_save_turn_endpoint(request: Request):
+    """
+    يُستدعى من المتصفح بعد اكتمال البث لحفظ الدورة الكاملة
+    (user_msg + thinking + response + files) في Telegram.
+    """
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Login required"}, 401)
+    try:
+        body = await request.json()
+        from telegram_bot import save_v1_turn
+        await save_v1_turn(
+            user_email      = email,
+            session_id      = body.get("session_id", ""),
+            model_id        = body.get("model_id", ""),
+            chat_mode       = body.get("chat_mode", ""),
+            user_msg        = body.get("user_msg", ""),
+            thinking        = body.get("thinking", ""),
+            response        = body.get("response", ""),
+            files_attached  = body.get("files_attached", []),
+            files_generated = body.get("files_generated", []),
+        )
+        return JSONResponse({"ok": True})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, 500)
+
+
 @app.get("/api/hub/chats")
 async def hub_list_chats_endpoint(request: Request):
     email = get_current_user_email(request)
