@@ -525,7 +525,7 @@ async function handleV1Stream(text, files, mode) {
     const progressFill = row.querySelector('.progress-fill');
     const chatBubble   = row.querySelector('.chat-response-bubble');
 
-    let fullText = '', thinkingText = '', thinkingDone = false, renderPath = null;
+    let fullText = '', thinkingDone = false, renderPath = null;
 
     function markThinkingDone() {
         if (thinkingDone) return;
@@ -553,7 +553,7 @@ async function handleV1Stream(text, files, mode) {
                 let data;
                 try { data = JSON.parse(line); } catch { continue; }
 
-                if (data.type === 'thinking') { thinkingText += data.content; thinkBody.innerText += data.content; feed.scrollTop = feed.scrollHeight; continue; }
+                if (data.type === 'thinking') { thinkBody.innerText += data.content; feed.scrollTop = feed.scrollHeight; continue; }
                 if (data.type !== 'code') continue;
 
                 fullText += data.content;
@@ -613,24 +613,6 @@ async function handleV1Stream(text, files, mode) {
         markThinkingDone();
         chatBubble.style.display = 'block';
         chatBubble.innerHTML = '<span style="color:#ef4444">Error: ' + e.message + '</span>';
-    }
-
-    // ── حفظ الدورة الكاملة بعد انتهاء البث (request مستقل) ──
-    if (fullText.trim() || thinkingText.trim()) {
-        _saveTurnToServer({
-            session_id:      window._v1SessionId,
-            title:           (text || '').slice(0, 60) || 'محادثة',
-            history:         chatHistory,
-            files:           currentFiles,
-            model_id:        selectedItems.models[0] || '',
-            chat_mode:       mode,
-            user_msg:        text,
-            thinking:        thinkingText,
-            response:        fullText,
-            files_attached:  Array.from(files).map(f => f.name),
-            files_generated: Object.keys(currentFiles),
-            had_error:       false,
-        });
     }
 }
 
@@ -1397,7 +1379,34 @@ async function executeGitHubDeploy() {
             const feed = document.getElementById('chat-container');
             if (feed && d.history && d.history.length) {
                 feed.innerHTML = '';
-                d.history.forEach(m => addMessageUI(m.role === 'user' ? 'user' : 'ai', m.content || ''));
+                d.history.forEach(function(m) {
+                    if (m.role === 'user') {
+                        addMessageUI('user', m.content || '');
+                    } else {
+                        // رسالة المساعد: هل تحتوي ملفات مُنشأة؟
+                        const hasFiles = typeof m.content === 'string' && m.content.includes('###');
+                        if (hasFiles) {
+                            // استخرج أسماء الملفات وأظهرها كأيقونات فقط (لا كود خام)
+                            const fileNames = [];
+                            const re = /###\s+(\S+)/g;
+                            let match;
+                            while ((match = re.exec(m.content)) !== null) fileNames.push(match[1]);
+                            const row = document.createElement('div');
+                            row.className = 'msg-row ai v1-msg-row';
+                            row.innerHTML =
+                                '<div class="msg-bubble msg-ai" style="width:100%">' +
+                                    '<div class="thinking-wrapper done" style="display:none"></div>' +
+                                    '<div class="file-artifacts mt-2 pl-1"></div>' +
+                                '</div>';
+                            feed.appendChild(row);
+                            fileNames.forEach(function(fn) { renderArtifactBadge(row, fn); });
+                            renderDownloadAllBtn(row);
+                        } else {
+                            // رسالة نصية عادية (chat mode)
+                            addMessageUI('ai', m.content || '');
+                        }
+                    }
+                });
             }
             if (d.files && Object.keys(d.files).some(f => f.endsWith('.html'))) {
                 renderPreview('index.html');
@@ -1443,18 +1452,6 @@ async function executeGitHubDeploy() {
             for (let i = 0; i < chatHistory.length; i++) { if (chatHistory[i].role==='user') { firstUser=chatHistory[i].content||''; break; } }
             fetch('/api/hub/save-chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ session_id:sid, title:firstUser.slice(0,60)||'محادثة', history:chatHistory, files:currentFiles }) }).catch(() => {});
         }, 3000);
-    };
-
-    // حفظ الدورة الكاملة (user+thinking+response+files) بعد انتهاء الـ stream
-    window._saveTurnToServer = function(payload) {
-        if (window.HUB_MODE === 'agent') return;
-        const sid = window._v1SessionId = window._v1SessionId || ('v1_' + Date.now());
-        payload.session_id = payload.session_id || sid;
-        fetch('/api/hub/save-turn', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify(payload),
-        }).catch(() => {}); // صامت — لا يؤثر على تجربة المستخدم
     };
 
     // Resume V2 session (called from history list)
