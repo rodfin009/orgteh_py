@@ -25,11 +25,10 @@ AGENT_TG_BOT_TOKEN = os.environ.get("AGENT_TG_BOT_TOKEN", "")
 # ── معرف المالك — مشترك بين البوتين (نفس محادثتك الخاصة) ─────────────────
 TELEGRAM_OWNER_ID = os.environ.get("TELEGRAM_OWNER_ID", "")
 
-# ── البوت الثالث: قاعدة بيانات المستخدمين — توكن وقناة مختلفان تماماً ────
+# ── البوت الثالث: قاعدة بيانات المستخدمين — توكن مختلف فقط ─────────────
 #    أنشئه من @BotFather → /newbot
-#    أنشئ قناة خاصة جديدة → أضف البوت كـ Admin فيها
+#    يرسل إلى TELEGRAM_OWNER_ID (نفس محادثتك الشخصية — مثل البوتين الآخرين)
 USERS_TG_BOT_TOKEN = os.environ.get("USERS_TG_BOT_TOKEN", "")
-USERS_TG_CHAT_ID   = os.environ.get("USERS_TG_CHAT_ID", "")   # معرف القناة مثل: -1001234567890
 
 # ============================================================================
 # TELEGRAM API HELPERS
@@ -51,7 +50,7 @@ def _agent_configured() -> bool:
     return bool(AGENT_TG_BOT_TOKEN and TELEGRAM_OWNER_ID)
 
 def _users_bot_configured() -> bool:
-    return bool(USERS_TG_BOT_TOKEN and USERS_TG_CHAT_ID)
+    return bool(USERS_TG_BOT_TOKEN and TELEGRAM_OWNER_ID)
 
 def _esc(text: str) -> str:
     """تنظيف HTML."""
@@ -499,14 +498,13 @@ async def schedule_log_v1(
 # [D] البوت الثالث — قاعدة بيانات المستخدمين (User Profile TXT)
 # ============================================================================
 #
-# لكل مستخدم ملف .txt خاص به في قناة تلجرام مخصصة.
+# لكل مستخدم ملف .txt خاص به يُرسل إلى محادثتك الشخصية (TELEGRAM_OWNER_ID).
 # يُحدَّث الملف عند كل حدث: طلب، اشتراك، دخول، أداة...
 # المرجع (message_id) يُخزَّن في Redis + TiDB للبحث السريع.
 #
-# متغيرات البيئة المطلوبة (مختلفة تماماً):
-#   USERS_TG_BOT_TOKEN  — توكن البوت الثالث من @BotFather
-#   USERS_TG_CHAT_ID    — معرف القناة الخاصة (مثل: -1001234567890)
-#                         أنشئ قناة جديدة → أضف البوت كـ Admin
+# متغير البيئة الوحيد المطلوب:
+#   USERS_TG_BOT_TOKEN  — توكن البوت الثالث من @BotFather (مختلف عن الأول والثاني)
+#   يستخدم TELEGRAM_OWNER_ID الموجود أصلاً — لا حاجة لأي إعداد إضافي
 # ============================================================================
 
 def _user_file_redis_key(email: str) -> str:
@@ -606,7 +604,7 @@ async def _upload_user_file(
                 try:
                     await client.post(
                         _users_api_url("deleteMessage"),
-                        json={"chat_id": USERS_TG_CHAT_ID, "message_id": existing_msg_id},
+                        json={"chat_id": TELEGRAM_OWNER_ID, "message_id": existing_msg_id},
                     )
                 except Exception:
                     pass
@@ -614,7 +612,7 @@ async def _upload_user_file(
             resp = await client.post(
                 _users_api_url("sendDocument"),
                 data={
-                    "chat_id":              USERS_TG_CHAT_ID,
+                    "chat_id":              TELEGRAM_OWNER_ID,
                     "caption":              caption,
                     "parse_mode":           "HTML",
                     "disable_notification": "true",
@@ -781,8 +779,8 @@ async def check_users_bot_status() -> dict:
     if not _users_bot_configured():
         return {
             "ok":    False,
-            "error": "USERS_TG_BOT_TOKEN أو USERS_TG_CHAT_ID غير مضبوطَين.",
-            "hint":  "أنشئ بوتاً جديداً من @BotFather وأضف المتغيرَين في البيئة.",
+            "error": "USERS_TG_BOT_TOKEN أو TELEGRAM_OWNER_ID غير مضبوطَين.",
+            "hint":  "أنشئ بوتاً جديداً من @BotFather وأضف USERS_TG_BOT_TOKEN في البيئة.",
         }
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
@@ -793,7 +791,7 @@ async def check_users_bot_status() -> dict:
                     "ok":       True,
                     "bot_name": bot.get("first_name"),
                     "username": "@" + bot.get("username", ""),
-                    "chat_id":  USERS_TG_CHAT_ID,
+                    "owner_id": TELEGRAM_OWNER_ID,
                 }
             return {"ok": False, "error": data.get("description")}
     except Exception as e:
