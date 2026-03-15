@@ -525,7 +525,7 @@ async function handleV1Stream(text, files, mode) {
     const progressFill = row.querySelector('.progress-fill');
     const chatBubble   = row.querySelector('.chat-response-bubble');
 
-    let fullText = '', thinkingDone = false, renderPath = null;
+    let fullText = '', thinkingText = '', thinkingDone = false, renderPath = null;
 
     function markThinkingDone() {
         if (thinkingDone) return;
@@ -553,7 +553,7 @@ async function handleV1Stream(text, files, mode) {
                 let data;
                 try { data = JSON.parse(line); } catch { continue; }
 
-                if (data.type === 'thinking') { thinkBody.innerText += data.content; feed.scrollTop = feed.scrollHeight; continue; }
+                if (data.type === 'thinking') { thinkingText += data.content; thinkBody.innerText += data.content; feed.scrollTop = feed.scrollHeight; continue; }
                 if (data.type !== 'code') continue;
 
                 fullText += data.content;
@@ -613,6 +613,24 @@ async function handleV1Stream(text, files, mode) {
         markThinkingDone();
         chatBubble.style.display = 'block';
         chatBubble.innerHTML = '<span style="color:#ef4444">Error: ' + e.message + '</span>';
+    }
+
+    // ── حفظ الدورة الكاملة بعد انتهاء البث (request مستقل) ──
+    if (fullText.trim() || thinkingText.trim()) {
+        _saveTurnToServer({
+            session_id:      window._v1SessionId,
+            title:           (text || '').slice(0, 60) || 'محادثة',
+            history:         chatHistory,
+            files:           currentFiles,
+            model_id:        selectedItems.models[0] || '',
+            chat_mode:       mode,
+            user_msg:        text,
+            thinking:        thinkingText,
+            response:        fullText,
+            files_attached:  Array.from(files).map(f => f.name),
+            files_generated: Object.keys(currentFiles),
+            had_error:       false,
+        });
     }
 }
 
@@ -1425,6 +1443,18 @@ async function executeGitHubDeploy() {
             for (let i = 0; i < chatHistory.length; i++) { if (chatHistory[i].role==='user') { firstUser=chatHistory[i].content||''; break; } }
             fetch('/api/hub/save-chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ session_id:sid, title:firstUser.slice(0,60)||'محادثة', history:chatHistory, files:currentFiles }) }).catch(() => {});
         }, 3000);
+    };
+
+    // حفظ الدورة الكاملة (user+thinking+response+files) بعد انتهاء الـ stream
+    window._saveTurnToServer = function(payload) {
+        if (window.HUB_MODE === 'agent') return;
+        const sid = window._v1SessionId = window._v1SessionId || ('v1_' + Date.now());
+        payload.session_id = payload.session_id || sid;
+        fetch('/api/hub/save-turn', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(payload),
+        }).catch(() => {}); // صامت — لا يؤثر على تجربة المستخدم
     };
 
     // Resume V2 session (called from history list)

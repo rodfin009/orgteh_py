@@ -518,15 +518,6 @@ async def process_code_endpoint(
                 except Exception:
                     pass
 
-    from telegram_bot import schedule_log_v1
-    await schedule_log_v1(
-        email       = email,
-        instruction = instruction,
-        chat_mode   = chat_mode,
-        model_id    = target_model,
-        files_count = len(files_data),
-    )
-
     async def event_generator():
         async for event in process_code_merge_stream(instruction, files_data, user_api_key, target_model, history_list, target_tools, chat_mode):
             if event["type"] in ["thinking", "code", "error"]:
@@ -538,6 +529,62 @@ async def process_code_endpoint(
         media_type="application/x-ndjson",
         headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache, no-transform", "Content-Encoding": "identity"},
     )
+
+
+@app.post("/api/hub/save-turn")
+async def hub_save_turn_endpoint(request: Request):
+    """
+    يستقبل الدورة الكاملة من المتصفح بعد انتهاء البث ويحفظها:
+      1. Redis hub_chat  → لاستعادة المحادثة + preview (موجود أصلاً)
+      2. Telegram .txt   → سجل دائم قابل للقراءة
+
+    request مستقل عن الـ stream تماماً:
+      - لا مشاكل مع Vercel timeouts
+      - موثوق لآلاف المستخدمين (كل request = Lambda مستقلة)
+      - إذا أغلق المستخدم قبل انتهاء البث: المتصفح لا يُرسله (طبيعي)
+    """
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Login required"}, 401)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, 400)
+
+    import time as _time
+    session_id      = body.get("session_id") or f"v1_{int(_time.time())}"
+    title           = (body.get("title") or "محادثة")[:80]
+    history         = body.get("history", [])
+    files_dict      = body.get("files", {})
+    model_id        = body.get("model_id", "")
+    chat_mode       = body.get("chat_mode", "build")
+    user_msg        = body.get("user_msg", "")
+    thinking        = body.get("thinking", "")
+    response_text   = body.get("response", "")
+    files_attached  = body.get("files_attached", [])
+    files_generated = body.get("files_generated", [])
+    had_error       = body.get("had_error", False)
+
+    # 1. Redis hub_chat — يُمكّن الـ preview والاستعادة من السجل
+    hub_save_chat(email, session_id, title, history, files_dict)
+
+    # 2. Telegram .txt — سجل دائم (fire-and-forget آمن: request مستقل)
+    from telegram_bot import save_v1_turn
+    asyncio.create_task(save_v1_turn(
+        user_email      = email,
+        session_id      = session_id,
+        model_id        = model_id,
+        chat_mode       = chat_mode,
+        user_msg        = user_msg,
+        thinking        = thinking,
+        response        = response_text,
+        files_attached  = files_attached,
+        files_generated = files_generated,
+        had_error       = had_error,
+    ))
+
+    return JSONResponse({"ok": True, "session_id": session_id})
+
 
 # ============================================================================
 # SUPPORT & CONTACT

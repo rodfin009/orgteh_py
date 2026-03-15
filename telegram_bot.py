@@ -101,65 +101,200 @@ async def send_telegram_message(text: str) -> bool:
 # [B] بوت الوكيل — تسجيل محادثات V1 (Code Hub الكلاسيكي)
 # ============================================================================
 
-async def log_v1_conversation(
-    user_email:   str,
-    instruction:  str,
-    chat_mode:    str,      # auto | build | chat
-    model_id:     str,
-    files_count:  int = 0,
-    output_files: list = None,  # أسماء الملفات المُنشأة
-    had_error:    bool = False,
+def _v1_conv_file_name(email: str) -> str:
+    h    = hashlib.md5(email.encode()).hexdigest()[:8]
+    slug = email.replace("@","_at_").replace(".","_").replace("+","_")[:40]
+    return f"v1_conv_{slug}_{h}.txt"
+
+def _v1_conv_redis_key(email: str) -> str:
+    return f"tg_v1_conv:{email}"
+
+def _build_v1_turn_txt(turn: dict) -> str:
+    """يبني كتلة نص لدورة واحدة (user ↔ model)."""
+    sep = "─" * 64
+    lines = [
+        f"[{turn.get('ts','?')}] session={turn.get('session_id','?')}",
+        f"  model={turn.get('model_id','?')} | mode={turn.get('chat_mode','?')} | {'❌ ERROR' if turn.get('had_error') else '✅ OK'}",
+        sep,
+        "👤 USER:",
+        turn.get("user_msg",""),
+    ]
+    thinking = (turn.get("thinking") or "").strip()
+    if thinking:
+        snippet = thinking[:4000] + ("\n[... مقطوع ...]" if len(thinking) > 4000 else "")
+        lines += [sep, "🧠 THINKING:", snippet]
+    resp = (turn.get("response") or "").strip()
+    r_snippet = resp[:6000] + ("\n[... مقطوع ...]" if len(resp) > 6000 else "")
+    lines += [sep, "🤖 RESPONSE:", r_snippet]
+    att = turn.get("files_attached") or []
+    gen = turn.get("files_generated") or []
+    if att: lines.append(f"📎 ATTACHED : {', '.join(att)}")
+    if gen: lines.append(f"📁 GENERATED: {', '.join(gen)}")
+    lines.append("=" * 64)
+    return "\n".join(lines)
+
+async def save_v1_turn(
+    user_email:      str,
+    session_id:      str,
+    model_id:        str,
+    chat_mode:       str,
+    user_msg:        str,
+    thinking:        str  = "",
+    response:        str  = "",
+    files_attached:  list = None,
+    files_generated: list = None,
+    had_error:       bool = False,
 ) -> bool:
     """
-    يُسجّل كل محادثة V1 (code_processor) في تلجرام كرسالة نصية.
-    يُرسل عبر AGENT_TG_BOT بصمت (disable_notification=True).
-    لا يُزعج المالك — فقط للمراقبة والإحصاء.
+    يُضيف دورة (user ↔ model) كاملة إلى ملف .txt الخاص بالمستخدم في Telegram.
+
+    الهيكل في التخزين:
+      Telegram  → ملف .txt يحمل كل الدورات (المصدر الوحيد للمحتوى)
+      Redis     → { message_id, file_id } فقط للجلب السريع
+      TiDB      → { message_id, file_id } احتياطي
+
+    يُستدعى من endpoint مستقل /api/hub/save-turn بعد اكتمال البث
+    في المتصفح — لا علاقة له بـ Vercel timeouts أو حدود الـ streaming.
     """
     if not _agent_configured():
         return False
 
-    now        = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-    mode_emoji = {"auto": "🔮", "build": "🔨", "chat": "💬"}.get(chat_mode, "🔵")
-    status_em  = "❌" if had_error else "✅"
+    try:
+        from database import redis as _redis
+    except Exception:
+        _redis = None
 
-    # اقتطاع التعليمات الطويلة
-    instr_short = instruction[:200] + "..." if len(instruction) > 200 else instruction
+    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    turn = {
+        "session_id":      session_id,
+        "ts":              now,
+        "model_id":        model_id.split("/")[-1],
+        "chat_mode":       chat_mode,
+        "user_msg":        user_msg[:2000],
+        "thinking":        thinking[:6000],
+        "response":        response[:8000],
+        "files_attached":  (files_attached  or [])[:20],
+        "files_generated": (files_generated or [])[:20],
+        "had_error":       had_error,
+    }
 
-    files_line = ""
-    if output_files:
-        files_line = f"\n📁 <b>الملفات:</b> {_esc(', '.join(output_files[:6]))}"
-        if len(output_files) > 6:
-            files_line += f" +{len(output_files)-6}"
+    # ── اجلب message_id + file_id من Redis (مرجع فقط) ──
+    existing_msg_id  = None
+    existing_file_id = None
+    if _redis:
+        try:
+            stored = _redis.get(_v1_conv_redis_key(user_email))
+            if stored:
+                meta             = json.loads(stored) if isinstance(stored, str) else stored
+                existing_msg_id  = meta.get("message_id")
+                existing_file_id = meta.get("file_id")
+        except Exception:
+            pass
 
-    text = (
-        f"{status_em} <b>Code Hub V1 — محادثة جديدة</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 <b>المستخدم:</b> {_esc(user_email)}\n"
-        f"{mode_emoji} <b>الوضع:</b> {chat_mode}\n"
-        f"🤖 <b>النموذج:</b> {_esc(model_id.split('/')[-1])}\n"
-        f"📎 <b>ملفات مرفقة:</b> {files_count}\n"
-        f"💬 <b>الطلب:</b>\n<i>{_esc(instr_short)}</i>"
-        f"{files_line}\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
+    # ── اجلب الملف القديم من Telegram وأضف الدورة الجديدة ──
+    prev_content = ""
+    turn_count   = 0
+    if existing_file_id:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                r = await client.post(_agent_api_url("getFile"),
+                                      json={"file_id": existing_file_id})
+                if r.json().get("ok"):
+                    path = r.json()["result"]["file_path"]
+                    dl   = await client.get(
+                        f"https://api.telegram.org/file/bot{AGENT_TG_BOT_TOKEN}/{path}"
+                    )
+                    if dl.status_code == 200:
+                        prev_content = dl.text
+                        # احسب عدد الدورات الموجودة (سطور "===")
+                        turn_count = prev_content.count("\n[20")  # تقريبي بالتاريخ
+        except Exception as e:
+            logger.debug(f"[V1Conv] fetch old file failed (OK): {e}")
+
+    turn_count += 1
+    header = (
+        f"{'='*64}\n"
+        f"  ORGTEH CODE HUB V1 — CONVERSATION LOG\n"
+        f"  User: {user_email}\n"
+        f"  Updated: {now} | Turns: {turn_count}\n"
+        f"{'='*64}\n\n"
+    )
+    # الملف الجديد = header + دورة جديدة + الدورات القديمة
+    new_content = header + _build_v1_turn_txt(turn) + "\n\n" + \
+                  (prev_content.split("\n\n", 1)[1] if "\n\n" in prev_content else "")
+    encoded = new_content.encode("utf-8")
+    fname   = _v1_conv_file_name(user_email)
+    caption = (
+        f"💬 <b>V1 Conv Log</b> — {_esc(user_email)}\n"
+        f"📊 {turn_count} دورة | 💾 {len(encoded)/1024:.1f} KB\n"
         f"🕐 {now}"
     )
 
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            if existing_msg_id:
+                try:
+                    await client.post(_agent_api_url("deleteMessage"),
+                                      json={"chat_id": TELEGRAM_OWNER_ID,
+                                            "message_id": existing_msg_id})
+                except Exception:
+                    pass
             resp = await client.post(
-                _agent_api_url("sendMessage"),
-                json={
-                    "chat_id":              TELEGRAM_OWNER_ID,
-                    "text":                 text,
-                    "parse_mode":           "HTML",
-                    "disable_notification": True,   # صامت
-                    "disable_web_page_preview": True,
-                }
+                _agent_api_url("sendDocument"),
+                data={"chat_id": TELEGRAM_OWNER_ID, "caption": caption,
+                      "parse_mode": "HTML", "disable_notification": "true"},
+                files={"document": (fname, io.BytesIO(encoded), "text/plain")},
             )
-            return resp.json().get("ok", False)
+            data = resp.json()
+            if not data.get("ok"):
+                logger.error(f"[V1Conv] sendDocument failed: {data.get('description')}")
+                return False
+
+            msg         = data["result"]
+            doc         = msg.get("document", {})
+            new_msg_id  = msg["message_id"]
+            new_file_id = doc.get("file_id", "")
+
+            # Redis: مرجع فقط
+            if _redis:
+                try:
+                    _redis.set(_v1_conv_redis_key(user_email), json.dumps({
+                        "message_id": new_msg_id,
+                        "file_id":    new_file_id,
+                        "turn_count": turn_count,
+                        "updated_at": datetime.utcnow().isoformat(),
+                    }))
+                except Exception:
+                    pass
+
+            # TiDB: مرجع احتياطي
+            _save_v1_ref_to_db(user_email, new_msg_id, new_file_id)
+            logger.info(f"[V1Conv] ✅ {user_email} turn#{turn_count} saved")
+            return True
     except Exception as e:
-        logger.debug(f"V1 log failed (non-critical): {e}")
+        logger.error(f"[V1Conv] save_v1_turn error: {e}")
         return False
+
+
+def _save_v1_ref_to_db(email: str, message_id: int, file_id: str) -> None:
+    try:
+        from database import get_db_connection, get_user_by_email, redis as _redis
+        user = get_user_by_email(email)
+        if not user: return
+        user["tg_v1_conv_file"] = {
+            "message_id": message_id, "file_id": file_id,
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        conn = get_db_connection()
+        if conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("UPDATE users SET data = %s WHERE email = %s",
+                                (json.dumps(user), email))
+                if _redis: _redis.set(f"user:{email}", json.dumps(user))
+            finally: conn.close()
+    except Exception as e:
+        logger.debug(f"[V1Conv] _save_ref silent fail: {e}")
 
 # ============================================================================
 # [C] بوت الوكيل — حفظ جلسات V2 كملفات JSON مضغوطة
@@ -469,29 +604,6 @@ async def handle_enterprise_form(body: dict) -> dict:
     except Exception:
         return {"ok": False, "detail": "خطأ في الخادم.", "status": 500}
 
-
-async def schedule_log_v1(
-    email: str,
-    instruction: str,
-    chat_mode: str,
-    model_id: str,
-    files_count: int,
-) -> None:
-    """
-    يُجدول تسجيل محادثة V1 في الخلفية (fire-and-forget).
-    آمن للاستدعاء بدون await — يُنشئ asyncio.Task داخلياً.
-    """
-    import asyncio as _asyncio
-    try:
-        _asyncio.create_task(log_v1_conversation(
-            user_email  = email,
-            instruction = instruction,
-            chat_mode   = chat_mode,
-            model_id    = model_id,
-            files_count = files_count,
-        ))
-    except Exception:
-        pass
 
 
 # ============================================================================
@@ -830,3 +942,4 @@ def schedule_user_profile_update(
 #   tool_used | subscription_new | subscription_renew
 #   api_key_reset | contact_form | enterprise_form | error
 # ============================================================================
+خ
