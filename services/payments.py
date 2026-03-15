@@ -106,8 +106,21 @@ async def verify_spaceremit_payment(payment_code: str):
         logger.error(f"Unexpected error during verification: {str(e)}", exc_info=True)
         return None
 
+# ─── مفاتيح Wayl ─────────────────────────────────────────────────────────────
+WAYL_API_KEY        = os.environ.get("WAYL_API_KEY", "")
+WAYL_IQD_RATE       = float(os.environ.get("WAYL_IQD_RATE", "1310"))   # سعر صرف USD → IQD
+WAYL_WEBHOOK_SECRET = os.environ.get("WAYL_WEBHOOK_SECRET", "")
+WAYL_BASE_URL       = "https://api.thewayl.com"
+WAYL_WEBHOOK_URL    = os.environ.get("WAYL_WEBHOOK_URL",  "https://orgteh.com/api/webhooks/wayl")
+WAYL_REDIRECT_URL   = os.environ.get("WAYL_REDIRECT_URL", "https://orgteh.com/pricing?payment=success")
+
+if WAYL_API_KEY:
+    logger.info("Wayl payment gateway configured successfully.")
+else:
+    logger.warning("WAYL_API_KEY not set – Wayl payments will be unavailable.")
+
 # ============================================================================
-# FASTAPI ROUTER — مسارات الدفع (SpaceRemit)
+# FASTAPI ROUTER — مسارات الدفع (SpaceRemit + Wayl)
 # يُستورد في main.py عبر:  from services.payments import router as payments_router
 # ============================================================================
 from fastapi import APIRouter, Request
@@ -138,13 +151,20 @@ router = APIRouter()
 class CheckoutRequest(BaseModel):
     plan_name: str
     period:    str
-    amount:    float
+    amount:    float   # USD — الأسعار تُعرض للمستخدم بالدولار دائماً
 
 
 class VerifyPaymentRequest(BaseModel):
     payment_code: str
     plan_key:     str
     period:       str
+
+
+class WaylCheckoutRequest(BaseModel):
+    plan_key: str
+    period:   str
+    amount:   float   # USD — يُحوَّل إلى IQD داخلياً فقط، لا يُعرض للمستخدم
+    method:   str     # "bank-cards" | "digital-wallets"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -336,3 +356,191 @@ async def get_pending_plans(request: Request):
         logger.warning(f"Failed to fetch pending plans for {email}: {e}")
 
     return JSONResponse({"pending": pending})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# /api/payments/wayl-checkout
+# ينشئ رابط دفع Wayl ويُعيده للواجهة الأمامية
+# ملاحظة: السعر يُعرض للمستخدم بالدولار (USD) — يُحوَّل إلى IQD داخلياً فقط
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/api/payments/wayl-checkout")
+async def api_wayl_checkout(request: Request, data: WaylCheckoutRequest):
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized. Please login."}, status_code=401)
+
+    if not WAYL_API_KEY:
+        return JSONResponse({"error": "Wayl payment gateway is not configured."}, status_code=503)
+
+    plan_name = _PLAN_NAME_MAP.get(data.plan_key)
+    if not plan_name:
+        return JSONResponse({"error": f"Unknown plan key: {data.plan_key}"}, status_code=400)
+
+    # ─── تحويل USD → IQD للـ Wayl API (الأسعار تُعرض للمستخدم بالدولار فقط) ──
+    amount_iqd = int(round(data.amount * WAYL_IQD_RATE))
+    # الحد الأدنى لـ Wayl هو 1000 دينار
+    amount_iqd = max(amount_iqd, 1000)
+
+    import uuid
+    reference_id = f"orgteh-{data.plan_key}-{data.period}-{uuid.uuid4().hex[:12]}"
+
+    payload = {
+        "env":           "live",
+        "referenceId":   reference_id,
+        "total":         amount_iqd,
+        "currency":      "IQD",
+        "customParameter": f"plan:{data.plan_key}|period:{data.period}|user:{email}|usd:{data.amount}",
+        "redirectionUrl": WAYL_REDIRECT_URL,
+        "lineItem": [
+            {
+                "label":  f"Orgteh · {plan_name} ({data.period}) — ${data.amount} USD",
+                "amount": amount_iqd,
+                "type":   "increase"
+            }
+        ]
+    }
+
+    # ─── webhookSecret مطلوب من Wayl (10+ أحرف) — نولّده تلقائياً إن لم يُضبط ──
+    import secrets as _secrets
+    _webhook_secret = WAYL_WEBHOOK_SECRET if len(WAYL_WEBHOOK_SECRET) >= 10 else _secrets.token_hex(16)
+    payload["webhookSecret"] = _webhook_secret
+
+    # ─── webhookUrl اختياري — نُرسله فقط إن كان مضبوطاً ─────────────────────
+    if WAYL_WEBHOOK_URL:
+        payload["webhookUrl"] = WAYL_WEBHOOK_URL
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"{WAYL_BASE_URL}/api/v1/links",
+                json=payload,
+                headers={
+                    "X-WAYL-AUTHENTICATION": WAYL_API_KEY,
+                    "Content-Type": "application/json"
+                }
+            )
+            resp_data = resp.json()
+            logger.info(f"[Wayl] Create link response {resp.status_code}: {resp_data}")
+
+            if resp.status_code not in (200, 201):
+                return JSONResponse(
+                    {"error": resp_data.get("message", "Failed to create Wayl payment link.")},
+                    status_code=502
+                )
+
+            link_url = resp_data.get("data", {}).get("url") or resp_data.get("data", {}).get("link")
+            if not link_url:
+                return JSONResponse({"error": "Wayl did not return a payment URL."}, status_code=502)
+
+            # حفظ مرجع الدفع في Redis لحماية من التكرار
+            _redis = get_redis()
+            if _redis:
+                import json as _json
+                _redis.setex(
+                    f"wayl_pending:{email}:{data.plan_key}",
+                    7 * 24 * 3600,
+                    _json.dumps({
+                        "reference_id": reference_id,
+                        "plan_key":     data.plan_key,
+                        "plan_name":    plan_name,
+                        "period":       data.period,
+                        "amount_usd":   data.amount,
+                        "amount_iqd":   amount_iqd
+                    })
+                )
+
+            logger.info(f"[Wayl] Payment link created for {email}: {link_url}")
+            return JSONResponse({"url": link_url, "reference_id": reference_id})
+
+    except httpx.ReadTimeout:
+        logger.error("[Wayl] Timeout creating payment link.")
+        return JSONResponse({"error": "Wayl gateway timeout. Please try again."}, status_code=504)
+    except Exception as e:
+        logger.error(f"[Wayl] Unexpected error: {e}", exc_info=True)
+        return JSONResponse({"error": "Unexpected error creating Wayl payment link."}, status_code=500)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# /api/webhooks/wayl  — Webhook لاستقبال تأكيد الدفع من Wayl
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/api/webhooks/wayl")
+async def wayl_webhook(request: Request):
+    """
+    يستقبل إشعار الدفع من Wayl بعد إتمام المستخدم للعملية.
+    Wayl يرسل JWT في الـ body يمكن التحقق منه بـ WAYL_WEBHOOK_SECRET.
+    """
+    import json as _json
+    import hmac, hashlib
+
+    try:
+        body = await request.body()
+        payload = _json.loads(body)
+        logger.info(f"[Wayl Webhook] Received: {payload}")
+
+        # ─── التحقق من التوقيع (إن وُجد السر) ───────────────────────────────
+        if WAYL_WEBHOOK_SECRET:
+            signature = request.headers.get("x-wayl-signature", "")
+            expected  = hmac.new(
+                WAYL_WEBHOOK_SECRET.encode(),
+                body,
+                hashlib.sha256
+            ).hexdigest()
+            if not hmac.compare_digest(signature, expected):
+                logger.warning("[Wayl Webhook] Invalid signature — rejected.")
+                return JSONResponse({"error": "Invalid signature"}, status_code=403)
+
+        # ─── قراءة البيانات ───────────────────────────────────────────────────
+        data_obj   = payload.get("data", payload)
+        status     = str(data_obj.get("status", "")).lower()
+        custom     = data_obj.get("customParameter", "")
+        ref_id     = data_obj.get("referenceId", "")
+
+        if status not in ("complete", "completed", "paid"):
+            logger.info(f"[Wayl Webhook] Non-final status '{status}' — ignoring.")
+            return JSONResponse({"status": "ignored"})
+
+        # ─── تحليل الـ customParameter ───────────────────────────────────────
+        plan_key = period = email = ""
+        for part in custom.split("|"):
+            if part.startswith("plan:"):   plan_key = part.split(":", 1)[1].strip()
+            if part.startswith("period:"): period   = part.split(":", 1)[1].strip()
+            if part.startswith("user:"):   email    = part.split(":", 1)[1].strip()
+
+        if not email or not plan_key or not period:
+            logger.error(f"[Wayl Webhook] Missing plan/period/user in customParameter: {custom}")
+            return JSONResponse({"error": "Missing metadata"}, status_code=400)
+
+        plan_name = _PLAN_NAME_MAP.get(plan_key, "Unknown Plan")
+
+        _redis = get_redis()
+
+        # ─── منع المعالجة المكررة ─────────────────────────────────────────────
+        if _redis and _redis.exists(f"used_wayl_payment:{ref_id}"):
+            logger.info(f"[Wayl Webhook] Already processed: {ref_id}")
+            return JSONResponse({"status": "already_processed"})
+
+        # ─── تفعيل الاشتراك ───────────────────────────────────────────────────
+        success = add_user_subscription(email, plan_key, plan_name, period)
+        if success:
+            if _redis:
+                _redis.setex(f"used_wayl_payment:{ref_id}", 365 * 24 * 3600, email)
+                _redis.delete(f"wayl_pending:{email}:{plan_key}")
+            try:
+                from datetime import datetime, timedelta
+                from services.auth import send_subscription_email
+                days = 365 if period == "yearly" else 30
+                expires_date = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d")
+                send_subscription_email(email, plan_name, expires_date, event="new")
+                logger.info(f"[Wayl Webhook] Activated {plan_name} for {email}")
+            except Exception as e:
+                logger.warning(f"[Wayl Webhook] Email failed for {email}: {e}")
+            return JSONResponse({"status": "success"})
+
+        logger.error(f"[Wayl Webhook] Failed to activate plan {plan_name} for {email}")
+        return JSONResponse({"error": "Could not activate subscription"}, status_code=500)
+
+    except Exception as e:
+        logger.error(f"[Wayl Webhook] Unexpected error: {e}", exc_info=True)
+        return JSONResponse({"error": "Webhook processing failed"}, status_code=500)

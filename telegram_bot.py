@@ -1,7 +1,9 @@
 import os
+import io
 import json
 import gzip
 import time
+import hashlib
 import logging
 import httpx
 from datetime import datetime
@@ -23,6 +25,12 @@ AGENT_TG_BOT_TOKEN = os.environ.get("AGENT_TG_BOT_TOKEN", "")
 # ── معرف المالك — مشترك بين البوتين (نفس محادثتك الخاصة) ─────────────────
 TELEGRAM_OWNER_ID = os.environ.get("TELEGRAM_OWNER_ID", "")
 
+# ── البوت الثالث: قاعدة بيانات المستخدمين — توكن وقناة مختلفان تماماً ────
+#    أنشئه من @BotFather → /newbot
+#    أنشئ قناة خاصة جديدة → أضف البوت كـ Admin فيها
+USERS_TG_BOT_TOKEN = os.environ.get("USERS_TG_BOT_TOKEN", "")
+USERS_TG_CHAT_ID   = os.environ.get("USERS_TG_CHAT_ID", "")   # معرف القناة مثل: -1001234567890
+
 # ============================================================================
 # TELEGRAM API HELPERS
 # ============================================================================
@@ -35,8 +43,15 @@ def _agent_api_url(method: str) -> str:
     """بوت الوكيل — تخزين الجلسات والسجلات."""
     return f"https://api.telegram.org/bot{AGENT_TG_BOT_TOKEN}/{method}"
 
+def _users_api_url(method: str) -> str:
+    """البوت الثالث — قاعدة بيانات المستخدمين."""
+    return f"https://api.telegram.org/bot{USERS_TG_BOT_TOKEN}/{method}"
+
 def _agent_configured() -> bool:
     return bool(AGENT_TG_BOT_TOKEN and TELEGRAM_OWNER_ID)
+
+def _users_bot_configured() -> bool:
+    return bool(USERS_TG_BOT_TOKEN and USERS_TG_CHAT_ID)
 
 def _esc(text: str) -> str:
     """تنظيف HTML."""
@@ -478,3 +493,342 @@ async def schedule_log_v1(
         ))
     except Exception:
         pass
+
+
+# ============================================================================
+# [D] البوت الثالث — قاعدة بيانات المستخدمين (User Profile TXT)
+# ============================================================================
+#
+# لكل مستخدم ملف .txt خاص به في قناة تلجرام مخصصة.
+# يُحدَّث الملف عند كل حدث: طلب، اشتراك، دخول، أداة...
+# المرجع (message_id) يُخزَّن في Redis + TiDB للبحث السريع.
+#
+# متغيرات البيئة المطلوبة (مختلفة تماماً):
+#   USERS_TG_BOT_TOKEN  — توكن البوت الثالث من @BotFather
+#   USERS_TG_CHAT_ID    — معرف القناة الخاصة (مثل: -1001234567890)
+#                         أنشئ قناة جديدة → أضف البوت كـ Admin
+# ============================================================================
+
+def _user_file_redis_key(email: str) -> str:
+    """مفتاح Redis لمرجع ملف المستخدم في تلجرام."""
+    return f"tg_user_file:{email}"
+
+def _safe_file_name(email: str) -> str:
+    """اسم ملف آمن من الإيميل."""
+    h    = hashlib.md5(email.encode()).hexdigest()[:8]
+    slug = email.replace("@", "_at_").replace(".", "_").replace("+", "_")[:40]
+    return f"user_{slug}_{h}.txt"
+
+def _build_user_txt(profile: dict) -> str:
+    """يبني محتوى ملف .txt للمستخدم من dict البيانات."""
+    now   = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    email = profile.get("email", "unknown")
+
+    lines = [
+        "=" * 60,
+        f"  ORGTEH USER PROFILE — {email}",
+        "=" * 60,
+        f"Last Updated : {now}",
+        f"Email        : {email}",
+        f"API Key      : {profile.get('api_key', 'N/A')}",
+        f"Plan         : {profile.get('plan', 'Free Tier')}",
+        f"Created At   : {profile.get('created_at', 'N/A')}",
+        f"Sub End      : {profile.get('subscription_end', 'N/A')}",
+        "",
+        "─" * 60,
+        "  ACTIVE SUBSCRIPTIONS",
+        "─" * 60,
+    ]
+    for i, p in enumerate(profile.get("active_plans", []), 1):
+        lines.append(f"  [{i}] {p.get('name','?')} ({p.get('period','?')})")
+        lines.append(f"      Activated : {p.get('activated','N/A')}")
+        lines.append(f"      Expires   : {p.get('expires','N/A')}")
+    if not profile.get("active_plans"):
+        lines.append("  No active subscriptions.")
+
+    lines += [
+        "",
+        "─" * 60,
+        "  TODAY'S USAGE",
+        "─" * 60,
+    ]
+    usage = profile.get("usage", {})
+    lines.append(f"  Date          : {usage.get('date','N/A')}")
+    lines.append(f"  Total Requests: {usage.get('total_requests', 0)}")
+    lines.append(f"  Total Tokens  : {usage.get('total_tokens', 0)}")
+    lines.append(f"  Errors        : {usage.get('errors', 0)}")
+
+    lines += [
+        "",
+        "─" * 60,
+        "  ACTIVITY LOG (last 100 events)",
+        "─" * 60,
+    ]
+    for entry in profile.get("activity_log", [])[-100:]:
+        lines.append(f"  [{entry.get('ts','?')}] {entry.get('type','?')}: {entry.get('detail','')}")
+    if not profile.get("activity_log"):
+        lines.append("  No activity recorded yet.")
+
+    lines += [
+        "",
+        "─" * 60,
+        "  SUBSCRIPTION HISTORY",
+        "─" * 60,
+    ]
+    for h in profile.get("subscription_history", []):
+        lines.append(f"  {h.get('activated','?')} → {h.get('name','?')} ({h.get('type','?')})")
+    if not profile.get("subscription_history"):
+        lines.append("  No history.")
+
+    lines += ["", "=" * 60, "  END OF FILE", "=" * 60, ""]
+    return "\n".join(lines)
+
+
+async def _upload_user_file(
+    email: str,
+    txt_content: str,
+    existing_msg_id: Optional[int] = None,
+) -> Optional[dict]:
+    """يرفع ملف .txt إلى القناة، ويحذف القديم إن وُجد."""
+    if not _users_bot_configured():
+        return None
+
+    encoded  = txt_content.encode("utf-8")
+    caption  = (
+        f"👤 <b>User Profile</b>\n"
+        f"📧 {_esc(email)}\n"
+        f"🕐 {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            if existing_msg_id:
+                try:
+                    await client.post(
+                        _users_api_url("deleteMessage"),
+                        json={"chat_id": USERS_TG_CHAT_ID, "message_id": existing_msg_id},
+                    )
+                except Exception:
+                    pass
+
+            resp = await client.post(
+                _users_api_url("sendDocument"),
+                data={
+                    "chat_id":              USERS_TG_CHAT_ID,
+                    "caption":              caption,
+                    "parse_mode":           "HTML",
+                    "disable_notification": "true",
+                },
+                files={
+                    "document": (_safe_file_name(email), io.BytesIO(encoded), "text/plain"),
+                },
+            )
+            data = resp.json()
+            if data.get("ok"):
+                msg = data["result"]
+                doc = msg.get("document", {})
+                return {
+                    "message_id": msg["message_id"],
+                    "file_id":    doc.get("file_id", ""),
+                }
+            logger.error(f"[UserBot] sendDocument failed: {data.get('description')}")
+            return None
+    except Exception as e:
+        logger.error(f"[UserBot] upload error: {e}")
+        return None
+
+
+async def update_user_profile_file(
+    email:        str,
+    profile:      dict,
+    event_type:   str = "update",
+    event_detail: str = "",
+) -> bool:
+    """
+    يُضيف الحدث لسجل النشاط ثم يرفع ملف المستخدم المحدَّث إلى تلجرام.
+    يُخزّن message_id في Redis + TiDB.
+
+    الاستدعاء:
+        await update_user_profile_file(email, user_dict, "code_hub_request", "model=deepseek")
+    """
+    if not _users_bot_configured():
+        return False
+
+    try:
+        from database import redis as _redis
+    except Exception:
+        _redis = None
+
+    # أضف الحدث
+    activity = profile.get("activity_log", [])
+    activity.append({
+        "ts":     datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+        "type":   event_type,
+        "detail": str(event_detail)[:200],
+    })
+    profile["activity_log"] = activity[-500:]  # احتفظ بآخر 500 حدث
+
+    txt = _build_user_txt(profile)
+
+    # اجلب message_id القديم من Redis
+    existing_msg_id = None
+    if _redis:
+        try:
+            stored = _redis.get(_user_file_redis_key(email))
+            if stored:
+                meta = json.loads(stored) if isinstance(stored, str) else stored
+                existing_msg_id = meta.get("message_id")
+        except Exception:
+            pass
+
+    result = await _upload_user_file(email, txt, existing_msg_id)
+    if not result:
+        return False
+
+    # خزّن message_id الجديد في Redis
+    if _redis:
+        try:
+            _redis.set(
+                _user_file_redis_key(email),
+                json.dumps({
+                    "message_id": result["message_id"],
+                    "file_id":    result["file_id"],
+                    "updated_at": datetime.utcnow().isoformat(),
+                })
+            )
+        except Exception as e:
+            logger.warning(f"[UserBot] Redis set failed: {e}")
+
+    # خزّن المرجع في TiDB أيضاً (احتياطي)
+    _save_user_file_ref_to_db(email, result["message_id"], result["file_id"])
+
+    logger.info(f"[UserBot] ✅ {email} — msg_id={result['message_id']}")
+    return True
+
+
+def _save_user_file_ref_to_db(email: str, message_id: int, file_id: str) -> None:
+    """يحفظ مرجع الملف في حقل data['tg_user_file'] في TiDB — صامت."""
+    try:
+        from database import get_db_connection, get_user_by_email, redis as _redis
+        user = get_user_by_email(email)
+        if not user:
+            return
+        user["tg_user_file"] = {
+            "message_id": message_id,
+            "file_id":    file_id,
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        conn = get_db_connection()
+        if conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE users SET data = %s WHERE email = %s",
+                        (json.dumps(user), email)
+                    )
+                if _redis:
+                    _redis.set(f"user:{email}", json.dumps(user))
+            finally:
+                conn.close()
+    except Exception as e:
+        logger.debug(f"[UserBot] _save_ref_to_db silent fail: {e}")
+
+
+async def get_user_file_content(email: str) -> Optional[str]:
+    """يجلب محتوى ملف المستخدم من تلجرام (للإدارة والتشخيص)."""
+    if not _users_bot_configured():
+        return None
+
+    file_id = None
+    try:
+        from database import redis as _redis
+        if _redis:
+            stored = _redis.get(_user_file_redis_key(email))
+            if stored:
+                file_id = json.loads(stored).get("file_id")
+    except Exception:
+        pass
+
+    if not file_id:
+        try:
+            from database import get_user_by_email
+            user = get_user_by_email(email)
+            if user:
+                file_id = user.get("tg_user_file", {}).get("file_id")
+        except Exception:
+            pass
+
+    if not file_id:
+        return None
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.post(_users_api_url("getFile"), json={"file_id": file_id})
+            if not r.json().get("ok"):
+                return None
+            path = r.json()["result"]["file_path"]
+            dl   = await client.get(
+                f"https://api.telegram.org/file/bot{USERS_TG_BOT_TOKEN}/{path}"
+            )
+            return dl.text if dl.status_code == 200 else None
+    except Exception as e:
+        logger.error(f"[UserBot] get_file error: {e}")
+        return None
+
+
+async def check_users_bot_status() -> dict:
+    """يتحقق من حالة البوت الثالث."""
+    if not _users_bot_configured():
+        return {
+            "ok":    False,
+            "error": "USERS_TG_BOT_TOKEN أو USERS_TG_CHAT_ID غير مضبوطَين.",
+            "hint":  "أنشئ بوتاً جديداً من @BotFather وأضف المتغيرَين في البيئة.",
+        }
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            data = (await client.post(_users_api_url("getMe"))).json()
+            if data.get("ok"):
+                bot = data["result"]
+                return {
+                    "ok":       True,
+                    "bot_name": bot.get("first_name"),
+                    "username": "@" + bot.get("username", ""),
+                    "chat_id":  USERS_TG_CHAT_ID,
+                }
+            return {"ok": False, "error": data.get("description")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def schedule_user_profile_update(
+    email:        str,
+    profile:      dict,
+    event_type:   str = "update",
+    event_detail: str = "",
+) -> None:
+    """
+    يُجدِّل تحديث ملف المستخدم في الخلفية (fire-and-forget).
+    آمن للاستدعاء بدون await — يُنشئ asyncio.Task داخلياً.
+
+    مثال:
+        from telegram_bot import schedule_user_profile_update
+        schedule_user_profile_update(email, user_data, "code_hub_request", f"model={model_id}")
+    """
+    import asyncio as _asyncio
+    try:
+        _asyncio.create_task(update_user_profile_file(
+            email        = email,
+            profile      = profile,
+            event_type   = event_type,
+            event_detail = event_detail,
+        ))
+    except Exception as e:
+        logger.debug(f"[UserBot] schedule failed (non-critical): {e}")
+
+# ============================================================================
+# أنواع الأحداث المقترحة (event_type) للاتساق في جميع أنحاء المشروع:
+#   login | register | logout
+#   api_request | code_hub_request | agent_v2_request
+#   tool_used | subscription_new | subscription_renew
+#   api_key_reset | contact_form | enterprise_form | error
+# ============================================================================

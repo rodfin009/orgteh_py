@@ -625,10 +625,6 @@
 
                 <div class="relative flex flex-col rounded-2xl border-2 border-primary bg-gradient-to-b from-white dark:from-cardbg via-primary/5 to-blue-500/5 p-6 shadow-xl ring-2 ring-primary/20">
 
-                    <div class="ribbon-wrapper">
-                        <div class="ribbon ribbon-blue" data-i18n="pricing.ribbon_free">3 Days Free</div>
-                    </div>
-
                     <div class="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
                         <span class="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-1.5 text-sm font-bold text-white shadow-lg whitespace-nowrap">
                             <i class="fa-solid fa-globe"></i>
@@ -734,6 +730,7 @@
 
     <div id="sp-form-wrap" class="w-full max-w-lg mx-auto bg-white dark:bg-[#111111] rounded-2xl shadow-2xl flex flex-col max-h-[95vh] border border-gray-200 dark:border-gray-800 relative overflow-hidden">
 
+        <!-- ── Header ── -->
         <div class="bg-gradient-to-r from-primary to-indigo-600 px-6 py-4 flex items-center justify-between shrink-0">
             <div>
                 <h3 id="sp-plan-title" class="text-white font-bold text-lg leading-tight"></h3>
@@ -744,39 +741,108 @@
             </button>
         </div>
 
-        <div class="p-6 flex-1 overflow-y-auto relative w-full">
+        <div class="flex-1 overflow-y-auto relative w-full">
 
+            <!-- ── Global loading overlay ── -->
             <div id="sp-loading" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/95 dark:bg-[#111111]/95 hidden">
                 <div class="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
                 <p id="sp-loading-text" class="text-gray-600 dark:text-gray-300 font-bold text-sm"></p>
             </div>
 
-            <div id="sp-status-msg" class="mb-4 rounded-xl px-4 py-3 text-sm font-bold hidden text-center"></div>
+            <!-- ── 24-hour processing notice (always visible) ── -->
+            <div class="mx-5 mt-5 mb-0 flex items-start gap-3 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+                <i class="fa-solid fa-clock text-amber-500 mt-0.5 shrink-0"></i>
+                <p id="sp-24h-notice-text" class="text-xs font-semibold text-amber-700 dark:text-amber-400 leading-relaxed" data-i18n="modal.24h_notice">
+                    Other payment methods may take ~24 hours to process.
+                </p>
+            </div>
 
-            <form id="spaceremit-form" class="w-full flex flex-col">
-                <input type="hidden" name="amount" id="sp-amount">
-                <input type="hidden" name="currency" value="USD">
-                <input type="hidden" name="email" id="sp-email">
-                <input type="hidden" name="fullname" id="sp-fullname">
-                <input type="hidden" name="phone" value="0000000000">
-                <input type="hidden" name="notes" id="sp-notes">
-                <input type="radio" name="sp-pay-type-radio" value="local-methods-pay" checked class="hidden">
+            <!-- ── Status message ── -->
+            <div id="sp-status-msg" class="mx-5 mt-3 rounded-xl px-4 py-3 text-sm font-bold hidden text-center"></div>
 
-                <div id="spaceremit-local-methods-pay" class="w-full relative"></div>
-                <div id="spaceremit-card-pay" style="display:none"></div>
+            <!-- ══════════════════════════════════════════════════
+                 SCREEN 1: Payment Method Selector
+            ══════════════════════════════════════════════════ -->
+            <div id="sp-method-screen" class="p-5">
+                <p class="text-center text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4" data-i18n="modal.choose_method">Choose Payment Method</p>
 
-                <button type="submit" id="sp-submit-btn" class="mt-4 w-full py-3.5 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-primary/30 flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-lock"></i>
-                    <span data-i18n="modal.pay_btn">Proceed to Payment</span>
+                <!-- Wayl — Cards & Digital Wallets unified -->
+                <button onclick="selectPaymentMethod('wayl')"
+                        class="w-full mb-3 flex items-center gap-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-primary hover:shadow-lg hover:shadow-primary/10 transition-all p-4 text-start group">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-900/30 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/50 transition">
+                        <i class="fa-solid fa-credit-card text-xl text-blue-600 dark:text-blue-400"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-gray-900 dark:text-white" data-i18n="modal.wayl_title">Bank Cards &amp; Digital Wallets</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5" data-i18n="modal.wayl_sub">Visa · Mastercard · FIB · FastPay</p>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <!-- Visa inline SVG -->
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 216 70" class="h-4 opacity-80" fill="none">
+                            <rect width="216" height="70" rx="8" fill="#1A1F71"/>
+                            <path d="M90 49L98.5 21h8L98 49H90zm33.5-28c-2.5 0-5 .8-6.5 2l-1 6c1.5-1.2 4-2 6-2 2.2 0 3.5.8 3.5 2 0 3-8.5 3.5-8.5 10 0 4 3 6.5 8 6.5 2.5 0 5-.5 7-1.5l1-6c-2 1-4.5 1.8-6.5 1.8-2 0-3-.8-3-2.2 0-3 8.5-3.5 8.5-10.2C132 24 128.5 21 123.5 21zM75 21l-10 18-4-15c-.5-2-2-3-3.5-3H43l-.2.8c3 .7 6 1.7 8 3l7 25h8.5L82 21H75zm65 0l-7.5 28h8L148 21h-8zm20.5 0c-1.5 0-2.8.8-3.5 2L145 49h8.5l1.7-4.5H165l1 4.5h7.5L167 21h-6.5zm1 8l2.5 10h-5.8l3.3-10z" fill="white"/>
+                        </svg>
+                        <!-- Mastercard circles -->
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 32" class="h-5 opacity-80">
+                            <circle cx="16" cy="16" r="16" fill="#EB001B"/>
+                            <circle cx="36" cy="16" r="16" fill="#F79E1B"/>
+                            <path d="M26 5.8a16 16 0 010 20.4A16 16 0 0126 5.8z" fill="#FF5F00"/>
+                        </svg>
+                    </div>
                 </button>
-            </form>
-        </div>
 
+                <!-- Other Payment Methods (SpaceRemit) -->
+                <button onclick="selectPaymentMethod('spaceremit')"
+                        class="w-full flex items-center gap-4 rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-500/10 transition-all p-4 text-start group">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-900/30 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 transition">
+                        <i class="fa-solid fa-globe text-xl text-indigo-600 dark:text-indigo-400"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-bold text-gray-900 dark:text-white" data-i18n="modal.other_methods">Other Payment Methods</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5" data-i18n="modal.other_methods_sub">Crypto · Wise · Perfect Money · Skrill</p>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-400 group-hover:text-indigo-500 transition shrink-0"></i>
+                </button>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════
+                 SCREEN 2: SpaceRemit Form
+            ══════════════════════════════════════════════════ -->
+            <div id="sp-spaceremit-screen" class="hidden p-5">
+                <button onclick="backToMethodSelector()" class="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-primary transition">
+                    <i class="fa-solid fa-arrow-left rtl:rotate-180"></i>
+                    <span data-i18n="modal.back">Back</span>
+                </button>
+
+                <form id="spaceremit-form" class="w-full flex flex-col">
+                    <input type="hidden" name="amount" id="sp-amount">
+                    <input type="hidden" name="currency" value="USD">
+                    <input type="hidden" name="email" id="sp-email">
+                    <input type="hidden" name="fullname" id="sp-fullname">
+                    <input type="hidden" name="phone" value="0000000000">
+                    <input type="hidden" name="notes" id="sp-notes">
+                    <input type="radio" name="sp-pay-type-radio" value="local-methods-pay" checked class="hidden">
+
+                    <div id="spaceremit-local-methods-pay" class="w-full relative"></div>
+                    <div id="spaceremit-card-pay" style="display:none"></div>
+
+                    <button type="submit" id="sp-submit-btn" class="mt-4 w-full py-3.5 bg-primary text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-primary/30 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-lock"></i>
+                        <span data-i18n="modal.pay_btn">Proceed to Payment</span>
+                    </button>
+                </form>
+            </div>
+
+        </div><!-- end scroll wrapper -->
+
+        <!-- ── Footer ── -->
         <div class="px-6 py-3 bg-gray-50 dark:bg-black border-t border-gray-100 dark:border-gray-800 text-center shrink-0">
-            <p class="text-xs text-gray-500 font-medium flex items-center justify-center">
-                <i class="fa-solid fa-shield-check text-green-500 mr-1.5"></i>
-                <span id="sp-footer-text">Secured by</span>
-                <a href="https://spaceremit.com" target="_blank" class="text-primary hover:underline ml-1.5 font-bold">SpaceRemit</a>
+            <p class="text-xs text-gray-500 font-medium flex items-center justify-center gap-1.5 flex-wrap">
+                <i class="fa-solid fa-shield-check text-green-500"></i>
+                <span id="sp-footer-text" data-i18n="modal.footer">Secured by</span>
+                <a href="https://thewayl.com" target="_blank" class="text-blue-600 hover:underline font-bold">Wayl</a>
+                <span class="text-gray-300 dark:text-gray-700">&amp;</span>
+                <a href="https://spaceremit.com" target="_blank" class="text-primary hover:underline font-bold">SpaceRemit</a>
             </p>
         </div>
 
@@ -880,7 +946,15 @@
             "modal.pending":     "⏳ Payment received and under review. You'll get an email once activated.",
             "modal.pending_btn": "Awaiting Confirmation",
             "modal.pending_notice_title": "Subscription Confirmation in Progress",
-            "modal.pending_notice_body":  "Your payment has been received. Subscription activation may take up to 24 hours. You'll receive a confirmation email once it's active."
+            "modal.pending_notice_body":  "Your payment has been received. Subscription activation may take up to 24 hours. You'll receive a confirmation email once it's active.",
+            "modal.choose_method":        "Choose Payment Method",
+            "modal.wayl_title":           "Bank Cards & Digital Wallets",
+            "modal.wayl_sub":             "Visa · Mastercard · FIB · FastPay",
+            "modal.other_methods":        "Other Payment Methods",
+            "modal.other_methods_sub":    "Crypto · Wise · Perfect Money · Skrill",
+            "modal.24h_notice":           "⚠️ Other payment methods may take ~24 hours to process.",
+            "modal.back":                 "Back",
+            "modal.redirecting":          "Redirecting to payment page..."
         },
         ar: {
             "pricing.lbl_plans_header": "خطط الاشتراكات",
@@ -975,7 +1049,15 @@
             "modal.pending":     "⏳ تم استلام دفعتك وهي قيد المراجعة. سنرسل لك إيميلاً عند التفعيل.",
             "modal.pending_btn": "جاري تأكيد الطلب",
             "modal.pending_notice_title": "جاري تأكيد الاشتراك",
-            "modal.pending_notice_body":  "تم استلام دفعتك بنجاح. قد تستغرق عملية تفعيل الاشتراك ما يصل إلى 24 ساعة. ستصلك رسالة بريد إلكتروني عند التفعيل."
+            "modal.pending_notice_body":  "تم استلام دفعتك بنجاح. قد تستغرق عملية تفعيل الاشتراك ما يصل إلى 24 ساعة. ستصلك رسالة بريد إلكتروني عند التفعيل.",
+            "modal.choose_method":        "اختر طريقة الدفع",
+            "modal.wayl_title":           "البطاقات البنكية والمحافظ الرقمية",
+            "modal.wayl_sub":             "Visa · Mastercard · FIB · FastPay",
+            "modal.other_methods":        "طرق دفع أخرى",
+            "modal.other_methods_sub":    "Crypto · Wise · Perfect Money · Skrill",
+            "modal.24h_notice":           "⚠️ طرق الدفع الأخرى قد تستغرق حوالي 24 ساعة للمعالجة.",
+            "modal.back":                 "رجوع",
+            "modal.redirecting":          "جارٍ التحويل إلى صفحة الدفع..."
         }
     };
 
@@ -994,8 +1076,9 @@
 
     const labelKeys = { monthly: 'pricing.lbl_per_month', yearly: 'pricing.lbl_per_year' };
 
-    let _currentPlanKey = null;
-    let _currentPeriod  = null;
+    let _currentPlanKey      = null;
+    let _currentPeriod       = null;
+    let _currentCheckoutData = null;
 
     function spT(key) {
         const lang = getActiveLang();
@@ -1010,7 +1093,9 @@
         const el = document.getElementById('sp-overlay');
         el.classList.remove('hidden');
         el.classList.add('flex');
-
+        // Always start on method selector
+        document.getElementById('sp-method-screen').classList.remove('hidden');
+        document.getElementById('sp-spaceremit-screen').classList.add('hidden');
         document.body.classList.add('lock-scroll');
         document.documentElement.classList.add('lock-scroll');
     }
@@ -1028,6 +1113,9 @@
         document.getElementById('spaceremit-local-methods-pay').innerHTML = '';
         const old = document.getElementById('sp-sdk-script');
         if (old) old.remove();
+        // Reset to method selector
+        document.getElementById('sp-method-screen').classList.remove('hidden');
+        document.getElementById('sp-spaceremit-screen').classList.add('hidden');
     }
 
     function showSpStatus(type, msg) {
@@ -1188,11 +1276,11 @@
         document.getElementById('sp-plan-title').textContent  = spT('modal.title');
         document.getElementById('sp-plan-sub').textContent    = `${planLabel} · $${planData.price} ${spT('modal.per')} ${periodLabel(period)}`;
         document.getElementById('sp-loading-text').textContent = spT('modal.loading');
-
         document.getElementById('sp-status-msg').classList.add('hidden');
 
         openSpOverlay();
 
+        // Fetch checkout data (email, public key) upfront
         try {
             const res = await fetch('/api/payments/checkout-data', {
                 method: 'POST',
@@ -1207,8 +1295,9 @@
             const data = await res.json();
             if (!res.ok) { closeSpOverlay(); alert('Error: '+(data.error||'Unknown')); return; }
 
-            _currentPlanKey = planKey;
-            _currentPeriod  = period;
+            _currentPlanKey     = planKey;
+            _currentPeriod      = period;
+            _currentCheckoutData = data;  // cache for later use
 
             const safeEmail = data.email || "guest@orgteh.com";
             const safeName  = safeEmail.split('@')[0] || "User";
@@ -1220,17 +1309,79 @@
                 `plan:${planKey}|period:${period}|user:${safeEmail}`
             );
 
-            if(!data.public_key) {
-                showSpStatus('error', 'Configuration Error: Missing Public Key on Server');
-                document.getElementById('sp-loading').style.display = 'none';
-                return;
-            }
-
-            loadSpaceRemitSDK(data.public_key);
+            // Apply translations to new modal elements
+            applyLocalTranslations();
 
         } catch(err) {
             console.error('[Checkout]', err);
             closeSpOverlay();
+        }
+    }
+
+    // ── NEW: Called when user picks a payment method ──────────────────────────
+    async function selectPaymentMethod(method) {
+        if (method === 'spaceremit') {
+            // Switch to SpaceRemit screen
+            document.getElementById('sp-method-screen').classList.add('hidden');
+            document.getElementById('sp-spaceremit-screen').classList.remove('hidden');
+
+            if (!_currentCheckoutData?.public_key) {
+                showSpStatus('error', 'Configuration Error: Missing Public Key on Server');
+                return;
+            }
+            loadSpaceRemitSDK(_currentCheckoutData.public_key);
+
+        } else {
+            // Wayl (unified: cards + digital wallets)
+            await initiateWaylCheckout(method);
+        }
+    }
+
+    function backToMethodSelector() {
+        document.getElementById('sp-spaceremit-screen').classList.add('hidden');
+        document.getElementById('sp-method-screen').classList.remove('hidden');
+        document.getElementById('sp-status-msg').classList.add('hidden');
+        document.getElementById('spaceremit-local-methods-pay').innerHTML = '';
+        const old = document.getElementById('sp-sdk-script');
+        if (old) old.remove();
+    }
+
+    async function initiateWaylCheckout(method) {
+        const planData = pricingData[_currentPlanKey]?.[_currentPeriod];
+        if (!planData) return;
+
+        const loading = document.getElementById('sp-loading');
+        document.getElementById('sp-loading-text').textContent = spT('modal.redirecting');
+        loading.style.display = 'flex';
+        loading.classList.remove('hidden');
+
+        try {
+            const res = await fetch('/api/payments/wayl-checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    plan_key: _currentPlanKey,
+                    period:   _currentPeriod,
+                    amount:   planData.price,
+                    method:   method
+                })
+            });
+            const data = await res.json();
+            loading.style.display = 'none';
+            loading.classList.add('hidden');
+
+            if (!res.ok || !data.url) {
+                showSpStatus('error', '❌ ' + (data.error || 'Failed to create Wayl payment link.'));
+                return;
+            }
+            // Redirect to Wayl payment page
+            window.location.href = data.url;
+
+        } catch(err) {
+            loading.style.display = 'none';
+            loading.classList.add('hidden');
+            showSpStatus('error', spT('modal.net_error'));
+            console.error('[Wayl Checkout]', err);
         }
     }
 

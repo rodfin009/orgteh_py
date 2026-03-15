@@ -172,6 +172,17 @@ async def health_check():
 async def readiness_check():
     return {"ready": True}
 
+@app.post("/api/sync-db")
+async def sync_db_endpoint():
+    """مزامنة Redis → TiDB — تُستدعى من cron job."""
+    from database import sync_all_usage_to_db
+    result = sync_all_usage_to_db()
+    return JSONResponse({
+        "ok":        result.get("status") == "success",
+        "synced":    result.get("synced_users", 0),
+        "timestamp": datetime.utcnow().isoformat(),
+    })
+
 # ============================================================================
 # Static Files Debug
 # ============================================================================
