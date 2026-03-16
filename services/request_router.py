@@ -148,6 +148,17 @@ async def internal_chat_ui(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@router.options("/v1/chat/completions")
+async def openai_compatible_preflight():
+    """
+    Explicit OPTIONS handler for CORS preflight from embedded iframes.
+    SecurityHeadersMiddleware will override the headers with Access-Control-Allow-Origin: *
+    but this route ensures a 200 is returned immediately for OPTIONS.
+    """
+    from fastapi.responses import Response
+    return Response(status_code=200)
+
+
 @router.post("/v1/chat/completions")
 async def openai_compatible_proxy(request: Request):
     auth_header = request.headers.get("Authorization")

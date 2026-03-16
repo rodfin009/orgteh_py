@@ -68,6 +68,9 @@ class OptimizedStaticFiles(StaticFiles):
 # ============================================================================
 
 class SecurityHeadersMiddleware:
+    # API paths that must be reachable from embedded iframes (srcdoc/null origin)
+    _API_PREFIXES = ("/v1/", "/api/")
+
     def __init__(self, app: ASGIApp):
         self.app = app
 
@@ -75,6 +78,10 @@ class SecurityHeadersMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+
+        path    = scope.get("path", "")
+        method  = scope.get("method", "")
+        is_api  = path.startswith(self._API_PREFIXES)
 
         async def send_with_headers(message):
             if message["type"] == "http.response.start":
@@ -96,6 +103,27 @@ class SecurityHeadersMiddleware:
                     headers["X-Accel-Buffering"] = "no"
                     headers["Cache-Control"] = "no-cache, no-transform"
                     headers["Transfer-Encoding"] = "chunked"
+
+                # ── CORS override for API endpoints ────────────────────────────
+                # SecurityHeadersMiddleware is the OUTERMOST middleware, so it
+                # runs LAST on responses — overriding anything CORSMiddleware set.
+                # Problem: CORSMiddleware sets allow_credentials=True + origin=*
+                # which violates CORS spec → Chrome blocks null-origin iframes.
+                # Fix: force Access-Control-Allow-Origin: * without credentials
+                # for all API paths so embedded iframes can call them directly.
+                if is_api:
+                    headers["Access-Control-Allow-Origin"]   = "*"
+                    headers["Access-Control-Allow-Methods"]  = "GET, POST, PUT, DELETE, OPTIONS"
+                    headers["Access-Control-Allow-Headers"]  = (
+                        "Content-Type, Authorization, X-Requested-With, Accept"
+                    )
+                    headers["Access-Control-Max-Age"]        = "86400"
+                    # Remove credentials header — incompatible with wildcard origin
+                    try:
+                        del headers["Access-Control-Allow-Credentials"]
+                    except Exception:
+                        pass
+
             await send(message)
 
         await self.app(scope, receive, send_with_headers)
@@ -450,34 +478,6 @@ async def hub_save_chat_endpoint(request: Request):
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"error": str(e)}, 500)
-
-@app.post("/api/hub/save-turn")
-async def hub_save_turn_endpoint(request: Request):
-    """
-    يُستدعى من المتصفح بعد اكتمال البث لحفظ الدورة الكاملة
-    (user_msg + thinking + response + files) في Telegram.
-    """
-    email = get_current_user_email(request)
-    if not email:
-        return JSONResponse({"error": "Login required"}, 401)
-    try:
-        body = await request.json()
-        from telegram_bot import save_v1_turn
-        await save_v1_turn(
-            user_email      = email,
-            session_id      = body.get("session_id", ""),
-            model_id        = body.get("model_id", ""),
-            chat_mode       = body.get("chat_mode", ""),
-            user_msg        = body.get("user_msg", ""),
-            thinking        = body.get("thinking", ""),
-            response        = body.get("response", ""),
-            files_attached  = body.get("files_attached", []),
-            files_generated = body.get("files_generated", []),
-        )
-        return JSONResponse({"ok": True})
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, 500)
-
 
 @app.get("/api/hub/chats")
 async def hub_list_chats_endpoint(request: Request):
