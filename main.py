@@ -68,7 +68,6 @@ class OptimizedStaticFiles(StaticFiles):
 # ============================================================================
 
 class SecurityHeadersMiddleware:
-    # API paths that must be reachable from embedded iframes (srcdoc/null origin)
     _API_PREFIXES = ("/v1/", "/api/")
 
     def __init__(self, app: ASGIApp):
@@ -79,9 +78,15 @@ class SecurityHeadersMiddleware:
             await self.app(scope, receive, send)
             return
 
-        path    = scope.get("path", "")
-        method  = scope.get("method", "")
-        is_api  = path.startswith(self._API_PREFIXES)
+        path   = scope.get("path", "")
+        is_api = path.startswith(self._API_PREFIXES)
+
+        # Read Origin header from the incoming request
+        origin = ""
+        for k, v in scope.get("headers", []):
+            if k == b"origin":
+                origin = v.decode("utf-8", errors="ignore")
+                break
 
         async def send_with_headers(message):
             if message["type"] == "http.response.start":
@@ -104,21 +109,23 @@ class SecurityHeadersMiddleware:
                     headers["Cache-Control"] = "no-cache, no-transform"
                     headers["Transfer-Encoding"] = "chunked"
 
-                # ── CORS override for API endpoints ────────────────────────────
-                # SecurityHeadersMiddleware is the OUTERMOST middleware, so it
-                # runs LAST on responses — overriding anything CORSMiddleware set.
-                # Problem: CORSMiddleware sets allow_credentials=True + origin=*
-                # which violates CORS spec → Chrome blocks null-origin iframes.
-                # Fix: force Access-Control-Allow-Origin: * without credentials
-                # for all API paths so embedded iframes can call them directly.
+                # ── CORS fix for API endpoints called from iframes (null origin) ──
+                # srcdoc iframes send Origin: null — we must explicitly allow it.
+                # Rule: ACAO=null allows null-origin requests (no credentials needed).
+                # We run AFTER CORSMiddleware so we can override its headers safely.
                 if is_api:
-                    headers["Access-Control-Allow-Origin"]   = "*"
-                    headers["Access-Control-Allow-Methods"]  = "GET, POST, PUT, DELETE, OPTIONS"
-                    headers["Access-Control-Allow-Headers"]  = (
+                    if origin == "null" or origin == "":
+                        # srcdoc / blob iframe — allow explicitly
+                        headers["Access-Control-Allow-Origin"]  = "null"
+                    else:
+                        # Normal browser request — use wildcard (no credentials)
+                        headers["Access-Control-Allow-Origin"]  = "*"
+                    headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+                    headers["Access-Control-Allow-Headers"] = (
                         "Content-Type, Authorization, X-Requested-With, Accept"
                     )
-                    headers["Access-Control-Max-Age"]        = "86400"
-                    # Remove credentials header — incompatible with wildcard origin
+                    headers["Access-Control-Max-Age"] = "86400"
+                    # Remove credentials header — incompatible with wildcard/null ACAO
                     try:
                         del headers["Access-Control-Allow-Credentials"]
                     except Exception:
@@ -136,8 +143,8 @@ app = FastAPI(title="Orgteh Infra", docs_url=None, redoc_url=None)
 
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(CORSMiddleware,
-    allow_origins=["*", "null"],   # null = srcdoc/blob iframes
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,  # Must be False when allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"]
 )
