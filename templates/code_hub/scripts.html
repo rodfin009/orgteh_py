@@ -989,10 +989,34 @@ function navigateVirtualPage(targetFile) {
 }
 window.navigateVirtualPage = navigateVirtualPage;
 
-// Listen for navigation messages from the preview iframe (postMessage, sandbox-safe)
+// Listen for messages from the preview iframe (postMessage, sandbox-safe)
 window.addEventListener('message', function(e) {
-    if (e.data && e.data.type === 'orgteh_nav' && e.data.file) {
+    if (!e.data || !e.data.type) return;
+
+    // [1] Navigation: iframe anchor click → switch to that virtual file
+    if (e.data.type === 'orgteh_nav' && e.data.file) {
         navigateVirtualPage(e.data.file);
+        return;
+    }
+
+    // [2] Fetch bridge: iframe fetch() → parent makes the real request (no CORS)
+    if (e.data.type === 'orgteh_fetch_req') {
+        var reqId   = e.data.id;
+        var reqSrc  = e.source;
+        var fetchOpts = {
+            method:  e.data.method || 'GET',
+            headers: e.data.headers || {},
+        };
+        if (e.data.body) fetchOpts.body = e.data.body;
+        fetch(e.data.url, fetchOpts)
+            .then(function(r) { return r.json().then(function(b){ return {status:r.status,body:b}; }); })
+            .then(function(d) {
+                try { reqSrc.postMessage({type:'orgteh_fetch_res',id:reqId,status:d.status,body:d.body}, '*'); } catch(_){}
+            })
+            .catch(function(err) {
+                try { reqSrc.postMessage({type:'orgteh_fetch_res',id:reqId,err:err.message||String(err)}, '*'); } catch(_){}
+            });
+        return;
     }
 });
 
@@ -1115,19 +1139,48 @@ function renderPreview(targetFilename) {
         }
     });
 
-    // Navigation interceptor — injected in <head>, capture phase, Replit srcdoc safe
-    const interceptor = `<script>(function(){var _i=function(){document.addEventListener('click',function(e){var el=e.target;for(var i=0;i<5;i++){if(!el||el===document)break;if(el.tagName==='A'){var h=el.getAttribute('href');if(h&&h!==''&&!h.startsWith('http')&&!h.startsWith('//')&&!h.startsWith('#')&&!h.startsWith('mailto')&&!h.startsWith('javascript')){e.preventDefault();e.stopImmediatePropagation();try{window.parent.postMessage({type:'orgteh_nav',file:h},'*');}catch(_){}}break;}el=el.parentElement;}},true);};if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',_i);}else{_i();}})();<\/script>`;
-    if (html.includes('<head>')) html = html.replace('<head>', '<head>' + interceptor);
-    else if (html.includes('<html')) html = html.replace(/(<html[^>]*>)/i, '$1' + interceptor);
-    else html = interceptor + html;
+    // ── [1] Navigation interceptor (link clicks → parent postMessage) ──
+    const navInterceptor = `<script>(function(){var _i=function(){document.addEventListener('click',function(e){var el=e.target;for(var i=0;i<5;i++){if(!el||el===document)break;if(el.tagName==='A'){var h=el.getAttribute('href');if(h&&h!==''&&!h.startsWith('http')&&!h.startsWith('//')&&!h.startsWith('#')&&!h.startsWith('mailto')&&!h.startsWith('javascript')){e.preventDefault();e.stopImmediatePropagation();try{window.parent.postMessage({type:'orgteh_nav',file:h},'*');}catch(_){}}break;}el=el.parentElement;}},true);};if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',_i);}else{_i();}})();<\/script>`;
 
-    // Use blob URL — gives a real origin (blob:https://orgteh.com/...)
-    // so CORS requests from within the iframe work correctly (not blocked as null origin)
-    const blob    = new Blob([html], { type: 'text/html; charset=utf-8' });
-    const blobUrl = URL.createObjectURL(blob);
-    if (frame._blobUrl) URL.revokeObjectURL(frame._blobUrl);
-    frame._blobUrl = blobUrl;
-    frame.src = blobUrl;
+    // ── [2] Fetch bridge — intercepts ALL fetch() calls inside the iframe that target
+    //        orgteh.com (or relative /v1/ /api/ paths) and tunnels them through the
+    //        parent page via postMessage.  The parent page is SAME-ORIGIN with the
+    //        server so there is zero CORS.  This is the correct fix for srcdoc/blob
+    //        iframes where the effective origin is null or opaque.
+    const fetchBridge = `<script>(function(){
+var _pend={};
+var _orig=window.fetch.bind(window);
+window.fetch=function(url,opts){
+  var us=typeof url==='string'?url:((url&&url.url)||String(url));
+  if(us.indexOf('orgteh.com')!==-1||us.startsWith('/v1/')||us.startsWith('/api/')){
+    return new Promise(function(res,rej){
+      var id='f'+Math.random().toString(36).slice(2);
+      _pend[id]={res:res,rej:rej};
+      try{window.parent.postMessage({type:'orgteh_fetch_req',id:id,url:us,
+        method:(opts&&opts.method)||'GET',
+        headers:(opts&&opts.headers)||{},
+        body:(opts&&opts.body)||null},'*');}
+      catch(e){rej(e);}
+    });
+  }
+  return _orig(url,opts);
+};
+window.addEventListener('message',function(e){
+  if(!e.data||e.data.type!=='orgteh_fetch_res')return;
+  var p=_pend[e.data.id];if(!p)return;
+  delete _pend[e.data.id];
+  if(e.data.err){p.rej(new Error(e.data.err));return;}
+  p.res(new Response(JSON.stringify(e.data.body),
+    {status:e.data.status,headers:{'Content-Type':'application/json'}}));
+});
+})();<\/script>`;
+
+    const _allInjected = navInterceptor + fetchBridge;
+    if (html.includes('<head>')) html = html.replace('<head>', '<head>' + _allInjected);
+    else if (html.includes('<html')) html = html.replace(/(<html[^>]*>)/i, '$1' + _allInjected);
+    else html = _allInjected + html;
+
+    frame.srcdoc = html;
     frame.style.display = 'block'; empty.style.display = 'none';
 }
 
