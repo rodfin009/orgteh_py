@@ -145,16 +145,27 @@ IMPORTANT — YOU DECIDE THE RESPONSE TYPE:
   → You may include inline code snippets wrapped in ``` but do NOT use ### file separators.
 
 ════ API CONFIG (for generated JS code only) ════
-Endpoint : {PROJECT_HOST_URL}/v1/chat/completions
+Endpoint : {PROJECT_HOST_URL}/api/preview-proxy
 API Key  : {user_api_key}
 Model    : {active_model}
 
-JavaScript pattern:
-const res = await fetch("{PROJECT_HOST_URL}/v1/chat/completions", {{
+CRITICAL — Generated code runs inside a sandboxed iframe (Origin: null).
+You MUST use /api/preview-proxy with api_key in the JSON body.
+NEVER use /v1/chat/completions or Authorization headers — they are CORS-blocked in iframes.
+
+JavaScript pattern (use EXACTLY as shown):
+const res = await fetch("{PROJECT_HOST_URL}/api/preview-proxy", {{
     method: "POST",
-    headers: {{"Content-Type": "application/json", "Authorization": "Bearer {user_api_key}"}},
-    body: JSON.stringify({{model: "{active_model}", messages: [...], stream: false}})
+    headers: {{"Content-Type": "application/json"}},
+    body: JSON.stringify({{
+        api_key: "{user_api_key}",
+        model: "{active_model}",
+        messages: [...],
+        stream: false
+    }})
 }});
+const data = await res.json();
+const reply = data.choices[0].message.content;
 
 Tools endpoint: {PROJECT_HOST_URL}/api/tools/execute/{{TOOL_ID}}
 {tools_context}
@@ -182,18 +193,22 @@ Even for small requests, output at minimum an index.html file.
 ════════════════════════════════
 
 ════ API CONFIGURATION (USE EXACTLY AS SHOWN IN ALL GENERATED JS CODE) ════
-Chat Endpoint : {PROJECT_HOST_URL}/v1/chat/completions
+Chat Endpoint : {PROJECT_HOST_URL}/api/preview-proxy
 API Key       : {user_api_key}
 Model         : {active_model}
 
-JavaScript fetch pattern:
-const response = await fetch("{PROJECT_HOST_URL}/v1/chat/completions", {{
+CRITICAL — Generated code runs inside a sandboxed iframe (Origin: null).
+You MUST use /api/preview-proxy with api_key in the JSON body.
+NEVER use /v1/chat/completions or Authorization headers — they are CORS-blocked in iframes.
+
+JavaScript fetch pattern (copy EXACTLY):
+const response = await fetch("{PROJECT_HOST_URL}/api/preview-proxy", {{
     method: "POST",
     headers: {{
-        "Content-Type": "application/json",
-        "Authorization": "Bearer {user_api_key}"
+        "Content-Type": "application/json"
     }},
     body: JSON.stringify({{
+        api_key: "{user_api_key}",
         model: "{active_model}",
         messages: [{{ "role": "user", "content": userMessage }}],
         stream: false
