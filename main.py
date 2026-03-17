@@ -68,6 +68,16 @@ class OptimizedStaticFiles(StaticFiles):
 # ============================================================================
 
 class SecurityHeadersMiddleware:
+    """
+    Outermost middleware — runs LAST on responses, so it wins over CORSMiddleware.
+    Added with app.add_middleware() LAST so Starlette puts it outermost in the stack.
+
+    Starlette middleware order rule:
+      add_middleware(A) then add_middleware(B) then add_middleware(C)
+      → request:  C → B → A → handler
+      → response: handler → A → B → C
+    So the LAST add_middleware call = outermost = runs last on response = wins.
+    """
     _API_PREFIXES = ("/v1/", "/api/")
 
     def __init__(self, app: ASGIApp):
@@ -109,23 +119,24 @@ class SecurityHeadersMiddleware:
                     headers["Cache-Control"] = "no-cache, no-transform"
                     headers["Transfer-Encoding"] = "chunked"
 
-                # ── CORS fix for API endpoints called from iframes (null origin) ──
-                # srcdoc iframes send Origin: null — we must explicitly allow it.
-                # Rule: ACAO=null allows null-origin requests (no credentials needed).
-                # We run AFTER CORSMiddleware so we can override its headers safely.
+                # ── CORS: runs LAST so it overrides CORSMiddleware completely ──
+                # srcdoc iframes always send Origin: null.
+                # Standard: Access-Control-Allow-Origin: null allows null-origin requests.
+                # We cannot use credentials=True with wildcard (*) — browser rejects it.
                 if is_api:
-                    if origin == "null" or origin == "":
-                        # srcdoc / blob iframe — allow explicitly
-                        headers["Access-Control-Allow-Origin"]  = "null"
+                    if origin in ("null", ""):
+                        # srcdoc / blob iframe origin
+                        headers["Access-Control-Allow-Origin"] = "null"
                     else:
-                        # Normal browser request — use wildcard (no credentials)
-                        headers["Access-Control-Allow-Origin"]  = "*"
-                    headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+                        # Regular browser or external API call
+                        headers["Access-Control-Allow-Origin"] = origin if origin else "*"
+                    headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
                     headers["Access-Control-Allow-Headers"] = (
-                        "Content-Type, Authorization, X-Requested-With, Accept"
+                        "Content-Type, Authorization, X-Requested-With, Accept, Origin"
                     )
                     headers["Access-Control-Max-Age"] = "86400"
-                    # Remove credentials header — incompatible with wildcard/null ACAO
+                    headers["Vary"] = "Origin"
+                    # Remove credentials — incompatible with wildcard/null origin
                     try:
                         del headers["Access-Control-Allow-Credentials"]
                     except Exception:
@@ -141,14 +152,17 @@ class SecurityHeadersMiddleware:
 
 app = FastAPI(title="Orgteh Infra", docs_url=None, redoc_url=None)
 
-app.add_middleware(SecurityHeadersMiddleware)
+# ── Middleware order matters — LAST add_middleware = OUTERMOST = runs last on responses ──
+# Order: SessionMiddleware (outer) → CORSMiddleware → SecurityHeadersMiddleware (innermost on req, outermost on resp)
+# On response: handler → SecurityHeaders (WINS, sets final CORS) → CORS → Session
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=False)
 app.add_middleware(CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,  # Must be False when allow_origins=["*"]
+    allow_credentials=False,   # Must be False with allow_origins=["*"]
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=False)
+app.add_middleware(SecurityHeadersMiddleware)  # Added LAST = outermost = final word on all response headers
 
 BASE_DIR      = Path(__file__).resolve().parent
 STATIC_DIR    = BASE_DIR / "static"

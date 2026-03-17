@@ -149,14 +149,15 @@ async def internal_chat_ui(request: Request):
 
 
 @router.options("/v1/chat/completions")
-async def openai_compatible_preflight():
-    """
-    Explicit OPTIONS handler for CORS preflight from embedded iframes.
-    SecurityHeadersMiddleware will override the headers with Access-Control-Allow-Origin: *
-    but this route ensures a 200 is returned immediately for OPTIONS.
-    """
+async def v1_preflight():
+    """Handle CORS preflight for embedded iframe requests (Origin: null)."""
     from fastapi.responses import Response
-    return Response(status_code=200)
+    return Response(status_code=200, headers={
+        "Access-Control-Allow-Origin":  "null",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Max-Age":       "86400",
+    })
 
 
 @router.post("/v1/chat/completions")
