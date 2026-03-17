@@ -68,18 +68,6 @@ class OptimizedStaticFiles(StaticFiles):
 # ============================================================================
 
 class SecurityHeadersMiddleware:
-    """
-    Outermost middleware — runs LAST on responses, so it wins over CORSMiddleware.
-    Added with app.add_middleware() LAST so Starlette puts it outermost in the stack.
-
-    Starlette middleware order rule:
-      add_middleware(A) then add_middleware(B) then add_middleware(C)
-      → request:  C → B → A → handler
-      → response: handler → A → B → C
-    So the LAST add_middleware call = outermost = runs last on response = wins.
-    """
-    _API_PREFIXES = ("/v1/", "/api/")
-
     def __init__(self, app: ASGIApp):
         self.app = app
 
@@ -87,16 +75,6 @@ class SecurityHeadersMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-
-        path   = scope.get("path", "")
-        is_api = path.startswith(self._API_PREFIXES)
-
-        # Read Origin header from the incoming request
-        origin = ""
-        for k, v in scope.get("headers", []):
-            if k == b"origin":
-                origin = v.decode("utf-8", errors="ignore")
-                break
 
         async def send_with_headers(message):
             if message["type"] == "http.response.start":
@@ -118,30 +96,6 @@ class SecurityHeadersMiddleware:
                     headers["X-Accel-Buffering"] = "no"
                     headers["Cache-Control"] = "no-cache, no-transform"
                     headers["Transfer-Encoding"] = "chunked"
-
-                # ── CORS: runs LAST so it overrides CORSMiddleware completely ──
-                # srcdoc iframes always send Origin: null.
-                # Standard: Access-Control-Allow-Origin: null allows null-origin requests.
-                # We cannot use credentials=True with wildcard (*) — browser rejects it.
-                if is_api:
-                    if origin in ("null", ""):
-                        # srcdoc / blob iframe origin
-                        headers["Access-Control-Allow-Origin"] = "null"
-                    else:
-                        # Regular browser or external API call
-                        headers["Access-Control-Allow-Origin"] = origin if origin else "*"
-                    headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-                    headers["Access-Control-Allow-Headers"] = (
-                        "Content-Type, Authorization, X-Requested-With, Accept, Origin"
-                    )
-                    headers["Access-Control-Max-Age"] = "86400"
-                    headers["Vary"] = "Origin"
-                    # Remove credentials — incompatible with wildcard/null origin
-                    try:
-                        del headers["Access-Control-Allow-Credentials"]
-                    except Exception:
-                        pass
-
             await send(message)
 
         await self.app(scope, receive, send_with_headers)
@@ -152,17 +106,14 @@ class SecurityHeadersMiddleware:
 
 app = FastAPI(title="Orgteh Infra", docs_url=None, redoc_url=None)
 
-# ── Middleware order matters — LAST add_middleware = OUTERMOST = runs last on responses ──
-# Order: SessionMiddleware (outer) → CORSMiddleware → SecurityHeadersMiddleware (innermost on req, outermost on resp)
-# On response: handler → SecurityHeaders (WINS, sets final CORS) → CORS → Session
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=False)
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,   # Must be False with allow_origins=["*"]
+    allow_origins=["*", "null"],   # null = srcdoc/blob iframes
+    allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
-app.add_middleware(SecurityHeadersMiddleware)  # Added LAST = outermost = final word on all response headers
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=False)
 
 BASE_DIR      = Path(__file__).resolve().parent
 STATIC_DIR    = BASE_DIR / "static"
@@ -533,6 +484,106 @@ async def hub_delete_chat_endpoint(request: Request, session_id: str):
         return JSONResponse({"ok": True})
     except Exception as e:
         return JSONResponse({"error": str(e)}, 500)
+
+# ============================================================================
+# PREVIEW IFRAME PROXY  — no-CORS endpoint for embedded preview apps
+# ============================================================================
+# Why a separate endpoint?
+#   srcdoc iframes always send Origin: null. Browsers allow ACAO:* for null-origin
+#   requests ONLY if there are zero credentials (no Authorization header, no cookies).
+#   Standard /v1/chat/completions requires "Authorization: Bearer <key>" which makes
+#   the request "credentialed" → browser blocks ACAO:*.
+#
+#   Solution: api_key lives in the JSON body, not a header.
+#   Request has only Content-Type:application/json → simple enough for ACAO:* to win.
+
+_PREVIEW_CORS = {
+    "Access-Control-Allow-Origin":  "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Max-Age":       "86400",
+}
+
+@app.options("/api/preview-proxy")
+async def preview_proxy_preflight():
+    """Respond to CORS preflight from null-origin iframes immediately."""
+    return Response(status_code=200, headers=_PREVIEW_CORS)
+
+
+@app.post("/api/preview-proxy")
+async def preview_proxy(request: Request):
+    """
+    Proxy for AI calls from embedded preview iframes.
+    api_key comes from the JSON body — avoids Authorization header
+    so the request carries no credentials and ACAO:* is valid.
+    """
+    from fastapi.responses import Response as _Response
+    try:
+        body = await request.json()
+    except Exception:
+        r = JSONResponse({"error": "Invalid JSON"}, status_code=400)
+        r.headers.update(_PREVIEW_CORS)
+        return r
+
+    api_key = body.pop("api_key", None) or body.pop("orgteh_key", None)
+    if not api_key:
+        r = JSONResponse({"error": "api_key required in body"}, status_code=401)
+        r.headers.update(_PREVIEW_CORS)
+        return r
+
+    user = get_user_by_api_key(api_key)
+    if not user:
+        r = JSONResponse({"error": "Invalid API key"}, status_code=401)
+        r.headers.update(_PREVIEW_CORS)
+        return r
+
+    # stream=false only — collect full response for iframe compatibility
+    body["stream"] = False
+
+    from services.providers import smart_chat_stream
+    chunks = []
+    try:
+        async for chunk in smart_chat_stream(body, user["email"]):
+            if isinstance(chunk, bytes):
+                chunks.append(chunk.decode("utf-8", errors="ignore"))
+            else:
+                chunks.append(str(chunk))
+    except Exception as e:
+        r = JSONResponse({"error": str(e)}, status_code=500)
+        r.headers.update(_PREVIEW_CORS)
+        return r
+
+    # smart_chat_stream yields SSE lines like: data: {...}\n
+    # Find the last non-[DONE] data line and extract the content
+    full_content = ""
+    for line in "".join(chunks).splitlines():
+        line = line.strip()
+        if line.startswith("data:") and "[DONE]" not in line:
+            try:
+                import json as _json
+                chunk_data = _json.loads(line[5:].strip())
+                delta = chunk_data.get("choices", [{}])[0].get("delta", {})
+                full_content += delta.get("content", "")
+            except Exception:
+                pass
+
+    # Return OpenAI-compatible non-streaming response
+    import time as _time
+    result = {
+        "id": "preview-" + str(int(_time.time())),
+        "object": "chat.completion",
+        "model": body.get("model", ""),
+        "choices": [{
+            "index": 0,
+            "message": {"role": "assistant", "content": full_content},
+            "finish_reason": "stop"
+        }],
+        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    }
+    r = JSONResponse(result)
+    r.headers.update(_PREVIEW_CORS)
+    return r
+
 
 # ============================================================================
 # CODE PROCESSOR

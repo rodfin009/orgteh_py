@@ -1148,40 +1148,64 @@ function renderPreview(targetFilename) {
     //        Fix: e.source is null for srcdoc iframes in Chrome mobile, so the parent
     //        listener uses frame.contentWindow directly (see message listener below).
     const fetchBridge = `<script>(function(){
+// ── Orgteh Preview Proxy Bridge ──────────────────────────────────────────
+// Intercepts fetch() calls targeting the Orgteh AI API and rewrites them to
+// use /api/preview-proxy — a CORS-safe endpoint that accepts api_key in the
+// JSON body (no Authorization header = no credentials = ACAO:* works fine).
 var _pend={};
-function _installBridge(){
-  var _orig=window.fetch.bind(window);
-  window.fetch=function(url,opts){
-    var us=typeof url==='string'?url:((url&&url.url)||String(url));
-    if(us.indexOf('orgteh.com')!==-1||us.startsWith('/v1/')||us.startsWith('/api/')){
-      return new Promise(function(res,rej){
-        var id='f'+Math.random().toString(36).slice(2);
-        _pend[id]={res:res,rej:rej,ts:Date.now()};
-        // timeout after 15s
-        setTimeout(function(){
-          if(_pend[id]){delete _pend[id];rej(new Error('timeout'));}
-        },15000);
-        try{window.parent.postMessage({type:'orgteh_fetch_req',id:id,url:us,
-          method:(opts&&opts.method)||'GET',
-          headers:(opts&&opts.headers)||{},
-          body:(opts&&opts.body)||null},'*');}
-        catch(e){rej(e);}
+
+function _proxyFetch(us, opts) {
+  return new Promise(function(res, rej) {
+    var id = 'f' + Math.random().toString(36).slice(2);
+    _pend[id] = {res: res, rej: rej};
+    setTimeout(function() {
+      if (_pend[id]) { delete _pend[id]; rej(new Error('timeout')); }
+    }, 20000);
+    // Extract api_key from Authorization header, move it to the body
+    var authHeader = (opts && opts.headers && (
+      opts.headers['Authorization'] || opts.headers['authorization'] || ''
+    )) || '';
+    var apiKey = authHeader.replace(/^Bearer\s+/i, '').trim();
+    var bodyObj = {};
+    try { bodyObj = JSON.parse(opts && opts.body ? opts.body : '{}'); } catch(_) {}
+    if (apiKey) bodyObj.api_key = apiKey;
+    bodyObj.stream = false;  // proxy always returns non-streaming
+    // Rewrite to /api/preview-proxy — same domain, no CORS complications
+    fetch('/api/preview-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyObj)
+    }).then(function(r) {
+      return r.json().then(function(b) {
+        _pend[id] && _pend[id].res(new Response(JSON.stringify(b), {
+          status: r.status,
+          headers: { 'Content-Type': 'application/json' }
+        }));
+        delete _pend[id];
       });
+    }).catch(function(e) {
+      _pend[id] && _pend[id].rej(e);
+      delete _pend[id];
+    });
+  });
+}
+
+function _installBridge() {
+  var _orig = window.fetch.bind(window);
+  window.fetch = function(url, opts) {
+    var us = typeof url === 'string' ? url : ((url && url.url) || String(url));
+    // Intercept any Orgteh AI API call
+    if (us.indexOf('orgteh.com') !== -1 || us.startsWith('/v1/') || us.startsWith('/api/chat')) {
+      return _proxyFetch(us, opts);
     }
-    return _orig(url,opts);
+    return _orig(url, opts);
   };
 }
-// Install immediately AND after DOMContentLoaded to handle late script injection
+
 _installBridge();
-if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',_installBridge);}
-window.addEventListener('message',function(e){
-  if(!e.data||e.data.type!=='orgteh_fetch_res')return;
-  var p=_pend[e.data.id];if(!p)return;
-  delete _pend[e.data.id];
-  if(e.data.err){p.rej(new Error(e.data.err));return;}
-  p.res(new Response(JSON.stringify(e.data.body),
-    {status:e.data.status,headers:{'Content-Type':'application/json'}}));
-});
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _installBridge);
+}
 })();<\/script>`;
 
     const _allInjected = navInterceptor + fetchBridge;
