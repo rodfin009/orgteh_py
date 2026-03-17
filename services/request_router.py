@@ -12,7 +12,6 @@ from database import get_user_by_api_key, get_redis
 
 router = APIRouter()
 
-
 # ============================================================================
 # CORE ROUTING FUNCTION — تُستخدم داخلياً وبواسطة endpoints أخرى
 # ============================================================================
@@ -55,7 +54,6 @@ async def handle_chat_request(email: str, payload: dict):
             status_code=503,
         )
 
-
 # ============================================================================
 # CHAT ENDPOINTS
 # ============================================================================
@@ -63,7 +61,7 @@ async def handle_chat_request(email: str, payload: dict):
 @router.post("/api/chat/trial")
 async def trial_chat_endpoint(request: Request):
     try:
-        from services.auth import get_current_user_email  # local import لتجنب الاستيراد الدائري
+        from services.auth import get_current_user_email
 
         data  = await request.json()
         email = get_current_user_email(request)
@@ -106,7 +104,7 @@ async def trial_chat_endpoint(request: Request):
 @router.post("/api/chat")
 async def internal_chat_ui(request: Request):
     try:
-        from services.auth import get_current_user_email  # local import لتجنب الاستيراد الدائري
+        from services.auth import get_current_user_email
 
         data  = await request.json()
         email = get_current_user_email(request)
@@ -148,17 +146,7 @@ async def internal_chat_ui(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
-@router.options("/v1/chat/completions")
-async def v1_preflight():
-    """Handle CORS preflight for embedded iframe requests (Origin: null)."""
-    from fastapi.responses import Response
-    return Response(status_code=200, headers={
-        "Access-Control-Allow-Origin":  "null",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Max-Age":       "86400",
-    })
-
+# تم حذف الدالة @router.options("/v1/chat/completions") بالكامل لترك معالجة الـ CORS للميدل وير العام
 
 @router.post("/v1/chat/completions")
 async def openai_compatible_proxy(request: Request):

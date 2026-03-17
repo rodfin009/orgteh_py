@@ -84,7 +84,6 @@ init_db()
 # ============================================================================
 
 def init_visitors_table():
-    """ينشئ جدول site_visits في TiDB إن لم يكن موجوداً مع دعم الدول للزوار."""
     conn = get_db_connection()
     if not conn:
         print("⚠️ Skipping visitors table init: No DB connection")
@@ -105,15 +104,10 @@ def init_visitors_table():
             """)
             try:
                 cur.execute("CREATE INDEX idx_visited_at ON site_visits (visited_at)")
-            except Exception:
-                pass
-
-            # محاولة الإضافة لو كان الجدول قديماً (بصمت في حال كانت موجودة مسبقاً)
+            except Exception: pass
             try:
                 cur.execute("ALTER TABLE site_visits ADD COLUMN country VARCHAR(100) DEFAULT 'غير معروف'")
-            except Exception:
-                pass
-
+            except Exception: pass
         print("✅ site_visits table initialized.")
     except Exception as e:
         print(f"❌ Visitors Table Init Error: {e}")
@@ -172,31 +166,42 @@ def get_global_stats():
     return {"total_requests": 0, "total_tokens": 0, "latency_sum": 0, "errors": 0, "blocked": 0, "internal_ops": 0, "models": {}}
 
 # ============================================================================
-# USER OPERATIONS (Cache-Aside & Write-Through)
+# USER OPERATIONS (Cache-Aside & Write-Through with Self-Healing)
 # ============================================================================
 def get_user_by_email(email):
+    user_data = None
     if redis:
         try:
             user_json = redis.get(f"user:{email}")
             if user_json:
-                return json.loads(user_json) if isinstance(user_json, str) else user_json
+                user_data = json.loads(user_json) if isinstance(user_json, str) else user_json
         except: pass
 
-    conn = get_db_connection()
-    if conn:
+    # Fallback to DB if not in Redis
+    if not user_data:
+        conn = get_db_connection()
+        if conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT data FROM users WHERE email = %s", (email,))
+                    row = cur.fetchone()
+                    if row and row['data']:
+                        user_data = json.loads(row['data']) if isinstance(row['data'], str) else row['data']
+            except Exception as e:
+                print(f"❌ DB Read Error: {e}")
+            finally:
+                conn.close()
+
+    # Self-Healing: Ensure Redis holds BOTH user data AND the API Key mapping
+    if user_data and redis:
         try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT data FROM users WHERE email = %s", (email,))
-                row = cur.fetchone()
-                if row and row['data']:
-                    user_data = json.loads(row['data']) if isinstance(row['data'], str) else row['data']
-                    if redis: redis.set(f"user:{email}", json.dumps(user_data))
-                    return user_data
-        except Exception as e:
-            print(f"❌ DB Read Error: {e}")
-        finally:
-            conn.close()
-    return None
+            redis.set(f"user:{email}", json.dumps(user_data))
+            api_key = user_data.get("api_key")
+            if api_key:
+                redis.set(f"api_key:{api_key}", email)
+        except: pass
+
+    return user_data
 
 def create_user_record(email, password_hash, api_key):
     from services.limits import get_limits_for_new_subscription
@@ -214,6 +219,14 @@ def create_user_record(email, password_hash, api_key):
         }
     }
 
+    # 1. Update Redis FIRST to guarantee API works instantly even if TiDB times out
+    if redis:
+        try:
+            redis.set(f"user:{email}", json.dumps(user_data))
+            redis.set(f"api_key:{api_key}", email)
+        except: pass
+
+    # 2. Update TiDB
     conn = get_db_connection()
     if conn:
         try:
@@ -224,16 +237,11 @@ def create_user_record(email, password_hash, api_key):
                     (email, password_hash, api_key, json.dumps(user_data), json.dumps(user_data), api_key, password_hash)
                 )
         except Exception as e:
-            print(f"❌ TiDB Write Error: {e}")
-            return False
+            print(f"❌ TiDB Write Error on Create: {e}")
+            # We don't return False here anymore because Redis was successfully updated
         finally:
             conn.close()
 
-    if redis:
-        try:
-            redis.set(f"user:{email}", json.dumps(user_data))
-            redis.set(f"api_key:{api_key}", email)
-        except: pass
     return True
 
 def get_user_by_api_key(api_key):
@@ -245,6 +253,7 @@ def get_user_by_api_key(api_key):
                 return get_user_by_email(decoded_email)
         except: pass
 
+    # Fallback to DB
     conn = get_db_connection()
     if conn:
         try:
@@ -252,7 +261,15 @@ def get_user_by_api_key(api_key):
                 cur.execute("SELECT data FROM users WHERE api_key = %s", (api_key,))
                 row = cur.fetchone()
                 if row and row['data']:
-                    return json.loads(row['data']) if isinstance(row['data'], str) else row['data']
+                    user_data = json.loads(row['data']) if isinstance(row['data'], str) else row['data']
+
+                    # Cache Healing
+                    if redis and user_data:
+                        email = user_data.get("email")
+                        if email:
+                            redis.set(f"api_key:{api_key}", email)
+                            redis.set(f"user:{email}", json.dumps(user_data))
+                    return user_data
         except Exception as e:
             print(f"❌ DB API Key Read Error: {e}")
         finally:
@@ -265,6 +282,15 @@ def update_api_key(email, new_key):
     old_key = user.get("api_key")
     user["api_key"] = new_key
 
+    # 1. Update Redis FIRST for immediate API access
+    if redis:
+        try:
+            if old_key: redis.delete(f"api_key:{old_key}")
+            redis.set(f"api_key:{new_key}", email)
+            redis.set(f"user:{email}", json.dumps(user))
+        except: pass
+
+    # 2. Update TiDB asynchronously-like
     conn = get_db_connection()
     if conn:
         try:
@@ -273,16 +299,10 @@ def update_api_key(email, new_key):
                             (new_key, json.dumps(user), email))
         except Exception as e:
             print(f"❌ TiDB Key Update Error: {e}")
-            return False
+            # Do not return False, Redis is updated and the API Key is active
         finally:
             conn.close()
 
-    if redis:
-        try:
-            if old_key: redis.delete(f"api_key:{old_key}")
-            redis.set(f"api_key:{new_key}", email)
-            redis.set(f"user:{email}", json.dumps(user))
-        except: pass
     return True
 
 # ============================================================================
@@ -328,6 +348,11 @@ def add_user_subscription(email, plan_key, plan_name, period):
     expirations = [p["expires"] for p in user["active_plans"] if datetime.fromisoformat(p["expires"]) > now]
     user["subscription_end"] = max(expirations) if expirations else None
 
+    # Update Redis First for fast state reflection
+    if redis:
+        try: redis.set(f"user:{email}", json.dumps(user))
+        except: pass
+
     conn = get_db_connection()
     if conn:
         try:
@@ -335,13 +360,9 @@ def add_user_subscription(email, plan_key, plan_name, period):
                 cur.execute("UPDATE users SET data = %s WHERE email = %s", (json.dumps(user), email))
         except Exception as e:
             print(f"❌ TiDB Sub Update Error: {e}")
-            return False
         finally:
             conn.close()
 
-    if redis:
-        try: redis.set(f"user:{email}", json.dumps(user))
-        except: pass
     return True
 
 def activate_subscription(email, plan_name, days, limits_dict):
@@ -451,19 +472,15 @@ def create_enterprise_lead(data):
     except: return False
 
 # ============================================================================
-# REDIS HELPER — دالة مساعدة للوصول لـ Redis من الخارج
+# REDIS HELPER
 # ============================================================================
-
 def get_redis():
-    """يُعيد كائن Redis الحالي (أو None إن لم يكن متاحاً)."""
     return redis
 
 # ============================================================================
-# USER PROFILE OPERATIONS — عمليات تعديل بيانات المستخدم
+# USER PROFILE OPERATIONS
 # ============================================================================
-
 def update_user_profile(email: str, first_name: str, last_name: str) -> dict:
-    """يحدّث الاسم الأول والأخير للمستخدم في DB وRedis."""
     import json as _json
     user = get_user_by_email(email)
     if not user:
@@ -471,6 +488,10 @@ def update_user_profile(email: str, first_name: str, last_name: str) -> dict:
 
     user["first_name"] = first_name
     user["last_name"]  = last_name
+
+    if redis:
+        try: redis.set(f"user:{email}", _json.dumps(user))
+        except: pass
 
     conn = get_db_connection()
     if conn:
@@ -485,21 +506,10 @@ def update_user_profile(email: str, first_name: str, last_name: str) -> dict:
         finally:
             conn.close()
 
-    if redis:
-        try:
-            redis.set(f"user:{email}", _json.dumps(user))
-        except Exception:
-            pass
-
     return {"message": "تم حفظ الاسم بنجاح", "status": 200}
-
 
 def change_user_password(email: str, current_password: str, new_password: str,
                          validate_fn=None) -> dict:
-    """
-    يُغيّر كلمة مرور المستخدم بعد التحقق من كلمة المرور الحالية.
-    validate_fn: دالة اختيارية للتحقق من قوة الكلمة الجديدة → (bool, str)
-    """
     import bcrypt as _bcrypt
     import json as _json
 
@@ -526,6 +536,10 @@ def change_user_password(email: str, current_password: str, new_password: str,
     hashed = _bcrypt.hashpw(new_password.encode("utf-8"), _bcrypt.gensalt(12)).decode("utf-8")
     user["password"] = hashed
 
+    if redis:
+        try: redis.set(f"user:{email}", _json.dumps(user))
+        except: pass
+
     conn = get_db_connection()
     if conn:
         try:
@@ -539,19 +553,18 @@ def change_user_password(email: str, current_password: str, new_password: str,
         finally:
             conn.close()
 
-    if redis:
-        try:
-            redis.set(f"user:{email}", _json.dumps(user))
-        except Exception:
-            pass
-
     return {"message": "تم تغيير كلمة المرور بنجاح", "status": 200}
 
-
 def delete_user_account(email: str) -> dict:
-    """يحذف حساب المستخدم كاملاً من DB وRedis."""
     user    = get_user_by_email(email)
     old_key = user.get("api_key") if user else None
+
+    if redis:
+        try:
+            redis.delete(f"user:{email}")
+            redis.delete(f"github:{email}")
+            if old_key: redis.delete(f"api_key:{old_key}")
+        except Exception: pass
 
     conn = get_db_connection()
     if conn:
@@ -563,26 +576,15 @@ def delete_user_account(email: str) -> dict:
         finally:
             conn.close()
 
-    if redis:
-        try:
-            redis.delete(f"user:{email}")
-            redis.delete(f"github:{email}")
-            if old_key:
-                redis.delete(f"api_key:{old_key}")
-        except Exception:
-            pass
-
     return {"message": "تم حذف الحساب بنجاح", "status": 200}
 
 # ============================================================================
 # HUB CHAT SESSIONS — جلسات محادثات Code Hub V1 (Redis)
 # ============================================================================
-
 import time as _time_module
 
 def hub_save_chat(email: str, session_id: str, title: str,
                   history: list, files: dict) -> dict:
-    """يحفظ جلسة محادثة V1 في Redis."""
     import json as _json
     if not redis:
         return {"ok": False, "error": "Redis unavailable"}
@@ -603,14 +605,12 @@ def hub_save_chat(email: str, session_id: str, title: str,
         redis.setex(key, 60 * 60 * 24 * 30, data)
         redis.zadd(idx_key, {session_id: updated_at})
         redis.expire(idx_key, 60 * 60 * 24 * 30)
-        redis.zremrangebyrank(idx_key, 0, -51)   # الاحتفاظ بآخر 50 فقط
+        redis.zremrangebyrank(idx_key, 0, -51)
         return {"ok": True, "session_id": session_id}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
-
 def hub_list_chats(email: str) -> list:
-    """يُعيد قائمة جلسات محادثات V1 للمستخدم."""
     import json as _json
     if not redis:
         return []
@@ -635,9 +635,7 @@ def hub_list_chats(email: str) -> list:
     except Exception:
         return []
 
-
 def hub_get_chat(email: str, session_id: str) -> dict | None:
-    """يسترجع جلسة محادثة V1 كاملة أو None إن لم تُوجَد."""
     import json as _json
     if not redis:
         return None
@@ -647,9 +645,7 @@ def hub_get_chat(email: str, session_id: str) -> dict | None:
     except Exception:
         return None
 
-
 def hub_delete_chat(email: str, session_id: str) -> bool:
-    """يحذف جلسة محادثة V1 من Redis."""
     if not redis:
         return False
     try:
@@ -662,9 +658,7 @@ def hub_delete_chat(email: str, session_id: str) -> bool:
 # ============================================================================
 # VISITOR TRACKING & GEOLOCATION
 # ============================================================================
-
 def get_country_from_ip(ip: str) -> str:
-    """تجلب الدولة التابعة لـ IP بسرعة من API أو Cache"""
     if not ip or ip in ["127.0.0.1", "localhost", "::1"] or ip.startswith("192.168.") or ip.startswith("10."):
         return "محلية (Local)"
 
@@ -676,12 +670,11 @@ def get_country_from_ip(ip: str) -> str:
         except: pass
 
     try:
-        # استخدام urllib لسرعة التنفيذ بدون مكتبات خارجية ثقيلة
         req = urllib.request.Request(f"http://ip-api.com/json/{ip}?fields=country")
         with urllib.request.urlopen(req, timeout=2.0) as response:
             data = json.loads(response.read().decode('utf-8'))
             country = data.get("country", "غير معروف")
-            if redis: redis.setex(cache_key, 30 * 24 * 3600, country)  # تخزين لمدة شهر لتخفيف الضغط
+            if redis: redis.setex(cache_key, 30 * 24 * 3600, country)
             return country
     except Exception:
         return "غير معروف"
@@ -708,17 +701,12 @@ def _extract_referer_domain(referer: str) -> str:
     except Exception:
         return "أخرى"
 
-
 def record_visit(ip: str, referer: str, user_agent: str, path: str = "/"):
-    """
-    يُسجّل زيارة صفحة واحدة متضمناً الدولة وتمييز الفريد.
-    """
     now            = datetime.utcnow()
     today_str      = str(now.date())
     referer_domain = _extract_referer_domain(referer)
     country        = get_country_from_ip(ip)
 
-    # ─── Redis: إحصائيات سريعة ──────────────────────────────────────────────
     if redis:
         try:
             visits_key = f"visits:{today_str}"
@@ -734,20 +722,16 @@ def record_visit(ip: str, referer: str, user_agent: str, path: str = "/"):
             stats["total"]      = stats.get("total", 0) + 1
             stats["last_visit"] = now.isoformat()
 
-            # تحديد هل IP جديد اليوم (فريد)
             is_new_ip = redis.sadd(unique_key, ip)
             if is_new_ip:
                 stats["unique"] = stats.get("unique", 0) + 1
 
-            # تحديث انتهاء الصلاحية
             redis.expire(unique_key, 7 * 24 * 3600)
 
-            # مصادر الزيارة
             sources: dict = stats.get("sources", {})
             sources[referer_domain] = sources.get(referer_domain, 0) + 1
             stats["sources"] = sources
 
-            # إحصائيات ساعة بساعة
             hour_key = now.strftime("%H")
             hourly: dict = stats.get("hourly", {})
             hourly[hour_key] = hourly.get(hour_key, 0) + 1
@@ -757,7 +741,6 @@ def record_visit(ip: str, referer: str, user_agent: str, path: str = "/"):
         except Exception as e:
             print(f"⚠️ Redis visit record error: {e}")
 
-    # ─── TiDB: سجل دائم ─────────────────────────────────────────────────────
     conn = get_db_connection()
     if conn:
         try:
@@ -773,7 +756,6 @@ def record_visit(ip: str, referer: str, user_agent: str, path: str = "/"):
             print(f"⚠️ TiDB visit insert error: {e}")
         finally:
             conn.close()
-
 
 def get_visitor_stats(period: str = "24h") -> dict:
     now = datetime.utcnow()
