@@ -574,72 +574,85 @@ async def preview_proxy(request: Request):
     api_key comes from the JSON body — avoids Authorization header
     so the request carries no credentials and ACAO:* is valid.
     """
-    from fastapi.responses import Response as _Response
+    import json as _json
+    import time as _time
+
+    def _cors_json(data: dict, status: int = 200):
+        r = JSONResponse(data, status_code=status)
+        r.headers.update(_PREVIEW_CORS)
+        return r
+
+    # ── Wrap everything so Vercel never gets a chance to return its own 500 ──
     try:
-        body = await request.json()
-    except Exception:
-        r = JSONResponse({"error": "Invalid JSON"}, status_code=400)
-        r.headers.update(_PREVIEW_CORS)
-        return r
+        # 1. Parse body
+        try:
+            body = await request.json()
+        except Exception:
+            return _cors_json({"error": "Invalid JSON"}, 400)
 
-    api_key = body.pop("api_key", None) or body.pop("orgteh_key", None)
-    if not api_key:
-        r = JSONResponse({"error": "api_key required in body"}, status_code=401)
-        r.headers.update(_PREVIEW_CORS)
-        return r
+        # 2. Extract api_key
+        api_key = body.pop("api_key", None) or body.pop("orgteh_key", None)
+        if not api_key:
+            return _cors_json({"error": "api_key required in body"}, 401)
 
-    user = get_user_by_api_key(api_key)
-    if not user:
-        r = JSONResponse({"error": "Invalid API key"}, status_code=401)
-        r.headers.update(_PREVIEW_CORS)
-        return r
+        # 3. Validate api_key
+        user = get_user_by_api_key(api_key)
+        if not user:
+            return _cors_json({"error": "Invalid API key"}, 401)
 
-    # stream=false only — collect full response for iframe compatibility
-    body["stream"] = False
+        # 4. Always stream=True so smart_chat_stream works as an async generator
+        body["stream"] = True
 
-    from services.providers import smart_chat_stream
-    chunks = []
-    try:
+        # 5. Acquire provider slot (required before smart_chat_stream)
+        from services.providers import smart_chat_stream, acquire_provider_slot
+        try:
+            await acquire_provider_slot(is_priority=False)
+        except Exception:
+            pass  # non-fatal — proceed anyway
+
+        # 6. Collect SSE chunks
+        chunks = []
         async for chunk in smart_chat_stream(body, user["email"]):
             if isinstance(chunk, bytes):
                 chunks.append(chunk.decode("utf-8", errors="ignore"))
             else:
                 chunks.append(str(chunk))
-    except Exception as e:
-        r = JSONResponse({"error": str(e)}, status_code=500)
-        r.headers.update(_PREVIEW_CORS)
-        return r
 
-    # smart_chat_stream yields SSE lines like: data: {...}\n
-    # Find the last non-[DONE] data line and extract the content
-    full_content = ""
-    for line in "".join(chunks).splitlines():
-        line = line.strip()
-        if line.startswith("data:") and "[DONE]" not in line:
+        # 7. Parse SSE → extract full content
+        full_content = ""
+        for line in "".join(chunks).splitlines():
+            line = line.strip()
+            if not line.startswith("data:") or "[DONE]" in line:
+                continue
             try:
-                import json as _json
                 chunk_data = _json.loads(line[5:].strip())
+                # streaming delta
                 delta = chunk_data.get("choices", [{}])[0].get("delta", {})
                 full_content += delta.get("content", "")
+                # non-streaming message (fallback)
+                if not delta:
+                    msg = chunk_data.get("choices", [{}])[0].get("message", {})
+                    full_content += msg.get("content", "")
             except Exception:
                 pass
 
-    # Return OpenAI-compatible non-streaming response
-    import time as _time
-    result = {
-        "id": "preview-" + str(int(_time.time())),
-        "object": "chat.completion",
-        "model": body.get("model", ""),
-        "choices": [{
-            "index": 0,
-            "message": {"role": "assistant", "content": full_content},
-            "finish_reason": "stop"
-        }],
-        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-    }
-    r = JSONResponse(result)
-    r.headers.update(_PREVIEW_CORS)
-    return r
+        # 8. Return OpenAI-compatible response
+        result = {
+            "id": "preview-" + str(int(_time.time())),
+            "object": "chat.completion",
+            "model": body.get("model", ""),
+            "choices": [{
+                "index": 0,
+                "message": {"role": "assistant", "content": full_content},
+                "finish_reason": "stop"
+            }],
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        }
+        return _cors_json(result)
+
+    except Exception as e:
+        # Last-resort catch — always return JSON, never let Vercel return plain "Internal Server Error"
+        return _cors_json({"error": f"preview-proxy error: {str(e)}"}, 500)
 
 
 # ============================================================================
