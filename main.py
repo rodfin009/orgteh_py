@@ -102,17 +102,11 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, send_with_headers)
 
 
-class PreviewProxyCORSMiddleware:
+class PublicApiCORSMiddleware:
     """
-    Outermost middleware — runs AFTER CORSMiddleware on responses.
-    Forces correct CORS headers for /api/preview-proxy so that
-    srcdoc iframes (Origin: null) can reach it without credentials conflicts.
-
-    Why needed:
-      CORSMiddleware with allow_credentials=True reflects the request origin
-      and adds Access-Control-Allow-Credentials: true.
-      Browsers reject: ACAO=null + ACAC=true from sandboxed iframe origins.
-      Fix: override with ACAO=* and strip ACAC for this one endpoint.
+    هذا الميدل وير يضمن أن مسارات الـ API العامة (التي تستخدم API Key)
+    تقبل الطلبات من أي مكان (حتى من ملفات HTML المحلية file://)
+    عن طريق إزالة قيود الكوكيز عنها وفتح النطاقات بالكامل.
     """
     def __init__(self, app: ASGIApp):
         self.app = app
@@ -124,35 +118,38 @@ class PreviewProxyCORSMiddleware:
 
         path = scope.get("path", "")
 
-        # Handle OPTIONS preflight for /api/preview-proxy directly
-        if path == "/api/preview-proxy" and scope.get("method", "") == "OPTIONS":
-            async def send_preflight(message):
-                if message["type"] == "http.response.start":
-                    headers = MutableHeaders(scope=message)
-                    headers["Access-Control-Allow-Origin"] = "*"
-                    headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-                    headers["Access-Control-Allow-Headers"] = "Content-Type"
-                    headers["Access-Control-Max-Age"] = "86400"
-                    # Remove credentials header — incompatible with wildcard origin
-                    if "access-control-allow-credentials" in headers:
-                        del headers["access-control-allow-credentials"]
-                await send(message)
-            await self.app(scope, receive, send_preflight)
-            return
+        # المسارات التي يجب أن تكون متاحة للجميع بدون قيود الكوكيز
+        public_paths = ["/api/preview-proxy", "/v1/chat/completions"]
 
-        # For actual POST requests to /api/preview-proxy
-        if path == "/api/preview-proxy":
-            async def send_with_cors(message):
-                if message["type"] == "http.response.start":
-                    headers = MutableHeaders(scope=message)
-                    headers["Access-Control-Allow-Origin"] = "*"
-                    headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-                    headers["Access-Control-Allow-Headers"] = "Content-Type"
-                    if "access-control-allow-credentials" in headers:
-                        del headers["access-control-allow-credentials"]
-                await send(message)
-            await self.app(scope, receive, send_with_cors)
-            return
+        if path in public_paths:
+            # معالجة طلبات ما قبل التحقق (OPTIONS)
+            if scope.get("method", "") == "OPTIONS":
+                async def send_preflight(message):
+                    if message["type"] == "http.response.start":
+                        headers = MutableHeaders(scope=message)
+                        headers["Access-Control-Allow-Origin"] = "*"
+                        headers["Access-Control-Allow-Methods"] = "POST, OPTIONS, GET"
+                        headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization" 
+                        headers["Access-Control-Max-Age"] = "86400"
+                        if "access-control-allow-credentials" in headers:
+                            del headers["access-control-allow-credentials"]
+                    await send(message)
+                await self.app(scope, receive, send_preflight)
+                return
+
+            # معالجة الطلبات الفعلية (POST/GET)
+            else:
+                async def send_with_cors(message):
+                    if message["type"] == "http.response.start":
+                        headers = MutableHeaders(scope=message)
+                        headers["Access-Control-Allow-Origin"] = "*"
+                        headers["Access-Control-Allow-Methods"] = "POST, OPTIONS, GET"
+                        headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+                        if "access-control-allow-credentials" in headers:
+                            del headers["access-control-allow-credentials"]
+                    await send(message)
+                await self.app(scope, receive, send_with_cors)
+                return
 
         await self.app(scope, receive, send)
 
@@ -171,7 +168,7 @@ app.add_middleware(CORSMiddleware,
 )
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, https_only=False)
 # ↓ OUTERMOST — processes responses AFTER CORSMiddleware, so it wins the header battle
-app.add_middleware(PreviewProxyCORSMiddleware)
+app.add_middleware(PublicApiCORSMiddleware)
 
 BASE_DIR      = Path(__file__).resolve().parent
 STATIC_DIR    = BASE_DIR / "static"
@@ -546,14 +543,6 @@ async def hub_delete_chat_endpoint(request: Request, session_id: str):
 # ============================================================================
 # PREVIEW IFRAME PROXY  — no-CORS endpoint for embedded preview apps
 # ============================================================================
-# Why a separate endpoint?
-#   srcdoc iframes always send Origin: null. Browsers allow ACAO:* for null-origin
-#   requests ONLY if there are zero credentials (no Authorization header, no cookies).
-#   Standard /v1/chat/completions requires "Authorization: Bearer <key>" which makes
-#   the request "credentialed" → browser blocks ACAO:*.
-#
-#   Solution: api_key lives in the JSON body, not a header.
-#   Request has only Content-Type:application/json → simple enough for ACAO:* to win.
 
 _PREVIEW_CORS = {
     "Access-Control-Allow-Origin":  "*",
@@ -658,9 +647,6 @@ async def preview_proxy(request: Request):
 
 # ============================================================================
 # HUB AI PROXY — session-authenticated proxy for preview iframe bridge
-# The bridge in scripts.html runs on the parent page which has a valid session.
-# This endpoint validates via session cookie (NOT api_key), eliminating all
-# api_key reverse-lookup failures (Redis key missing / TiDB timeout).
 # ============================================================================
 
 @app.post("/api/hub/ai-proxy")
