@@ -657,6 +657,65 @@ async def preview_proxy(request: Request):
 
 
 # ============================================================================
+# HUB AI PROXY — session-authenticated proxy for preview iframe bridge
+# The bridge in scripts.html runs on the parent page which has a valid session.
+# This endpoint validates via session cookie (NOT api_key), eliminating all
+# api_key reverse-lookup failures (Redis key missing / TiDB timeout).
+# ============================================================================
+
+@app.post("/api/hub/ai-proxy")
+async def hub_ai_proxy(request: Request):
+    import json as _json
+    import time as _time
+
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Login required"}, 401)
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, 400)
+
+    # Remove any api_key the client may have included (not needed here)
+    body.pop("api_key", None)
+    body.pop("orgteh_key", None)
+    body["stream"] = True  # always stream so smart_chat_stream works as generator
+
+    from services.providers import smart_chat_stream, acquire_provider_slot
+    try:
+        await acquire_provider_slot(is_priority=False)
+    except Exception:
+        pass
+
+    chunks = []
+    try:
+        async for chunk in smart_chat_stream(body, email):
+            chunks.append(chunk.decode("utf-8", errors="ignore") if isinstance(chunk, bytes) else str(chunk))
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, 500)
+
+    full_content = ""
+    for line in "".join(chunks).splitlines():
+        line = line.strip()
+        if not line.startswith("data:") or "[DONE]" in line:
+            continue
+        try:
+            d = _json.loads(line[5:].strip())
+            full_content += d.get("choices", [{}])[0].get("delta", {}).get("content", "")
+        except Exception:
+            pass
+
+    return JSONResponse({
+        "id": "hub-proxy-" + str(int(_time.time())),
+        "object": "chat.completion",
+        "model": body.get("model", ""),
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": full_content}, "finish_reason": "stop"}],
+        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    })
+
+
+# ============================================================================
 # CODE PROCESSOR
 # ============================================================================
 

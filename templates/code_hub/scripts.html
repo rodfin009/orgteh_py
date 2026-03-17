@@ -2704,24 +2704,35 @@ document.addEventListener('DOMContentLoaded', function() {
 // ════════════════════════════════════════════════════════════════════════
 window.addEventListener('message', async function(ev) {
     if (!ev.data || ev.data.type !== 'api_bridge_req') return;
-    const { id, url, method, headers, body } = ev.data;
+    var id = ev.data.id, url = ev.data.url, method = ev.data.method,
+        headers = ev.data.headers || {}, body = ev.data.body || {};
     try {
-        // Resolve relative URLs against the current origin
-        const fullUrl = url.startsWith('/') ? (window.location.origin + url) : url;
-        const fetchOpts = {
-            method: method || 'GET',
-            headers: { 'Content-Type': 'application/json', ...(headers || {}) },
-        };
-        if (body && method !== 'GET') {
-            fetchOpts.body = typeof body === 'string' ? body : JSON.stringify(body);
+        var origin = window.location.origin;
+        var proxyUrl  = url.startsWith('/') ? (origin + url) : url;
+        var proxyBody = Object.assign({}, body);
+        var proxyHdrs = { 'Content-Type': 'application/json' };
+
+        // If the request carries Authorization: Bearer, route through
+        // /api/preview-proxy with api_key in body (avoids CORS/credentials conflict).
+        var authVal = headers['Authorization'] || headers['authorization'] || '';
+        if (authVal.startsWith('Bearer ')) {
+            // Route through session-authenticated endpoint — avoids api_key Redis lookup issues.
+            // The parent page has a valid session, so no api_key needed here.
+            proxyUrl = origin + '/api/hub/ai-proxy';
+            // Do NOT forward Authorization header — session cookie is used instead
+        } else {
+            Object.assign(proxyHdrs, headers);
         }
-        const resp = await fetch(fullUrl, fetchOpts);
-        let data;
-        try { data = await resp.json(); }
-        catch(e) { data = { error: 'Invalid JSON from server' }; }
-        ev.source?.postMessage({ type: 'api_bridge_resp', id, data, status: resp.status }, '*');
+
+        var fetchOpts = { method: method || 'POST', headers: proxyHdrs };
+        if ((method || 'POST') !== 'GET') fetchOpts.body = JSON.stringify(proxyBody);
+
+        var resp = await fetch(proxyUrl, fetchOpts);
+        var data;
+        try { data = await resp.json(); } catch(e) { data = { error: 'Invalid JSON from server' }; }
+        if (ev.source) ev.source.postMessage({ type: 'api_bridge_resp', id: id, data: data, status: resp.status }, '*');
     } catch(err) {
-        ev.source?.postMessage({ type: 'api_bridge_resp', id, error: err.message }, '*');
+        if (ev.source) ev.source.postMessage({ type: 'api_bridge_resp', id: id, error: err.message }, '*');
     }
 }, false);
 </script>
