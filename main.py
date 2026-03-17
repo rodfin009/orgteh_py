@@ -19,6 +19,7 @@ from services.auth import (
 )
 from database import (
     get_user_by_email, get_global_stats,
+    get_user_by_api_key,
     hub_save_chat, hub_list_chats, hub_get_chat, hub_delete_chat,
 )
 from services.subscriptions import get_user_subscription_status

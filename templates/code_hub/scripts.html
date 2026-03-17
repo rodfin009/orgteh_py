@@ -2696,4 +2696,32 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// ════════════════════════════════════════════════════════════════════════
+//  [15] API BRIDGE — parent handler for preview iframe fetch calls
+//  Receives postMessage from srcdoc iframe, executes the real fetch
+//  (same-origin, no CORS issues), returns result back to iframe.
+// ════════════════════════════════════════════════════════════════════════
+window.addEventListener('message', async function(ev) {
+    if (!ev.data || ev.data.type !== 'api_bridge_req') return;
+    const { id, url, method, headers, body } = ev.data;
+    try {
+        // Resolve relative URLs against the current origin
+        const fullUrl = url.startsWith('/') ? (window.location.origin + url) : url;
+        const fetchOpts = {
+            method: method || 'GET',
+            headers: { 'Content-Type': 'application/json', ...(headers || {}) },
+        };
+        if (body && method !== 'GET') {
+            fetchOpts.body = typeof body === 'string' ? body : JSON.stringify(body);
+        }
+        const resp = await fetch(fullUrl, fetchOpts);
+        let data;
+        try { data = await resp.json(); }
+        catch(e) { data = { error: 'Invalid JSON from server' }; }
+        ev.source?.postMessage({ type: 'api_bridge_resp', id, data, status: resp.status }, '*');
+    } catch(err) {
+        ev.source?.postMessage({ type: 'api_bridge_resp', id, error: err.message }, '*');
+    }
+}, false);
 </script>
