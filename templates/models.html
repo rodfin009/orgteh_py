@@ -135,6 +135,8 @@
     html.dark .thinking-box { background: rgba(99,102,241,0.07); border-color: rgba(99,102,241,0.3); }
     html.dark .thinking-box.done { border-color: rgba(34,197,94,0.25); background: rgba(34,197,94,0.04); }
     .thinking-header { padding: 9px 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 11.5px; font-weight: 600; color: #6366f1; user-select: none; letter-spacing: 0.03em; text-transform: uppercase; transition: color 0.4s; }
+    .thinking-header > .fa-microchip { font-size: 13px; color: #6366f1; transition: color 0.4s; }
+    .thinking-box.done .thinking-header > .fa-microchip { color: #16a34a; }
     .thinking-box.done .thinking-header { color: #16a34a; }
     html.dark .thinking-header { color: #818cf8; }
     html.dark .thinking-box.done .thinking-header { color: #4ade80; }
@@ -638,12 +640,12 @@
         const thinkingDiv = document.createElement('div');
         thinkingDiv.className = "flex w-full mt-2 space-x-3 max-w-full";
         thinkingDiv.innerHTML = `
-            <div class="thinking-box w-full">
+            <div class="thinking-box w-full" id="think-box-${thinkingId}">
                 <div class="thinking-header" onclick="toggleThinkBox('${thinkingId}')">
                     <i id="think-icon-${thinkingId}" class="fa-solid fa-chevron-right thinking-icon"></i>
-                    <i class="fa-solid fa-brain text-yellow-500"></i>
+                    <i class="fa-solid fa-microchip"></i>
                     <span>${thinkingText}</span>
-                    ${isStreaming ? '<i class="fa-solid fa-circle-notch thinking-spinner"></i>' : ''}
+                    ${isStreaming ? '<span class="think-dots"><span></span><span></span><span></span></span><svg class="think-check" viewBox="0 0 14 14" fill="none"><polyline points="2,7 6,11 12,3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '<svg class="think-check" viewBox="0 0 14 14" fill="none" style="display:inline-block"><polyline points="2,7 6,11 12,3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
                 </div>
                 <div id="think-content-${thinkingId}" class="thinking-content ${isStreaming ? 'show' : ''}">${thinkingContent}</div>
             </div>`;
@@ -662,6 +664,11 @@
             const box = document.getElementById('chat-box');
             box.scrollTop = box.scrollHeight;
         }
+    }
+
+    function finalizeThinking(thinkingId) {
+        const thinkBox = document.getElementById(`think-box-${thinkingId}`);
+        if (thinkBox) thinkBox.classList.add('done');
     }
 
     function renderParamsUI() {
@@ -987,7 +994,7 @@ console.log(data);`;
         const loadingDiv = document.createElement('div');
         loadingDiv.id = "chat-loading";
         loadingDiv.className = "flex w-full mt-4 space-x-3 max-w-full";
-        loadingDiv.innerHTML = `<div class="chat-bubble bot"><div class="flex gap-1"><span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span><span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.2s"></span><span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.4s"></span></div></div>`;
+        loadingDiv.innerHTML = `<div class="chat-bubble bot"><div class="think-dots"><span></span><span></span><span></span></div></div>`;
         box.appendChild(loadingDiv);
         box.scrollTop = box.scrollHeight;
 
@@ -1029,6 +1036,12 @@ console.log(data);`;
             });
 
             if (loadingDiv) loadingDiv.remove();
+
+            // أول ما يصلنا رد من نموذج فيه تفكير — نُظهر مربع التفكير فوراً
+            if (currentModelHasThinking && !hasShownThinking) {
+                thinkingId = addThinkingToChat('', true);
+                hasShownThinking = true;
+            }
 
             if (!res.ok) {
                 if (res.status === 429) {
@@ -1107,7 +1120,7 @@ console.log(data);`;
                                         isInThinking = false;
                                         const parts = content.split('</think>');
                                         thinkingContent += parts[0] || '';
-                                        if (thinkingId) { updateThinkingContent(thinkingId, thinkingContent); const spinner = document.querySelector(`#think-icon-${thinkingId} + i.thinking-spinner`); if (spinner) spinner.remove(); }
+                                        if (thinkingId) { updateThinkingContent(thinkingId, thinkingContent); finalizeThinking(thinkingId); }
                                         if (parts[1]) { aiResponse += parts[1]; if (!responseDiv) createResponseDiv(); responseDiv.textContent = aiResponse; }
                                         continue;
                                     } else if (isInThinking) {
@@ -1138,7 +1151,10 @@ console.log(data);`;
                 } catch (e) {}
             }
             if (aiResponse) modelContexts[currentModelId].push({ role: 'assistant', content: aiResponse });
-            if (thinkingContent && thinkingId) modelContexts[currentModelId].push({ role: 'thinking', content: thinkingContent });
+            if (thinkingContent && thinkingId) {
+                modelContexts[currentModelId].push({ role: 'thinking', content: thinkingContent });
+                finalizeThinking(thinkingId);
+            }
 
         } catch (err) {
             if(loadingDiv && loadingDiv.parentNode) loadingDiv.remove();

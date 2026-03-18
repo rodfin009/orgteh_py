@@ -63,7 +63,7 @@ def get_next_api_key():
 # --- 3. METADATA & MODELS ---
 
 EMERGENCY_MODEL_ID       = "deepseek-ai/deepseek-v3.1"       # طوارئ deepseek فقط
-EMERGENCY_MODEL_VISION   = "meta/llama-3.2-11b-vision-instruct"  # طوارئ عالمي لجميع النماذج
+EMERGENCY_MODEL_VISION   = "mistralai/ministral-14b-instruct-2512"  # طوارئ عالمي لجميع النماذج
 
 MODELS_METADATA = [
     {
