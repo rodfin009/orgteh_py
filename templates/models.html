@@ -116,7 +116,8 @@
     .code-window { background-color: #1e1e1e; color: #d4d4d4; font-family: 'Fira Code', 'Consolas', monospace; }
     .tab-btn { @apply px-4 py-2 text-sm font-bold transition-colors duration-200 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200; }
     .tab-btn.active { @apply text-primary border-primary dark:text-primary dark:border-primary; }
-    .code-scroll { overscroll-behavior: contain; }
+    .code-scroll { overscroll-behavior: contain; overflow-x: auto; overflow-y: auto; }
+    .code-scroll pre { white-space: pre; overflow-x: visible; min-width: max-content; }
     .code-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
     .code-scroll::-webkit-scrollbar-thumb { background: #404040; border-radius: 4px; }
     .code-scroll::-webkit-scrollbar-track { background: #1e1e1e; }
@@ -446,7 +447,7 @@
                     <i class="fa-regular fa-copy"></i> <span data-i18n="btn_copy">Copy</span>
                 </button>
             </div>
-            <div class="w-full h-full overflow-y-auto code-scroll p-5 text-gray-800 dark:text-gray-300 font-mono text-sm" dir="ltr">
+            <div class="w-full h-full overflow-y-auto overflow-x-auto code-scroll p-5 text-gray-800 dark:text-gray-300 font-mono text-sm" dir="ltr" style="max-height:calc(85vh - 130px)">
                 <pre><code id="code-block-py" class="language-python text-sm leading-relaxed block"></code></pre>
                 <pre><code id="code-block-java" class="language-java text-sm leading-relaxed hidden"></code></pre>
                 <pre><code id="code-block-http" class="language-bash text-sm leading-relaxed hidden"></code></pre>
@@ -898,13 +899,26 @@ console.log(data);`;
         el.querySelector('div.relative').classList.remove('scale-100');
     }
 
-    function copyCode() {
+    async function copyCode() {
         const code = document.getElementById(`code-block-${currentTab}`).textContent;
-        navigator.clipboard.writeText(code);
-        const btn = document.querySelector('#codeModal button i.fa-copy').parentElement;
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
-        setTimeout(() => btn.innerHTML = originalText, 2000);
+        const btn = document.querySelector('#codeModal button i.fa-copy')?.parentElement;
+        try {
+            await navigator.clipboard.writeText(code);
+        } catch (e) {
+            // fallback for mobile browsers that block clipboard API
+            const ta = document.createElement('textarea');
+            ta.value = code;
+            ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+            document.body.appendChild(ta);
+            ta.focus(); ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+        if (btn) {
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+            setTimeout(() => btn.innerHTML = originalHTML, 2000);
+        }
     }
 
     function openParamsModal() {
