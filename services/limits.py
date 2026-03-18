@@ -165,6 +165,14 @@ def get_user_limits_and_usage(email):
     else:
         for p in valid_plans:
             p_limits = p.get("limits", {})
+
+            # ── fallback: إذا لم تُخزَّن الحدود في الخطة، نجلبها من PLAN_CONFIGS ──
+            if not p_limits:
+                plan_key = p.get("plan_key", "")
+                period   = p.get("period", "monthly")
+                if plan_key and plan_key in PLAN_CONFIGS:
+                    p_limits = get_limits_for_new_subscription(plan_key, period)
+
             for k, v in p_limits.items():
                 if k in final_limits or k == "unified_extra":
                     final_limits[k] = final_limits.get(k, 0) + v
