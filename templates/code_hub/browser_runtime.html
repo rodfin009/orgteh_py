@@ -174,11 +174,10 @@ window.BrowserRuntime = (function () {
       console.log = function() { const a=Array.from(arguments).map(String).join(' '); parent.postMessage({type:'console_log',message:a},'*'); _log.apply(console,arguments); };
 
       (function() {
-        var _pend = {};
         var _orig = window.fetch.bind(window);
         window.fetch = function(url, opts) {
           var us = typeof url === 'string' ? url : ((url && url.url) || String(url));
-          if (us.indexOf('orgteh.com') === -1 && !us.startsWith('/v1/') && !us.startsWith('/api/chat')) return _orig(url, opts);
+          if (us.indexOf('orgteh.com') === -1 && !us.startsWith('/v1/') && !us.startsWith('/api/')) return _orig(url, opts);
           return new Promise(function(resolve, reject) {
             var id = Math.random().toString(36).slice(2, 10);
             var timer = setTimeout(function() {
@@ -197,7 +196,7 @@ window.BrowserRuntime = (function () {
             window.addEventListener('message', handler);
             var bodyObj = {};
             try { bodyObj = JSON.parse(opts && opts.body ? opts.body : '{}'); } catch(e) {}
-            parent.postMessage({ type: 'orgteh_bridge_req', id: id, body: bodyObj }, '*');
+            parent.postMessage({ type: 'orgteh_bridge_req', id: id, url: us, body: bodyObj }, '*');
           });
         };
       })();
