@@ -86,6 +86,10 @@ async def trial_chat_endpoint(request: Request):
             "max_tokens":  int(data.get("max_tokens", 1024)),
             "stream":      data.get("stream", True),
         }
+        if "frequency_penalty" in data:
+            payload["frequency_penalty"] = float(data["frequency_penalty"])
+        if "presence_penalty" in data:
+            payload["presence_penalty"] = float(data["presence_penalty"])
         if "extra_params" in data:
             payload.update(data["extra_params"])
         if "deepseek" in payload["model"] and "chat_template_kwargs" not in payload:

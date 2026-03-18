@@ -269,7 +269,7 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
 
     # نماذج NVIDIA — مع دعم إعادة المحاولة والطوارئ
     max_attempts = 2
-    FIRST_CHUNK_TIMEOUT = 3.0  # ثوانٍ قبل التبديل لنموذج الطوارئ
+    FIRST_CHUNK_TIMEOUT = 60.0  # ثوانٍ قبل التبديل لنموذج الطوارئ
 
     for attempt in range(max_attempts):
         current_api_key = get_next_api_key()

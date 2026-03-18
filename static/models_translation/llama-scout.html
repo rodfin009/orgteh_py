@@ -16,8 +16,6 @@
                 <tr><td class="px-4 py-2 font-semibold">Context Window</td><td class="px-4 py-2">10,000,000 Tokens (10M)</td></tr>
                 <tr><td class="px-4 py-2 font-semibold">Max Output Tokens</td><td class="px-4 py-2">8,192 Tokens</td></tr>
                 <tr><td class="px-4 py-2 font-semibold">Supported Modalities</td><td class="px-4 py-2">Text + Images (Native Multimodal)</td></tr>
-                <tr><td class="px-4 py-2 font-semibold">Temperature Range</td><td class="px-4 py-2">0 – 2</td></tr>
-                <tr><td class="px-4 py-2 font-semibold">Frequency / Presence Penalty</td><td class="px-4 py-2">–2 to +2</td></tr>
             </tbody>
         </table>
     </div>
@@ -41,8 +39,6 @@
                 <tr><td class="px-4 py-2 font-semibold">نافذة السياق</td><td class="px-4 py-2">10,000,000 توكن (10 ملايين)</td></tr>
                 <tr><td class="px-4 py-2 font-semibold">أقصى طول للمخرجات</td><td class="px-4 py-2">8,192 توكن</td></tr>
                 <tr><td class="px-4 py-2 font-semibold">الوسائط المدعومة</td><td class="px-4 py-2">النص + الصور (متعدد الوسائط بطبيعته)</td></tr>
-                <tr><td class="px-4 py-2 font-semibold">نطاق درجة الحرارة</td><td class="px-4 py-2">0 – 2</td></tr>
-                <tr><td class="px-4 py-2 font-semibold">عقوبة التكرار / الحضور</td><td class="px-4 py-2">من −2 إلى +2</td></tr>
             </tbody>
         </table>
     </div>
@@ -65,7 +61,7 @@
         "desc_ar": "عالية (1.5+): إجابات إبداعية وغير متوقعة. منخفضة (0.5): دقة عالية والتزام بالتعليمات."
     },
     {
-        "id": "top_p", "type": "slider", "min": 0, "max": 1, "step": 0.01, "val": 1.0,
+        "id": "top_p", "type": "slider", "min": 0.01, "max": 1, "step": 0.01, "val": 1.0,
         "label_en": "Top P (Diversity)",
         "label_ar": "تنوع المفردات (Top P)",
         "desc_en": "High (0.9): Diverse vocabulary. Low (0.1): Common words only.",
