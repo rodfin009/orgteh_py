@@ -676,17 +676,29 @@ async def handle_github_callback(request: Request, code: str, state: str):
         raise HTTPException(status_code=400, detail="Failed to get access token")
 
     github_user = await get_github_user(access_token)
-    email = github_user.email or f"{github_user.login}@github.user"
-    existing_user = get_user_by_email(email)
+    github_email = github_user.email or f"{github_user.login}@github.user"
+
+    # ── حالة: مستخدم مسجل دخوله يريد ربط GitHub بحسابه ──
+    # لا نغير الـ session ولا نهتم هل github_email موجود كحساب أم لا
+    logged_in_email = request.session.get("user_email")
+    if logged_in_email:
+        store_github_token(request, token_data)
+        if redis:
+            redis.hset(f"github:{logged_in_email}", "login",  github_user.login)
+            redis.hset(f"github:{logged_in_email}", "avatar", github_user.avatar_url)
+            redis.hset(f"github:{logged_in_email}", "token",  access_token)
+        return RedirectResponse("/dashboard?github_connected=true")
+
+    # ── حالة: لا يوجد مستخدم مسجل → تسجيل دخول أو إنشاء حساب جديد ──
+    existing_user = get_user_by_email(github_email)
 
     if existing_user:
-        request.session["user_email"] = email
+        request.session["user_email"] = github_email
         store_github_token(request, token_data)
-
         if redis:
-            redis.hset(f"github:{email}", "login",  github_user.login)
-            redis.hset(f"github:{email}", "avatar", github_user.avatar_url)
-            redis.hset(f"github:{email}", "token",  access_token)
+            redis.hset(f"github:{github_email}", "login",  github_user.login)
+            redis.hset(f"github:{github_email}", "avatar", github_user.avatar_url)
+            redis.hset(f"github:{github_email}", "token",  access_token)
         return RedirectResponse("/dashboard?github_connected=true")
     else:
         new_key = generate_nexus_key()
@@ -694,14 +706,13 @@ async def handle_github_callback(request: Request, code: str, state: str):
         temp_password = secrets.token_urlsafe(16)
         hashed = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt(rounds=12)).decode('utf-8')
 
-        if create_user_record(email, hashed, new_key):
-            request.session["user_email"] = email
+        if create_user_record(github_email, hashed, new_key):
+            request.session["user_email"] = github_email
             store_github_token(request, token_data)
-
             if redis:
-                redis.hset(f"github:{email}", "login",  github_user.login)
-                redis.hset(f"github:{email}", "avatar", github_user.avatar_url)
-                redis.hset(f"github:{email}", "token",  access_token)
+                redis.hset(f"github:{github_email}", "login",  github_user.login)
+                redis.hset(f"github:{github_email}", "avatar", github_user.avatar_url)
+                redis.hset(f"github:{github_email}", "token",  access_token)
             return RedirectResponse("/dashboard?github_connected=true&new_user=true")
         raise HTTPException(status_code=500, detail="Failed to create user")
 
