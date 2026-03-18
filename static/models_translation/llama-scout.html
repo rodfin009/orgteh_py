@@ -122,9 +122,18 @@
         let fullContent = "";
 
         try {
+            // ✅ FIX: بناء messages array من السياق المحفوظ تماماً كما يفعل الـ default handler
+            const chatHistory = (window.modelContexts && window.modelContexts[uiModelId])
+                ? window.modelContexts[uiModelId]
+                    .filter(m => m.role !== 'thinking')
+                    .map(m => ({ role: m.role, content: m.content }))
+                : [{ role: "user", content: msg }];
+
             const currentBody = {
                 message: msg,
+                messages: chatHistory,  // ✅ إضافة messages array — كانت مفقودة فيرسل [] فيرفض NVIDIA
                 model_id: uiModelId,
+                is_trial: true,
                 ...params,
                 extra_params: {}
             };
@@ -168,7 +177,7 @@
             }
         } catch (err) {
             if (err.name !== 'AbortError') {
-                textContentEl.textContent = "Error: " + err.message;
+                textContentEl.textContent = "⚠️ Error: " + err.message;
             }
         }
     };

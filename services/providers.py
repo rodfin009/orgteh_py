@@ -155,6 +155,17 @@ def get_provider_config(model_id: str) -> tuple[str, str]:
     return NVIDIA_BASE_URL, get_next_api_key() or "no-key"
 
 
+def _sse_error(message: str) -> bytes:
+    """
+    ✅ يُرسل رسالة خطأ بصيغة SSE صحيحة حتى يظهر الخطأ داخل فقاعة الشات
+    بدلاً من الصمت التام أو JSON خام يتجاهله الـ frontend.
+    """
+    payload = json.dumps({
+        "choices": [{"delta": {"content": f"\n\n⚠️ {message}"}, "finish_reason": "error"}]
+    }, ensure_ascii=False)
+    return f"data: {payload}\n\ndata: [DONE]\n\n".encode()
+
+
 # --- 4. STREAMING LOGIC (With TTFT) ---
 
 async def smart_chat_stream(original_body, user_email, is_trial=False):
@@ -249,8 +260,8 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
                                 pass
 
         except Exception as e:
-            error_json = json.dumps({"error": f"Provider Error: {str(e)}"}).encode()
-            yield error_json
+            # ✅ FIX: إرسال الخطأ بصيغة SSE ليظهر في الشات
+            yield _sse_error(f"Provider Error: {str(e)}")
             final_latency = int((time.time() - start_time) * 1000)
             if user_email:
                 if is_trial:
@@ -269,7 +280,9 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
 
     # نماذج NVIDIA — مع دعم إعادة المحاولة والطوارئ
     max_attempts = 2
-    FIRST_CHUNK_TIMEOUT = 60.0  # ثوانٍ قبل التبديل لنموذج الطوارئ
+    # ✅ FIX: timeout ثابت 3 ثوانٍ فقط لـ deepseek (له fallback طوارئ)
+    # باقي النماذج تأخذ 60 ثانية — لا علاقة لها بمنطق الطوارئ
+    FIRST_CHUNK_TIMEOUT = 3.0 if target_model_id == "deepseek-ai/deepseek-v3.2" else 60.0
 
     for attempt in range(max_attempts):
         current_api_key = get_next_api_key()
@@ -298,9 +311,13 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
                         raise Exception("Upstream Rate Limit (429)")
 
                     if response.status_code != 200:
-                        raise Exception(f"Status {response.status_code}")
+                        # ✅ FIX: قراءة جسم الخطأ من NVIDIA لتشخيص المشكلة في السجلات
+                        error_body = await response.aread()
+                        error_text = error_body.decode("utf-8", errors="ignore")[:300]
+                        print(f"[Provider] NVIDIA Error {response.status_code}: {error_text}")
+                        raise Exception(f"Status {response.status_code}: {error_text}")
 
-                    # قياس أول chunk — إذا تجاوز FIRST_CHUNK_TIMEOUT نتحول للطوارئ
+                    # قياس أول chunk — إذا تجاوز FIRST_CHUNK_TIMEOUT نتحول للطوارئ (deepseek فقط)
                     byte_iter = response.aiter_bytes().__aiter__()
                     try:
                         first_byte = await asyncio.wait_for(
@@ -328,8 +345,8 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
                 print(f"[Provider] Attempt {attempt+1} failed: {e}. Retrying with emergency model...")
                 continue
 
-            error_json = json.dumps({"error": f"Provider Error: {str(e)}"}).encode()
-            yield error_json
+            # ✅ FIX: إرسال الخطأ بصيغة SSE ليظهر في الشات بدلاً من الصمت التام
+            yield _sse_error(f"Provider Error: {str(e)}")
 
             final_latency = int((time.time() - start_time) * 1000)
             if user_email:
