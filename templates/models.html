@@ -443,7 +443,7 @@
         </div>
         <div class="p-0 overflow-hidden flex-1 relative bg-gray-50 dark:bg-[#1e1e1e] rounded-b-xl border-t border-gray-200 dark:border-gray-700 min-h-0">
             <div class="absolute top-3 right-4 z-20">
-                 <button onclick="copyCode()" class="text-xs bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white border border-gray-300 dark:border-white/10 px-3 py-1.5 rounded hover:bg-gray-300 dark:hover:bg-white/20 transition flex items-center gap-2 backdrop-blur-sm">
+                 <button id="copy-code-btn" onclick="copyCode()" class="text-xs bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white border border-gray-300 dark:border-white/10 px-3 py-1.5 rounded hover:bg-gray-300 dark:hover:bg-white/20 transition flex items-center gap-2 backdrop-blur-sm">
                     <i class="fa-regular fa-copy"></i> <span data-i18n="btn_copy">Copy</span>
                 </button>
             </div>
@@ -899,25 +899,35 @@ console.log(data);`;
         el.querySelector('div.relative').classList.remove('scale-100');
     }
 
-    async function copyCode() {
+    function copyCode() {
         const code = document.getElementById(`code-block-${currentTab}`).textContent;
-        const btn = document.querySelector('#codeModal button i.fa-copy')?.parentElement;
-        try {
-            await navigator.clipboard.writeText(code);
-        } catch (e) {
-            // fallback for mobile browsers that block clipboard API
+        const btn = document.getElementById('copy-code-btn');
+        const originalHTML = btn ? btn.innerHTML : '';
+
+        function onSuccess() {
+            if (btn) {
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+                setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
+            }
+        }
+
+        function fallbackCopy() {
             const ta = document.createElement('textarea');
             ta.value = code;
-            ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+            ta.setAttribute('readonly', '');
+            ta.style.cssText = 'position:absolute;left:-9999px;top:0;opacity:0;';
             document.body.appendChild(ta);
-            ta.focus(); ta.select();
-            document.execCommand('copy');
+            ta.focus();
+            ta.setSelectionRange(0, ta.value.length);
+            const ok = document.execCommand('copy');
             document.body.removeChild(ta);
+            if (ok) onSuccess();
         }
-        if (btn) {
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
-            setTimeout(() => btn.innerHTML = originalHTML, 2000);
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(code).then(onSuccess).catch(fallbackCopy);
+        } else {
+            fallbackCopy();
         }
     }
 
