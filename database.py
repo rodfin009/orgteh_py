@@ -308,12 +308,14 @@ def update_api_key(email, new_key):
 # ============================================================================
 # SUBSCRIPTIONS (Write-Through)
 # ============================================================================
-def add_user_subscription(email, plan_key, plan_name, period):
+def add_user_subscription(email, plan_key, plan_name, period, limits_dict=None):
     user = get_user_by_email(email)
     if not user: return False
 
     from services.limits import get_limits_for_new_subscription
-    limits_dict = get_limits_for_new_subscription(plan_key, period)
+    # ✅ استخدم الحدود الممررة من perform_upgrade إذا كانت موجودة، وإلا احسبها من plan_key
+    if limits_dict is None:
+        limits_dict = get_limits_for_new_subscription(plan_key, period)
     days_to_add = 365 if period == 'yearly' else 30
 
     if "active_plans" not in user: user["active_plans"] = []
@@ -366,11 +368,61 @@ def add_user_subscription(email, plan_key, plan_name, period):
     return True
 
 def activate_subscription(email, plan_name, days, limits_dict):
-    period = 'yearly' if days > 300 else 'monthly'
-    plan_key = plan_name.lower().replace(" ", "_")
-    return add_user_subscription(email, plan_key, plan_name, period)
+    from services.limits import PLAN_NAME_MAP
+    period   = 'yearly' if days > 300 else 'monthly'
+    # ✅ استخدم PLAN_NAME_MAP للحصول على المفتاح الصحيح بدلاً من توليده من الاسم
+    plan_key = PLAN_NAME_MAP.get(plan_name, plan_name.lower().replace(" ", "_"))
+    return add_user_subscription(email, plan_key, plan_name, period, limits_dict=limits_dict)
 
-def get_subscription_history(email):
+def fix_broken_subscription_limits(email: str) -> dict:
+    """
+    تُصلح الحدود المخزونة خطأً في active_plans بسبب plan_key غير صحيح.
+    شغّلها مرة واحدة لكل مستخدم متأثر عبر endpoint مؤقت أو Telegram bot.
+    """
+    from services.limits import PLAN_NAME_MAP, get_limits_for_new_subscription
+
+    user = get_user_by_email(email)
+    if not user:
+        return {"ok": False, "reason": "user not found"}
+
+    fixed = []
+    for plan in user.get("active_plans", []):
+        plan_name   = plan.get("name", "")
+        correct_key = PLAN_NAME_MAP.get(plan_name)
+        if not correct_key:
+            continue
+        # أصلح المفتاح والحدود إذا كان المفتاح المخزون مختلفاً عن الصحيح
+        old_key = plan.get("plan_key", "")
+        if old_key != correct_key or not plan.get("limits"):
+            plan["plan_key"] = correct_key
+            plan["limits"]   = get_limits_for_new_subscription(
+                correct_key, plan.get("period", "monthly")
+            )
+            fixed.append(f"{plan_name}: '{old_key}' → '{correct_key}'")
+
+    if not fixed:
+        return {"ok": True, "fixed": [], "message": "لا يوجد شيء يحتاج إصلاح"}
+
+    if redis:
+        try: redis.set(f"user:{email}", json.dumps(user))
+        except: pass
+
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET data = %s WHERE email = %s",
+                    (json.dumps(user), email)
+                )
+        except Exception as e:
+            return {"ok": False, "reason": str(e)}
+        finally:
+            conn.close()
+
+    return {"ok": True, "fixed": fixed}
+
+
     user = get_user_by_email(email)
     if not user: return []
 
