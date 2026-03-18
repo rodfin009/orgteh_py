@@ -684,11 +684,9 @@ async def handle_github_callback(request: Request, code: str, state: str):
         store_github_token(request, token_data)
 
         if redis:
-            redis.hset(f"github:{email}", mapping={
-                "login": github_user.login,
-                "avatar": github_user.avatar_url,
-                "token": access_token
-            })
+            redis.hset(f"github:{email}", "login",  github_user.login)
+            redis.hset(f"github:{email}", "avatar", github_user.avatar_url)
+            redis.hset(f"github:{email}", "token",  access_token)
         return RedirectResponse("/dashboard?github_connected=true")
     else:
         new_key = generate_nexus_key()
@@ -701,11 +699,9 @@ async def handle_github_callback(request: Request, code: str, state: str):
             store_github_token(request, token_data)
 
             if redis:
-                redis.hset(f"github:{email}", mapping={
-                    "login": github_user.login,
-                    "avatar": github_user.avatar_url,
-                    "token": access_token
-                })
+                redis.hset(f"github:{email}", "login",  github_user.login)
+                redis.hset(f"github:{email}", "avatar", github_user.avatar_url)
+                redis.hset(f"github:{email}", "token",  access_token)
             return RedirectResponse("/dashboard?github_connected=true&new_user=true")
         raise HTTPException(status_code=500, detail="Failed to create user")
 
@@ -820,7 +816,8 @@ async def handle_google_callback(request: Request, code: str, state: str):
                 first_name = user_info.get("given_name", "")
                 last_name = user_info.get("family_name", "")
                 if redis:
-                    redis.hset(f"user:{email}", mapping={"first_name": first_name, "last_name": last_name})
+                    redis.hset(f"user:{email}", "first_name", first_name)
+                    redis.hset(f"user:{email}", "last_name",  last_name)
 
                 return RedirectResponse("/profile?google_connected=true&new_user=true")
 
