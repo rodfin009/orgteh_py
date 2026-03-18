@@ -172,59 +172,8 @@ window.BrowserRuntime = (function () {
       window.addEventListener('unhandledrejection', e => parent.postMessage({type:'runtime_error',message:'Promise: '+(e.reason?.message||e.reason)}, '*'));
       const _log=console.log.bind(console);
       console.log = function() { const a=Array.from(arguments).map(String).join(' '); parent.postMessage({type:'console_log',message:a},'*'); _log.apply(console,arguments); };
-
-      // ── API Bridge: intercept orgteh API calls → route via postMessage to parent ──
-      // This lets the preview iframe call /v1/chat/completions without CORS issues.
-      // Downloaded projects work normally (no interceptor outside preview).
-      (function() {
-        const _origFetch = window.fetch.bind(window);
-        window.fetch = function(url, opts) {
-          const urlStr = (typeof url === 'string' ? url : (url && url.url ? url.url : String(url)));
-          const isApiCall = urlStr.includes('orgteh.com') ||
-                            urlStr.startsWith('/v1/') ||
-                            urlStr.startsWith('/api/');
-          if (!isApiCall) return _origFetch(url, opts);
-
-          return new Promise(function(resolve, reject) {
-            const id = Math.random().toString(36).slice(2, 10);
-            const timer = setTimeout(function() {
-              window.removeEventListener('message', handler);
-              reject(new Error('API bridge timeout (30s)'));
-            }, 30000);
-            function handler(ev) {
-              if (!ev.data || ev.data.type !== 'api_bridge_resp' || ev.data.id !== id) return;
-              clearTimeout(timer);
-              window.removeEventListener('message', handler);
-              if (ev.data.error) { reject(new Error(ev.data.error)); return; }
-              resolve(new Response(JSON.stringify(ev.data.data), {
-                status: ev.data.status || 200,
-                headers: {'Content-Type': 'application/json'}
-              }));
-            }
-            window.addEventListener('message', handler);
-            // Serialize headers
-            var hdrs = {};
-            if (opts && opts.headers) {
-              if (opts.headers instanceof Headers) {
-                opts.headers.forEach(function(v, k) { hdrs[k] = v; });
-              } else {
-                hdrs = Object.assign({}, opts.headers);
-              }
-            }
-            // Parse body if string
-            var body = opts && opts.body;
-            if (body && typeof body === 'string') { try { body = JSON.parse(body); } catch(e) {} }
-            parent.postMessage({
-              type: 'api_bridge_req',
-              id: id,
-              url: urlStr,
-              method: (opts && opts.method) || 'GET',
-              headers: hdrs,
-              body: body
-            }, '*');
-          });
-        };
-      })();
+      window.ORGTEH_API_KEY  = ${JSON.stringify(window.USER_API_KEY || '')};
+      window.ORGTEH_ENDPOINT = 'https://orgteh.com/v1/chat/completions';
     <\/script>`;
     html = html.replace('<head>', '<head>' + interceptor);
 

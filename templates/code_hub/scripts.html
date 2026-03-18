@@ -1141,74 +1141,13 @@ function renderPreview(targetFilename) {
     // ── [1] Navigation interceptor (link clicks → parent postMessage) ──
     const navInterceptor = `<script>(function(){var _i=function(){document.addEventListener('click',function(e){var el=e.target;for(var i=0;i<5;i++){if(!el||el===document)break;if(el.tagName==='A'){var h=el.getAttribute('href');if(h&&h!==''&&!h.startsWith('http')&&!h.startsWith('//')&&!h.startsWith('#')&&!h.startsWith('mailto')&&!h.startsWith('javascript')){e.preventDefault();e.stopImmediatePropagation();try{window.parent.postMessage({type:'orgteh_nav',file:h},'*');}catch(_){}}break;}el=el.parentElement;}},true);};if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',_i);}else{_i();}})();<\/script>`;
 
-    // ── [2] Fetch bridge — intercepts ALL fetch() calls inside the iframe that target
-    //        orgteh.com (or relative /v1/ /api/ paths) and tunnels them through the
-    //        parent page via postMessage.  The parent page is SAME-ORIGIN with the
-    //        server so there is zero CORS.
-    //        Fix: e.source is null for srcdoc iframes in Chrome mobile, so the parent
-    //        listener uses frame.contentWindow directly (see message listener below).
-    const fetchBridge = `<script>(function(){
-// ── Orgteh Preview Proxy Bridge ──────────────────────────────────────────
-// Intercepts fetch() calls targeting the Orgteh AI API and rewrites them to
-// use /api/preview-proxy — a CORS-safe endpoint that accepts api_key in the
-// JSON body (no Authorization header = no credentials = ACAO:* works fine).
-var _pend={};
+    // ── [2] حقن مفتاح المستخدم — المشروع يتصل مباشرة بـ API كأي تطبيق خارجي ──
+    const keyInjector = `<script>
+  window.ORGTEH_API_KEY  = ${JSON.stringify(window.USER_API_KEY || '')};
+  window.ORGTEH_ENDPOINT = 'https://orgteh.com/v1/chat/completions';
+<\/script>`;
 
-function _proxyFetch(us, opts) {
-  return new Promise(function(res, rej) {
-    var id = 'f' + Math.random().toString(36).slice(2);
-    _pend[id] = {res: res, rej: rej};
-    setTimeout(function() {
-      if (_pend[id]) { delete _pend[id]; rej(new Error('timeout')); }
-    }, 20000);
-    // Extract api_key from Authorization header, move it to the body
-    var authHeader = (opts && opts.headers && (
-      opts.headers['Authorization'] || opts.headers['authorization'] || ''
-    )) || '';
-    var apiKey = authHeader.replace(/^Bearer\s+/i, '').trim();
-    var bodyObj = {};
-    try { bodyObj = JSON.parse(opts && opts.body ? opts.body : '{}'); } catch(_) {}
-    if (apiKey) bodyObj.api_key = apiKey;
-    bodyObj.stream = false;  // proxy always returns non-streaming
-    // Rewrite to /api/preview-proxy — same domain, no CORS complications
-    fetch('/api/preview-proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(bodyObj)
-    }).then(function(r) {
-      return r.json().then(function(b) {
-        _pend[id] && _pend[id].res(new Response(JSON.stringify(b), {
-          status: r.status,
-          headers: { 'Content-Type': 'application/json' }
-        }));
-        delete _pend[id];
-      });
-    }).catch(function(e) {
-      _pend[id] && _pend[id].rej(e);
-      delete _pend[id];
-    });
-  });
-}
-
-function _installBridge() {
-  var _orig = window.fetch.bind(window);
-  window.fetch = function(url, opts) {
-    var us = typeof url === 'string' ? url : ((url && url.url) || String(url));
-    // Intercept any Orgteh AI API call
-    if (us.indexOf('orgteh.com') !== -1 || us.startsWith('/v1/') || us.startsWith('/api/chat')) {
-      return _proxyFetch(us, opts);
-    }
-    return _orig(url, opts);
-  };
-}
-
-_installBridge();
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', _installBridge);
-}
-})();<\/script>`;
-
-    const _allInjected = navInterceptor + fetchBridge;
+    const _allInjected = navInterceptor + keyInjector;
     if (html.includes('<head>')) html = html.replace('<head>', '<head>' + _allInjected);
     else if (html.includes('<html')) html = html.replace(/(<html[^>]*>)/i, '$1' + _allInjected);
     else html = _allInjected + html;
@@ -2697,42 +2636,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// ════════════════════════════════════════════════════════════════════════
-//  [15] API BRIDGE — parent handler for preview iframe fetch calls
-//  Receives postMessage from srcdoc iframe, executes the real fetch
-//  (same-origin, no CORS issues), returns result back to iframe.
-// ════════════════════════════════════════════════════════════════════════
-window.addEventListener('message', async function(ev) {
-    if (!ev.data || ev.data.type !== 'api_bridge_req') return;
-    var id = ev.data.id, url = ev.data.url, method = ev.data.method,
-        headers = ev.data.headers || {}, body = ev.data.body || {};
-    try {
-        var origin = window.location.origin;
-        var proxyUrl  = url.startsWith('/') ? (origin + url) : url;
-        var proxyBody = Object.assign({}, body);
-        var proxyHdrs = { 'Content-Type': 'application/json' };
 
-        // If the request carries Authorization: Bearer, route through
-        // /api/preview-proxy with api_key in body (avoids CORS/credentials conflict).
-        var authVal = headers['Authorization'] || headers['authorization'] || '';
-        if (authVal.startsWith('Bearer ')) {
-            // Route through session-authenticated endpoint — avoids api_key Redis lookup issues.
-            // The parent page has a valid session, so no api_key needed here.
-            proxyUrl = origin + '/api/hub/ai-proxy';
-            // Do NOT forward Authorization header — session cookie is used instead
-        } else {
-            Object.assign(proxyHdrs, headers);
-        }
-
-        var fetchOpts = { method: method || 'POST', headers: proxyHdrs };
-        if ((method || 'POST') !== 'GET') fetchOpts.body = JSON.stringify(proxyBody);
-
-        var resp = await fetch(proxyUrl, fetchOpts);
-        var data;
-        try { data = await resp.json(); } catch(e) { data = { error: 'Invalid JSON from server' }; }
-        if (ev.source) ev.source.postMessage({ type: 'api_bridge_resp', id: id, data: data, status: resp.status }, '*');
-    } catch(err) {
-        if (ev.source) ev.source.postMessage({ type: 'api_bridge_resp', id: id, error: err.message }, '*');
-    }
-}, false);
 </script>
