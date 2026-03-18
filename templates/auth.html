@@ -236,6 +236,10 @@
                     <a href="#" class="text-purple-500 hover:text-purple-400 transition font-medium">نسيت كلمة المرور؟</a>
                 </div>
 
+                <div id="loginInlineError" class="hidden flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span id="loginInlineErrorMsg"></span>
+                </div>
                 <div class="flex justify-center">
                     <div class="cf-turnstile"
                          id="loginTurnstile"
@@ -722,7 +726,10 @@
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         if (!loginTurnstileToken) {
-            showToast('يرجى إكمال التحقق من الكابتشا', 'error');
+            const errDiv = document.getElementById('loginInlineError');
+            document.getElementById('loginInlineErrorMsg').textContent = 'يرجى إكمال التحقق من الكابتشا';
+            errDiv.classList.remove('hidden');
+            setTimeout(() => errDiv.classList.add('hidden'), 4000);
             return;
         }
         const btn = document.getElementById('loginBtn');
