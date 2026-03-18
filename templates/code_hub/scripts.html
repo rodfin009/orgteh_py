@@ -1141,13 +1141,51 @@ function renderPreview(targetFilename) {
     // ── [1] Navigation interceptor (link clicks → parent postMessage) ──
     const navInterceptor = `<script>(function(){var _i=function(){document.addEventListener('click',function(e){var el=e.target;for(var i=0;i<5;i++){if(!el||el===document)break;if(el.tagName==='A'){var h=el.getAttribute('href');if(h&&h!==''&&!h.startsWith('http')&&!h.startsWith('//')&&!h.startsWith('#')&&!h.startsWith('mailto')&&!h.startsWith('javascript')){e.preventDefault();e.stopImmediatePropagation();try{window.parent.postMessage({type:'orgteh_nav',file:h},'*');}catch(_){}}break;}el=el.parentElement;}},true);};if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',_i);}else{_i();}})();<\/script>`;
 
-    // ── [2] حقن مفتاح المستخدم — المشروع يتصل مباشرة بـ API كأي تطبيق خارجي ──
-    const keyInjector = `<script>
-  window.ORGTEH_API_KEY  = ${JSON.stringify(window.USER_API_KEY || '')};
-  window.ORGTEH_ENDPOINT = 'https://orgteh.com/v1/chat/completions';
-<\/script>`;
+    // ── [2] Fetch bridge — tunnels AI API calls via postMessage to parent ──
+    //        srcdoc في Chrome موبايل له null origin لذا لا يمكنه fetch مباشر
+    //        الحل: postMessage للـ parent (same-origin) → يستدعي /api/hub/ai-proxy
+    const fetchBridge = `<script>(function(){
+var _pend = {};
 
-    const _allInjected = navInterceptor + keyInjector;
+function _proxyFetch(us, opts) {
+  return new Promise(function(res, rej) {
+    var id = 'f' + Math.random().toString(36).slice(2);
+    _pend[id] = {res: res, rej: rej};
+    setTimeout(function() {
+      if (_pend[id]) { delete _pend[id]; rej(new Error('timeout')); }
+    }, 30000);
+    function handler(ev) {
+      if (!ev.data || ev.data.type !== 'orgteh_bridge_resp' || ev.data.id !== id) return;
+      window.removeEventListener('message', handler);
+      if (ev.data.error) { delete _pend[id]; rej(new Error(ev.data.error)); return; }
+      _pend[id] && _pend[id].res(new Response(JSON.stringify(ev.data.data), {
+        status: ev.data.status || 200,
+        headers: {'Content-Type': 'application/json'}
+      }));
+      delete _pend[id];
+    }
+    window.addEventListener('message', handler);
+    var bodyObj = {};
+    try { bodyObj = JSON.parse(opts && opts.body ? opts.body : '{}'); } catch(_) {}
+    parent.postMessage({ type: 'orgteh_bridge_req', id: id, body: bodyObj }, '*');
+  });
+}
+
+function _install() {
+  var _orig = window.fetch.bind(window);
+  window.fetch = function(url, opts) {
+    var us = typeof url === 'string' ? url : ((url && url.url) || String(url));
+    if (us.indexOf('orgteh.com') !== -1 || us.startsWith('/v1/') || us.startsWith('/api/chat')) {
+      return _proxyFetch(us, opts);
+    }
+    return _orig(url, opts);
+  };
+}
+_install();
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _install);
+})();<\/script>`;
+
+    const _allInjected = navInterceptor + fetchBridge;
     if (html.includes('<head>')) html = html.replace('<head>', '<head>' + _allInjected);
     else if (html.includes('<html')) html = html.replace(/(<html[^>]*>)/i, '$1' + _allInjected);
     else html = _allInjected + html;
@@ -2636,5 +2674,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-
+// ════════════════════════════════════════════════════════════════════════
+//  [15] BRIDGE LISTENER — يستقبل طلبات AI من srcdoc ويُنفذها عبر session
+//  الـ parent هو same-origin مع orgteh.com → session cookie يُرسَل تلقائياً
+// ════════════════════════════════════════════════════════════════════════
+window.addEventListener('message', async function(ev) {
+    if (!ev.data || ev.data.type !== 'orgteh_bridge_req') return;
+    var id = ev.data.id, body = ev.data.body || {};
+    var frame = document.getElementById('preview-frame');
+    var target = frame && frame.contentWindow;
+    try {
+        body.stream = false;
+        var resp = await fetch('/api/hub/ai-proxy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        var data;
+        try { data = await resp.json(); } catch(e) { data = { error: 'Invalid JSON' }; }
+        if (target) target.postMessage({ type: 'orgteh_bridge_resp', id: id, data: data, status: resp.status }, '*');
+    } catch(err) {
+        if (target) target.postMessage({ type: 'orgteh_bridge_resp', id: id, error: err.message }, '*');
+    }
+}, false);
 </script>
