@@ -62,7 +62,8 @@ def get_next_api_key():
 
 # --- 3. METADATA & MODELS ---
 
-EMERGENCY_MODEL_ID = "deepseek-ai/deepseek-v3.1"
+EMERGENCY_MODEL_ID       = "deepseek-ai/deepseek-v3.1"       # طوارئ deepseek فقط
+EMERGENCY_MODEL_VISION   = "meta/llama-3.2-11b-vision-instruct"  # طوارئ عالمي لجميع النماذج
 
 MODELS_METADATA = [
     {
@@ -278,28 +279,34 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
                 track_request_metrics(user_email, final_metric_latency, tokens_est + response_tokens, model_key=internal_key)
         return
 
-    # نماذج NVIDIA — مع دعم إعادة المحاولة والطوارئ
+    # نماذج NVIDIA — محاولتان: الأصلي ثم الطوارئ العالمي
+    # 3 ثوانٍ timeout لجميع النماذج — أي تأخر يُحوّل فوراً للطوارئ بصمت تام
     max_attempts = 2
-    # ✅ FIX: timeout ثابت 3 ثوانٍ فقط لـ deepseek (له fallback طوارئ)
-    # باقي النماذج تأخذ 60 ثانية — لا علاقة لها بمنطق الطوارئ
-    FIRST_CHUNK_TIMEOUT = 3.0 if target_model_id == "deepseek-ai/deepseek-v3.2" else 60.0
+    FIRST_CHUNK_TIMEOUT = 3.0
 
     for attempt in range(max_attempts):
         current_api_key = get_next_api_key()
 
         try:
-            if attempt == 1 and target_model_id == "deepseek-ai/deepseek-v3.2":
-                print(f"[Provider] Switching to Emergency Model: {EMERGENCY_MODEL_ID}")
-                current_body["model"] = EMERGENCY_MODEL_ID
-                if "chat_template_kwargs" not in current_body:
+            if attempt == 1:
+                # المحاولة الثانية: تبديل لنموذج الطوارئ العالمي بصمت تام
+                fallback = EMERGENCY_MODEL_ID if target_model_id == "deepseek-ai/deepseek-v3.2" else EMERGENCY_MODEL_VISION
+                print(f"[Provider] Attempt 1 failed → switching to emergency: {fallback}")
+                current_body["model"] = fallback
+                # إزالة أي معاملات غير مدعومة في نموذج الطوارئ
+                current_body.pop("chat_template_kwargs", None)
+                current_body.pop("frequency_penalty", None)
+                current_body.pop("presence_penalty", None)
+                # deepseek الطوارئ يحتاج thinking
+                if fallback == EMERGENCY_MODEL_ID:
                     current_body["chat_template_kwargs"] = {"thinking": True}
 
             async with httpx.AsyncClient(timeout=60.0) as client:
                 async with client.stream(
-                    "POST", 
+                    "POST",
                     f"{NVIDIA_BASE_URL}/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {current_api_key}", 
+                        "Authorization": f"Bearer {current_api_key}",
                         "Content-Type": "application/json",
                         "Accept": "text/event-stream"
                     },
@@ -311,13 +318,12 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
                         raise Exception("Upstream Rate Limit (429)")
 
                     if response.status_code != 200:
-                        # ✅ FIX: قراءة جسم الخطأ من NVIDIA لتشخيص المشكلة في السجلات
                         error_body = await response.aread()
                         error_text = error_body.decode("utf-8", errors="ignore")[:300]
                         print(f"[Provider] NVIDIA Error {response.status_code}: {error_text}")
-                        raise Exception(f"Status {response.status_code}: {error_text}")
+                        raise Exception(f"Status {response.status_code}")
 
-                    # قياس أول chunk — إذا تجاوز FIRST_CHUNK_TIMEOUT نتحول للطوارئ (deepseek فقط)
+                    # 3 ثوانٍ للحصول على أول حرف — وإلا تبديل فوري للطوارئ
                     byte_iter = response.aiter_bytes().__aiter__()
                     try:
                         first_byte = await asyncio.wait_for(
@@ -325,36 +331,33 @@ async def smart_chat_stream(original_body, user_email, is_trial=False):
                             timeout=FIRST_CHUNK_TIMEOUT
                         )
                     except asyncio.TimeoutError:
-                        print(f"[Provider] ⏱ First chunk timeout (>{FIRST_CHUNK_TIMEOUT}s). Triggering emergency fallback.")
-                        raise Exception(f"First chunk timeout after {FIRST_CHUNK_TIMEOUT}s")
+                        print(f"[Provider] ⏱ First chunk timeout (>{FIRST_CHUNK_TIMEOUT}s) → emergency fallback")
+                        raise Exception("First chunk timeout")
 
-                    # أول chunk وصل — نسجّل TTFT ونُرسله
                     ttft_latency = int((time.time() - start_time) * 1000)
                     response_tokens += 1
                     yield first_byte
 
-                    # باقي الـ stream بدون timeout إضافي
                     async for chunk in byte_iter:
                         response_tokens += 1
                         yield chunk
 
-                    break 
+                    break
 
         except Exception as e:
             if attempt < max_attempts - 1:
-                print(f"[Provider] Attempt {attempt+1} failed: {e}. Retrying with emergency model...")
+                print(f"[Provider] Attempt {attempt + 1} failed: {e}. Switching to emergency...")
                 continue
 
-            # ✅ FIX: إرسال الخطأ بصيغة SSE ليظهر في الشات بدلاً من الصمت التام
-            yield _sse_error(f"Provider Error: {str(e)}")
+            # كلتا المحاولتين فشلتا — صمت تام بدون رسالة خطأ للمستخدم
+            print(f"[Provider] Both attempts failed for {target_model_id}: {e}")
+            yield b"data: [DONE]\n\n"
 
             final_latency = int((time.time() - start_time) * 1000)
             if user_email:
                 if is_trial:
-                    print(f"[DEBUG] Trial mode - Error tracked in global stats only")
                     update_global_stats(final_latency, tokens_est, model_key=internal_key, is_error=True, is_internal=False, is_blocked=False)
                 else:
-                    print(f"[DEBUG] Normal mode - Error tracked in user stats")
                     track_request_metrics(user_email, final_latency, tokens_est, model_key=internal_key, is_error=True)
             return
 
