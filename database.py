@@ -423,6 +423,7 @@ def fix_broken_subscription_limits(email: str) -> dict:
     return {"ok": True, "fixed": fixed}
 
 
+def get_subscription_history(email):
     user = get_user_by_email(email)
     if not user: return []
 
