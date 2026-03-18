@@ -10,5 +10,18 @@ Disallow: /*/settings/
 Disallow: /*/profile
 Disallow: /debug/
 
+# منع أرشفة صفحات إعادة التوجيه القديمة (بدون /{lang}/)
+Disallow: /pricing
+Disallow: /policy
+Disallow: /tools
+Disallow: /accesory
+Disallow: /cart
+Disallow: /contacts
+Disallow: /enterprise
+Disallow: /docs
+Disallow: /service-policy
+Disallow: /models
+Disallow: /code-hub
+
 # توجيه عناكب البحث لخريطة الموقع الشاملة الخاصة بك
 Sitemap: https://orgteh.com/sitemap.xml

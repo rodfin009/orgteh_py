@@ -274,7 +274,7 @@ async def check_static_files():
 
 @app.get("/", response_class=HTMLResponse)
 async def root_redirect():
-    return RedirectResponse("/en/")
+    return RedirectResponse("/en/", status_code=301)
 
 @app.get("/{lang}/", response_class=HTMLResponse)
 async def home(request: Request, lang: str):
@@ -284,7 +284,7 @@ async def home(request: Request, lang: str):
 
 @app.get("/accesory", response_class=HTMLResponse)
 async def accesory_redirect():
-    return RedirectResponse("/en/accesory")
+    return RedirectResponse("/en/accesory", status_code=301)
 
 @app.get("/{lang}/accesory", response_class=HTMLResponse)
 async def accesory_page(request: Request, lang: str):
@@ -298,7 +298,7 @@ async def accesory_detail_page(request: Request, lang: str, tool_id: str):
     context = get_template_context(request, lang)
     tool    = TOOLS_DB.get(tool_id)
     if not tool:
-        return RedirectResponse(f"/{lang}/accesory")
+        return RedirectResponse(f"/{lang}/accesory", status_code=301)
     context["active_tool"] = tool
     context["tools"]       = list(TOOLS_DB.values())
     return templates.TemplateResponse("tools.html", context)
@@ -307,7 +307,7 @@ async def accesory_detail_page(request: Request, lang: str, tool_id: str):
 
 @app.get("/cart", response_class=HTMLResponse)
 async def cart_redirect():
-    return RedirectResponse("/en/cart")
+    return RedirectResponse("/en/cart", status_code=301)
 
 @app.get("/{lang}/cart", response_class=HTMLResponse)
 async def cart_page(request: Request, lang: str):
@@ -330,7 +330,7 @@ async def cart_page(request: Request, lang: str):
 
 @app.get("/pricing", response_class=HTMLResponse)
 async def pricing_redirect():
-    return RedirectResponse("/en/cart")
+    return RedirectResponse("/en/cart", status_code=301)
 
 @app.get("/{lang}/pricing", response_class=HTMLResponse)
 async def pricing(request: Request, lang: str):
@@ -355,7 +355,7 @@ async def pricing(request: Request, lang: str):
 
 @app.get("/contacts", response_class=HTMLResponse)
 async def contacts_redirect():
-    return RedirectResponse("/en/contacts")
+    return RedirectResponse("/en/contacts", status_code=301)
 
 @app.get("/{lang}/contacts", response_class=HTMLResponse)
 async def contacts_page(request: Request, lang: str):
@@ -363,7 +363,7 @@ async def contacts_page(request: Request, lang: str):
 
 @app.get("/enterprise", response_class=HTMLResponse)
 async def ent_redirect():
-    return RedirectResponse("/en/enterprise")
+    return RedirectResponse("/en/enterprise", status_code=301)
 
 @app.get("/{lang}/enterprise", response_class=HTMLResponse)
 async def enterprise_page(request: Request, lang: str):
@@ -371,7 +371,7 @@ async def enterprise_page(request: Request, lang: str):
 
 @app.get("/docs", response_class=HTMLResponse)
 async def docs_redirect():
-    return RedirectResponse("/en/docs")
+    return RedirectResponse("/en/docs", status_code=301)
 
 @app.get("/{lang}/docs", response_class=HTMLResponse)
 async def docs_page(request: Request, lang: str):
@@ -381,15 +381,15 @@ async def docs_page(request: Request, lang: str):
 
 @app.get("/policy", response_class=HTMLResponse)
 async def policy_redirect():
-    return RedirectResponse("/en/service-policy")
+    return RedirectResponse("/en/service-policy", status_code=301)
 
 @app.get("/{lang}/policy", response_class=HTMLResponse)
 async def policy_old_redirect(request: Request, lang: str):
-    return RedirectResponse(f"/{lang}/service-policy")
+    return RedirectResponse(f"/{lang}/service-policy", status_code=301)
 
 @app.get("/service-policy", response_class=HTMLResponse)
 async def service_policy_redirect():
-    return RedirectResponse("/en/service-policy")
+    return RedirectResponse("/en/service-policy", status_code=301)
 
 @app.get("/{lang}/service-policy", response_class=HTMLResponse)
 async def service_policy_page(request: Request, lang: str):
@@ -413,7 +413,7 @@ async def performance_page_lang(request: Request, lang: str):
 
 @app.get("/models", response_class=HTMLResponse)
 async def models_redirect():
-    return RedirectResponse("/en/models")
+    return RedirectResponse("/en/models", status_code=301)
 
 @app.get("/{lang}/models", response_class=HTMLResponse)
 async def models_page(request: Request, lang: str):
@@ -426,7 +426,7 @@ async def model_detail_page(request: Request, lang: str, model_key: str):
     context    = get_template_context(request, lang)
     model_info = next((m for m in MODELS_METADATA if m.get("short_key") == model_key or model_key in m.get("id", "")), None)
     if not model_info:
-        return RedirectResponse(f"/{lang}/models")
+        return RedirectResponse(f"/{lang}/models", status_code=301)
     context["model"]         = model_info
     context["models"]        = context["models_metadata"]
     context["seo_model_key"] = model_key
@@ -455,11 +455,11 @@ app.include_router(agent_v2_router)
 
 @app.get("/tools", response_class=HTMLResponse)
 async def tools_legacy_redirect():
-    return RedirectResponse("/en/accesory")
+    return RedirectResponse("/en/accesory", status_code=301)
 
 @app.get("/{lang}/tools", response_class=HTMLResponse)
 async def tools_legacy_lang_redirect(lang: str):
-    return RedirectResponse(f"/{lang}/accesory")
+    return RedirectResponse(f"/{lang}/accesory", status_code=301)
 
 @app.get("/code-hub", response_class=HTMLResponse)
 async def code_hub_redirect():
@@ -788,39 +788,78 @@ async def api_enterprise_contact(request: Request):
 @app.get("/sitemap.xml", include_in_schema=False)
 async def get_sitemap():
     today = datetime.utcnow().strftime("%Y-%m-%d")
-    urls = [{"loc": "https://orgteh.com/", "changefreq": "daily", "priority": "1.0"}]
-    added_locs = {"https://orgteh.com/"}
+
+    # مسارات يجب استبعادها من الـ sitemap:
+    # - مسارات redirect (بدون {lang}) → لا تُفهرس
+    # - /pricing → نسخة مكررة من /cart
+    # - /tools, /policy, /service-policy (بدون lang) → redirects
+    # - /performance (بدون lang) → redirect داخلي
+    # - مسارات الـ settings (/{lang}/settings/{tab}) → تتطلب تسجيل دخول
+    EXCLUDED_PATHS = {
+        "/", "/accesory", "/cart", "/pricing", "/contacts", "/enterprise",
+        "/docs", "/policy", "/service-policy", "/models", "/tools", "/code-hub",
+        "/performance",
+    }
+    # مسارات /{lang}/pricing تكرار لـ /{lang}/cart → نستبعدها
+    EXCLUDED_LANG_PATHS = {"pricing", "tools", "policy"}
+
+    urls = []
+    added_locs = set()
+
+    def add_url(loc, changefreq, priority):
+        if loc not in added_locs:
+            urls.append({"loc": loc, "changefreq": changefreq, "priority": priority})
+            added_locs.add(loc)
+
+    # الصفحة الرئيسية — الـ canonical هي /en/ و /ar/
+    for lang in ["en", "ar"]:
+        add_url(f"https://orgteh.com/{lang}/", "daily", "1.0")
 
     for route in app.routes:
-        if hasattr(route, "methods") and "GET" in route.methods:
-            path = route.path
-            if "{lang}" in path:
-                paths_to_add = []
-                if "{tab}" in path:
-                    for tab in ["account", "integrations", "notifications", "billing", "security"]:
-                        paths_to_add.append(path.replace("{tab}", tab))
-                elif "{model_key}" in path:
-                    for m in MODELS_METADATA:
-                        short_key = m.get("short_key")
-                        if short_key:
-                            paths_to_add.append(path.replace("{model_key}", short_key))
-                elif "{tool_id}" in path:
-                    for tid in TOOLS_DB.keys():
-                        paths_to_add.append(path.replace("{tool_id}", tid))
-                elif "{" not in path.replace("{lang}", ""):
-                    paths_to_add.append(path)
+        if not (hasattr(route, "methods") and "GET" in route.methods):
+            continue
+        path = route.path
 
-                for p in paths_to_add:
-                    for lang in ["ar", "en"]:
-                        final_path = p.replace("{lang}", lang)
-                        loc = f"https://orgteh.com{final_path}"
-                        if loc not in added_locs:
-                            urls.append({
-                                "loc":        loc,
-                                "changefreq": "weekly" if "models" in loc or "accesory" in loc else "monthly",
-                                "priority":   "0.9" if "models" in loc else "0.8",
-                            })
-                            added_locs.add(loc)
+        # تجاهل مسارات API والمسارات الداخلية
+        if path.startswith("/api/") or path.startswith("/v1/") or path.startswith("/debug/"):
+            continue
+
+        if "{lang}" in path:
+            lang_subpath = path.replace("/{lang}", "").replace("{lang}", "")
+
+            # استبعاد المسارات المكررة
+            slug = lang_subpath.strip("/").split("/")[0] if lang_subpath.strip("/") else ""
+            if slug in EXCLUDED_LANG_PATHS:
+                continue
+
+            paths_to_add = []
+            if "{tab}" in path:
+                # صفحات الإعدادات تتطلب تسجيل دخول → لا تُدرج
+                continue
+            elif "{model_key}" in path:
+                for m in MODELS_METADATA:
+                    short_key = m.get("short_key")
+                    if short_key:
+                        paths_to_add.append(path.replace("{model_key}", short_key))
+            elif "{tool_id}" in path:
+                for tid in TOOLS_DB.keys():
+                    paths_to_add.append(path.replace("{tool_id}", tid))
+            elif "{" not in path.replace("{lang}", ""):
+                paths_to_add.append(path)
+
+            for p in paths_to_add:
+                for lang in ["en", "ar"]:
+                    final_path = p.replace("{lang}", lang)
+                    loc = f"https://orgteh.com{final_path}"
+                    if "models" in loc:
+                        cf, pr = "weekly", "0.9"
+                    elif "accesory" in loc:
+                        cf, pr = "weekly", "0.8"
+                    elif "cart" in loc or "docs" in loc:
+                        cf, pr = "monthly", "0.8"
+                    else:
+                        cf, pr = "monthly", "0.7"
+                    add_url(loc, cf, pr)
 
     xml_content  = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
