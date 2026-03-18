@@ -207,11 +207,9 @@ def store_github_info_safe(email: str, login: str, avatar: str, token: str):
     try:
         from database import redis
         if redis:
-            redis.hset(f"github:{email}", mapping={
-                "login": login,
-                "avatar": avatar,
-                "token": token
-            })
+            redis.hset(f"github:{email}", "login",  login)
+            redis.hset(f"github:{email}", "avatar", avatar)
+            redis.hset(f"github:{email}", "token",  token)
     except Exception as e:
         print(f"[GitHub] Warning: Could not store in Redis: {e}")
 
