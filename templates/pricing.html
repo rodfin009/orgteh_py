@@ -401,48 +401,48 @@
                     {% endif %}
                 </div>
 
-                <!-- ═══════ MiniMax M2.1 ═══════ -->
-                <div class="relative flex flex-col rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-cardbg p-6 shadow-lg hover:border-pink-500/50 transition-all">
+                <!-- ═══════ Llama 4 Scout ═══════ -->
+                <div class="relative flex flex-col rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-cardbg p-6 shadow-lg hover:border-blue-500/50 transition-all">
                     <div class="mb-4 text-center mt-2">
-                        <img src="/static/minimax.webp" alt="MiniMax AI" class="mx-auto mb-4 w-16 h-16 bg-white p-2 rounded-xl shadow-sm object-contain drop-shadow-md hover:scale-110 transition-transform duration-300">
-                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">MiniMax M2.1</h3>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">MiniMax AI</p>
+                        <img src="/static/meta.webp" alt="Meta AI" class="mx-auto mb-4 w-16 h-16 bg-white p-2 rounded-xl shadow-sm object-contain drop-shadow-md hover:scale-110 transition-transform duration-300">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Llama 4 Scout</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Meta AI</p>
                     </div>
-                    <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-minimax">
-                        <button onclick="setPeriod('minimax', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
-                        <button onclick="setPeriod('minimax', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly" data-i18n="pricing.btn_yearly">Yearly</button>
+                    <div class="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1" id="period-llama-scout">
+                        <button onclick="setPeriod('llama-scout', 'monthly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="monthly" data-i18n="pricing.btn_monthly">Monthly</button>
+                        <button onclick="setPeriod('llama-scout', 'yearly')" class="flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all text-gray-500" data-period="yearly" data-i18n="pricing.btn_yearly">Yearly</button>
                     </div>
                     <div class="mb-4 text-center">
-                        <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-minimax">$4.99</span>
+                        <span class="text-4xl font-bold text-gray-900 dark:text-white" id="price-llama-scout">$4.49</span>
                         <span class="text-gray-500 price-label" data-i18n="pricing.lbl_per_month">/month</span>
                     </div>
                     <div class="mb-4 rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
-                        <div class="text-2xl font-bold text-primary">150</div>
+                        <div class="text-2xl font-bold text-primary">180</div>
                         <div class="text-sm text-gray-500 dark:text-gray-400" data-i18n="pricing.lbl_req_day">req/day</div>
                     </div>
                     <div class="mb-4 relative overflow-hidden rounded-xl border-2 border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 via-yellow-400/20 to-yellow-500/10 p-4">
                         <div class="relative flex items-center justify-center gap-2">
                             <i class="fa-solid fa-bolt text-xl text-yellow-500 bonus-glow"></i>
                             <div class="text-center">
-                                <div class="text-lg font-bold text-yellow-600 dark:text-yellow-500" id="bonus-minimax">+300</div>
+                                <div class="text-lg font-bold text-yellow-600 dark:text-yellow-500" id="bonus-llama-scout">+350</div>
                                 <div class="text-sm font-semibold text-yellow-700 dark:text-yellow-600" data-i18n="pricing.lbl_extra_credit">Extra Credit</div>
                             </div>
                         </div>
                     </div>
-                    {% if current_plan == 'MiniMax M2.1' %}
+                    {% if current_plan == 'Llama 4 Scout' %}
                         <ul class="mb-4 flex-1 space-y-2 text-sm">
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_minimax_1">150 req/day · MiniMax M2.1</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_minimax_2">OCR Tool (Premium)</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_minimax_3">RAG Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_llama_scout_1">180 req/day · Llama 4 Scout</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_llama_scout_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_llama_scout_3">RAG Tool (Premium)</span></li>
                         </ul>
                         <button disabled class="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 font-bold rounded-xl cursor-not-allowed border border-gray-200 dark:border-gray-700 transition" data-i18n="pricing.btn_subscribed">Subscribed</button>
                     {% else %}
                         <ul class="mb-4 flex-1 space-y-2 text-sm">
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_minimax_1">150 req/day · MiniMax M2.1</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_minimax_2">OCR Tool (Premium)</span></li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_minimax_3">RAG Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-success"></i> <span data-i18n="feat_llama_scout_1">180 req/day · Llama 4 Scout</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_llama_scout_2">OCR Tool (Premium)</span></li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-crown text-amber-500"></i> <span data-i18n="feat_llama_scout_3">RAG Tool (Premium)</span></li>
                         </ul>
-                        <button onclick="initiateCheckout('minimax', document.querySelector('#period-minimax .bg-white, #period-minimax .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-pink-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
+                        <button onclick="initiateCheckout('llama-scout', document.querySelector('#period-llama-scout .bg-white, #period-llama-scout .dark\\:bg-cardbg')?.dataset.period || 'monthly')" class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg" data-i18n="pricing.btn_subscribe">Subscribe</button>
                     {% endif %}
                 </div>
 
@@ -677,8 +677,8 @@
                             <div class="text-xs text-gray-500">Llama 70B</div>
                         </div>
                         <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
-                            <div class="text-lg font-bold text-primary">40</div>
-                            <div class="text-xs text-gray-500">MiniMax</div>
+                            <div class="text-lg font-bold text-primary">50</div>
+                            <div class="text-xs text-gray-500">Llama Scout</div>
                         </div>
                         <div class="rounded-lg bg-gray-100 dark:bg-gray-800/50 p-3 text-center">
                             <div class="text-lg font-bold text-primary">60</div>
@@ -922,9 +922,9 @@
             "feat_llama_large_1": "200 req/day · Llama 3.3 70B",
             "feat_llama_large_2": "🔐 OCR Tool (Premium)",
             "feat_llama_large_3": "🔐 RAG Tool (Premium)",
-            "feat_minimax_1": "150 req/day · MiniMax M2.1",
-            "feat_minimax_2": "🔐 OCR Tool (Premium)",
-            "feat_minimax_3": "🔐 RAG Tool (Premium)",
+            "feat_llama_scout_1": "180 req/day · Llama 4 Scout",
+            "feat_llama_scout_2": "🔐 OCR Tool (Premium)",
+            "feat_llama_scout_3": "🔐 RAG Tool (Premium)",
             "feat_qwen_coder_1": "200 req/day · Qwen 2.5 Coder 32B",
             "feat_qwen_coder_2": "🔐 OCR Tool (Premium)",
             "feat_qwen_coder_3": "🔐 RAG Tool (Premium)",
@@ -1026,9 +1026,9 @@
             "feat_llama_large_1": "200 طلب/يوم · Llama 3.3 70B",
             "feat_llama_large_2": "🔐 أداة OCR (مدفوعة)",
             "feat_llama_large_3": "🔐 أداة RAG (مدفوعة)",
-            "feat_minimax_1": "150 طلب/يوم · MiniMax M2.1",
-            "feat_minimax_2": "🔐 أداة OCR (مدفوعة)",
-            "feat_minimax_3": "🔐 أداة RAG (مدفوعة)",
+            "feat_llama_scout_1": "180 طلب/يوم · Llama 4 Scout",
+            "feat_llama_scout_2": "🔐 أداة OCR (مدفوعة)",
+            "feat_llama_scout_3": "🔐 أداة RAG (مدفوعة)",
             "feat_qwen_coder_1": "200 طلب/يوم · Qwen 2.5 Coder 32B",
             "feat_qwen_coder_2": "🔐 أداة OCR (مدفوعة)",
             "feat_qwen_coder_3": "🔐 أداة RAG (مدفوعة)",
@@ -1068,7 +1068,7 @@
         gemma:       { monthly: { price: 3.49, bonus: 1000 },  yearly: { price: 34.99, bonus: 3000 } },
         llama:       { monthly: { price: 2.49, bonus: 800 },   yearly: { price: 24.99, bonus: 2500 } },
         "llama-large":  { monthly: { price: 3.99, bonus: 400 },  yearly: { price: 39.99, bonus: 1000 } },
-        minimax:     { monthly: { price: 4.99, bonus: 300 },   yearly: { price: 49.99, bonus: 800 } },
+        "llama-scout":  { monthly: { price: 4.49, bonus: 350 },   yearly: { price: 44.99, bonus: 900 } },
         "qwen-coder":   { monthly: { price: 3.49, bonus: 400 },  yearly: { price: 34.99, bonus: 1000 } },
         agents:      { monthly: { price: 6.99, bonus: 750 },   yearly: { price: 69.99, bonus: 2000 } },
         global:      { monthly: { price: 20.99, bonus: 200 },  yearly: { price: 209.99, bonus: 500 } }
@@ -1268,7 +1268,7 @@
         const planNameMap = {
             'deepseek':'Deepseek 3.2','kimi':'Kimi K2 thinking','mistral':'Mistral Large',
             'gemma':'Gemma 3n E4B','llama':'Llama 3.2','agents':'Chat Agents','global':'Orgteh Global',
-            'llama-large':'Llama 3.3 70B','minimax':'MiniMax M2.1','qwen-coder':'Qwen Coder 32B'
+            'llama-large':'Llama 3.3 70B','llama-scout':'Llama 4 Scout','qwen-coder':'Qwen Coder 32B'
         };
         const planLabel = planNameMap[planKey] || planKey;
         const lang      = getActiveLang();
@@ -1460,7 +1460,7 @@
            Object.assign(window.translations.ar, pageTranslations.ar);
        }
        applyLocalTranslations();
-       ['deepseek','kimi','mistral','gemma','llama','agents','global','llama-large','minimax','qwen-coder'].forEach(p => setPeriod(p, 'monthly'));
+       ['deepseek','kimi','mistral','gemma','llama','agents','global','llama-large','llama-scout','qwen-coder'].forEach(p => setPeriod(p, 'monthly'));
     });
 
     window.addEventListener('langChange', () => { applyLocalTranslations(); });

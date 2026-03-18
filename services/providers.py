@@ -62,7 +62,7 @@ def get_next_api_key():
 
 # --- 3. METADATA & MODELS ---
 
-EMERGENCY_MODEL_ID = "deepseek-ai/deepseek-v3.1" 
+EMERGENCY_MODEL_ID = "deepseek-ai/deepseek-v3.1"
 
 MODELS_METADATA = [
     {
@@ -109,11 +109,11 @@ MODELS_METADATA = [
         "image": "/static/meta.webp"
     },
     {
-        "id": "minimaxai/minimax-m2.1",
-        "short_key": "minimax",
-        "name": "MiniMax M2.1",
-        "provider": "MiniMax",
-        "image": "/static/minimax.webp"
+        "id": "meta/llama-4-scout-17b-16e-instruct",
+        "short_key": "llama-scout",
+        "name": "Llama 4 Scout",
+        "provider": "Meta",
+        "image": "/static/meta.webp"
     },
     {
         "id": "qwen/qwen2.5-coder-32b-instruct",

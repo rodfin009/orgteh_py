@@ -16,7 +16,7 @@ PLAN_CONFIGS = {
         "daily_limits": {
             "llama": 10, "kimi": 5,
             "deepseek": 0, "mistral": 0, "gemma": 0,
-            "llama-large": 0, "minimax": 0, "qwen-coder": 0, "qwen-mini": 9999
+            "llama-large": 0, "llama-scout": 0, "qwen-coder": 0, "qwen-mini": 9999
         },
         "overdraft": {"forever": 0}
     },
@@ -24,49 +24,49 @@ PLAN_CONFIGS = {
         "daily_limits": {
             "gemma": 270, "llama": 200, "kimi": 30,
             "deepseek": 0, "mistral": 0,
-            "llama-large": 0, "minimax": 0, "qwen-coder": 0, "qwen-mini": 0
+            "llama-large": 0, "llama-scout": 0, "qwen-coder": 0, "qwen-mini": 0
         },
         "overdraft": {"monthly": 750, "yearly": 2000}
     },
     "nexus_global": {
         "daily_limits": {
             "deepseek": 150, "kimi": 100, "mistral": 50, "llama": 100, "gemma": 120,
-            "llama-large": 50, "minimax": 40, "qwen-coder": 60, "qwen-mini": 100
+            "llama-large": 50, "llama-scout": 50, "qwen-coder": 60, "qwen-mini": 100
         },
         "overdraft": {"monthly": 200, "yearly": 500}
     },
     "deepseek": {
         "daily_limits": {
             "deepseek": 300, "kimi": 0, "mistral": 0, "llama": 0, "gemma": 0,
-            "llama-large": 0, "minimax": 0, "qwen-coder": 0, "qwen-mini": 0
+            "llama-large": 0, "llama-scout": 0, "qwen-coder": 0, "qwen-mini": 0
         },
         "overdraft": {"monthly": 600, "yearly": 1500}
     },
     "kimi": {
         "daily_limits": {
             "kimi": 200, "deepseek": 0, "mistral": 0, "llama": 0, "gemma": 0,
-            "llama-large": 0, "minimax": 0, "qwen-coder": 0, "qwen-mini": 0
+            "llama-large": 0, "llama-scout": 0, "qwen-coder": 0, "qwen-mini": 0
         },
         "overdraft": {"monthly": 300, "yearly": 1000}
     },
     "mistral": {
         "daily_limits": {
             "mistral": 100, "deepseek": 0, "kimi": 0, "llama": 0, "gemma": 0,
-            "llama-large": 0, "minimax": 0, "qwen-coder": 0, "qwen-mini": 0
+            "llama-large": 0, "llama-scout": 0, "qwen-coder": 0, "qwen-mini": 0
         },
         "overdraft": {"monthly": 200, "yearly": 500}
     },
     "gemma": {
         "daily_limits": {
             "gemma": 500, "deepseek": 0, "kimi": 0, "mistral": 0, "llama": 0,
-            "llama-large": 0, "minimax": 0, "qwen-coder": 0, "qwen-mini": 0
+            "llama-large": 0, "llama-scout": 0, "qwen-coder": 0, "qwen-mini": 0
         },
         "overdraft": {"monthly": 1000, "yearly": 3000}
     },
     "llama": {
         "daily_limits": {
             "llama": 400, "deepseek": 0, "kimi": 0, "mistral": 0, "gemma": 0,
-            "llama-large": 0, "minimax": 0, "qwen-coder": 0, "qwen-mini": 0
+            "llama-large": 0, "llama-scout": 0, "qwen-coder": 0, "qwen-mini": 0
         },
         "overdraft": {"monthly": 800, "yearly": 2500}
     },
@@ -74,21 +74,21 @@ PLAN_CONFIGS = {
     "llama-large": {
         "daily_limits": {
             "llama-large": 200, "deepseek": 0, "kimi": 0, "mistral": 0,
-            "llama": 0, "gemma": 0, "minimax": 0, "qwen-coder": 0, "qwen-mini": 0
+            "llama": 0, "gemma": 0, "llama-scout": 0, "qwen-coder": 0, "qwen-mini": 0
         },
         "overdraft": {"monthly": 400, "yearly": 1000}
     },
-    "minimax": {
+    "llama-scout": {
         "daily_limits": {
-            "minimax": 150, "deepseek": 0, "kimi": 0, "mistral": 0,
+            "llama-scout": 180, "deepseek": 0, "kimi": 0, "mistral": 0,
             "llama": 0, "gemma": 0, "llama-large": 0, "qwen-coder": 0, "qwen-mini": 0
         },
-        "overdraft": {"monthly": 300, "yearly": 800}
+        "overdraft": {"monthly": 350, "yearly": 900}
     },
     "qwen-coder": {
         "daily_limits": {
             "qwen-coder": 200, "deepseek": 0, "kimi": 0, "mistral": 0,
-            "llama": 0, "gemma": 0, "llama-large": 0, "minimax": 0, "qwen-mini": 0
+            "llama": 0, "gemma": 0, "llama-large": 0, "llama-scout": 0, "qwen-mini": 0
         },
         "overdraft": {"monthly": 400, "yearly": 1000}
     },
@@ -107,7 +107,7 @@ PLAN_NAME_MAP = {
     "Llama 3.2":       "llama",
     # New plans
     "Llama 3.3 70B":   "llama-large",
-    "MiniMax M2.1":    "minimax",
+    "Llama 4 Scout":   "llama-scout",
     "Qwen Coder 32B":  "qwen-coder",
     # "Qwen Mini" is free — no paid plan
 }
@@ -115,7 +115,7 @@ PLAN_NAME_MAP = {
 # قائمة جميع مفاتيح النماذج للتهيئة الموحدة
 ALL_MODEL_KEYS = [
     "deepseek", "kimi", "mistral", "llama", "gemma",
-    "llama-large", "minimax", "qwen-coder", "qwen-mini"
+    "llama-large", "llama-scout", "qwen-coder", "qwen-mini"
 ]
 
 
