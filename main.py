@@ -429,26 +429,29 @@ async def push_all_profiles_endpoint():
     pushed_emails = []
     for user in all_users:
         email = user.get("email", "")
-        # ارسل فقط للمشتركين (يمكن حذف هذا الشرط لإرسال للجميع)
+        if not email:
+            skipped += 1
+            continue
+
+        # تحديد نوع المستخدم للتوثيق
         active_plans = user.get("active_plans", [])
         valid = any(
             datetime.fromisoformat(p["expires"]) > now
             for p in active_plans
             if "expires" in p
         )
-        if not valid:
-            skipped += 1
-            continue
+        user_type = "paid" if valid else "free"
+
         try:
             ok = await update_user_profile_file(
                 email        = email,
                 profile      = user,
                 event_type   = "admin_push",
-                event_detail = "Bulk archive push — existing users sync",
+                event_detail = f"Bulk archive push — {user_type} user",
             )
             if ok:
                 pushed += 1
-                pushed_emails.append(email)
+                pushed_emails.append(f"{email} [{user_type}]")
             else:
                 errors.append(f"{email}: upload returned False")
         except Exception as e:
