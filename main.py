@@ -243,7 +243,7 @@ async def sync_db_endpoint():
         "timestamp": datetime.utcnow().isoformat(),
     })
 
-@app.post("/api/admin/fix-all-limits")
+@app.api_route("/api/admin/fix-all-limits", methods=["GET", "POST"])
 async def fix_all_limits_endpoint():
     """
     يُعيد حساب حدود جميع المستخدمين من PLAN_CONFIGS مباشرة ويكتبها فوراً
