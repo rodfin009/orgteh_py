@@ -457,9 +457,9 @@ def update_user_usage_struct(email, usage_data):
     except:
         return False
 
-    # ── مزامنة تلقائية إلى TiDB كل 5 طلبات (بدون cron خارجي) ───────────────
+    # ── مزامنة تلقائية إلى TiDB مع كل طلب — صفر ضياع بيانات ────────────────
     total_reqs = usage_data.get("total_requests", 0)
-    if total_reqs > 0 and total_reqs % 5 == 0:
+    if total_reqs > 0:
         try:
             conn = get_db_connection()
             if conn:
