@@ -442,15 +442,41 @@ def get_subscription_history(email):
 # USAGE TRACKING (Write-Behind -> Redis Only for Speed)
 # ============================================================================
 def update_user_usage_struct(email, usage_data):
+    """
+    يحدّث بيانات الاستخدام في Redis (فوري).
+    كل 5 طلبات: يزامن إلى TiDB تلقائياً لضمان عدم ضياع البيانات.
+    """
     if not redis: return False
     user = get_user_by_email(email)
-    if user:
-        user["usage"] = usage_data
+    if not user:
+        return False
+
+    user["usage"] = usage_data
+    try:
+        redis.set(f"user:{email}", json.dumps(user))
+    except:
+        return False
+
+    # ── مزامنة تلقائية إلى TiDB كل 5 طلبات (بدون cron خارجي) ───────────────
+    total_reqs = usage_data.get("total_requests", 0)
+    if total_reqs > 0 and total_reqs % 5 == 0:
         try:
-            redis.set(f"user:{email}", json.dumps(user))
-            return True
-        except: return False
-    return False
+            conn = get_db_connection()
+            if conn:
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "UPDATE users SET data = %s WHERE email = %s",
+                            (json.dumps(user), email)
+                        )
+                except Exception as e:
+                    print(f"⚠️ Auto-sync to TiDB failed (non-critical): {e}")
+                finally:
+                    conn.close()
+        except Exception:
+            pass  # صامت — Redis هو المصدر الأساسي
+
+    return True
 
 def track_request_metrics(email, latency_ms, tokens, model_key=None, is_error=False, is_internal=False, is_blocked=False):
     update_global_stats(latency_ms, tokens, model_key, is_error, is_internal, is_blocked)

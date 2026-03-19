@@ -561,6 +561,24 @@ async def handle_register(request: Request, data: RegisterRequest) -> dict:
         request.session["user_email"] = data.email
 
         print(f"[Auth] New user registered: {data.email}")
+
+        # ── أرشفة تلجرام: إنشاء ملف المستخدم فوراً عند التسجيل ───────────────
+        try:
+            from database import get_user_by_email as _get_user
+            from telegram_bot import schedule_user_profile_update
+            _new_user = _get_user(data.email)
+            _ip = request.headers.get("X-Forwarded-For", getattr(request.client, 'host', ''))
+            if _new_user:
+                schedule_user_profile_update(
+                    email        = data.email,
+                    profile      = _new_user,
+                    event_type   = "register",
+                    event_detail = f"New account created | key={new_key[:12]}...",
+                    ip           = _ip,
+                )
+        except Exception:
+            pass
+
         return {
             "message": "تم إنشاء الحساب بنجاح",
             "key": new_key
@@ -598,6 +616,22 @@ async def handle_login(request: Request, data: LoginRequest) -> dict:
             ip = request.headers.get("X-Forwarded-For", getattr(request.client, 'host', ''))
             ua = request.headers.get("User-Agent", "")[:80]
             send_security_alert_email(data.email, "new_login", f"IP: {ip} | {ua}")
+    except Exception:
+        pass
+
+    # ── أرشفة تلجرام: تحديث/إنشاء ملف المستخدم (fire-and-forget) ────────────
+    try:
+        from telegram_bot import schedule_ensure_profile, schedule_user_profile_update
+        _ip = request.headers.get("X-Forwarded-For", getattr(request.client, 'host', ''))
+        _ua = request.headers.get("User-Agent", "")[:100]
+        schedule_ensure_profile(data.email, user, ip=_ip)
+        schedule_user_profile_update(
+            email        = data.email,
+            profile      = user,
+            event_type   = "login",
+            event_detail = f"UA={_ua}",
+            ip           = _ip,
+        )
     except Exception:
         pass
 

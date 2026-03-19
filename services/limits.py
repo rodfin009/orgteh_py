@@ -197,13 +197,21 @@ def get_user_limits_and_usage(email):
     return final_limits, usage
 
 
-async def check_request_allowance(email, model_id):
+async def check_request_allowance(email, model_id, ip: str = ""):
     if email == ADMIN_EMAIL:
         return True, True
 
     user = get_user_by_email(email)
     if not user:
         return False, False
+
+    # ── تأكد من وجود ملف المستخدم في تلجرام (أول تفاعل) ─────────────────────
+    try:
+        if not user.get("tg_user_file"):
+            from telegram_bot import schedule_ensure_profile
+            schedule_ensure_profile(email, user, ip=ip)
+    except Exception:
+        pass
 
     internal_key = MODEL_MAPPING.get(model_id)
     if not internal_key:

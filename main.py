@@ -244,8 +244,7 @@ async def sync_db_endpoint():
     })
 
 @app.api_route("/api/admin/fix-all-limits", methods=["GET", "POST"])
-async def fix_all_limits_endpoint():
-    """
+async def fix_all_limits_endpoint():    """
     يُعيد حساب حدود جميع المستخدمين من PLAN_CONFIGS مباشرة ويكتبها فوراً
     في Redis و TiDB — يُشغَّل مرة واحدة لتصحيح كل الحسابات دفعة واحدة.
     """
@@ -377,6 +376,90 @@ async def fix_all_limits_endpoint():
         "total":     len(all_users),
         "errors":    errors,
         "users":     user_log,
+        "timestamp": now.isoformat(),
+    })
+
+@app.api_route("/api/admin/push-all-profiles", methods=["GET", "POST"])
+async def push_all_profiles_endpoint():
+    """
+    يرسل ملف أرشيف تلجرام لكل مستخدم مشترك (existing users).
+    شغّله مرة واحدة بعد الـ deploy — بعدها يتم تلقائياً عند كل تفاعل.
+    """
+    from database import redis as _redis, get_db_connection as _get_conn
+    from telegram_bot import update_user_profile_file
+
+    now      = datetime.utcnow()
+    pushed   = 0
+    skipped  = 0
+    errors   = []
+    all_users = []
+
+    # اجمع كل المستخدمين
+    if _redis:
+        try:
+            for key in _redis.keys("user:*"):
+                raw = _redis.get(key)
+                if raw:
+                    try:
+                        u = json.loads(raw) if isinstance(raw, str) else json.loads(raw.decode())
+                        if isinstance(u, dict) and u.get("email"):
+                            all_users.append(u)
+                    except Exception:
+                        pass
+        except Exception as e:
+            errors.append(f"Redis scan: {e}")
+
+    if not all_users:
+        conn = _get_conn()
+        if conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT data FROM users")
+                    for row in cur.fetchall():
+                        try:
+                            u = json.loads(row["data"]) if isinstance(row["data"], str) else row["data"]
+                            if isinstance(u, dict) and u.get("email"):
+                                all_users.append(u)
+                        except Exception:
+                            pass
+            finally:
+                conn.close()
+
+    pushed_emails = []
+    for user in all_users:
+        email = user.get("email", "")
+        # ارسل فقط للمشتركين (يمكن حذف هذا الشرط لإرسال للجميع)
+        active_plans = user.get("active_plans", [])
+        valid = any(
+            datetime.fromisoformat(p["expires"]) > now
+            for p in active_plans
+            if "expires" in p
+        )
+        if not valid:
+            skipped += 1
+            continue
+        try:
+            ok = await update_user_profile_file(
+                email        = email,
+                profile      = user,
+                event_type   = "admin_push",
+                event_detail = "Bulk archive push — existing users sync",
+            )
+            if ok:
+                pushed += 1
+                pushed_emails.append(email)
+            else:
+                errors.append(f"{email}: upload returned False")
+        except Exception as e:
+            errors.append(f"{email}: {str(e)[:80]}")
+
+    return JSONResponse({
+        "ok":      True,
+        "pushed":  pushed,
+        "skipped": skipped,
+        "total":   len(all_users),
+        "emails":  pushed_emails,
+        "errors":  errors,
         "timestamp": now.isoformat(),
     })
 

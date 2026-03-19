@@ -630,67 +630,169 @@ def _safe_file_name(email: str) -> str:
     return f"user_{slug}_{h}.txt"
 
 def _build_user_txt(profile: dict) -> str:
-    """يبني محتوى ملف .txt للمستخدم من dict البيانات."""
+    """
+    يبني أرشيف .txt كامل للمستخدم — يشمل كل التفاصيل.
+    هذا هو المصدر الوحيد للحقيقة عن المستخدم خارج قاعدة البيانات.
+    """
+    import hashlib as _hashlib
     now   = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
     email = profile.get("email", "unknown")
 
+    # معرف فريد قصير للتعرف السريع
+    uid = _hashlib.md5(email.encode()).hexdigest()[:10].upper()
+
+    # ── تحديد حالة الاشتراك ──────────────────────────────────────────────────
+    from datetime import datetime as _dt
+    now_dt = _dt.utcnow()
+    active_plans = profile.get("active_plans", [])
+    valid_plans  = []
+    for p in active_plans:
+        try:
+            if _dt.fromisoformat(p["expires"]) > now_dt:
+                valid_plans.append(p)
+        except Exception:
+            pass
+
+    plan_status = "PAID" if valid_plans else "FREE"
+
     lines = [
-        "=" * 60,
-        f"  ORGTEH USER PROFILE — {email}",
-        "=" * 60,
-        f"Last Updated : {now}",
-        f"Email        : {email}",
-        f"API Key      : {profile.get('api_key', 'N/A')}",
-        f"Plan         : {profile.get('plan', 'Free Tier')}",
-        f"Created At   : {profile.get('created_at', 'N/A')}",
-        f"Sub End      : {profile.get('subscription_end', 'N/A')}",
+        "╔" + "═" * 62 + "╗",
+        f"║  ORGTEH USER ARCHIVE                                       ║",
+        f"║  ID: {uid:<56}║",
+        "╚" + "═" * 62 + "╝",
+        f"",
+        f"  Generated   : {now}",
+        f"  Status      : {plan_status}",
         "",
-        "─" * 60,
-        "  ACTIVE SUBSCRIPTIONS",
-        "─" * 60,
+        "┌─ IDENTITY " + "─" * 51 + "┐",
+        f"  Email       : {email}",
+        f"  Name        : {profile.get('first_name','')} {profile.get('last_name','')}".rstrip(),
+        f"  API Key     : {profile.get('api_key', 'N/A')}",
+        f"  User ID     : {uid}",
+        f"  Registered  : {profile.get('created_at', 'N/A')}",
+        f"  Plan Label  : {profile.get('plan', 'Free Tier')}",
+        f"  Sub Ends    : {profile.get('subscription_end', 'N/A')}",
+        "└" + "─" * 62 + "┘",
+        "",
+        "┌─ ACTIVE SUBSCRIPTIONS " + "─" * 39 + "┐",
     ]
-    for i, p in enumerate(profile.get("active_plans", []), 1):
-        lines.append(f"  [{i}] {p.get('name','?')} ({p.get('period','?')})")
-        lines.append(f"      Activated : {p.get('activated','N/A')}")
-        lines.append(f"      Expires   : {p.get('expires','N/A')}")
-    if not profile.get("active_plans"):
-        lines.append("  No active subscriptions.")
 
-    lines += [
-        "",
-        "─" * 60,
-        "  TODAY'S USAGE",
-        "─" * 60,
-    ]
+    if valid_plans:
+        for i, p in enumerate(valid_plans, 1):
+            limits = p.get("limits", {})
+            lines.append(f"  [{i}] {p.get('name','?')} — {p.get('period','?').upper()}")
+            lines.append(f"      Plan Key  : {p.get('plan_key','?')}")
+            lines.append(f"      Activated : {p.get('activated','N/A')}")
+            lines.append(f"      Expires   : {p.get('expires','N/A')}")
+            if limits:
+                model_limits = {k: v for k, v in limits.items() if v > 0 and k != "unified_extra"}
+                extra = limits.get("unified_extra", 0)
+                if model_limits:
+                    lines.append(f"      Limits    : " + " | ".join(f"{k}={v}" for k, v in model_limits.items()))
+                if extra:
+                    lines.append(f"      Extra Cr. : {extra}")
+            lines.append("")
+    else:
+        lines.append("  No active paid subscriptions — Free Tier.")
+        lines.append("")
+    lines.append("└" + "─" * 62 + "┘")
+
+    # ── الاستخدام اليومي ──────────────────────────────────────────────────────
     usage = profile.get("usage", {})
-    lines.append(f"  Date          : {usage.get('date','N/A')}")
-    lines.append(f"  Total Requests: {usage.get('total_requests', 0)}")
-    lines.append(f"  Total Tokens  : {usage.get('total_tokens', 0)}")
-    lines.append(f"  Errors        : {usage.get('errors', 0)}")
-
+    MODEL_KEYS = ["deepseek", "kimi", "mistral", "llama", "gemma",
+                  "llama-large", "llama-scout", "qwen-coder", "qwen-mini"]
     lines += [
         "",
-        "─" * 60,
-        "  ACTIVITY LOG (last 100 events)",
-        "─" * 60,
+        "┌─ TODAY'S USAGE " + "─" * 46 + "┐",
+        f"  Date            : {usage.get('date','N/A')}",
+        f"  Total Requests  : {usage.get('total_requests', 0)}",
+        f"  Total Tokens    : {usage.get('total_tokens', 0)}",
+        f"  Errors          : {usage.get('errors', 0)}",
+        f"  Internal Ops    : {usage.get('internal_ops', 0)}",
+        f"  Extra Credit    : {usage.get('unified_extra', 0)}",
+        "",
+        "  Per-Model Usage:",
     ]
-    for entry in profile.get("activity_log", [])[-100:]:
-        lines.append(f"  [{entry.get('ts','?')}] {entry.get('type','?')}: {entry.get('detail','')}")
-    if not profile.get("activity_log"):
-        lines.append("  No activity recorded yet.")
+    for mk in MODEL_KEYS:
+        val = usage.get(mk, 0)
+        if val > 0:
+            lines.append(f"    {mk:<16}: {val}")
+    if all(usage.get(mk, 0) == 0 for mk in MODEL_KEYS):
+        lines.append("    (no model usage today)")
+    lines.append("└" + "─" * 62 + "┘")
 
+    # ── الحدود المجمّعة ──────────────────────────────────────────────────────
+    combined_limits = {k: 0 for k in MODEL_KEYS}
+    combined_limits["unified_extra"] = 0
+    for p in valid_plans:
+        for k, v in p.get("limits", {}).items():
+            combined_limits[k] = combined_limits.get(k, 0) + v
     lines += [
         "",
-        "─" * 60,
-        "  SUBSCRIPTION HISTORY",
-        "─" * 60,
+        "┌─ COMBINED DAILY LIMITS " + "─" * 38 + "┐",
+    ]
+    for k, v in combined_limits.items():
+        if v > 0:
+            lines.append(f"  {k:<20}: {v}")
+    if all(v == 0 for v in combined_limits.values()):
+        lines.append("  Free Tier limits apply.")
+    lines.append("└" + "─" * 62 + "┘")
+
+    # ── تاريخ الاشتراكات والمدفوعات ──────────────────────────────────────────
+    lines += [
+        "",
+        "┌─ SUBSCRIPTION & PAYMENT HISTORY " + "─" * 29 + "┐",
     ]
     for h in profile.get("subscription_history", []):
-        lines.append(f"  {h.get('activated','?')} → {h.get('name','?')} ({h.get('type','?')})")
+        tag = "🆕 NEW" if h.get("type") == "new" else "🔄 RENEW"
+        lines.append(f"  {tag}  {h.get('activated','?')[:19]}")
+        lines.append(f"         Plan    : {h.get('name','?')} ({h.get('period','?')})")
+        lines.append(f"         Expires : {h.get('expires','?')[:19]}")
+        if h.get("amount"):
+            lines.append(f"         Amount  : {h.get('amount')} {h.get('currency','USD')}")
+        if h.get("gateway"):
+            lines.append(f"         Gateway : {h.get('gateway')}")
+        if h.get("receipt"):
+            lines.append(f"         Receipt : {h.get('receipt')}")
+        lines.append("")
     if not profile.get("subscription_history"):
-        lines.append("  No history.")
+        lines.append("  No payment/subscription history.")
+    lines.append("└" + "─" * 62 + "┘")
 
-    lines += ["", "=" * 60, "  END OF FILE", "=" * 60, ""]
+    # ── سجل النشاط الكامل ────────────────────────────────────────────────────
+    activity_log = profile.get("activity_log", [])
+    lines += [
+        "",
+        f"┌─ ACTIVITY LOG ({len(activity_log)} events) " + "─" * (44 - len(str(len(activity_log)))) + "┐",
+    ]
+    # اعرض جميع الأحداث (كل التاريخ)
+    for entry in activity_log:
+        ip_str = f" | IP={entry.get('ip','')}" if entry.get("ip") else ""
+        lines.append(f"  [{entry.get('ts','?')}] {entry.get('type','?')}{ip_str}")
+        if entry.get("detail"):
+            lines.append(f"    ↳ {entry.get('detail','')}")
+    if not activity_log:
+        lines.append("  No activity recorded yet.")
+    lines.append("└" + "─" * 62 + "┘")
+
+    # ── IPs الفريدة ───────────────────────────────────────────────────────────
+    seen_ips = {}
+    for entry in activity_log:
+        ip = entry.get("ip", "")
+        if ip and ip not in seen_ips:
+            seen_ips[ip] = entry.get("ts", "?")
+    if seen_ips:
+        lines += [
+            "",
+            "┌─ KNOWN IP ADDRESSES " + "─" * 41 + "┐",
+        ]
+        for ip, first_seen in seen_ips.items():
+            lines.append(f"  {ip:<20} first seen: {first_seen}")
+        lines.append("└" + "─" * 62 + "┘")
+
+    lines += ["", "╔" + "═" * 62 + "╗",
+              "║  END OF ARCHIVE" + " " * 46 + "║",
+              "╚" + "═" * 62 + "╝", ""]
     return "\n".join(lines)
 
 
@@ -753,13 +855,14 @@ async def update_user_profile_file(
     profile:      dict,
     event_type:   str = "update",
     event_detail: str = "",
+    ip:           str = "",
 ) -> bool:
     """
     يُضيف الحدث لسجل النشاط ثم يرفع ملف المستخدم المحدَّث إلى تلجرام.
     يُخزّن message_id في Redis + TiDB.
 
     الاستدعاء:
-        await update_user_profile_file(email, user_dict, "code_hub_request", "model=deepseek")
+        await update_user_profile_file(email, user_dict, "code_hub_request", "model=deepseek", ip="1.2.3.4")
     """
     if not _users_bot_configured():
         return False
@@ -769,13 +872,16 @@ async def update_user_profile_file(
     except Exception:
         _redis = None
 
-    # أضف الحدث
+    # أضف الحدث مع IP إن وُجد
     activity = profile.get("activity_log", [])
-    activity.append({
+    event_entry = {
         "ts":     datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
         "type":   event_type,
         "detail": str(event_detail)[:200],
-    })
+    }
+    if ip:
+        event_entry["ip"] = ip
+    activity.append(event_entry)
     profile["activity_log"] = activity[-500:]  # احتفظ بآخر 500 حدث
 
     txt = _build_user_txt(profile)
@@ -788,6 +894,16 @@ async def update_user_profile_file(
             if stored:
                 meta = json.loads(stored) if isinstance(stored, str) else stored
                 existing_msg_id = meta.get("message_id")
+        except Exception:
+            pass
+
+    # Fallback: جلب من TiDB إذا لم يوجد في Redis
+    if not existing_msg_id:
+        try:
+            from database import get_user_by_email as _get_user
+            _u = _get_user(email)
+            if _u:
+                existing_msg_id = _u.get("tg_user_file", {}).get("message_id")
         except Exception:
             pass
 
@@ -812,8 +928,79 @@ async def update_user_profile_file(
     # خزّن المرجع في TiDB أيضاً (احتياطي)
     _save_user_file_ref_to_db(email, result["message_id"], result["file_id"])
 
-    logger.info(f"[UserBot] ✅ {email} — msg_id={result['message_id']}")
+    # ✅ حدّث activity_log في بيانات المستخدم داخل قاعدة البيانات
+    try:
+        from database import get_user_by_email as _get_user, redis as _r2
+        from database import get_db_connection as _get_conn
+        _u = _get_user(email)
+        if _u:
+            _u["activity_log"] = profile["activity_log"]
+            if _r2:
+                _r2.set(f"user:{email}", json.dumps(_u))
+            _c = _get_conn()
+            if _c:
+                try:
+                    with _c.cursor() as cur:
+                        cur.execute("UPDATE users SET data=%s WHERE email=%s",
+                                    (json.dumps(_u), email))
+                finally:
+                    _c.close()
+    except Exception as e:
+        logger.debug(f"[UserBot] activity_log sync failed (non-critical): {e}")
+
+    logger.info(f"[UserBot] ✅ {email} — msg_id={result['message_id']} event={event_type}")
     return True
+
+
+async def ensure_user_profile_exists(
+    email:   str,
+    profile: dict,
+    ip:      str = "",
+) -> bool:
+    """
+    يتحقق إذا كان ملف المستخدم موجوداً في تلجرام.
+    إذا لم يوجد → ينشئه فوراً (حدث: first_contact).
+    يُستدعى عند أول تفاعل مع النظام (تسجيل دخول، طلب API، ...).
+
+    آمن تماماً: لا يُعيد خطأ إذا فشل — صامت في حالة الفشل.
+    """
+    if not _users_bot_configured():
+        return False
+
+    # تحقق أولاً من Redis
+    has_file = False
+    try:
+        from database import redis as _redis
+        if _redis:
+            stored = _redis.get(_user_file_redis_key(email))
+            if stored:
+                meta = json.loads(stored) if isinstance(stored, str) else stored
+                if meta.get("message_id"):
+                    has_file = True
+    except Exception:
+        pass
+
+    # تحقق من TiDB إذا لم يوجد في Redis
+    if not has_file:
+        try:
+            tg_ref = profile.get("tg_user_file", {})
+            if tg_ref.get("message_id"):
+                has_file = True
+        except Exception:
+            pass
+
+    if has_file:
+        return True  # الملف موجود، لا داعي للإنشاء
+
+    # ✅ أول تفاعل — أنشئ الملف فوراً
+    logger.info(f"[UserBot] 🆕 First contact for {email} — creating profile file")
+    return await update_user_profile_file(
+        email        = email,
+        profile      = profile,
+        event_type   = "first_contact",
+        event_detail = "Auto-created on first system interaction",
+        ip           = ip,
+    )
 
 
 def _save_user_file_ref_to_db(email: str, message_id: int, file_id: str) -> None:
@@ -962,14 +1149,11 @@ def schedule_user_profile_update(
     profile:      dict,
     event_type:   str = "update",
     event_detail: str = "",
+    ip:           str = "",
 ) -> None:
     """
     يُجدِّل تحديث ملف المستخدم في الخلفية (fire-and-forget).
     آمن للاستدعاء بدون await — يُنشئ asyncio.Task داخلياً.
-
-    مثال:
-        from telegram_bot import schedule_user_profile_update
-        schedule_user_profile_update(email, user_data, "code_hub_request", f"model={model_id}")
     """
     import asyncio as _asyncio
     try:
@@ -978,9 +1162,30 @@ def schedule_user_profile_update(
             profile      = profile,
             event_type   = event_type,
             event_detail = event_detail,
+            ip           = ip,
         ))
     except Exception as e:
         logger.debug(f"[UserBot] schedule failed (non-critical): {e}")
+
+
+def schedule_ensure_profile(
+    email:   str,
+    profile: dict,
+    ip:      str = "",
+) -> None:
+    """
+    يتحقق ويُنشئ ملف المستخدم في تلجرام إذا لم يكن موجوداً.
+    (fire-and-forget) — آمن للاستدعاء من أي مكان بدون await.
+    """
+    import asyncio as _asyncio
+    try:
+        _asyncio.create_task(ensure_user_profile_exists(
+            email   = email,
+            profile = profile,
+            ip      = ip,
+        ))
+    except Exception as e:
+        logger.debug(f"[UserBot] schedule_ensure failed (non-critical): {e}")
 
 # ============================================================================
 # أنواع الأحداث المقترحة (event_type) للاتساق في جميع أنحاء المشروع:
