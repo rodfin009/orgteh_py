@@ -244,7 +244,8 @@ async def sync_db_endpoint():
     })
 
 @app.api_route("/api/admin/fix-all-limits", methods=["GET", "POST"])
-async def fix_all_limits_endpoint():    """
+async def fix_all_limits_endpoint():
+    """
     يُعيد حساب حدود جميع المستخدمين من PLAN_CONFIGS مباشرة ويكتبها فوراً
     في Redis و TiDB — يُشغَّل مرة واحدة لتصحيح كل الحسابات دفعة واحدة.
     """
