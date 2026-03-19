@@ -153,25 +153,34 @@ def get_user_limits_and_usage(email):
         except:
             pass
 
-    final_limits = PLAN_CONFIGS["free_tier"]["daily_limits"].copy()
-    final_limits["unified_extra"] = 0
-
     if not valid_plans:
+        # ── لا توجد خطط نشطة → استخدم free_tier كأساس ──────────────────────
+        final_limits = PLAN_CONFIGS["free_tier"]["daily_limits"].copy()
+        final_limits["unified_extra"] = 0
+
+        # إذا كانت هناك حدود مخزونة يدوياً (مثلاً من هدية مشرف)، استخدم الأعلى
         db_limits = user.get("limits", {})
         if db_limits:
             for k, v in db_limits.items():
                 if k in final_limits or k == "unified_extra":
                     final_limits[k] = max(final_limits.get(k, 0), v)
     else:
-        for p in valid_plans:
-            p_limits = p.get("limits", {})
+        # ── يوجد خطط نشطة → ابدأ من أصفار (لا free_tier) وأجمع حدود كل خطة ──
+        # نبدأ بالأصفار لجميع مفاتيح النماذج المعروفة
+        final_limits = {k: 0 for k in PLAN_CONFIGS["free_tier"]["daily_limits"]}
+        final_limits["unified_extra"] = 0
 
-            # ── fallback: إذا لم تُخزَّن الحدود في الخطة، نجلبها من PLAN_CONFIGS ──
-            if not p_limits:
-                plan_key = p.get("plan_key", "")
-                period   = p.get("period", "monthly")
-                if plan_key and plan_key in PLAN_CONFIGS:
-                    p_limits = get_limits_for_new_subscription(plan_key, period)
+        for p in valid_plans:
+            plan_key = p.get("plan_key", "")
+            period   = p.get("period", "monthly")
+
+            # ✅ PLAN_CONFIGS هو المصدر الوحيد للحقيقة — دائماً أعد الحساب منه
+            # هذا يضمن صحة الحدود بغض النظر عن أي قيم قديمة مخزونة في active_plans
+            if plan_key and plan_key in PLAN_CONFIGS:
+                p_limits = get_limits_for_new_subscription(plan_key, period)
+            else:
+                # خطة غير معروفة → استخدم الحدود المخزونة كـ fallback أخير
+                p_limits = p.get("limits", {})
 
             for k, v in p_limits.items():
                 if k in final_limits or k == "unified_extra":

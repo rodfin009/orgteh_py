@@ -243,6 +243,143 @@ async def sync_db_endpoint():
         "timestamp": datetime.utcnow().isoformat(),
     })
 
+@app.post("/api/admin/fix-all-limits")
+async def fix_all_limits_endpoint():
+    """
+    يُعيد حساب حدود جميع المستخدمين من PLAN_CONFIGS مباشرة ويكتبها فوراً
+    في Redis و TiDB — يُشغَّل مرة واحدة لتصحيح كل الحسابات دفعة واحدة.
+    """
+    from database import redis, get_db_connection
+    from services.limits import PLAN_CONFIGS, PLAN_NAME_MAP, get_limits_for_new_subscription, ALL_MODEL_KEYS
+
+    now        = datetime.utcnow()
+    fixed      = 0
+    skipped    = 0
+    errors     = []
+    user_log   = []
+
+    # ── 1. اجمع كل المستخدمين من Redis ──────────────────────────────────────
+    all_users = []
+    if redis:
+        try:
+            keys = redis.keys("user:*")
+            for key in keys:
+                raw = redis.get(key)
+                if not raw:
+                    continue
+                try:
+                    u = json.loads(raw) if isinstance(raw, str) else json.loads(raw.decode())
+                    if isinstance(u, dict) and u.get("email"):
+                        all_users.append(u)
+                except Exception:
+                    pass
+        except Exception as e:
+            errors.append(f"Redis scan error: {e}")
+
+    # ── 2. Fallback: اقرأ من TiDB إذا Redis فاشل أو فارغ ────────────────────
+    if not all_users:
+        conn = get_db_connection()
+        if conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT data FROM users")
+                    for row in cur.fetchall():
+                        try:
+                            u = json.loads(row["data"]) if isinstance(row["data"], str) else row["data"]
+                            if isinstance(u, dict) and u.get("email"):
+                                all_users.append(u)
+                        except Exception:
+                            pass
+            except Exception as e:
+                errors.append(f"TiDB scan error: {e}")
+            finally:
+                conn.close()
+
+    # ── 3. لكل مستخدم: أعد حساب الحدود وحدّث Redis + TiDB ──────────────────
+    conn = get_db_connection()
+
+    for user in all_users:
+        email        = user.get("email", "")
+        active_plans = user.get("active_plans", [])
+        valid_plans  = []
+
+        for p in active_plans:
+            try:
+                if datetime.fromisoformat(p["expires"]) > now:
+                    valid_plans.append(p)
+            except Exception:
+                pass
+
+        if not valid_plans:
+            skipped += 1
+            continue  # مستخدم مجاني — لا حاجة للإصلاح
+
+        # ── أعد حساب الحدود الصحيحة من PLAN_CONFIGS ──────────────────────
+        correct_limits = {k: 0 for k in PLAN_CONFIGS["free_tier"]["daily_limits"]}
+        correct_limits["unified_extra"] = 0
+        plan_details   = []
+
+        for p in valid_plans:
+            raw_key  = p.get("plan_key", "")
+            period   = p.get("period", "monthly")
+
+            # حاول إيجاد المفتاح الصحيح (مباشرة أو عبر PLAN_NAME_MAP)
+            plan_key = raw_key if raw_key in PLAN_CONFIGS else PLAN_NAME_MAP.get(p.get("name", ""), "")
+
+            if plan_key and plan_key in PLAN_CONFIGS:
+                p_limits = get_limits_for_new_subscription(plan_key, period)
+                # ✅ حدّث plan_key المخزون إذا كان خاطئاً
+                if p.get("plan_key") != plan_key:
+                    p["plan_key"] = plan_key
+                # ✅ حدّث الحدود المخزونة داخل active_plans أيضاً
+                p["limits"] = p_limits
+                for k, v in p_limits.items():
+                    correct_limits[k] = correct_limits.get(k, 0) + v
+                plan_details.append(f"{p.get('name','?')} [{plan_key}]={p_limits}")
+            else:
+                plan_details.append(f"{p.get('name','?')} [UNKNOWN key='{raw_key}'] — skipped")
+
+        # ── احفظ الحدود الصحيحة في user["limits"] (legacy field) أيضاً ──────
+        user["limits"] = correct_limits
+
+        user_log.append({
+            "email":  email,
+            "plans":  plan_details,
+            "limits": {k: v for k, v in correct_limits.items() if v > 0},
+        })
+
+        # ── اكتب في Redis ──────────────────────────────────────────────────
+        if redis:
+            try:
+                redis.set(f"user:{email}", json.dumps(user))
+            except Exception as e:
+                errors.append(f"{email} Redis write: {e}")
+
+        # ── اكتب في TiDB ──────────────────────────────────────────────────
+        if conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE users SET data = %s WHERE email = %s",
+                        (json.dumps(user), email)
+                    )
+                fixed += 1
+            except Exception as e:
+                errors.append(f"{email} TiDB write: {e}")
+
+    if conn:
+        conn.close()
+
+    return JSONResponse({
+        "ok":        True,
+        "fixed":     fixed,
+        "skipped":   skipped,
+        "total":     len(all_users),
+        "errors":    errors,
+        "users":     user_log,
+        "timestamp": now.isoformat(),
+    })
+
 # ============================================================================
 # Static Files Debug
 # ============================================================================
