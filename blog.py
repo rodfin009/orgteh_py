@@ -1601,6 +1601,18 @@ async def run_blog_generation(count: int = 3) -> dict:
 
 blog_router = APIRouter()
 
+# ─── Admin guard ─────────────────────────────────────────────────────────────
+# أضف ADMIN_EMAIL في متغيرات البيئة — فقط هذا الإيميل يقدر يشغّل التوليد
+_ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "").strip().lower()
+
+
+def _is_admin(email: str) -> bool:
+    """يتحقق أن المستخدم هو صاحب الحساب الإداري فقط."""
+    if not _ADMIN_EMAIL or not email:
+        return False
+    return email.strip().lower() == _ADMIN_EMAIL
+# ─────────────────────────────────────────────────────────────────────────────
+
 
 def _templates():
     from services.auth import templates
@@ -1609,10 +1621,14 @@ def _templates():
 
 def _ctx(request: Request, lang: str, **kwargs) -> dict:
     try:
-        from services.auth import get_template_context
+        from services.auth import get_template_context, get_current_user_email
         ctx = get_template_context(request, lang)
+        # أمرر is_admin للـ template — فقط صاحب ADMIN_EMAIL يراها
+        email = get_current_user_email(request)
+        ctx["is_admin"] = _is_admin(email or "")
     except Exception:
         ctx = {}
+        ctx["is_admin"] = False
     ctx.update({"request": request, "lang": lang, **kwargs})
     return ctx
 
@@ -1678,6 +1694,8 @@ async def admin_generate_blog(request: Request):
     email = get_current_user_email(request)
     if not email:
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    if not _is_admin(email):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
     try:
         body  = await request.json()
     except Exception:
@@ -1701,6 +1719,8 @@ async def admin_rebuild_catalog(request: Request):
     email = get_current_user_email(request)
     if not email:
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    if not _is_admin(email):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
 
     # امسح جدول TiDB + hash Redis ليُعاد البناء
     conn = _get_conn()
@@ -1736,6 +1756,8 @@ async def api_blog_catalog(request: Request):
     email = get_current_user_email(request)
     if not email:
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    if not _is_admin(email):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
     entries = _build_catalog_entries()
     return JSONResponse({
         "total":   len(entries),

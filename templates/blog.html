@@ -171,7 +171,7 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
         {% if lang == 'ar' %}ستبدأ المدونة قريباً بنشر مقالات يومية عن أحدث أبحاث الذكاء الاصطناعي.
         {% else %}The blog will soon publish daily AI research articles.{% endif %}
       </p>
-      {% if is_logged_in %}
+      {% if is_admin %}
       <button class="generate-btn" onclick="triggerGenerate(3)">
         <i class="fa-solid fa-wand-magic-sparkles me-2"></i>
         {% if lang == 'ar' %}توليد أول مقالات{% else %}Generate First Articles{% endif %}
