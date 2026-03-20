@@ -61,19 +61,7 @@
     }
 ]
 </script>
-<div class="model-lang-content lang-en hidden">
-    <h3 class="text-2xl font-bold mb-4">Gemma 3 4B-IT: Next-Gen Speed</h3>
-    </div>
-<div class="model-lang-content lang-ar hidden">
-    <h3 class="text-2xl font-bold mb-4">Gemma 3 4B-IT: سرعة الاستجابة القصوى</h3>
-    </div>
 
-<script type="application/json" id="model-specific-config">
-[
-    { "id": "stream", "type": "toggle", "val": true, "label_en": "Stream", "label_ar": "بث حي" },
-    { "id": "temperature", "type": "slider", "min": 0, "max": 1, "val": 0.2, "label_en": "Temperature", "label_ar": "الحرارة" }
-]
-</script>
 <script>
     // 🔥 Updated to accept 'userSignal'
     window.modelSpecificChatHandler = async function(msg, uiModelId, params, chatBox, loadingDiv, userSignal) {

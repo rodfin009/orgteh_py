@@ -67,38 +67,55 @@ EMERGENCY_MODEL_VISION   = "mistralai/ministral-14b-instruct-2512"  # طوارئ
 
 MODELS_METADATA = [
     {
-        "id": "deepseek-ai/deepseek-v3.2", 
+        "id": "deepseek-ai/deepseek-v3.2",
         "short_key": "deepseek",
-        "name": "DeepSeek V3.2", 
+        "name": "DeepSeek V3.2",
         "provider": "DeepSeek",
+        "modalities": ["text", "code"],
         "image": "https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png@latest/light/deepseek-color.png"
     },
     {
-        "id": "mistralai/mistral-large-3-675b-instruct-2512", 
+        "id": "mistralai/mistral-large-3-675b-instruct-2512",
         "short_key": "mistral",
-        "name": "Mistral Large 3", 
+        "name": "Mistral Large 3",
         "provider": "Mistral AI",
+        "modalities": ["text", "images", "code", "reasoning"],
+        "input_format": {
+            "text":  "string content",
+            "image": '<img src="data:image/png;base64,{b64}" />',
+            "note":  "Embed image as HTML tag inside the content string."
+        },
         "image": "https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png@latest/light/mistral-color.png"
     },
     {
-        "id": "moonshotai/kimi-k2-thinking", 
+        "id": "moonshotai/kimi-k2-thinking",
         "short_key": "kimi",
-        "name": "Kimi K2 Thinking", 
+        "name": "Kimi K2 Thinking",
         "provider": "Moonshot",
+        "modalities": ["text", "reasoning"],
         "image": "https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png@latest/light/kimi-color.png"
     },
     {
-        "id": "meta/llama-3.2-3b-instruct", 
+        "id": "meta/llama-3.2-3b-instruct",
         "short_key": "llama",
-        "name": "Llama 3.2", 
+        "name": "Llama 3.2",
         "provider": "Meta",
+        "modalities": ["text"],
         "image": "https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png@latest/light/meta-color.png"
     },
     {
-        "id": "google/gemma-3n-e4b-it", 
+        "id": "google/gemma-3n-e4b-it",
         "short_key": "gemma",
-        "name": "Gemma 3", 
+        "name": "Gemma 3",
         "provider": "Google",
+        "modalities": ["text", "images", "audio", "video"],
+        "input_format": {
+            "text":  "string content",
+            "image": '<img src="data:image/png;base64,{b64}" />',
+            "audio": '<audio src="data:audio/wav;base64,{b64}" />',
+            "video": '<img src="data:image/png;base64,{frame_b64}" /> <audio src="data:audio/wav;base64,{audio_b64}" />',
+            "note":  "Embed media as HTML tags inside the content string. Use base64 encoding."
+        },
         "image": "https://cdn.jsdelivr.net/npm/@lobehub/icons-static-png@latest/light/gemma-color.png"
     },
     # ── NEW MODELS ──────────────────────────────────────────────────────────────
@@ -107,6 +124,7 @@ MODELS_METADATA = [
         "short_key": "llama-large",
         "name": "Llama 3.3 70B",
         "provider": "Meta",
+        "modalities": ["text", "code", "reasoning"],
         "image": "/static/meta.webp"
     },
     {
@@ -114,6 +132,12 @@ MODELS_METADATA = [
         "short_key": "llama-scout",
         "name": "Llama 4 Scout",
         "provider": "Meta",
+        "modalities": ["text", "images"],
+        "input_format": {
+            "text":  "string content",
+            "image": '<img src="data:image/png;base64,{b64}" />',
+            "note":  "Embed image as HTML tag inside the content string. Same format as Gemma."
+        },
         "image": "/static/meta.webp"
     },
     {
@@ -121,6 +145,7 @@ MODELS_METADATA = [
         "short_key": "qwen-coder",
         "name": "Qwen 2.5 Coder",
         "provider": "Qwen",
+        "modalities": ["text", "code"],
         "image": "/static/qwen-coder.webp"
     },
     {
@@ -128,8 +153,9 @@ MODELS_METADATA = [
         "short_key": "qwen-mini",
         "name": "Qwen 2.5 Mini",
         "provider": "Qwen",
+        "modalities": ["text"],
         "image": "/static/qwen-coder.webp",
-        "base_url": "https://riy777-qw.hf.space/v1",  # HuggingFace Space
+        "base_url": "https://riy777-qw.hf.space/v1",
         "use_hf": True
     },
 ]

@@ -907,35 +907,46 @@ console.log(data);`;
     }
 
     function copyCode() {
-        const code = document.getElementById(`code-block-${currentTab}`).textContent;
+        const codeEl = document.getElementById('code-block-' + currentTab);
+        if (!codeEl) return;
+        const text = codeEl.innerText || codeEl.textContent || '';
         const btn = document.getElementById('copy-code-btn');
-        const originalHTML = btn ? btn.innerHTML : '';
+        const lang = (window.SERVER_LANG || 'en');
+        const doneLabel = lang === 'ar'
+            ? '<i class="fa-solid fa-check"></i> تم النسخ'
+            : '<i class="fa-solid fa-check"></i> Copied!';
+        const origHTML = btn ? btn.innerHTML : '';
 
         function onSuccess() {
             if (btn) {
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
-                setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
+                btn.innerHTML = doneLabel;
+                setTimeout(function() { btn.innerHTML = origHTML; }, 2000);
             }
         }
 
-        function fallbackCopy() {
-            const ta = document.createElement('textarea');
-            ta.value = code;
-            ta.setAttribute('readonly', '');
-            ta.style.cssText = 'position:absolute;left:-9999px;top:0;opacity:0;';
-            document.body.appendChild(ta);
-            ta.focus();
-            ta.setSelectionRange(0, ta.value.length);
-            const ok = document.execCommand('copy');
-            document.body.removeChild(ta);
-            if (ok) onSuccess();
+        // طريقة 1: Clipboard API (الأفضل)
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(text).then(onSuccess).catch(function() {
+                fallbackCopy(text, onSuccess);
+            });
+            return;
         }
+        // طريقة 2: execCommand (fallback لـ Android/أقدم)
+        fallbackCopy(text, onSuccess);
+    }
 
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(code).then(onSuccess).catch(fallbackCopy);
-        } else {
-            fallbackCopy();
-        }
+    function fallbackCopy(text, onSuccess) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:0;left:0;width:2em;height:2em;opacity:0;border:none;outline:none;';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+            const ok = document.execCommand('copy');
+            if (ok && onSuccess) onSuccess();
+        } catch(e) {}
+        document.body.removeChild(ta);
     }
 
     function openParamsModal() {
