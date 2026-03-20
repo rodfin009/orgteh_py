@@ -519,8 +519,8 @@
             const lang = window.SERVER_LANG || localStorage.getItem('lang') || 'en';
             document.documentElement.setAttribute('lang', lang);
 
-            // الاتجاه يتبع اللغة دائماً
-            document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+            // dir ثابت على ltr — الموقع يعتمد على CSS classes للـ RTL
+            document.documentElement.setAttribute('dir', 'ltr');
 
             updateLangCheckmarks(lang);
 

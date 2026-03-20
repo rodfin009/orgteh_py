@@ -129,6 +129,19 @@ html:not(.dark) #article-body blockquote { background:#f5f3ff; color:#5b21b6; }
 html[dir="rtl"] #article-body ul,
 html[dir="rtl"] #article-body ol { margin-left:0; margin-right:1.75rem; }
 html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px solid #7c3aed; border-radius:8px 0 0 8px; }
+/* اتجاه العربي يُطبَّق فقط داخل المدونة بدون تغيير dir الـ html */
+[data-blog-lang="ar"] {
+  direction: rtl;
+  text-align: right;
+  unicode-bidi: embed;
+}
+[data-blog-lang="ar"] h1,
+[data-blog-lang="ar"] h2,
+[data-blog-lang="ar"] h3,
+[data-blog-lang="ar"] p,
+[data-blog-lang="ar"] li,
+[data-blog-lang="ar"] .breadcrumb-text { direction: rtl; text-align: right; }
+[data-blog-lang="ar"] .admin-bar { direction: rtl; text-align: right; }
 /* الكود يبقى دائماً LTR بغض النظر عن لغة الصفحة */
 #article-body pre,
 #article-body code,
@@ -177,7 +190,7 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
    ═══════════════════════════════════════════════════════════ #}
 {% if view == "list" %}
 
-<div class="min-h-screen">
+<div class="min-h-screen" {% if lang == 'ar' %}data-blog-lang="ar"{% endif %}>
   {# Hero #}
   <section class="hero-glow pt-16 pb-12 px-4 text-center">
     <div class="max-w-3xl mx-auto">
@@ -300,7 +313,7 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
    ═══════════════════════════════════════════════════════════ #}
 {% elif view == "post" and post %}
 
-<div class="max-w-7xl mx-auto px-4 py-10">
+<div class="max-w-7xl mx-auto px-4 py-10" {% if lang == 'ar' %}data-blog-lang="ar"{% endif %}>
   {# Breadcrumb #}
   <nav class="flex items-center gap-2 text-sm text-gray-500 mb-8 flex-wrap">
     <a href="/{{ lang }}/" class="hover:text-purple-400 transition"><i class="fa-solid fa-home"></i></a>
