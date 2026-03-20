@@ -115,6 +115,31 @@ html:not(.dark) #article-body blockquote { background:#f5f3ff; color:#5b21b6; }
 html[dir="rtl"] #article-body ul,
 html[dir="rtl"] #article-body ol { margin-left:0; margin-right:1.75rem; }
 html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px solid #7c3aed; border-radius:8px 0 0 8px; }
+/* الكود يبقى دائماً LTR بغض النظر عن لغة الصفحة */
+#article-body pre,
+#article-body code,
+#article-body pre code {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: isolate !important;
+}
+/* شريط أدمن */
+.admin-bar {
+  background: linear-gradient(135deg, rgba(124,58,237,0.15) 0%, rgba(91,33,182,0.1) 100%);
+  border: 1px solid rgba(124,58,237,0.35);
+  border-radius: 14px; padding: 12px 18px;
+  margin-bottom: 28px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.admin-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 16px; border-radius: 9px; font-size: 13px; font-weight: 700;
+  cursor: pointer; border: none; transition: opacity 0.2s;
+}
+.admin-btn:hover { opacity: 0.82; }
+.admin-btn-delete { background: #7f1d1d; color: #fca5a5; }
+.admin-btn-edit   { background: rgba(124,58,237,0.25); color: #c4b5fd; border: 1px solid rgba(124,58,237,0.4) !important; }
+#delete-confirm { display:none; }
 
 /* skeleton */
 .skeleton {
@@ -282,6 +307,40 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
     <span class="text-gray-400 truncate max-w-xs">{{ post['title_' ~ lang] or post.title_en }}</span>
   </nav>
 
+  {# ── شريط أدمن — يظهر فقط لصاحب الحساب ── #}
+  {% if is_admin %}
+  <div class="admin-bar mb-8">
+    <div class="flex items-center gap-2 flex-1">
+      <i class="fa-solid fa-shield-halved text-purple-400 text-sm"></i>
+      <span class="text-xs font-bold text-purple-300 uppercase tracking-widest">Admin Panel</span>
+      <span class="text-xs text-gray-500 ms-2">slug: <code class="text-purple-400">{{ post.slug }}</code></span>
+    </div>
+    <div class="flex items-center gap-2 flex-wrap">
+      <a href="/api/admin/blog/edit/{{ post.slug }}"
+         class="admin-btn admin-btn-edit">
+        <i class="fa-solid fa-pen-to-square"></i> Edit
+      </a>
+      <button class="admin-btn admin-btn-delete" onclick="document.getElementById('delete-confirm').style.display='flex'">
+        <i class="fa-solid fa-trash"></i> Delete
+      </button>
+    </div>
+    <div id="delete-confirm"
+         style="display:none; align-items:center; gap:10px; width:100%; margin-top:8px; padding-top:8px; border-top:1px solid rgba(124,58,237,0.2)">
+      <span class="text-xs text-red-400 font-bold flex-1">
+        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+        {% if lang == 'ar' %}هل أنت متأكد من الحذف النهائي؟{% else %}Permanently delete this article?{% endif %}
+      </span>
+      <button class="admin-btn admin-btn-delete" onclick="confirmDelete('{{ post.slug }}')">
+        <i class="fa-solid fa-check"></i> {% if lang == 'ar' %}تأكيد الحذف{% else %}Confirm Delete{% endif %}
+      </button>
+      <button class="admin-btn" style="background:rgba(255,255,255,0.07);color:#9ca3af"
+              onclick="document.getElementById('delete-confirm').style.display='none'">
+        {% if lang == 'ar' %}إلغاء{% else %}Cancel{% endif %}
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="lg:grid lg:grid-cols-[1fr_280px] lg:gap-10 items-start">
 
     {# ── المقالة الرئيسية ── #}
@@ -304,17 +363,7 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
             {{ post.updated_at[:10] }}
           </span>
           {% endif %}
-          {# Language switcher #}
-          <div class="flex items-center gap-2 ms-auto">
-            <a href="/en/blog/{{ post.slug }}"
-               class="text-xs px-3 py-1 rounded-full border transition
-                      {% if lang == 'en' %}border-purple-500 bg-purple-500/15 text-purple-300
-                      {% else %}border-gray-700 text-gray-500 hover:border-purple-500 hover:text-purple-400{% endif %}">EN</a>
-            <a href="/ar/blog/{{ post.slug }}"
-               class="text-xs px-3 py-1 rounded-full border transition
-                      {% if lang == 'ar' %}border-purple-500 bg-purple-500/15 text-purple-300
-                      {% else %}border-gray-700 text-gray-500 hover:border-purple-500 hover:text-purple-400{% endif %}">AR</a>
-          </div>
+
         </div>
 
         <h1 class="text-3xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white mb-4">
@@ -338,7 +387,7 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
       </div>
 
       {# Markdown raw content — rendered by JS #}
-      <script id="article-markdown" type="text/plain">{{ post['content_' ~ lang] or post.content_en }}</script>
+      <script id="article-markdown" type="text/plain">{{ (post['content_' ~ lang] or post.content_en) | safe }}</script>
       <div id="article-body"
            class="text-gray-700 dark:text-gray-300 hidden {% if lang == 'ar' %}text-right{% else %}text-left{% endif %}"
            dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}">
@@ -537,6 +586,19 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
     headings.forEach(h => obs.observe(h));
   }
 
+  window.confirmDelete = async function(slug) {
+    try {
+      const res = await fetch(`/api/admin/blog/delete/${slug}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.ok) {
+        window.location.href = "/{{ lang }}/blog";
+      } else {
+        alert("Delete failed: " + (data.error || "unknown error"));
+      }
+    } catch(e) {
+      alert("Network error: " + e.message);
+    }
+  };
   window.shareTwitter = function() {
     const title = document.querySelector("h1")?.textContent || "Orgteh Blog";
     window.open(

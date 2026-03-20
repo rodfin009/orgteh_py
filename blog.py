@@ -244,6 +244,24 @@ def get_all_slugs_with_dates() -> list[dict]:
         conn.close()
 
 
+def delete_blog_post(slug: str) -> bool:
+    """يحذف مقالة من DB بالـ slug."""
+    conn = _get_conn()
+    if not conn:
+        return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM blog_posts WHERE slug=%s LIMIT 1", (slug,))
+            deleted = cur.rowcount > 0
+        logger.info(f"[BlogDB] delete_blog_post: slug={slug} deleted={deleted}")
+        return deleted
+    except Exception as e:
+        logger.error(f"[BlogDB] delete_blog_post: {e}")
+        return False
+    finally:
+        conn.close()
+
+
 # ============================================================================
 # SECTION 2 — AUTOMATIC CATALOG RAG SYSTEM
 # ============================================================================
@@ -586,7 +604,11 @@ def _format_catalog_prompt(relevant: list[dict], lang: str) -> str:
         "• In the 'Integrating with Orgteh' section, recommend 1–3 of the above",
         "• Choose only what GENUINELY relates to the article's specific topic",
         "• Write recommendations as natural prose — not a bullet list",
-        f"• Use exact markdown links shown above (they already use /{lang}/)",
+        f"• ⚠️  COPY THE EXACT LINK SHOWN ABOVE — do NOT shorten or modify the URL",
+        f"• ✅ CORRECT example:  [DeepSeek V3.2](/{lang}/models/deepseek)",
+        f"• ❌ WRONG example:    [DeepSeek V3.2](/{lang}/models)   ← missing the model key!",
+        f"• ❌ WRONG example:    [DeepSeek V3.2](/{lang}/models/)  ← missing the model key!",
+        f"• The model key is the last part of the URL — it is REQUIRED",
         f"• ⚠️  NEVER use /{'ar' if lang=='en' else 'en'}/ links — this is a {lang.upper()} article",
     ]
     return "\n".join(lines)
@@ -1385,11 +1407,9 @@ Source: {paper['url']}
    - 3-5 concrete actionable points
    - End with a call-to-action toward Orgteh
 
-6. CITATION RULE:
-   In "## Introduction" or "## What This Research Found", include this exact line
-   (adapt the title):
-   > **Source:** [{paper['title'][:60]}...]({paper['url']}) — published on arXiv
-   This signals to Google that content is original analysis, not a copy.
+6. NO INLINE CITATIONS:
+   Do NOT include any "Source:" blockquote or arXiv link inside the article body.
+   The source citation is automatically appended below the article — do not duplicate it.
 
 7. Tone: conversational, like a senior engineer who READ the paper and TESTED the ideas
 
@@ -1462,6 +1482,31 @@ OUTPUT: Complete Arabic markdown article only. Nothing else."""
 
 
 # ─── Markdown helpers ─────────────────────────────────────────────────────────
+
+def _fix_model_links(content: str, relevant: list[dict], lang: str) -> str:
+    """
+    يُصحّح روابط النماذج المكسورة في المحتوى المولَّد.
+    المشكلة: LLM أحياناً يكتب /ar/models بدون المفتاح.
+    """
+    if not relevant or not content:
+        return content
+    for entry in relevant:
+        if entry.get("type") != "model":
+            continue
+        short_key = entry.get("short_key", "")
+        name      = entry.get("name", "")
+        if not short_key or not name:
+            continue
+        correct_link = "/" + lang + "/models/" + short_key
+        # نمط بسيط: ابحث عن ](/lang/models) أو ](/lang/models/) بدون مفتاح بعدها
+        wrong_bare  = "](" + "/" + lang + "/models)"
+        wrong_slash = "](" + "/" + lang + "/models/)"
+        if wrong_bare in content or wrong_slash in content:
+            content = content.replace(wrong_bare,  "](" + correct_link + ")")
+            content = content.replace(wrong_slash, "](" + correct_link + ")")
+            logger.info(f"[PostProcess] Fixed bare link for {name} → {correct_link}")
+    return content
+
 
 def _extract_h1(md: str) -> str:
     for line in md.splitlines():
@@ -1565,11 +1610,14 @@ async def run_blog_generation(count: int = 3) -> dict:
             if not content_en:
                 logger.warning(f"[BlogGen] EN failed: {paper['arxiv_id']}")
                 continue
+            # إصلاح روابط النماذج المكسورة بعد التوليد
+            content_en = _fix_model_links(content_en, relevant, lang="en")
 
             content_ar = generate_article_ar(content_en, catalog_ar)
             if not content_ar:
                 logger.warning(f"[BlogGen] AR failed: {paper['arxiv_id']}")
                 continue
+            content_ar = _fix_model_links(content_ar, relevant, lang="ar")
 
             title_en = _extract_h1(content_en)
             title_ar = _extract_h1(content_ar)
@@ -1763,6 +1811,163 @@ async def admin_rebuild_catalog(request: Request):
         "models":  [e["name"] for e in stored if e["type"] == "model"],
         "tools":   [e["name"] for e in stored if e["type"] == "tool"],
     })
+
+
+# ─── API Admin: حذف مقالة ────────────────────────────────────────────────────
+@blog_router.delete("/api/admin/blog/delete/{slug}")
+async def admin_delete_post(request: Request, slug: str):
+    from services.auth import get_current_user_email
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    if not _is_admin(email):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+    ok = delete_blog_post(slug)
+    if ok:
+        logger.info(f"[BlogAdmin] Deleted: {slug} by {email}")
+        return JSONResponse({"ok": True, "slug": slug})
+    return JSONResponse({"ok": False, "error": "Slug not found"}, status_code=404)
+
+
+# ─── API Admin: صفحة تعديل مقالة (redirect للمستقبل) ─────────────────────────
+@blog_router.get("/api/admin/blog/edit/{slug}", response_class=HTMLResponse)
+async def admin_edit_post_page(request: Request, slug: str):
+    from services.auth import get_current_user_email
+    email = get_current_user_email(request)
+    if not email:
+        return RedirectResponse("/en/login", status_code=302)
+    if not _is_admin(email):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+    post = get_post_by_slug(slug)
+    if not post:
+        return JSONResponse({"error": "Not found"}, status_code=404)
+    post = dict(post)
+    # صفحة تعديل بسيطة — HTML مباشر
+    title_en = (post.get("title_en") or "").replace('"', '&quot;')
+    title_ar = (post.get("title_ar") or "").replace('"', '&quot;')
+    content_en = (post.get("content_en") or "").replace('</textarea>', '<' + '/textarea>')
+    content_ar = (post.get("content_ar") or "").replace('</textarea>', '<' + '/textarea>')
+    html_page = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edit: {slug}</title>
+<style>
+  *{{box-sizing:border-box;margin:0;padding:0}}
+  body{{background:#0f0f1a;color:#e0e0e0;font-family:sans-serif;padding:24px;font-size:14px}}
+  h1{{color:#a78bfa;margin-bottom:20px;font-size:18px}}
+  label{{display:block;margin:14px 0 4px;color:#9ca3af;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}}
+  input[type=text],textarea{{width:100%;background:#1a1a2e;border:1px solid #374151;border-radius:8px;
+    color:#e0e0e0;padding:10px 12px;font-size:13px;font-family:monospace}}
+  textarea{{height:320px;resize:vertical}}
+  .row{{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px}}
+  .btn{{padding:10px 22px;border-radius:9px;font-weight:700;cursor:pointer;border:none;font-size:13px;margin-top:16px;margin-right:8px}}
+  .btn-save{{background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff}}
+  .btn-cancel{{background:rgba(255,255,255,0.07);color:#9ca3af}}
+  #msg{{margin-top:12px;font-size:13px;padding:8px 12px;border-radius:6px}}
+  .ok{{background:#052e16;color:#4ade80;border:1px solid #4ade80}}
+  .err{{background:#2d0a0a;color:#f87171;border:1px solid #f87171}}
+</style>
+</head>
+<body>
+<h1>✏️ Edit Article — <code style="font-size:14px;color:#c4b5fd">{slug}</code></h1>
+<div class="row">
+  <div>
+    <label>Title (EN)</label>
+    <input type="text" id="title_en" value="{title_en}">
+  </div>
+  <div>
+    <label>Title (AR)</label>
+    <input type="text" id="title_ar" value="{title_ar}" dir="rtl">
+  </div>
+</div>
+<div class="row">
+  <div>
+    <label>Content EN (Markdown)</label>
+    <textarea id="content_en">{content_en}</textarea>
+  </div>
+  <div>
+    <label>Content AR (Markdown)</label>
+    <textarea id="content_ar" dir="rtl">{content_ar}</textarea>
+  </div>
+</div>
+<button class="btn btn-save" onclick="savePost()">💾 Save Changes</button>
+<a href="/en/blog/{slug}"><button class="btn btn-cancel" type="button">Cancel</button></a>
+<div id="msg" style="display:none"></div>
+<script>
+async function savePost() {{
+  const body = {{
+    title_en:   document.getElementById('title_en').value,
+    title_ar:   document.getElementById('title_ar').value,
+    content_en: document.getElementById('content_en').value,
+    content_ar: document.getElementById('content_ar').value,
+  }};
+  const msg = document.getElementById('msg');
+  msg.style.display = 'none';
+  try {{
+    const res  = await fetch('/api/admin/blog/update/{slug}', {{
+      method: 'PUT', headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify(body)
+    }});
+    const data = await res.json();
+    msg.style.display = 'block';
+    if (data.ok) {{
+      msg.className = 'ok'; msg.textContent = '✅ Saved! Reloading…';
+      setTimeout(() => location.reload(), 1500);
+    }} else {{
+      msg.className = 'err'; msg.textContent = '❌ ' + (data.error || 'Save failed');
+    }}
+  }} catch(e) {{
+    msg.style.display = 'block'; msg.className = 'err'; msg.textContent = '❌ Network error: ' + e.message;
+  }}
+}}
+</script>
+</body></html>"""
+    from fastapi.responses import HTMLResponse as _HR
+    return _HR(html_page)
+
+
+# ─── API Admin: حفظ تعديلات المقالة ──────────────────────────────────────────
+@blog_router.put("/api/admin/blog/update/{slug}")
+async def admin_update_post(request: Request, slug: str):
+    from services.auth import get_current_user_email
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    if not _is_admin(email):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+
+    conn = _get_conn()
+    if not conn:
+        return JSONResponse({"error": "No DB connection"}, status_code=500)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+            UPDATE blog_posts SET
+              title_en   = %s,
+              title_ar   = %s,
+              content_en = %s,
+              content_ar = %s
+            WHERE slug = %s LIMIT 1
+            """, (
+                body.get("title_en", ""),
+                body.get("title_ar", ""),
+                body.get("content_en", ""),
+                body.get("content_ar", ""),
+                slug,
+            ))
+            updated = cur.rowcount > 0
+        logger.info(f"[BlogAdmin] Updated: {slug} by {email}")
+        return JSONResponse({"ok": updated, "slug": slug})
+    except Exception as e:
+        logger.error(f"[BlogAdmin] update: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+    finally:
+        conn.close()
 
 
 # ─── Cron / Browser Trigger ───────────────────────────────────────────────────
