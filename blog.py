@@ -1,3 +1,30 @@
+"""
+blog.py — نظام المدونة الكامل لـ Orgteh
+===========================================
+يحتوي على:
+  1. blog_db      — طبقة قاعدة البيانات (TiDB الأساسي + Redis للمؤقت فقط)
+  2. blog_catalog — بناء كتالوج RAG تلقائي من ملفات النماذج وقاعدة الأدوات
+  3. blog_gen     — محرك التوليد (arxiv → AI → AR/EN → حفظ)
+  4. blog_router  — راوتر FastAPI (الصفحات + API)
+
+توزيع التخزين:
+  TiDB (5GB) — كل البيانات الدائمة:
+    • blog_posts          → المقالات الكاملة
+    • blog_catalog_embeds → تضمينات النماذج/الأدوات للـ RAG
+    • blog_article_embeds → تضمينات المقالات للـ semantic dedup
+
+  Redis (250MB) — فقط المؤقت وسريع الوصول:
+    • blog:seen_arxiv_ids → SET صغير للفحص السريع (< 75KB)
+    • blog:catalog_hash   → string لـ invalidation check (< 20 bytes)
+
+نظام RAG للكتالوج:
+  - المصدر: ملفات HTML في static/models_translation/ + TOOLS_DB
+  - التضمين: nvidia/llama-nemotron-embed-1b-v2
+  - التخزين: TiDB (UPSERT تلقائي)
+  - الاسترجاع: cosine similarity → top-K أكثر صلة
+  - Hash Invalidation: يعيد البناء عند إضافة نماذج جديدة
+"""
+
 import os
 import re
 import json
@@ -1454,6 +1481,7 @@ def generate_article_ar(english_content: str, catalog_ctx_ar: str) -> Optional[s
 7. Translate naturally — write as if originally authored in Arabic
 8. First-person phrases like "We tested on Orgteh API" → "جربنا على Orgteh API"
 9. Do NOT add preamble like "إليك الترجمة" — output ONLY the translated markdown
+10. CRITICAL: Do NOT include any blockquote with "المصدر:" or "Source:" — the source card is added automatically by the template
 10. Technical terms: RAG, LLM, API, prompt, token, fine-tuning → keep in English
 
 === ENGLISH ARTICLE ===
@@ -1498,6 +1526,20 @@ def _fix_model_links(content: str, relevant: list[dict], lang: str) -> str:
             content = content.replace(wrong_slash, "](" + correct_link + ")")
             logger.info(f"[PostProcess] Fixed bare link for {name} → {correct_link}")
     return content
+
+
+def _clean_generated_content(content):
+    result = []
+    for line in content.splitlines():
+        s = line.strip()
+        if s.startswith('>') and ('Source:' in s or '\u0627\u0644\u0645\u0635\u062f\u0631:' in s):
+            continue
+        result.append(line)
+    out = '\n'.join(result)
+    while '\n\n\n' in out:
+        out = out.replace('\n\n\n', '\n\n')
+    return out.strip()
+
 
 def _extract_h1(md: str) -> str:
     for line in md.splitlines():
@@ -1587,12 +1629,14 @@ async def run_blog_generation(count: int = 3) -> dict:
                 logger.warning(f"[BlogGen] EN failed: {paper['arxiv_id']}")
                 continue
             content_en = _fix_model_links(content_en, relevant, lang="en")
+            content_en = _clean_generated_content(content_en)
 
             content_ar = generate_article_ar(content_en, catalog_ar)
             if not content_ar:
                 logger.warning(f"[BlogGen] AR failed: {paper['arxiv_id']}")
                 continue
             content_ar = _fix_model_links(content_ar, relevant, lang="ar")
+            content_ar = _clean_generated_content(content_ar)
 
             title_en = _extract_h1(content_en)
             title_ar = _extract_h1(content_ar)

@@ -558,7 +558,20 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
     const loadEl = document.getElementById("article-loading");
     if (!rawEl || !bodyEl) return;
 
-    const md = rawEl.textContent || "";
+    // احذف أول H1 من الـ markdown — القالب يعرضه مسبقاً في الهيدر
+    let md = rawEl.textContent || "";
+    md = md.replace(/^#[^#][^
+]*
+?/, '').trimStart();
+
+    // احذف أي blockquote مصدر داخل المحتوى (> **Source:** أو > **المصدر:**)
+    md = md.replace(/^>\s*\*\*(Source|المصدر):\*\*[^
+]*
+?/gm, '').replace(/
+{3,}/g, '
+
+');
+
     marked.setOptions({ gfm: true, breaks: false, mangle: false });
 
     const renderer = new marked.Renderer();
