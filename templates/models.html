@@ -570,16 +570,13 @@
         // ✅ PERFORMANCE: Use client-side cache to avoid repeated network requests
         const cacheKey = `${shortKey}:${lang}`;
         try {
-            let html = _descCache.get(cacheKey);
-            let response;
-            if (!html) {
-                response = await fetch(`/api/model-description/${shortKey}?lang=${lang}`);
-            }
-            if (html || response.ok) {
+            // لا نستخدم cache حتى نضمن تحميل آخر نسخة من الـ server
+            let html = null;
+            const response = await fetch(`/api/model-description/${shortKey}?lang=${lang}&v=${Date.now()}`);
+            if (response.ok) {
                 if (!html) {
                     const data = await response.json();
                     html = data.html;
-                    _descCache.set(cacheKey, html); // store for next time
                 }
                 contentArea.innerHTML = html;
                 const scripts = contentArea.querySelectorAll('script');
@@ -909,44 +906,41 @@ console.log(data);`;
     function copyCode() {
         const codeEl = document.getElementById('code-block-' + currentTab);
         if (!codeEl) return;
-        const text = codeEl.innerText || codeEl.textContent || '';
+        const text = (codeEl.textContent || '').trim();
+        if (!text) return;
+
         const btn = document.getElementById('copy-code-btn');
-        const lang = (window.SERVER_LANG || 'en');
-        const doneLabel = lang === 'ar'
-            ? '<i class="fa-solid fa-check"></i> تم النسخ'
-            : '<i class="fa-solid fa-check"></i> Copied!';
+        const isAr = (window.SERVER_LANG || 'en') === 'ar';
         const origHTML = btn ? btn.innerHTML : '';
 
-        function onSuccess() {
-            if (btn) {
-                btn.innerHTML = doneLabel;
-                setTimeout(function() { btn.innerHTML = origHTML; }, 2000);
-            }
+        function markDone() {
+            if (!btn) return;
+            btn.innerHTML = isAr
+                ? '<i class="fa-solid fa-check"></i> تم النسخ'
+                : '<i class="fa-solid fa-check"></i> Copied!';
+            setTimeout(function() { if (btn) btn.innerHTML = origHTML; }, 2000);
         }
 
-        // طريقة 1: Clipboard API (الأفضل)
-        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-            navigator.clipboard.writeText(text).then(onSuccess).catch(function() {
-                fallbackCopy(text, onSuccess);
-            });
-            return;
+        if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(markDone).catch(function() { _legacyCopy(text, markDone); });
+        } else {
+            _legacyCopy(text, markDone);
         }
-        // طريقة 2: execCommand (fallback لـ Android/أقدم)
-        fallbackCopy(text, onSuccess);
     }
 
-    function fallbackCopy(text, onSuccess) {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.cssText = 'position:fixed;top:0;left:0;width:2em;height:2em;opacity:0;border:none;outline:none;';
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        try {
-            const ok = document.execCommand('copy');
-            if (ok && onSuccess) onSuccess();
-        } catch(e) {}
-        document.body.removeChild(ta);
+    function _legacyCopy(text, cb) {
+        var el = document.createElement('input');
+        el.setAttribute('type', 'text');
+        el.setAttribute('value', text);
+        el.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;z-index:99999;';
+        document.body.appendChild(el);
+        el.focus();
+        el.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch(e) {}
+        document.body.removeChild(el);
+        if (ok && cb) cb();
+        else if (cb) { window.prompt('Copy this code (Ctrl+C / Cmd+C):', text); }
     }
 
     function openParamsModal() {

@@ -653,15 +653,9 @@ async def models_page(request: Request, lang: str):
 async def model_detail_page(request: Request, lang: str, model_key: str):
     context    = get_template_context(request, lang)
     model_info = next((m for m in MODELS_METADATA if m.get("short_key") == model_key or model_key in m.get("id", "")), None)
-    # Fallback: إذا لم يُوجد في MODELS_METADATA، تحقق من وجود ملف الوصف
-    # يعمل مع llama-large, llama-scout, qwen-coder, qwen-mini وغيرها
     if not model_info:
-        desc_file = STATIC_DIR / "models_translation" / f"{model_key}.html"
-        if not desc_file.exists():
-            # مفتاح غير معروف تماماً — redirect للكتالوج
-            return RedirectResponse(f"/{lang}/models", status_code=301)
-        # الملف موجود — اخدم الصفحة وسيفتح الـ JS التفاصيل تلقائياً
-    context["model"]         = model_info  # قد يكون None — الـ JS يتعامل معه
+        return RedirectResponse(f"/{lang}/models", status_code=301)
+    context["model"]         = model_info
     context["models"]        = context["models_metadata"]
     context["seo_model_key"] = model_key
     return templates.TemplateResponse("models.html", context)
@@ -675,7 +669,7 @@ async def get_model_description(model_key: str, lang: str = "en"):
                 html_content = f.read()
             return JSONResponse(
                 {"html": html_content},
-                headers={"Cache-Control": "public, max-age=3600, stale-while-revalidate=86400", "Vary": "Accept-Encoding"},
+                headers={"Cache-Control": "no-cache, must-revalidate", "Vary": "Accept-Encoding"},
             )
         return JSONResponse({"error": f"Model description not found for: {model_key}"}, status_code=404)
     except Exception as e:
