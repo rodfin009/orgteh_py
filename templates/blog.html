@@ -117,6 +117,14 @@ html[dir="rtl"] .copy-code-btn { right:auto; left:10px; }
   color:#c4b5fd; font-style:italic;
 }
 #article-body hr  { border:none; border-top:1px solid rgba(255,255,255,0.08); margin:2.5rem 0; }
+.mermaid-wrap {
+  background: #0d0d0d; border: 1px solid #1e1e2e; border-radius: 12px;
+  padding: 1.5rem; margin: 1.5rem 0 2rem; overflow-x: auto;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  display: flex; justify-content: center;
+}
+.mermaid-wrap svg { max-width: 100%; height: auto; }
+[data-blog-lang="ar"] .mermaid-wrap { direction: ltr; }
 #article-body table { width:100%; border-collapse:collapse; margin:1.5rem 0; }
 #article-body th, #article-body td { border:1px solid rgba(255,255,255,0.1); padding:0.6rem 0.9rem; }
 #article-body th { background:rgba(124,58,237,0.2); font-weight:700; }
@@ -539,6 +547,7 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
 {# marked.js — يُحمَّل فقط في صفحة المقالة الفردية #}
 {% if view == "post" and post %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js" crossorigin="anonymous"></script>
 <script>
 (function() {
   const lang = "{{ lang }}";
@@ -574,6 +583,71 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
     bodyEl.classList.remove("hidden");
     buildTOC();
     addCopyButtons();
+    renderMermaidDiagrams();
+  }
+
+  function renderMermaidDiagrams() {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'dark',
+      themeVariables: {
+        primaryColor: '#7c3aed',
+        primaryTextColor: '#e9d5ff',
+        primaryBorderColor: '#5b21b6',
+        lineColor: '#a78bfa',
+        sectionBkgColor: '#1e1b4b',
+        altSectionBkgColor: '#0d0d0d',
+        gridColor: '#374151',
+        secondaryColor: '#1e1b4b',
+        tertiaryColor: '#0f0f1a',
+        background: '#0d0d0d',
+        mainBkg: '#1e1b4b',
+        nodeBkg: '#1e1b4b',
+        nodeBorder: '#7c3aed',
+        clusterBkg: '#0f0f1a',
+        titleColor: '#e9d5ff',
+        edgeLabelBackground: '#1e1b4b',
+        fontFamily: 'Inter, sans-serif',
+        fontSize: '14px',
+      },
+      flowchart: { htmlLabels: true, curve: 'basis' },
+      sequence: { actorMargin: 50, messageMargin: 35 },
+    });
+
+    const codeBlocks = document.querySelectorAll('#article-body pre code.language-mermaid, #article-body pre code');
+    codeBlocks.forEach(code => {
+      const text = code.textContent.trim();
+      if (!text.match(/^(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph)/i)) return;
+      const pre = code.closest('pre');
+      if (!pre) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'mermaid-wrap';
+      const mermaidEl = document.createElement('div');
+      mermaidEl.className = 'mermaid';
+      mermaidEl.textContent = text;
+      wrap.appendChild(mermaidEl);
+      pre.replaceWith(wrap);
+    });
+
+    // Also handle fenced mermaid blocks that marked.js may render differently
+    document.querySelectorAll('#article-body pre').forEach(pre => {
+      const code = pre.querySelector('code');
+      if (!code) return;
+      const cls = code.className || '';
+      if (!cls.includes('mermaid') && !cls.includes('language-mermaid')) return;
+      const text = code.textContent.trim();
+      const wrap = document.createElement('div');
+      wrap.className = 'mermaid-wrap';
+      const mermaidEl = document.createElement('div');
+      mermaidEl.className = 'mermaid';
+      mermaidEl.textContent = text;
+      wrap.appendChild(mermaidEl);
+      pre.replaceWith(wrap);
+    });
+
+    mermaid.run({ querySelector: '.mermaid' }).catch(e => {
+      console.warn('[Mermaid] render error:', e);
+    });
   }
 
   function addCopyButtons() {
