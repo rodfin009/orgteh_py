@@ -1,0 +1,570 @@
+{% extends "base.html" %}
+
+{# ============================================================
+   blog.html — ملف قالب واحد يتحكم في ثلاثة حالات:
+     view="list"  → قائمة المقالات
+     view="post"  → مقالة فردية
+     view="404"   → صفحة غير موجودة
+   ============================================================ #}
+
+{% block head_extra %}
+
+{% if view == "post" and post %}
+  <title>{{ post['title_' ~ lang] or post.title_en }} | Orgteh Blog</title>
+  <meta name="description" content="{{ meta_description | e }}">
+  <meta property="og:title"       content="{{ post['title_' ~ lang] or post.title_en }}">
+  <meta property="og:description" content="{{ meta_description | e }}">
+  <meta property="og:type"        content="article">
+  <meta name="article:published_time" content="{{ post.published_at }}">
+  <link rel="canonical" href="https://orgteh.com/{{ lang }}/blog/{{ post.slug }}">
+  <link rel="alternate" hreflang="en" href="https://orgteh.com/en/blog/{{ post.slug }}">
+  <link rel="alternate" hreflang="ar" href="https://orgteh.com/ar/blog/{{ post.slug }}">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": {{ (post['title_' ~ lang] or post.title_en) | tojson }},
+    "description": {{ meta_description | tojson }},
+    "datePublished": "{{ post.published_at }}",
+    "publisher": {
+      "@type": "Organization",
+      "name": "Orgteh",
+      "url": "https://orgteh.com",
+      "logo": { "@type": "ImageObject", "url": "https://orgteh.com/static/logo_dark.webp" }
+    },
+    "mainEntityOfPage": "https://orgteh.com/{{ lang }}/blog/{{ post.slug }}"
+  }
+  </script>
+{% else %}
+  <title>{% if lang == 'ar' %}مدونة Orgteh | رؤى الذكاء الاصطناعي{% else %}Orgteh Blog | AI Insights{% endif %}</title>
+  <meta name="description" content="{% if lang == 'ar' %}مقالات عملية عن وكلاء الذكاء الاصطناعي والـ LLMs والبرومبتات — مشتقة من أحدث الأبحاث.{% else %}Practical articles on AI agents, LLMs, and prompting — derived from the latest research papers.{% endif %}">
+  <meta property="og:title" content="{% if lang == 'ar' %}مدونة Orgteh{% else %}Orgteh Blog{% endif %}">
+{% endif %}
+
+<style>
+/* ── Shared ── */
+.tag-pill {
+  background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.25);
+  color: #a78bfa; font-size: 11px; padding: 2px 10px;
+  border-radius: 999px; font-weight: 700;
+}
+.hero-glow {
+  background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(124,58,237,0.18) 0%, transparent 70%);
+}
+.generate-btn {
+  background: linear-gradient(135deg,#7c3aed 0%,#5b21b6 100%);
+  color:#fff; border:none; padding:10px 24px; border-radius:10px;
+  font-weight:700; cursor:pointer; font-size:14px; transition:opacity 0.2s;
+}
+.generate-btn:hover { opacity:.85; }
+.generate-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+/* ── LIST view ── */
+.blog-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.blog-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(124,58,237,0.15); }
+.pagination-btn {
+  min-width:38px; height:38px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:8px; font-weight:700; font-size:14px;
+  transition:background 0.15s,color 0.15s;
+}
+
+/* ── POST view ── */
+#article-body h1 { font-size:2rem; font-weight:900; margin:2rem 0 1rem; line-height:1.25; }
+#article-body h2 {
+  font-size:1.5rem; font-weight:800; margin:2rem 0 0.75rem; line-height:1.3;
+  padding-bottom:0.5rem; border-bottom:1px solid rgba(124,58,237,0.2);
+}
+#article-body h3 { font-size:1.15rem; font-weight:700; margin:1.5rem 0 0.5rem; color:#a78bfa; }
+#article-body p  { margin:0 0 1.25rem; line-height:1.85; font-size:1.02rem; }
+#article-body ul,
+#article-body ol { margin:0.5rem 0 1.25rem 1.75rem; }
+#article-body li { margin-bottom:0.45rem; line-height:1.75; }
+#article-body strong { font-weight:700; color:#e9d5ff; }
+#article-body em     { font-style:italic; color:#c4b5fd; }
+#article-body a      { color:#a78bfa; text-decoration:underline; text-underline-offset:3px; }
+#article-body a:hover { color:#c4b5fd; }
+#article-body code {
+  background:rgba(124,58,237,0.15); color:#e9d5ff;
+  padding:2px 6px; border-radius:5px; font-size:0.88em;
+  font-family:'JetBrains Mono','Fira Code',monospace;
+}
+#article-body pre {
+  background:#0d0d0d; border:1px solid #1e1e2e; border-radius:12px;
+  padding:1.25rem 1.5rem; overflow-x:auto; margin:1.25rem 0 1.75rem;
+  box-shadow:0 4px 24px rgba(0,0,0,0.4);
+}
+#article-body pre code { background:none; color:#e2e8f0; padding:0; font-size:0.9em; line-height:1.6; }
+#article-body blockquote {
+  border-left:4px solid #7c3aed; margin:1.5rem 0; padding:0.75rem 1.25rem;
+  background:rgba(124,58,237,0.07); border-radius:0 8px 8px 0;
+  color:#c4b5fd; font-style:italic;
+}
+#article-body hr  { border:none; border-top:1px solid rgba(255,255,255,0.08); margin:2.5rem 0; }
+#article-body table { width:100%; border-collapse:collapse; margin:1.5rem 0; }
+#article-body th, #article-body td { border:1px solid rgba(255,255,255,0.1); padding:0.6rem 0.9rem; }
+#article-body th { background:rgba(124,58,237,0.2); font-weight:700; }
+html:not(.dark) #article-body strong { color:#4c1d95; }
+html:not(.dark) #article-body em     { color:#5b21b6; }
+html:not(.dark) #article-body a      { color:#6d28d9; }
+html:not(.dark) #article-body code   { background:#f3e8ff; color:#5b21b6; }
+html:not(.dark) #article-body pre    { background:#1e1e2e; }
+html:not(.dark) #article-body blockquote { background:#f5f3ff; color:#5b21b6; }
+html[dir="rtl"] #article-body ul,
+html[dir="rtl"] #article-body ol { margin-left:0; margin-right:1.75rem; }
+html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px solid #7c3aed; border-radius:8px 0 0 8px; }
+
+/* skeleton */
+.skeleton {
+  background:linear-gradient(90deg,#1a1a2e 25%,#2a1a4e 50%,#1a1a2e 75%);
+  background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:6px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* TOC */
+#toc-nav a { display:block; padding:4px 8px; border-radius:6px; color:#9ca3af; font-size:13px; text-decoration:none; transition:all 0.15s; }
+#toc-nav a:hover { background:rgba(124,58,237,0.1); color:#a78bfa; }
+#toc-nav a.toc-h3 { padding-left:20px; font-size:12px; }
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+{# ═══════════════════════════════════════════════════════════
+   VIEW: LIST
+   ═══════════════════════════════════════════════════════════ #}
+{% if view == "list" %}
+
+<div class="min-h-screen">
+  {# Hero #}
+  <section class="hero-glow pt-16 pb-12 px-4 text-center">
+    <div class="max-w-3xl mx-auto">
+      <span class="inline-flex items-center gap-2 tag-pill mb-4">
+        <i class="fa-solid fa-rss text-xs"></i>
+        {% if lang == 'ar' %}مدونة مدعومة بالذكاء الاصطناعي{% else %}AI-Powered Blog{% endif %}
+      </span>
+      <h1 class="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-white to-purple-300 bg-clip-text text-transparent">
+        {% if lang == 'ar' %}مدونة Orgteh{% else %}Orgteh Blog{% endif %}
+      </h1>
+      <p class="text-lg text-gray-500 dark:text-gray-400 max-w-xl mx-auto leading-relaxed">
+        {% if lang == 'ar' %}مقالات عملية عن الذكاء الاصطناعي — وكلاء، برومبتات، LLMs — مستوحاة من أحدث الأبحاث.
+        {% else %}Practical AI articles — agents, prompting, LLMs — inspired by the latest research.{% endif %}
+      </p>
+    </div>
+  </section>
+
+  <section class="max-w-7xl mx-auto px-4 pb-20">
+
+    {% if not posts %}
+    {# حالة مدونة فارغة #}
+    <div class="text-center py-24">
+      <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-purple-500/10 flex items-center justify-center">
+        <i class="fa-solid fa-pencil text-4xl text-purple-400"></i>
+      </div>
+      <h2 class="text-2xl font-bold mb-2 dark:text-white">
+        {% if lang == 'ar' %}لا توجد مقالات بعد{% else %}No Articles Yet{% endif %}
+      </h2>
+      <p class="text-gray-500 dark:text-gray-400 mb-8">
+        {% if lang == 'ar' %}ستبدأ المدونة قريباً بنشر مقالات يومية عن أحدث أبحاث الذكاء الاصطناعي.
+        {% else %}The blog will soon publish daily AI research articles.{% endif %}
+      </p>
+      {% if is_logged_in %}
+      <button class="generate-btn" onclick="triggerGenerate(3)">
+        <i class="fa-solid fa-wand-magic-sparkles me-2"></i>
+        {% if lang == 'ar' %}توليد أول مقالات{% else %}Generate First Articles{% endif %}
+      </button>
+      <div id="gen-status" class="mt-4 text-sm text-gray-400 hidden"></div>
+      {% endif %}
+    </div>
+
+    {% else %}
+
+    {# شريط إدارة — للمستخدمين المسجلين فقط #}
+    {% if is_logged_in %}
+    <div class="flex items-center justify-between mb-8 p-4 rounded-xl border border-purple-500/20 bg-purple-500/5">
+      <p class="text-sm text-gray-500 dark:text-gray-400">
+        <i class="fa-solid fa-database me-1 text-purple-400"></i>
+        {% if lang == 'ar' %}إجمالي المقالات:{% else %}Total articles:{% endif %}
+        <strong class="text-white">{{ total }}</strong>
+      </p>
+      <div class="flex items-center gap-3">
+        <select id="gen-count" class="text-sm bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="5">5</option>
+        </select>
+        <button class="generate-btn text-sm" onclick="triggerGenerate()">
+          <i class="fa-solid fa-wand-magic-sparkles me-1"></i>
+          {% if lang == 'ar' %}توليد جديد{% else %}Generate New{% endif %}
+        </button>
+      </div>
+    </div>
+    <div id="gen-status" class="mb-6 text-sm text-center text-gray-400 hidden"></div>
+    {% endif %}
+
+    {# شبكة المقالات #}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+      {% for post in posts %}
+      <a href="/{{ lang }}/blog/{{ post.slug }}"
+         class="blog-card block bg-white dark:bg-[#0d0d0d] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden group">
+        <div class="h-1 w-full bg-gradient-to-r from-purple-600 to-violet-400"></div>
+        <div class="p-6">
+          <p class="text-xs text-gray-400 mb-3 flex items-center gap-1.5">
+            <i class="fa-solid fa-calendar-days text-purple-400"></i>
+            {{ post.published_at[:10] if post.published_at else '' }}
+          </p>
+          <h2 class="text-lg font-bold leading-snug mb-3 text-gray-900 dark:text-white group-hover:text-purple-400 transition line-clamp-3">
+            {{ post['title_' ~ lang] or post.title_en }}
+          </h2>
+          <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-3">
+            {{ post['summary_' ~ lang] or post.summary_en or '' }}
+          </p>
+          <div class="mt-5 flex items-center gap-2 text-purple-400 text-sm font-bold group-hover:gap-3 transition-all">
+            <span>{% if lang == 'ar' %}اقرأ المزيد{% else %}Read More{% endif %}</span>
+            <i class="fa-solid fa-arrow-{{ 'left' if lang == 'ar' else 'right' }} text-xs"></i>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+
+    {# Pagination #}
+    {% if total_pages > 1 %}
+    <div class="flex items-center justify-center gap-2">
+      {% if page > 1 %}
+      <a href="/{{ lang }}/blog?page={{ page - 1 }}"
+         class="pagination-btn bg-gray-100 dark:bg-gray-800 hover:bg-purple-500/20 text-gray-700 dark:text-gray-300">
+        <i class="fa-solid fa-chevron-{{ 'right' if lang == 'ar' else 'left' }}"></i>
+      </a>
+      {% endif %}
+      {% for p in range(1, total_pages + 1) %}
+        {% if p == page %}
+          <span class="pagination-btn bg-primary text-white">{{ p }}</span>
+        {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+          <a href="/{{ lang }}/blog?page={{ p }}"
+             class="pagination-btn bg-gray-100 dark:bg-gray-800 hover:bg-purple-500/20 text-gray-700 dark:text-gray-300">{{ p }}</a>
+        {% elif p == page - 3 or p == page + 3 %}
+          <span class="pagination-btn text-gray-400">…</span>
+        {% endif %}
+      {% endfor %}
+      {% if page < total_pages %}
+      <a href="/{{ lang }}/blog?page={{ page + 1 }}"
+         class="pagination-btn bg-gray-100 dark:bg-gray-800 hover:bg-purple-500/20 text-gray-700 dark:text-gray-300">
+        <i class="fa-solid fa-chevron-{{ 'left' if lang == 'ar' else 'right' }}"></i>
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% endif %}{# end posts check #}
+
+  </section>
+</div>
+
+
+{# ═══════════════════════════════════════════════════════════
+   VIEW: POST
+   ═══════════════════════════════════════════════════════════ #}
+{% elif view == "post" and post %}
+
+<div class="max-w-7xl mx-auto px-4 py-10">
+  {# Breadcrumb #}
+  <nav class="flex items-center gap-2 text-sm text-gray-500 mb-8 flex-wrap">
+    <a href="/{{ lang }}/" class="hover:text-purple-400 transition"><i class="fa-solid fa-home"></i></a>
+    <i class="fa-solid fa-chevron-{{ 'left' if lang == 'ar' else 'right' }} text-xs"></i>
+    <a href="/{{ lang }}/blog" class="hover:text-purple-400 transition">
+      {% if lang == 'ar' %}المدونة{% else %}Blog{% endif %}
+    </a>
+    <i class="fa-solid fa-chevron-{{ 'left' if lang == 'ar' else 'right' }} text-xs"></i>
+    <span class="text-gray-400 truncate max-w-xs">{{ post['title_' ~ lang] or post.title_en }}</span>
+  </nav>
+
+  <div class="lg:grid lg:grid-cols-[1fr_280px] lg:gap-10 items-start">
+
+    {# ── المقالة الرئيسية ── #}
+    <article class="min-w-0">
+      <header class="mb-8">
+        <div class="flex items-center gap-3 mb-4 flex-wrap">
+          <span class="tag-pill flex items-center gap-1.5">
+            <i class="fa-solid fa-brain"></i>
+            {% if lang == 'ar' %}أبحاث الذكاء الاصطناعي{% else %}AI Research{% endif %}
+          </span>
+          <span class="text-sm text-gray-500 flex items-center gap-1.5">
+            <i class="fa-solid fa-calendar-days text-purple-400 text-xs"></i>
+            {{ post.published_at[:10] if post.published_at else '' }}
+          </span>
+          {# Language switcher #}
+          <div class="flex items-center gap-2 ms-auto">
+            <a href="/en/blog/{{ post.slug }}"
+               class="text-xs px-3 py-1 rounded-full border transition
+                      {% if lang == 'en' %}border-purple-500 bg-purple-500/15 text-purple-300
+                      {% else %}border-gray-700 text-gray-500 hover:border-purple-500 hover:text-purple-400{% endif %}">EN</a>
+            <a href="/ar/blog/{{ post.slug }}"
+               class="text-xs px-3 py-1 rounded-full border transition
+                      {% if lang == 'ar' %}border-purple-500 bg-purple-500/15 text-purple-300
+                      {% else %}border-gray-700 text-gray-500 hover:border-purple-500 hover:text-purple-400{% endif %}">AR</a>
+          </div>
+        </div>
+
+        <h1 class="text-3xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white mb-4">
+          {{ post['title_' ~ lang] or post.title_en }}
+        </h1>
+        <p class="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">
+          {{ post['summary_' ~ lang] or post.summary_en or '' }}
+        </p>
+      </header>
+
+      <div class="h-px w-full bg-gradient-to-r from-transparent via-purple-500/40 to-transparent mb-8"></div>
+
+      {# Skeleton while loading #}
+      <div id="article-loading" class="space-y-4 mb-8">
+        <div class="skeleton h-5 w-full"></div>
+        <div class="skeleton h-5 w-5/6"></div>
+        <div class="skeleton h-5 w-4/6"></div>
+        <div class="skeleton h-5 w-full mt-6"></div>
+        <div class="skeleton h-5 w-3/4"></div>
+        <div class="skeleton h-5 w-5/6"></div>
+      </div>
+
+      {# Markdown raw content — rendered by JS #}
+      <script id="article-markdown" type="text/plain">{{ post['content_' ~ lang] or post.content_en }}</script>
+      <div id="article-body"
+           class="text-gray-700 dark:text-gray-300 hidden {% if lang == 'ar' %}text-right{% else %}text-left{% endif %}"
+           dir="{{ 'rtl' if lang == 'ar' else 'ltr' }}">
+      </div>
+
+      {# مصدر الورقة البحثية #}
+      {% if post.arxiv_url %}
+      <div class="mt-10 p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0d0d0d] flex items-start gap-3">
+        <i class="fa-solid fa-file-lines text-purple-400 mt-0.5"></i>
+        <div>
+          <p class="text-sm font-bold mb-1 dark:text-white">
+            {% if lang == 'ar' %}المصدر العلمي{% else %}Research Source{% endif %}
+          </p>
+          <a href="{{ post.arxiv_url }}" target="_blank" rel="noopener noreferrer"
+             class="text-sm text-purple-400 hover:text-purple-300 transition break-all">
+            {{ post.arxiv_url }} <i class="fa-solid fa-arrow-up-right-from-square text-xs ms-1"></i>
+          </a>
+        </div>
+      </div>
+      {% endif %}
+
+      {# CTA للنماذج #}
+      <div class="mt-10 p-6 rounded-2xl bg-gradient-to-br from-purple-900/30 to-violet-900/20 border border-purple-500/20">
+        <h3 class="font-black text-lg mb-2 dark:text-white">
+          {% if lang == 'ar' %}جرّب نماذج Orgteh{% else %}Try Orgteh Models{% endif %}
+        </h3>
+        <p class="text-sm text-gray-400 mb-4">
+          {% if lang == 'ar' %}وصّل أفكار هذه المقالة عبر واجهة API موحدة — بدون إعداد معقد.
+          {% else %}Put the ideas in this article into action through a unified API — no complex setup.{% endif %}
+        </p>
+        <div class="flex flex-wrap gap-3">
+          <a href="/{{ lang }}/models"
+             class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-bold hover:opacity-90 transition">
+            <i class="fa-solid fa-layer-group"></i>
+            {% if lang == 'ar' %}استعرض النماذج{% else %}Browse Models{% endif %}
+          </a>
+          <a href="/{{ lang }}/docs"
+             class="inline-flex items-center gap-2 px-4 py-2 border border-purple-500/30 text-purple-400 rounded-xl text-sm font-bold hover:bg-purple-500/10 transition">
+            <i class="fa-solid fa-code"></i>
+            {% if lang == 'ar' %}التوثيق{% else %}API Docs{% endif %}
+          </a>
+        </div>
+      </div>
+
+      <div class="mt-10">
+        <a href="/{{ lang }}/blog"
+           class="inline-flex items-center gap-2 text-gray-500 hover:text-purple-400 transition font-bold">
+          <i class="fa-solid fa-arrow-{{ 'right' if lang == 'ar' else 'left' }}"></i>
+          {% if lang == 'ar' %}العودة إلى المدونة{% else %}Back to Blog{% endif %}
+        </a>
+      </div>
+    </article>
+
+    {# ── Sidebar: TOC + مشاركة ── #}
+    <aside class="hidden lg:block sticky top-28">
+      <div class="p-5 rounded-2xl bg-white dark:bg-[#0d0d0d] border border-gray-200 dark:border-gray-800 mb-4">
+        <h4 class="font-black text-sm uppercase tracking-wider text-gray-500 mb-4">
+          {% if lang == 'ar' %}محتويات المقالة{% else %}Table of Contents{% endif %}
+        </h4>
+        <nav id="toc-nav" class="space-y-0.5 max-h-[65vh] overflow-y-auto">
+          <div class="skeleton h-3 w-4/5 mb-2"></div>
+          <div class="skeleton h-3 w-3/5 mb-2"></div>
+          <div class="skeleton h-3 w-4/5 mb-2"></div>
+        </nav>
+      </div>
+      <div class="p-5 rounded-2xl bg-white dark:bg-[#0d0d0d] border border-gray-200 dark:border-gray-800">
+        <h4 class="font-black text-sm uppercase tracking-wider text-gray-500 mb-3">
+          {% if lang == 'ar' %}مشاركة{% else %}Share{% endif %}
+        </h4>
+        <div class="flex gap-2">
+          <button onclick="shareTwitter()"
+                  class="flex-1 py-2 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-purple-500/40 hover:bg-purple-500/10 transition text-sm text-gray-500 hover:text-purple-400">
+            <i class="fa-brands fa-x-twitter"></i>
+          </button>
+          <button onclick="copyLink()" id="copy-btn"
+                  class="flex-1 py-2 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-purple-500/40 hover:bg-purple-500/10 transition text-sm text-gray-500 hover:text-purple-400">
+            <i class="fa-solid fa-link"></i>
+          </button>
+          <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.url | e }}"
+             target="_blank" rel="noopener"
+             class="flex-1 py-2 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-purple-500/40 hover:bg-purple-500/10 transition text-sm text-gray-500 hover:text-purple-400 text-center">
+            <i class="fa-brands fa-linkedin-in"></i>
+          </a>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+
+{# ═══════════════════════════════════════════════════════════
+   VIEW: 404
+   ═══════════════════════════════════════════════════════════ #}
+{% else %}
+
+<div class="text-center py-32 px-4">
+  <div class="text-6xl mb-4">📄</div>
+  <h2 class="text-2xl font-bold mb-2 dark:text-white">
+    {% if lang == 'ar' %}المقالة غير موجودة{% else %}Post Not Found{% endif %}
+  </h2>
+  <p class="text-gray-500 mb-6">
+    {% if lang == 'ar' %}تعذّر إيجاد هذه المقالة.{% else %}This article could not be found.{% endif %}
+  </p>
+  <a href="/{{ lang }}/blog"
+     class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:opacity-90 transition">
+    <i class="fa-solid fa-arrow-{{ 'right' if lang == 'ar' else 'left' }}"></i>
+    {% if lang == 'ar' %}العودة للمدونة{% else %}Back to Blog{% endif %}
+  </a>
+</div>
+
+{% endif %}
+
+{% endblock %}
+
+
+{% block scripts %}
+{# marked.js — يُحمَّل فقط في صفحة المقالة الفردية #}
+{% if view == "post" and post %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js" crossorigin="anonymous"></script>
+<script>
+(function() {
+  const lang = "{{ lang }}";
+
+  function renderArticle() {
+    const rawEl  = document.getElementById("article-markdown");
+    const bodyEl = document.getElementById("article-body");
+    const loadEl = document.getElementById("article-loading");
+    if (!rawEl || !bodyEl) return;
+
+    const md = rawEl.textContent || "";
+    marked.setOptions({ gfm: true, breaks: false, mangle: false });
+
+    const renderer = new marked.Renderer();
+    renderer.link = function(href, title, text) {
+      let h = href || "";
+      const isInternal = h.startsWith("/");
+      const isExternal = h.startsWith("http");
+      const extra = isExternal ? ' target="_blank" rel="noopener noreferrer"' : "";
+      const cls   = isExternal
+        ? ' class="text-purple-400 hover:text-purple-300"'
+        : ' class="text-purple-400 hover:text-purple-300 font-semibold"';
+      return `<a href="${h}"${cls}${extra}>${text}</a>`;
+    };
+
+    try {
+      bodyEl.innerHTML = marked.parse(md, { renderer });
+    } catch(e) {
+      bodyEl.innerHTML = `<pre style="white-space:pre-wrap">${md.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</pre>`;
+    }
+
+    if (loadEl) loadEl.remove();
+    bodyEl.classList.remove("hidden");
+    buildTOC();
+  }
+
+  function buildTOC() {
+    const tocNav = document.getElementById("toc-nav");
+    if (!tocNav) return;
+    tocNav.innerHTML = "";
+    const headings = document.querySelectorAll("#article-body h2, #article-body h3");
+    if (!headings.length) return;
+
+    headings.forEach((h, i) => {
+      if (!h.id) h.id = "h-" + i;
+      const a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.textContent = h.textContent;
+      if (h.tagName === "H3") a.classList.add("toc-h3");
+      a.addEventListener("click", e => {
+        e.preventDefault();
+        document.getElementById(h.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      tocNav.appendChild(a);
+    });
+
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        const link = tocNav.querySelector(`a[href="#${e.target.id}"]`);
+        if (link) link.style.color = e.isIntersecting ? "#a78bfa" : "";
+      });
+    }, { rootMargin: "-10% 0px -80% 0px" });
+    headings.forEach(h => obs.observe(h));
+  }
+
+  window.shareTwitter = function() {
+    const title = document.querySelector("h1")?.textContent || "Orgteh Blog";
+    window.open(
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(title + " — via @OrgTeh")}&url=${encodeURIComponent(location.href)}`,
+      "_blank"
+    );
+  };
+  window.copyLink = function() {
+    navigator.clipboard.writeText(location.href).then(() => {
+      const btn = document.getElementById("copy-btn");
+      if (btn) {
+        btn.innerHTML = '<i class="fa-solid fa-check text-green-400"></i>';
+        setTimeout(() => btn.innerHTML = '<i class="fa-solid fa-link"></i>', 2000);
+      }
+    });
+  };
+
+  document.readyState === "loading"
+    ? document.addEventListener("DOMContentLoaded", renderArticle)
+    : renderArticle();
+})();
+</script>
+{% endif %}
+
+{# زر التوليد — في صفحة القائمة فقط #}
+{% if view == "list" %}
+<script>
+async function triggerGenerate(fixedCount) {
+  const countEl = document.getElementById("gen-count");
+  const count   = fixedCount || (countEl ? parseInt(countEl.value) : 3);
+  const btns    = document.querySelectorAll(".generate-btn");
+  const status  = document.getElementById("gen-status");
+  btns.forEach(b => b.disabled = true);
+  if (status) { status.classList.remove("hidden"); status.textContent = "{{ 'جارٍ التوليد… قد يستغرق 2-5 دقائق' if lang == 'ar' else 'Generating… this may take 2–5 minutes.' }}"; }
+  try {
+    const res  = await fetch("/api/admin/blog/generate", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ count })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      if (status) status.textContent = `✅ ${data.generated} {{ 'مقالة جديدة نُشرت!' if lang == 'ar' else 'new article(s) published!' }}`;
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      if (status) status.textContent = `❌ ${data.error || "Generation failed"}`;
+      btns.forEach(b => b.disabled = false);
+    }
+  } catch(e) {
+    if (status) status.textContent = "❌ Network error";
+    btns.forEach(b => b.disabled = false);
+  }
+}
+</script>
+{% endif %}
+{% endblock %}
