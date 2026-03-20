@@ -94,6 +94,7 @@ def init_blog_tables():
                 summary_ar   TEXT,
                 seo_keywords TEXT,
                 published_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """)
@@ -138,8 +139,8 @@ def save_blog_post(data: dict) -> int:
                title_en, title_ar,
                content_en, content_ar,
                summary_en, summary_ar,
-               seo_keywords, published_at)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+               seo_keywords, published_at, updated_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """, (
                 data["slug"], data["arxiv_id"], data.get("arxiv_url", ""),
                 data["title_en"], data["title_ar"],
@@ -147,6 +148,7 @@ def save_blog_post(data: dict) -> int:
                 data.get("summary_en", ""), data.get("summary_ar", ""),
                 data.get("seo_keywords", "[]"),
                 data.get("published_at", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")),
+                data.get("updated_at", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")),
             ))
             return cur.lastrowid
     except Exception as e:
@@ -168,7 +170,7 @@ def get_posts(page: int = 1, limit: int = 12) -> tuple[list[dict], int]:
             total = row["cnt"] if row else 0
             cur.execute("""
             SELECT id, slug, title_en, title_ar,
-                   summary_en, summary_ar, published_at
+                   summary_en, summary_ar, published_at, updated_at
             FROM blog_posts ORDER BY published_at DESC LIMIT %s OFFSET %s
             """, (limit, offset))
             posts = cur.fetchall()
@@ -216,13 +218,15 @@ def get_all_slugs_with_dates() -> list[dict]:
         return []
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT slug, published_at FROM blog_posts ORDER BY published_at DESC")
+            cur.execute("SELECT slug, published_at, updated_at FROM blog_posts ORDER BY published_at DESC")
             rows = cur.fetchall()
         result = []
         for r in rows:
             pub = r["published_at"]
             pub = pub.strftime("%Y-%m-%d") if hasattr(pub, "strftime") else str(pub)[:10]
-            result.append({"slug": r["slug"], "published_at": pub})
+            upd = r.get("updated_at") or r["published_at"]
+            upd = upd.strftime("%Y-%m-%d") if hasattr(upd, "strftime") else str(upd)[:10]
+            result.append({"slug": r["slug"], "published_at": pub, "updated_at": upd})
         return result
     except Exception as e:
         logger.error(f"[BlogDB] get_all_slugs: {e}")
@@ -1009,6 +1013,213 @@ async def get_seo_keywords(paper_title: str, paper_abstract: str = "") -> list[s
     return final[:25]
 
 
+# ─── Live Demo — تصنيف الورقة ثم التصرف بناءً عليها ────────────────────────
+#
+#  SIMPLE  → برومبت واحد، سؤال/جواب، CoT، تصنيف نص، ترجمة، تلخيص
+#            ✅ نُشغّل الـ demo فعلاً ونلتقط المخرجات الحقيقية
+#
+#  COMPLEX → عملاء متعددون، RAG، fine-tuning، multi-file، pipeline معقد
+#            ✅ نكتب فقط: "يمكن تطبيق هذا مع نماذج Orgteh"
+#            ❌ لا نحاول التشغيل الفعلي
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _classify_paper_complexity(paper: dict) -> str:
+    """
+    يُصنّف الورقة إلى SIMPLE أو COMPLEX.
+    يعتمد على LLM لأنه أدق من keywords.
+    يُرجع: "simple" أو "complex"
+    """
+    prompt = f"""Classify this AI research paper as SIMPLE or COMPLEX for live API demos.
+
+SIMPLE = can be demonstrated with ONE single API call (one prompt → one response):
+  - Prompting techniques (CoT, few-shot, ReAct reasoning on one question)
+  - Text classification, summarization, translation
+  - Single-turn Q&A improvements
+  - Evaluation of a single model output
+  - Simple RAG with one retrieval step
+
+COMPLEX = requires multiple files, services, or API calls:
+  - Multi-agent systems
+  - Fine-tuning or model training
+  - Multi-step pipelines (>2 steps)
+  - Vector databases or embedding pipelines
+  - Code generation + execution loops
+  - Multi-modal systems (image+text together)
+  - Distributed or federated systems
+
+Paper: {paper['title']}
+Abstract: {paper['abstract'][:350]}
+
+Reply with ONLY one word: SIMPLE or COMPLEX"""
+
+    try:
+        client = _build_nvidia_client()
+        resp   = client.chat.completions.create(
+            model=GENERATION_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0, max_tokens=10, stream=False,
+        )
+        raw = resp.choices[0].message.content.strip().upper()
+        result = "simple" if "SIMPLE" in raw else "complex"
+        logger.info(f"[Demo] Paper classified as: {result.upper()}")
+        return result
+    except Exception as e:
+        logger.warning(f"[Demo] Classification failed: {e} — defaulting to complex")
+        return "complex"
+
+
+async def _run_simple_demo(paper: dict, relevant_models: list[dict]) -> dict:
+    """
+    يُشغّل demo حقيقي للأوراق البسيطة.
+    خطوتان فقط:
+      1. LLM يصمم prompt مناسب (≤150 كلمة)
+      2. نُرسله فعلاً للنموذج ونلتقط الرد
+    """
+    # اختر أفضل نموذج من الكتالوج
+    demo_model_id   = "deepseek-ai/deepseek-v3.2"
+    demo_model_name = "DeepSeek V3.2"
+    demo_model_key  = "deepseek"
+
+    for entry in relevant_models:
+        if entry.get("type") == "model" and entry.get("short_key"):
+            try:
+                from services.providers import MODELS_METADATA
+                match = next((m for m in MODELS_METADATA if m.get("short_key") == entry["short_key"]), None)
+                if match:
+                    demo_model_id   = match["id"]
+                    demo_model_name = match["name"]
+                    demo_model_key  = entry["short_key"]
+                    break
+            except Exception:
+                pass
+
+    # اطلب من LLM بناء prompt مناسب
+    design_prompt = f"""Design a SHORT demo prompt (max 120 words) for this research paper.
+
+Paper: {paper['title']}
+Abstract: {paper['abstract'][:300]}
+
+The demo must:
+- Be answerable in ONE API call
+- Demonstrate the paper's CORE concept clearly
+- Be interesting for developers
+
+Reply with ONLY two parts separated by |||:
+PART 1: One sentence describing what this demo shows
+PART 2: The actual prompt to send to the AI
+
+Example:
+Showing chain-of-thought on a logic puzzle|||Solve step by step: If all A are B, and some B are C, can we conclude some A are C? Show your reasoning.
+
+Reply ONLY in this format. Nothing else."""
+
+    try:
+        client  = _build_nvidia_client()
+        resp    = client.chat.completions.create(
+            model=GENERATION_MODEL,
+            messages=[{"role": "user", "content": design_prompt}],
+            temperature=0.3, max_tokens=250, stream=False,
+        )
+        raw = resp.choices[0].message.content.strip()
+        if "|||" not in raw:
+            return {}
+        parts   = raw.split("|||", 1)
+        concept = parts[0].strip()
+        prompt  = parts[1].strip()
+        if not prompt or len(prompt) < 15:
+            return {}
+    except Exception as e:
+        logger.warning(f"[Demo] Prompt design failed: {e}")
+        return {}
+
+    # أرسل فعلاً للنموذج
+    try:
+        nvidia_key = os.environ.get("NVIDIA_API_KEYS", os.environ.get("NVIDIA_API_KEY", ""))
+        if nvidia_key:
+            nvidia_key = nvidia_key.split(",")[0].strip()
+        if not nvidia_key:
+            return {}
+
+        from openai import OpenAI
+        demo_client = OpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=nvidia_key)
+        demo_resp   = demo_client.chat.completions.create(
+            model=demo_model_id,
+            messages=[
+                {"role": "system", "content": "You are a helpful AI assistant. Be concise and practical."},
+                {"role": "user",   "content": prompt}
+            ],
+            temperature=0.5, max_tokens=400, stream=False,
+        )
+        response_text = demo_resp.choices[0].message.content.strip()
+        if not response_text or len(response_text) < 20:
+            return {}
+
+        logger.info(f"[Demo] ✅ Simple demo captured using {demo_model_name}")
+        return {
+            "type":       "live",
+            "model_name": demo_model_name,
+            "model_key":  demo_model_key,
+            "prompt":     prompt,
+            "response":   response_text,
+            "concept":    concept,
+        }
+    except Exception as e:
+        logger.warning(f"[Demo] Live call failed: {e}")
+        return {}
+
+
+def _build_complex_note(relevant_models: list[dict]) -> dict:
+    """
+    للأوراق المعقدة: يبني نص اقتراح بدلاً من التجربة الفعلية.
+    يختار أنسب النماذج من الكتالوج ويقترح استخدامها.
+    """
+    model_mentions = []
+    for entry in relevant_models[:2]:
+        if entry.get("type") == "model":
+            key  = entry.get("short_key", "")
+            name = entry.get("name", "")
+            if key and name:
+                model_mentions.append(f"[{name}](/en/models/{key})")
+
+    if model_mentions:
+        models_str = " and ".join(model_mentions)
+        suggestion = (
+            f"While this pipeline requires multiple components to build fully, "
+            f"you can start experimenting with the core concepts using {models_str} "
+            f"on Orgteh API — no infrastructure setup required."
+        )
+    else:
+        suggestion = (
+            "You can start experimenting with the core concepts of this research "
+            "using models available on [Orgteh API](/en/models) — "
+            "access multiple frontier models through a single endpoint."
+        )
+
+    return {
+        "type":       "note",
+        "suggestion": suggestion,
+    }
+
+
+async def run_live_demo(paper: dict, relevant_models: list[dict]) -> dict:
+    """
+    نقطة الدخول الرئيسية:
+      1. صنّف الورقة (SIMPLE / COMPLEX)
+      2. SIMPLE  → شغّل demo حقيقي
+      3. COMPLEX → ابنِ اقتراح نصي فقط
+    """
+    complexity = _classify_paper_complexity(paper)
+
+    if complexity == "simple":
+        result = await _run_simple_demo(paper, relevant_models)
+        if result:
+            return result
+        # لو فشل الـ demo الحقيقي، ارجع للاقتراح النصي
+        logger.info("[Demo] Simple demo failed — falling back to note")
+
+    return _build_complex_note(relevant_models)
+
+
 # ─── LLM selects papers ───────────────────────────────────────────────────────
 
 def select_papers_with_llm(papers: list[dict], select_count: int = 3) -> list[dict]:
@@ -1061,8 +1272,45 @@ No explanation. No markdown. Raw JSON only."""
 
 # ─── English article generation ───────────────────────────────────────────────
 
-def generate_article_en(paper: dict, seo_keywords: list[str], catalog_ctx: str) -> Optional[str]:
+def generate_article_en(paper: dict, seo_keywords: list[str], catalog_ctx: str, demo_result: dict = None) -> Optional[str]:
     kw_str = ", ".join(seo_keywords[:15])
+
+    # بناء تعليمات الـ demo بناءً على النتيجة الحقيقية
+    demo_type = demo_result.get("type", "") if demo_result else ""
+
+    if demo_type == "live":
+        # تجربة حقيقية — اعرض المدخل والمخرج الفعليين
+        demo_instruction = f"""REAL LIVE DEMO — INCLUDE THIS IN THE ARTICLE:
+   We actually ran this on Orgteh API using {demo_result['model_name']}.
+
+   Concept being demonstrated: {demo_result['concept']}
+
+   In "## Integrating with Orgteh", write naturally:
+   "We ran a quick test using [{demo_result['model_name']}](/en/models/{demo_result['model_key']}) on Orgteh API
+   to demonstrate [concept]. Here is exactly what we sent and got back:"
+
+   Show these two fenced blocks:
+   Input:
+   ```
+   {demo_result['prompt'][:400]}
+   ```
+   Output from {demo_result['model_name']}:
+   ```
+   {demo_result['response'][:500]}
+   ```
+   Then add 2-3 sentences analyzing what the output shows about the paper's concept."""
+
+    elif demo_type == "note":
+        # ورقة معقدة — اقتراح نصي فقط بدون تشغيل
+        demo_instruction = f"""COMPLEX PAPER — DO NOT claim to have run a demo.
+   In "## Integrating with Orgteh", write this naturally in prose:
+   "{demo_result['suggestion']}"
+   Then explain briefly what a developer would need to build to implement the full system."""
+
+    else:
+        demo_instruction = """In "## Integrating with Orgteh", recommend the relevant models/tools
+   with a clear explanation of why each one fits this paper's use case."""
+
     system = (
         "You are a senior technical writer for Orgteh (orgteh.com), "
         "an AI API platform for developers. Write clear, practical, engaging articles."
@@ -1081,27 +1329,66 @@ Source: {paper['url']}
 {catalog_ctx}
 
 === ARTICLE REQUIREMENTS ===
-1. Minimum 1600 words
+1. Minimum 1600 words — comprehensive and detailed
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
-4. Required sections:
+4. Required sections IN THIS ORDER:
    ## Introduction
-   ## What This Research Discovered
+   ## What This Research Found
    ## Why It Matters for Developers
    ## Practical Applications
-   ## Implementation Guide  (include a code snippet or prompt template)
+   ## Implementation Guide
    ## Integrating with Orgteh
    ## Key Takeaways
-5. "Integrating with Orgteh": use the models/tools provided above.
-   Write naturally in prose. Use the exact markdown links shown — they already use /en/.
-6. First paragraph after title ≤160 chars (works as meta description)
-7. Code examples in fenced ``` blocks (Python preferred)
-8. Tone: conversational, senior engineer explaining to a colleague
+
+5. SECTION-SPECIFIC RULES:
+
+   "## Introduction":
+   - First paragraph ≤160 chars (used as meta description)
+   - Cite the source naturally: "A recent study published on arXiv..."
+   - Hook: why this research matters RIGHT NOW for developers
+
+   "## What This Research Found":
+   - Explain the core idea in plain language — no formulas
+   - Use analogies if helpful
+
+   "## Implementation Guide":
+   - MUST include a real Python code example that uses Orgteh API:
+     ```python
+     from openai import OpenAI
+     client = OpenAI(
+         base_url="https://orgteh.com/v1",
+         api_key="YOUR_ORGTEH_API_KEY"
+     )
+     # ... practical implementation of the paper's concept
+     ```
+   - The code must implement the paper's core idea using Orgteh API
+   - Add inline comments explaining what each part does
+
+   "## Integrating with Orgteh":
+   - Use the ORGTEH MODELS & TOOLS provided above
+   - Explain WHICH specific model/tool and WHY it fits this use case
+   - Natural prose, NOT bullet list
+   - Use exact markdown links (already have /en/ prefix)
+   - {demo_instruction}
+
+   "## Key Takeaways":
+   - 3-5 concrete actionable points
+   - End with a call-to-action toward Orgteh
+
+6. CITATION RULE:
+   In "## Introduction" or "## What This Research Found", include this exact line
+   (adapt the title):
+   > **Source:** [{paper['title'][:60]}...]({paper['url']}) — published on arXiv
+   This signals to Google that content is original analysis, not a copy.
+
+7. Tone: conversational, like a senior engineer who READ the paper and TESTED the ideas
 
 DO NOT:
-- Say "arxiv" — say "recent research" or "a new study"
-- Add any preamble before the # H1 title
-- Use /ar/ links (English article → /en/ links only)
+- Copy sentences from the abstract verbatim
+- Add preamble before the # H1 title
+- Use /ar/ links (English article only)
+- Write the code without using Orgteh API
 
 Start directly with the # H1 title."""
 
@@ -1131,19 +1418,23 @@ def generate_article_ar(english_content: str, catalog_ctx_ar: str) -> Optional[s
 
 === TRANSLATION RULES ===
 1. Translate ALL text: title, all headings, every paragraph
-2. Keep ALL markdown formatting exactly as-is
-3. Keep code blocks, model names, API names in English
-4. CRITICAL LINK RULE — replace /en/ with /ar/ in ALL Orgteh internal links:
+2. Keep ALL markdown formatting exactly as-is (##, ###, **, blockquotes >, etc.)
+3. Keep code blocks EXACTLY as-is — do not translate ANY code
+4. Keep model names, API names, arXiv, "Orgteh" in English
+5. CRITICAL LINK RULE — replace /en/ with /ar/ in ALL Orgteh internal links:
    [Model Name](/en/models/key) → [اسم النموذج](/ar/models/key)
-   External http links stay unchanged.
-5. Translate naturally as if originally written in Arabic
-6. Do NOT add preamble — output ONLY the translated markdown
-7. Technical terms (RAG, LLM, API, prompt, token) can stay in English
+   External http/https links stay completely unchanged.
+6. For the citation blockquote, translate only the label:
+   > **Source:** [...] → > **المصدر:** [...]  (keep URL unchanged)
+7. Translate naturally — write as if originally authored in Arabic
+8. First-person phrases like "We tested on Orgteh API" → "جربنا على Orgteh API"
+9. Do NOT add preamble like "إليك الترجمة" — output ONLY the translated markdown
+10. Technical terms: RAG, LLM, API, prompt, token, fine-tuning → keep in English
 
 === ENGLISH ARTICLE ===
 {english_content}
 
-OUTPUT: Complete Arabic markdown article only."""
+OUTPUT: Complete Arabic markdown article only. Nothing else."""
 
     try:
         client  = _build_nvidia_client()
@@ -1254,7 +1545,14 @@ async def run_blog_generation(count: int = 3) -> dict:
             catalog_en = _format_catalog_prompt(relevant, lang="en")
             catalog_ar = _format_catalog_prompt(relevant, lang="ar")
 
-            content_en = generate_article_en(paper, seo_kw, catalog_en)
+            # ── تشغيل التجربة الحقيقية على Orgteh API ──────────────────
+            demo_result = await run_live_demo(paper, relevant)
+            if demo_result:
+                logger.info(f"[BlogGen] ✅ Live demo captured: {demo_result['model_name']}")
+            else:
+                logger.info(f"[BlogGen] No demo — article will be written without it")
+
+            content_en = generate_article_en(paper, seo_kw, catalog_en, demo_result=demo_result)
             if not content_en:
                 logger.warning(f"[BlogGen] EN failed: {paper['arxiv_id']}")
                 continue
@@ -1325,6 +1623,10 @@ def _safe_posts(posts: list) -> list:
         sp = dict(p)
         if hasattr(sp.get("published_at"), "strftime"):
             sp["published_at"] = sp["published_at"].strftime("%Y-%m-%d")
+        if hasattr(sp.get("updated_at"), "strftime"):
+            sp["updated_at"] = sp["updated_at"].strftime("%Y-%m-%d")
+        elif not sp.get("updated_at"):
+            sp["updated_at"] = sp.get("published_at", "")
         result.append(sp)
     return result
 
@@ -1358,6 +1660,10 @@ async def blog_post_page(request: Request, lang: str, slug: str):
     post = dict(post)
     if hasattr(post.get("published_at"), "strftime"):
         post["published_at"] = post["published_at"].strftime("%Y-%m-%d")
+    if hasattr(post.get("updated_at"), "strftime"):
+        post["updated_at"] = post["updated_at"].strftime("%Y-%m-%d")
+    elif not post.get("updated_at"):
+        post["updated_at"] = post.get("published_at", "")
     summary = post.get(f"summary_{lang}") or post.get("summary_en", "")
     if len(summary) > 160:
         summary = summary[:157] + "..."
