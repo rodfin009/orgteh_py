@@ -446,7 +446,7 @@
         <div class="p-0 overflow-hidden flex-1 relative bg-gray-50 dark:bg-[#1e1e1e] rounded-b-xl border-t border-gray-200 dark:border-gray-700 min-h-0">
             <div class="absolute top-3 right-4 z-20">
                  <button id="copy-code-btn" onclick="copyCode()" class="text-xs bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white border border-gray-300 dark:border-white/10 px-3 py-1.5 rounded hover:bg-gray-300 dark:hover:bg-white/20 transition flex items-center gap-2 backdrop-blur-sm">
-                    <i class="fa-regular fa-copy"></i> <span data-i18n="btn_copy">Copy</span>
+                    <i class="fa-regular fa-copy"></i> <span data-i18n="btn_copy"></span>
                 </button>
             </div>
             <div class="w-full h-full overflow-y-auto overflow-x-auto code-scroll p-5 text-gray-800 dark:text-gray-300 font-mono text-sm" dir="ltr" style="max-height:calc(85vh - 130px)">
@@ -738,9 +738,8 @@
     function generatePythonCode(modelId) {
         const formatPyVal = (v) => (v === true) ? "True" : (v === false ? "False" : v);
         const pyParams = Object.entries(currentParamsValues).map(([k,v]) => `    "${k}": ${formatPyVal(v)}`).join(',\n');
-        const isAr = (window.SERVER_LANG || 'en') === 'ar';
 
-        const baseCode = `import requests
+        const base = `import requests
 import json
 
 url = "${API_ENDPOINT}"
@@ -777,21 +776,21 @@ else:
     result = response.json()
     print(result['choices'][0]['message']['content'])`;
 
-        if (!modelId.includes('gemma')) return baseCode;
-
-        const c = isAr ? {
-            img:   '# لإرسال صورة — استبدل content بما يلي:',
-            aud:   '# لإرسال ملف صوتي — استبدل content بما يلي:',
-            vid:   '# لإرسال فيديو (إطار + صوت) — استبدل content بما يلي:',
-            note:  '# ملاحظة: base64 يحول الملف لنص مشفر قبل الإرسال',
-        } : {
-            img:   '# To send an image — replace content with:',
-            aud:   '# To send audio — replace content with:',
-            vid:   '# To send video (frame + audio) — replace content with:',
-            note:  '# Note: base64 encodes the file to a string before sending',
-        };
-
-        return baseCode + `
+        // Gemma: أضف تعليقات multimodal
+        if (modelId.includes('gemma')) {
+            const isAr = (window.SERVER_LANG || 'en') === 'ar';
+            const c = isAr ? {
+                note : '# ملاحظة: base64 يحول الملف إلى نص مشفر قبل الإرسال',
+                img  : '# لإرسال صورة — استبدل content بما يلي:',
+                aud  : '# لإرسال صوت — استبدل content بما يلي:',
+                vid  : '# لإرسال فيديو (إطار صورة + صوت) — استبدل content بما يلي:',
+            } : {
+                note : '# Note: base64 encodes the file to text before sending',
+                img  : '# To send an image — replace content with:',
+                aud  : '# To send audio — replace content with:',
+                vid  : '# To send video (image frame + audio) — replace content with:',
+            };
+            return base + `
 
 import base64  ${c.note}
 
@@ -811,6 +810,9 @@ ${c.vid}
 # with open("audio.wav", "rb") as f:
 #     aud_b64 = base64.b64encode(f.read()).decode()
 # payload["messages"][0]["content"] = f'Analyze <img src="data:image/png;base64,{img_b64}" /> <audio src="data:audio/wav;base64,{aud_b64}" />'`;
+        }
+
+        return base;
     }
 
     function generateJavaCode(modelId) {
@@ -905,15 +907,21 @@ console.log(data);`;
     function openCodeModal() {
         document.body.style.overflow = 'hidden';
         const modelId = document.getElementById('detail-id').textContent;
+        const isAr    = (window.SERVER_LANG || 'en') === 'ar';
 
-        // Generate all three code variants
-        const pyCode = generatePythonCode(modelId);
+        const pyCode   = generatePythonCode(modelId);
         const javaCode = generateJavaCode(modelId);
         const httpCode = generateHttpCode(modelId);
 
-        document.getElementById('code-block-py').textContent = pyCode;
+        document.getElementById('code-block-py').textContent   = pyCode;
         document.getElementById('code-block-java').textContent = javaCode;
         document.getElementById('code-block-http').textContent = httpCode;
+
+        // ضبط نص زر النسخ حسب اللغة
+        const copyBtn = document.getElementById('copy-code-btn');
+        if (copyBtn) {
+            copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i> ' + (isAr ? 'نسخ' : 'Copy');
+        }
 
         const el = document.getElementById('codeModal');
         el.classList.remove('opacity-0', 'pointer-events-none');
@@ -945,39 +953,29 @@ console.log(data);`;
     function copyCode() {
         const codeEl = document.getElementById('code-block-' + currentTab);
         if (!codeEl) return;
-        const text = codeEl.textContent || '';
-        if (!text.trim()) return;
-
-        const btn  = document.getElementById('copy-code-btn');
         const isAr = (window.SERVER_LANG || 'en') === 'ar';
-        const orig = btn ? btn.innerHTML : '';
+        const btn   = document.getElementById('copy-code-btn');
+        const text  = codeEl.innerText || codeEl.textContent || '';
 
-        function markDone() {
+        const markCopied = () => {
             if (!btn) return;
-            btn.innerHTML = isAr ? '<i class="fa-solid fa-check"></i> تم' : '<i class="fa-solid fa-check"></i> Copied!';
-            setTimeout(function() { if (btn) btn.innerHTML = orig; }, 2000);
-        }
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> ' + (isAr ? 'تم النسخ' : 'Copied!');
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fa-regular fa-copy"></i> ' + (isAr ? 'نسخ' : 'Copy');
+            }, 2000);
+        };
 
-        // execCommand sync — يجب أن يكون داخل user gesture مباشرة
-        var tmp = document.createElement('input');
-        tmp.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
-        tmp.value = text;
-        document.body.appendChild(tmp);
-        tmp.focus(); tmp.select();
-        var ok = false;
-        try { ok = document.execCommand('copy'); } catch(e) {}
-        document.body.removeChild(tmp);
-
-        if (ok) { markDone(); return; }
-
-        // Clipboard API كـ fallback
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(markDone).catch(function() {
-                window.prompt(isAr ? 'انسخ الكود:' : 'Copy code:', text);
-            });
-        } else {
-            window.prompt(isAr ? 'انسخ الكود:' : 'Copy code:', text);
-        }
+        navigator.clipboard.writeText(text).then(markCopied).catch(() => {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity  = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            markCopied();
+        });
     }
 
     function openParamsModal() {
