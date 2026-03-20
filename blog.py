@@ -1499,20 +1499,49 @@ DO NOT:
 
 Start directly with the # H1 title."""
 
+    import signal as _signal, threading as _threading
+
+    GENERATION_TIMEOUT = 200  # ثانية — إذا لم ينته بعدها نقطع ونُرجع ما جُمع
+
     try:
         client  = _build_nvidia_client()
         content = ""
-        for chunk in client.chat.completions.create(
-            model=GENERATION_MODEL,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-            temperature=0.65, top_p=0.72, max_tokens=5120, stream=True,
-        ):
-            if chunk.choices and chunk.choices[0].delta.content:
-                content += chunk.choices[0].delta.content
+        chunks_received = 0
+        last_chunk_time = [datetime.utcnow()]
+
+        def _stream():
+            nonlocal content, chunks_received
+            for chunk in client.chat.completions.create(
+                model=GENERATION_MODEL,
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+                temperature=0.65, top_p=0.72, max_tokens=5120, stream=True,
+            ):
+                if chunk.choices and chunk.choices[0].delta.content:
+                    content += chunk.choices[0].delta.content
+                    chunks_received += 1
+                    last_chunk_time[0] = datetime.utcnow()
+
+        t = _threading.Thread(target=_stream, daemon=True)
+        t.start()
+
+        # انتظر حتى الانتهاء مع فحص كل 5 ثوانٍ
+        deadline = datetime.utcnow().timestamp() + GENERATION_TIMEOUT
+        while t.is_alive():
+            t.join(timeout=5)
+            now = datetime.utcnow().timestamp()
+            idle = (datetime.utcnow() - last_chunk_time[0]).total_seconds()
+            if now > deadline:
+                logger.warning(f"[BlogGen] EN timeout after {GENERATION_TIMEOUT}s — got {chunks_received} chunks, {len(content)} chars")
+                break
+            if idle > 45 and chunks_received > 10:
+                logger.warning(f"[BlogGen] EN stream idle {idle:.0f}s — breaking early with {len(content)} chars")
+                break
+
+        logger.info(f"[BlogGen] EN done: {chunks_received} chunks, {len(content)} chars")
         return content.strip() or None
     except Exception as e:
-        logger.error(f"[BlogGen] EN generation: {e}")
-        return None
+        logger.error(f"[BlogGen] EN generation error: {type(e).__name__}: {e}")
+        return content.strip() if content else None
 
 def generate_article_ar(english_content: str, catalog_ctx_ar: str) -> Optional[str]:
     prompt = f"""Translate the following English blog post to Modern Standard Arabic (الفصحى المُيسَّرة).
@@ -1542,20 +1571,48 @@ def generate_article_ar(english_content: str, catalog_ctx_ar: str) -> Optional[s
 
 OUTPUT: Complete Arabic markdown article only. Nothing else."""
 
+    import threading as _threading
+
+    TRANSLATION_TIMEOUT = 200
+
     try:
         client  = _build_nvidia_client()
         content = ""
-        for chunk in client.chat.completions.create(
-            model=GENERATION_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.25, top_p=0.67, max_tokens=5120, stream=True,
-        ):
-            if chunk.choices and chunk.choices[0].delta.content:
-                content += chunk.choices[0].delta.content
+        chunks_received = 0
+        last_chunk_time = [datetime.utcnow()]
+
+        def _stream():
+            nonlocal content, chunks_received
+            for chunk in client.chat.completions.create(
+                model=GENERATION_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.25, top_p=0.67, max_tokens=5120, stream=True,
+            ):
+                if chunk.choices and chunk.choices[0].delta.content:
+                    content += chunk.choices[0].delta.content
+                    chunks_received += 1
+                    last_chunk_time[0] = datetime.utcnow()
+
+        t = _threading.Thread(target=_stream, daemon=True)
+        t.start()
+
+        deadline = datetime.utcnow().timestamp() + TRANSLATION_TIMEOUT
+        while t.is_alive():
+            t.join(timeout=5)
+            now = datetime.utcnow().timestamp()
+            idle = (datetime.utcnow() - last_chunk_time[0]).total_seconds()
+            if now > deadline:
+                logger.warning(f"[BlogGen] AR timeout after {TRANSLATION_TIMEOUT}s — got {chunks_received} chunks, {len(content)} chars")
+                break
+            if idle > 45 and chunks_received > 10:
+                logger.warning(f"[BlogGen] AR stream idle {idle:.0f}s — breaking early with {len(content)} chars")
+                break
+
+        logger.info(f"[BlogGen] AR done: {chunks_received} chunks, {len(content)} chars")
         return content.strip() or None
     except Exception as e:
-        logger.error(f"[BlogGen] AR translation: {e}")
-        return None
+        logger.error(f"[BlogGen] AR translation error: {type(e).__name__}: {e}")
+        return content.strip() if content else None
 
 def _fix_model_links(content: str, relevant: list[dict], lang: str) -> str:
     """
@@ -2171,11 +2228,17 @@ async def _run_blog_generation_verbose(count: int):
                 )
             content_en = await fut_en
             if not content_en:
-                yield log_err(f"  EN generation returned empty — skipping paper {paper['arxiv_id']}")
+                yield log_err(f"  EN generation returned empty after {elapsed}s — skipping {paper['arxiv_id']}")
+                yield log_err(f"  Check Vercel logs for [BlogGen] EN generation error details")
                 continue
             content_en = _fix_model_links(content_en, relevant, lang="en")
             content_en = _clean_generated_content(content_en)
-            yield log_ok(f"  EN article: <b>{len(content_en.split())}</b> words")
+            words_en = len(content_en.split())
+            chars_en = len(content_en)
+            if words_en < 200:
+                yield log_warn(f"  ⚠️ EN article very short: {words_en} words ({chars_en} chars) — may be truncated")
+            else:
+                yield log_ok(f"  EN article: <b>{words_en}</b> words ({chars_en} chars) in {elapsed}s")
 
             yield log_info("  Translating to Arabic…")
             _content_en = content_en
@@ -2190,11 +2253,15 @@ async def _run_blog_generation_verbose(count: int):
                 yield f'<div class="log-line"><span class="ts">[{_ts()}]</span> <span style="color:#4b5563">⏳ translating… ({elapsed}s)</span></div>\n'
             content_ar = await fut_ar
             if not content_ar:
-                yield log_err(f"  AR translation returned empty — skipping paper {paper['arxiv_id']}")
+                yield log_err(f"  AR translation returned empty after {elapsed}s — skipping {paper['arxiv_id']}")
                 continue
             content_ar = _fix_model_links(content_ar, relevant, lang="ar")
             content_ar = _clean_generated_content(content_ar)
-            yield log_ok(f"  AR article: <b>{len(content_ar.split())}</b> words")
+            words_ar = len(content_ar.split())
+            if words_ar < 150:
+                yield log_warn(f"  ⚠️ AR article very short: {words_ar} words — may be truncated")
+            else:
+                yield log_ok(f"  AR article: <b>{words_ar}</b> words in {elapsed}s")
             title_en = _extract_h1(content_en)
             title_ar = _extract_h1(content_ar)
             slug     = _make_slug(title_en)
