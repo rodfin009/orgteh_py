@@ -1674,11 +1674,12 @@ PATCH لـ blog.py — استبدل كل شيء من السطر 1600 حتى ال
 blog_router = APIRouter()
 
 # ─── Admin guard ─────────────────────────────────────────────────────────────
-_ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "").strip().lower()
+_ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "rodfin0202@gmail.com").strip().lower()
+# ↑ fallback مباشر للإيميل — يعمل حتى لو ADMIN_EMAIL غير مضبوط في Vercel
 
 
 def _is_admin(email: str) -> bool:
-    if not _ADMIN_EMAIL or not email:
+    if not email:
         return False
     return email.strip().lower() == _ADMIN_EMAIL
 

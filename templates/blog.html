@@ -207,26 +207,20 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
 
     {% else %}
 
-    {# شريط إدارة — للمستخدمين المسجلين فقط #}
-    {% if is_logged_in %}
-    <div class="flex items-center justify-between mb-8 p-4 rounded-xl border border-purple-500/20 bg-purple-500/5">
-      <p class="text-sm text-gray-500 dark:text-gray-400">
-        <i class="fa-solid fa-database me-1 text-purple-400"></i>
+    {# شريط أدمن — للأدمن فقط #}
+    {% if is_admin %}
+    <div class="flex items-center justify-between mb-8 p-4 rounded-xl border border-purple-500/30 bg-purple-500/5">
+      <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+        <i class="fa-solid fa-shield-halved text-purple-400"></i>
+        <span class="text-purple-300 font-bold text-xs uppercase tracking-widest">Admin</span>
+        <span class="text-gray-500">·</span>
         {% if lang == 'ar' %}إجمالي المقالات:{% else %}Total articles:{% endif %}
         <strong class="text-white">{{ total }}</strong>
       </p>
-      <div class="flex items-center gap-3">
-        <select id="gen-count" class="text-sm bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white">
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3" selected>3</option>
-          <option value="5">5</option>
-        </select>
-        <button class="generate-btn text-sm" onclick="triggerGenerate()">
-          <i class="fa-solid fa-wand-magic-sparkles me-1"></i>
-          {% if lang == 'ar' %}توليد جديد{% else %}Generate New{% endif %}
-        </button>
-      </div>
+      <button class="generate-btn text-sm" onclick="triggerGenerate(1)">
+        <i class="fa-solid fa-wand-magic-sparkles me-1"></i>
+        {% if lang == 'ar' %}توليد مقالة{% else %}Generate Article{% endif %}
+      </button>
     </div>
     <div id="gen-status" class="mb-6 text-sm text-center text-gray-400 hidden"></div>
     {% endif %}
