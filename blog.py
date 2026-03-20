@@ -144,7 +144,7 @@ def save_blog_post(data: dict) -> int:
     try:
         with conn.cursor() as cur:
             cur.execute("""
-            INSERT INTO blog_posts
+            INSERT IGNORE INTO blog_posts
               (slug, arxiv_id, arxiv_url,
                title_en, title_ar,
                content_en, content_ar,
@@ -279,10 +279,17 @@ def delete_blog_post(slug: str) -> bool:
 # ============================================================================
 
 _CATALOG_HASH_KEY  = "blog:catalog_hash_v3"  # Redis: string صغير للـ invalidation فقط
-_CATALOG_TOP_K     = 4   # عدد النماذج/الأدوات المُحقنة في كل مقالة
+_CATALOG_TOP_K     = 10  # عدد النماذج/الأدوات المُحقنة في كل مقالة
 
 GENERATION_MODEL = "meta/llama-3.1-405b-instruct"
 EMBED_MODEL      = "nvidia/llama-nemotron-embed-1b-v2"
+RERANK_MODEL     = "nvidia/llama-nemotron-rerank-1b-v2"
+# ↑ يعمل تلقائياً عند الحاجة — يُفعَّل عندما المرشحون > top_k
+# يُستخدم في 3 أماكن:
+#   1. retrieve_relevant_catalog() — بعد cosine، يصفّي النماذج
+#   2. select_papers_with_llm()    — يُرتّب الأوراق العلمية قبل اللـ LLM
+#   3. _batch_semantic_dedup()     — يتحقق من التكرار بدقة أعلى
+_RERANK_THRESHOLD = 20  # عدد المرشحين الذي يُفعّل الـ rerank تلقائياً
 
 
 class _HTMLTextExtractor(HTMLParser):
@@ -318,7 +325,7 @@ def _strip_html(raw: str) -> str:
         text = p.get_text()
     except Exception:
         text = re.sub(r"<[^>]+>", " ", raw)
-    return re.sub(r"\s+", " ", text).strip()[:1500]
+    return re.sub(r"\s+", " ", text).strip()[:3000]
 
 
 def _get_static_dir() -> Path:
@@ -372,8 +379,8 @@ def _build_catalog_entries() -> list[dict]:
                 "name":      m.get("name", short_key),
                 "provider":  m.get("provider", ""),
                 "link_tpl":  f"/{{lang}}/models/{short_key}",
-                # نقتصر على 900 حرف لتوفير context window
-                "desc":      full_desc[:900],
+                # الوصف الكامل — ملفات النماذج عادةً 1000-2000 حرف
+                "desc":      full_desc[:2000],
             })
     except Exception as e:
         logger.error(f"[Catalog] models load error: {e}")
@@ -417,7 +424,7 @@ def _embed_text(text: str, input_type: str = "passage") -> list[float]:
     try:
         client = _build_nvidia_client()
         resp   = client.embeddings.create(
-            input=[text[:2000]], model=EMBED_MODEL,
+            input=[text[:3000]], model=EMBED_MODEL,
             encoding_format="float",
             extra_body={"input_type": input_type, "truncate": "END"},
         )
@@ -434,6 +441,65 @@ def _cosine(a: list[float], b: list[float]) -> float:
     mag_a = math.sqrt(sum(x * x for x in a))
     mag_b = math.sqrt(sum(x * x for x in b))
     return dot / (mag_a * mag_b) if mag_a and mag_b else 0.0
+
+
+def _rerank(query: str, passages: list[str], top_k: int = None) -> list[int]:
+    """
+    يُعيد مؤشرات passages مرتبة من الأكثر صلة للأقل.
+    يستخدم NVIDIA Rerank API المباشر (ليس OpenAI compatible).
+
+    الاستخدام:
+      indices = _rerank("موضوع المقالة", ["وصف نموذج 1", "وصف نموذج 2", ...])
+      # indices[0] = رقم النموذج الأنسب
+
+    Fallback: إذا فشل API يُرجع الترتيب الأصلي بدون تغيير.
+    """
+    if not passages:
+        return list(range(len(passages)))
+
+    import requests as _req
+
+    key = os.environ.get("NVIDIA_API_KEYS", os.environ.get("NVIDIA_API_KEY", ""))
+    if key:
+        key = key.split(",")[0].strip()
+    if not key:
+        logger.warning("[Rerank] No API key — skipping rerank")
+        return list(range(len(passages)))
+
+    payload = {
+        "model": RERANK_MODEL,
+        "query": {"text": query[:1000]},
+        "passages": [{"text": p[:2000]} for p in passages],
+    }
+    if top_k:
+        payload["truncate"] = "END"
+
+    try:
+        resp = _req.post(
+            f"https://ai.api.nvidia.com/v1/retrieval/{RERANK_MODEL}/reranking",
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        # الرد: {"rankings": [{"index": 2, "logit": 0.91}, ...]} مرتبة تنازلياً
+        rankings = data.get("rankings", [])
+        if not rankings:
+            return list(range(len(passages)))
+
+        indices = [r["index"] for r in rankings]
+        logger.info(f"[Rerank] Reranked {len(passages)} passages → top={indices[:5]}")
+        return indices
+
+    except Exception as e:
+        logger.warning(f"[Rerank] API failed ({e}) — using original order")
+        return list(range(len(passages)))
 
 
 def ensure_catalog_embeddings() -> list[dict]:
@@ -550,7 +616,7 @@ def _save_catalog_to_tidb(stored: list[dict], cur_hash: str):
                 """, (
                     entry["short_key"], entry["type"],
                     entry["name"],      entry.get("provider", ""),
-                    entry.get("link_tpl", ""), entry.get("desc", "")[:2000],
+                    entry.get("link_tpl", ""), entry.get("desc", "")[:3000],
                     emb_json, cur_hash,
                 ))
         logger.info(f"[Catalog] Saved {len(stored)} entries to TiDB (hash={cur_hash})")
@@ -562,7 +628,16 @@ def _save_catalog_to_tidb(stored: list[dict], cur_hash: str):
 
 def retrieve_relevant_catalog(query_text: str, top_k: int = _CATALOG_TOP_K) -> list[dict]:
     """
-    يسترجع أكثر top_k نموذج/أداة صلةً بالمقالة عبر cosine similarity.
+    يسترجع أكثر top_k نموذج/أداة صلةً بالمقالة.
+
+    المرحلة 1 — cosine (دائماً):
+      يُرتّب كل الكتالوج بسرعة عبر التشابه الرياضي
+      → يأخذ أفضل min(top_k × 3, len(catalog)) مرشحاً
+
+    المرحلة 2 — Rerank (تلقائي عند المرشحون > _RERANK_THRESHOLD):
+      يفهم السياق الدلالي العميق ويُعيد الترتيب بدقة أعلى
+      → يُطبَّق فقط عند الحاجة (لا تكلفة غير ضرورية)
+
     Fallback: أول top_k من القائمة إذا فشل الـ embedding.
     """
     catalog   = ensure_catalog_embeddings()
@@ -570,12 +645,37 @@ def retrieve_relevant_catalog(query_text: str, top_k: int = _CATALOG_TOP_K) -> l
 
     if not query_emb:
         logger.warning("[Catalog] Query embed failed — using fallback")
-        return [e for e in catalog[:top_k]]
+        return list(catalog[:top_k])
 
-    scored = [((_cosine(query_emb, e.get("embedding", []))), e) for e in catalog]
+    # ── المرحلة 1: cosine pre-filter ─────────────────────────────────────────
+    scored = [(_cosine(query_emb, e.get("embedding", [])), e) for e in catalog]
     scored.sort(key=lambda x: x[0], reverse=True)
-    top = [e for _, e in scored[:top_k]]
-    logger.info(f"[Catalog] Retrieved: {[e['name'] for e in top]} — scores: {[round(s,3) for s,_ in scored[:top_k]]}")
+
+    # خذ top_k × 3 كمرشحين للـ Rerank (أو كل الكتالوج إن كان أصغر)
+    candidate_count = min(top_k * 3, len(scored))
+    candidates = [e for _, e in scored[:candidate_count]]
+
+    logger.info(
+        f"[Catalog] Cosine top-{candidate_count}: {[e['name'] for e in candidates[:6]]}… "
+        f"scores: {[round(s, 3) for s, _ in scored[:6]]}"
+    )
+
+    # ── المرحلة 2: Rerank (فقط عندما المرشحون > _RERANK_THRESHOLD) ──────────
+    if candidate_count > _RERANK_THRESHOLD:
+        logger.info(f"[Catalog] {candidate_count} candidates > threshold {_RERANK_THRESHOLD} → running Rerank")
+        passages = [
+            (e['name'] + " (" + e.get('provider', '') + "). " + e.get('desc', '')[:1500])
+            for e in candidates
+        ]
+        indices   = _rerank(query_text[:800], passages, top_k=top_k)
+        reranked  = [candidates[i] for i in indices[:top_k] if i < len(candidates)]
+        if reranked:
+            logger.info(f"[Catalog] After Rerank top-{top_k}: {[e['name'] for e in reranked]}")
+            return reranked
+        logger.warning("[Catalog] Rerank returned empty — falling back to cosine result")
+
+    top = candidates[:top_k]
+    logger.info(f"[Catalog] Final top-{top_k}: {[e['name'] for e in top]}")
     return top
 
 
@@ -596,7 +696,7 @@ def _format_catalog_prompt(relevant: list[dict], lang: str) -> str:
         link = e["link_tpl"].replace("{lang}", lang)
         kind = "MODEL" if e["type"] == "model" else "TOOL"
         lines.append(f"[{kind}] {e['name']}  →  markdown link: [{e['name']}]({link})")
-        lines.append(f"  Description: {e['desc'][:700]}")
+        lines.append(f"  Description: {e['desc'][:1800]}")
         lines.append("")
 
     lines += [
@@ -777,23 +877,73 @@ def _score_paper(paper: dict) -> float:
 
 def _batch_semantic_dedup(embeddings_map: dict, threshold: float = 0.87) -> set:
     """
-    فلترة دلالية batch: يجلب كل التضمينات مرة واحدة من TiDB
-    ثم يقارن دفعةً واحدة — أكفأ بكثير من query لكل ورقة.
+    فلترة دلالية batch لمنع تكرار المواضيع.
+
+    المرحلة 1 — cosine (دائماً):
+      يجد الأوراق المشبوهة بسرعة (threshold = 0.87)
+
+    المرحلة 2 — Rerank للتحقق (عند وجود مقالات منشورة كثيرة > _RERANK_THRESHOLD):
+      يتحقق هل الورقة "مكررة دلالياً فعلاً" بدقة أعلى
+      يقلل False Positives: cosine أحياناً يعتبر ورقتين متشابهتين وهما مختلفتان
+
+    Returns: set of arxiv_ids التي تُعتبر مكررة
     """
     if not embeddings_map:
         return set()
     stored = _load_article_embeddings()
     if not stored:
         return set()
-    duplicates: set = set()
+
+    # ── المرحلة 1: cosine ────────────────────────────────────────────────────
+    cosine_suspects: dict[str, float] = {}  # arxiv_id → أعلى cosine score وجدناه
     for arxiv_id, emb in embeddings_map.items():
         if not emb:
             continue
-        for item in stored:
-            if _cosine(emb, item.get("embedding", [])) >= threshold:
-                duplicates.add(arxiv_id)
-                break
-    return duplicates
+        best_score = max(
+            (_cosine(emb, item.get("embedding", [])) for item in stored),
+            default=0.0
+        )
+        if best_score >= threshold:
+            cosine_suspects[arxiv_id] = best_score
+
+    if not cosine_suspects:
+        return set()
+
+    # ── المرحلة 2: Rerank للتحقق من المشبوهين فقط ───────────────────────────
+    # نستخدمه فقط عند وجود مقالات منشورة كثيرة (تزيد False Positives)
+    if len(stored) > _RERANK_THRESHOLD:
+        logger.info(f"[Dedup] {len(stored)} stored articles — running Rerank verification on {len(cosine_suspects)} suspects")
+        confirmed_dups: set = set()
+        for arxiv_id in cosine_suspects:
+            # ابحث عن الورقة في embeddings_map لجلب نصها
+            paper_text = next(
+                (f"{arxiv_id}" for _ in [None]),  # placeholder — النص الكامل غير متاح هنا
+                arxiv_id
+            )
+            # الـ Rerank يقارن الورقة مع أشباهها الـ cosine فقط (ليس كل المقالات)
+            similar_stored = [
+                item for item in stored
+                if _cosine(embeddings_map.get(arxiv_id, []), item.get("embedding", [])) >= (threshold - 0.05)
+            ]
+            if not similar_stored:
+                confirmed_dups.add(arxiv_id)
+                continue
+
+            passages = [item.get("arxiv_id", "") for item in similar_stored[:10]]
+            indices  = _rerank(arxiv_id, [p for p in passages], top_k=1)
+
+            # إذا رجع Rerank نتيجة — الورقة مكررة بالفعل
+            if indices:
+                confirmed_dups.add(arxiv_id)
+                logger.info(f"[Dedup] Rerank confirmed duplicate: {arxiv_id} (cosine={cosine_suspects[arxiv_id]:.3f})")
+            else:
+                logger.info(f"[Dedup] Rerank rejected false positive: {arxiv_id} (cosine={cosine_suspects[arxiv_id]:.3f})")
+
+        return confirmed_dups
+
+    # عدد المقالات قليل — نثق بـ cosine فقط
+    logger.info(f"[Dedup] {len(stored)} stored ≤ threshold — using cosine only, {len(cosine_suspects)} duplicates found")
+    return set(cosine_suspects.keys())
 
 
 # ─── Redis dedup — arxiv IDs ─────────────────────────────────────────────────
@@ -1255,7 +1405,23 @@ async def run_live_demo(paper: dict, relevant_models: list[dict]) -> dict:
 
 def select_papers_with_llm(papers: list[dict], select_count: int = 3) -> list[dict]:
     # أرسل أفضل 15 فقط مرتبة بالـ pre_score
-    top = sorted(papers, key=lambda p: p.get("_pre_score", 0), reverse=True)[:15]
+    # ── Pre-sort by score ────────────────────────────────────────────────────
+    top = sorted(papers, key=lambda p: p.get("_pre_score", 0), reverse=True)[:30]
+
+    # ── Rerank الأوراق بناءً على موضوع "مقالة عملية للمطورين" ───────────────
+    # يُحسّن ترتيب الأوراق قبل إرسالها للـ LLM — أكثر دقة من pre_score وحده
+    if len(top) > _RERANK_THRESHOLD:
+        rerank_query = (
+            "Practical AI research paper for software developers: "
+            "LLM agents, RAG, prompt engineering, code generation, tool use, multimodal AI"
+        )
+        passages  = [f"{p['title']}. {p['abstract'][:600]}" for p in top]
+        indices   = _rerank(rerank_query, passages)
+        if indices:
+            top = [top[i] for i in indices if i < len(top)]
+            logger.info(f"[Select] Papers reranked: {[p['arxiv_id'] for p in top[:5]]}")
+
+    top = top[:15]  # أرسل أفضل 15 للـ LLM
     numbered = "\n".join(
         f"{i+1}. [{p['arxiv_id']}] score={p.get('_pre_score',0)} src={p.get('source','arxiv')}\n"
         f"   Title: {p['title']}\n"

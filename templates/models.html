@@ -1184,25 +1184,38 @@ console.log(data);`;
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        // فقط: فتح النموذج تلقائياً عند URL مباشر مثل /ar/models/deepseek
+        // فتح النموذج تلقائياً عند URL مباشر مثل /ar/models/llama-large
         const pathParts = window.location.pathname.split('/').filter(p => p);
         if (pathParts.length === 3 && pathParts[1] === 'models') {
             const modelKey = pathParts[2];
-            const model = ALL_MODELS.find(m => {
-                const shortKey = m.id.includes('deepseek') ? 'deepseek' :
-                                m.id.includes('mistral') ? 'mistral' :
-                                m.id.includes('kimi') ? 'kimi' :
-                                m.id.includes('llama') ? 'llama' :
-                                m.id.includes('gemma') ? 'gemma' : null;
-                return shortKey === modelKey;
-            });
 
-            if (model) {
-                const shortKey = model.id.includes('deepseek') ? 'deepseek' :
-                                model.id.includes('mistral') ? 'mistral' :
-                                model.id.includes('kimi') ? 'kimi' :
-                                model.id.includes('llama') ? 'llama' : 'gemma';
-                openModelDetails(model.id, shortKey);
+            // خريطة كاملة: short_key → model.id الدقيق (من providers.py)
+            const KEY_TO_EXACT_ID = {
+                'deepseek':    'deepseek-ai/deepseek-v3.2',
+                'mistral':     'mistralai/mistral-large-3-675b-instruct-2512',
+                'kimi':        'moonshotai/kimi-k2-thinking',
+                'llama':       'meta/llama-3.2-3b-instruct',
+                'gemma':       'google/gemma-3n-e4b-it',
+                'llama-large': 'meta/llama-3.3-70b-instruct',
+                'llama-scout': 'meta/llama-4-scout-17b-16e-instruct',
+                'qwen-coder':  'qwen/qwen2.5-coder-32b-instruct',
+                'qwen-mini':   'Qwen/Qwen2.5-0.5B-Instruct',
+            };
+
+            const exactId = KEY_TO_EXACT_ID[modelKey];
+            if (exactId) {
+                // بحث مباشر بالـ ID الدقيق أولاً
+                const model = ALL_MODELS.find(m => m.id === exactId);
+                if (model) {
+                    openModelDetails(model.id, modelKey);
+                } else {
+                    // fallback: بحث جزئي
+                    const fallback = ALL_MODELS.find(m =>
+                        m.id.toLowerCase().includes(modelKey.replace('-', '.'))
+                        || (m.short_key && m.short_key === modelKey)
+                    );
+                    if (fallback) openModelDetails(fallback.id, modelKey);
+                }
             }
         }
     }, { once: true }); // ← closes _initModels (single listener for everything)
