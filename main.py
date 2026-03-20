@@ -35,6 +35,9 @@ from services.widget_service import router as widget_router
 from agent.routes import router as agent_v2_router, init_agent_db
 from services.admin import router as admin_router, track_page_visit
 
+# ── Blog ──────────────────────────────────────────────────────────────────────
+from blog import blog_router
+
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
@@ -186,6 +189,7 @@ app.include_router(auth_router)
 app.include_router(payments_router)
 app.include_router(widget_router)
 app.include_router(chat_router)       # ← المحادثات: /api/chat, /api/chat/trial, /v1/chat/completions
+app.include_router(blog_router)       # ← المدونة: /{lang}/blog, /api/admin/blog/generate
 
 # ── تهيئة جدول agent_sessions عند بدء التشغيل ────────────────────────────────
 @app.on_event("startup")
@@ -1048,6 +1052,10 @@ async def get_sitemap():
         if path.startswith("/api/") or path.startswith("/v1/") or path.startswith("/debug/"):
             continue
 
+        # تجاهل مسارات المدونة الديناميكية هنا — تُضاف من قاعدة البيانات أدناه
+        if "{slug}" in path:
+            continue
+
         if "{lang}" in path:
             lang_subpath = path.replace("/{lang}", "").replace("{lang}", "")
 
@@ -1081,9 +1089,22 @@ async def get_sitemap():
                         cf, pr = "weekly", "0.8"
                     elif "cart" in loc or "docs" in loc:
                         cf, pr = "monthly", "0.8"
+                    elif "/blog" in loc:
+                        cf, pr = "daily", "0.85"
                     else:
                         cf, pr = "monthly", "0.7"
                     add_url(loc, cf, pr)
+
+    # ── مقالات المدونة من قاعدة البيانات ──────────────────────────────────────
+    try:
+        from blog import get_all_slugs_with_dates
+        blog_entries = get_all_slugs_with_dates()
+        for entry in blog_entries:
+            for lang in ["en", "ar"]:
+                loc = f"https://orgteh.com/{lang}/blog/{entry['slug']}"
+                add_url(loc, "monthly", "0.8")
+    except Exception:
+        pass
 
     xml_content  = '<?xml version="1.0" encoding="UTF-8"?>\n'
     xml_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'

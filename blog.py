@@ -1449,6 +1449,45 @@ async def api_blog_list(page: int = 1, limit: int = 12):
     return JSONResponse({"posts": safe, "total": total, "page": page})
 
 
+# ─── Cron / Browser trigger ───────────────────────────────────────────────────
+# رابط GET محمي بـ secret — يعمل من المتصفح أو أي scheduler خارجي
+# أضف BLOG_CRON_SECRET في متغيرات البيئة
+# الرابط: https://orgteh.com/api/blog/cron?secret=YOUR_SECRET&count=3
+# ─────────────────────────────────────────────────────────────────────────────
+
+_CRON_SECRET = os.environ.get("BLOG_CRON_SECRET", "")
+
+
+@blog_router.get("/api/blog/cron")
+async def blog_cron_trigger(secret: str = "", count: int = 3):
+    """
+    GET https://orgteh.com/api/blog/cron?secret=YOUR_SECRET&count=3
+
+    secret  — يطابق BLOG_CRON_SECRET في البيئة (إلزامي)
+    count   — عدد المقالات (1-5، افتراضي 3)
+    """
+    if not _CRON_SECRET:
+        logger.warning("[Cron] BLOG_CRON_SECRET not configured")
+        return JSONResponse(
+            {"ok": False, "error": "Set BLOG_CRON_SECRET env variable first"},
+            status_code=503,
+        )
+    if not secret or secret != _CRON_SECRET:
+        logger.warning("[Cron] Invalid secret")
+        return JSONResponse({"ok": False, "error": "Invalid secret"}, status_code=401)
+
+    count = max(1, min(int(count), 5))
+    logger.info(f"[Cron] Triggered — {count} article(s)")
+
+    try:
+        result = await run_blog_generation(count=count)
+        result["triggered_at"] = datetime.utcnow().isoformat() + "Z"
+        return JSONResponse(result)
+    except Exception as e:
+        logger.error(f"[Cron] Error: {e}")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
 # ─── تهيئة عند الاستيراد ─────────────────────────────────────────────────────
 
 try:
