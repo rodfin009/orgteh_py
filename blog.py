@@ -329,6 +329,22 @@ def _build_catalog_entries() -> list[dict]:
                 continue
             desc_from_file = _read_model_description_en(short_key)
             full_desc = desc_from_file or f"{m.get('name','')} AI model by {m.get('provider','')}."
+            modalities = m.get("modalities", [])
+            if modalities:
+                modality_str = ", ".join(modalities)
+                full_desc = f"[MODALITIES: {modality_str}] " + full_desc
+
+            input_fmt = m.get("input_format", {})
+            if input_fmt:
+                fmt_note = input_fmt.get("note", "")
+                img_fmt  = input_fmt.get("image", "")
+                aud_fmt  = input_fmt.get("audio", "")
+                fmt_parts = []
+                if img_fmt:  fmt_parts.append(f"Image format: {img_fmt}")
+                if aud_fmt:  fmt_parts.append(f"Audio format: {aud_fmt}")
+                if fmt_note: fmt_parts.append(f"Note: {fmt_note}")
+                if fmt_parts:
+                    full_desc += " [INPUT FORMAT: " + " | ".join(fmt_parts) + "]"
             entries.append({
                 "type":      "model",
                 "short_key": short_key,
@@ -634,6 +650,13 @@ def _format_catalog_prompt(relevant: list[dict], lang: str) -> str:
     lines = [
         f"=== ORGTEH PLATFORM — RECOMMENDED RESOURCES FOR THIS ARTICLE ===",
         f"Article language: {lang.upper()} — ALL markdown links MUST start with /{lang}/",
+        "",
+        "MODEL SELECTION BY MODALITY — read [MODALITIES: ...] tag on each model below and choose accordingly:",
+        "• If article topic involves audio/video/speech/sound → choose models with 'audio' or 'video' in modalities",
+        "• If article topic involves images/vision/screenshots → choose models with 'images' in modalities",
+        "• If article topic involves code/programming → choose models with 'code' in modalities",
+        "• If article topic involves reasoning/math → choose models with 'reasoning' in modalities",
+        "Each model entry shows its exact modalities — match them to the article's subject matter.",
         "",
         "IMPORTANT — ORGTEH TOOLS API FORMAT:",
         "When writing code examples that use Orgteh TOOLS (not chat models), use this pattern:",
@@ -1482,7 +1505,7 @@ Start directly with the # H1 title."""
         for chunk in client.chat.completions.create(
             model=GENERATION_MODEL,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-            temperature=0.65, top_p=0.72, max_tokens=8192, stream=True,
+            temperature=0.65, top_p=0.72, max_tokens=5120, stream=True,
         ):
             if chunk.choices and chunk.choices[0].delta.content:
                 content += chunk.choices[0].delta.content
@@ -1525,7 +1548,7 @@ OUTPUT: Complete Arabic markdown article only. Nothing else."""
         for chunk in client.chat.completions.create(
             model=GENERATION_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.25, top_p=0.67, max_tokens=8192, stream=True,
+            temperature=0.25, top_p=0.67, max_tokens=5120, stream=True,
         ):
             if chunk.choices and chunk.choices[0].delta.content:
                 content += chunk.choices[0].delta.content
@@ -1654,14 +1677,19 @@ async def run_blog_generation(count: int = 3) -> dict:
             else:
                 logger.info(f"[BlogGen] No demo — article will be written without it")
 
-            content_en = generate_article_en(paper, seo_kw, catalog_en, demo_result=demo_result)
+            loop = asyncio.get_event_loop()
+            content_en = await loop.run_in_executor(
+                None, lambda: generate_article_en(paper, seo_kw, catalog_en, demo_result=demo_result)
+            )
             if not content_en:
                 logger.warning(f"[BlogGen] EN failed: {paper['arxiv_id']}")
                 continue
             content_en = _fix_model_links(content_en, relevant, lang="en")
             content_en = _clean_generated_content(content_en)
 
-            content_ar = generate_article_ar(content_en, catalog_ar)
+            content_ar = await loop.run_in_executor(
+                None, lambda: generate_article_ar(content_en, catalog_ar)
+            )
             if not content_ar:
                 logger.warning(f"[BlogGen] AR failed: {paper['arxiv_id']}")
                 continue
@@ -2123,20 +2151,28 @@ async def _run_blog_generation_verbose(count: int):
             else:
                 yield log_warn("  No demo captured — article will proceed without it")
 
-            yield log_info("  Generating English article (streaming, ~1600+ words)…")
-            content_en = generate_article_en(paper, seo_kw, catalog_en, demo_result=demo_result)
+            yield log_info("  Generating English article (streaming, ~1200+ words)…")
+            loop = asyncio.get_event_loop()
+            content_en = await loop.run_in_executor(
+                None, lambda: generate_article_en(paper, seo_kw, catalog_en, demo_result=demo_result)
+            )
             if not content_en:
                 yield log_err(f"  EN generation returned empty — skipping paper {paper['arxiv_id']}")
                 continue
+            content_en = _fix_model_links(content_en, relevant, lang="en")
+            content_en = _clean_generated_content(content_en)
             yield log_ok(f"  EN article: <b>{len(content_en.split())}</b> words")
 
             yield log_info("  Translating to Arabic…")
-            content_ar = generate_article_ar(content_en, catalog_ar)
+            content_ar = await loop.run_in_executor(
+                None, lambda: generate_article_ar(content_en, catalog_ar)
+            )
             if not content_ar:
                 yield log_err(f"  AR translation returned empty — skipping paper {paper['arxiv_id']}")
                 continue
+            content_ar = _fix_model_links(content_ar, relevant, lang="ar")
+            content_ar = _clean_generated_content(content_ar)
             yield log_ok(f"  AR article: <b>{len(content_ar.split())}</b> words")
-
             title_en = _extract_h1(content_en)
             title_ar = _extract_h1(content_ar)
             slug     = _make_slug(title_en)
