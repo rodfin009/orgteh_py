@@ -2153,9 +2153,23 @@ async def _run_blog_generation_verbose(count: int):
 
             yield log_info("  Generating English article (streaming, ~1200+ words)…")
             loop = asyncio.get_event_loop()
-            content_en = await loop.run_in_executor(
-                None, lambda: generate_article_en(paper, seo_kw, catalog_en, demo_result=demo_result)
+
+            # نشغّل التوليد في thread منفصل مع keepalive كل 8 ثوانٍ
+            _paper = paper
+            _seo_kw = seo_kw
+            _catalog_en = catalog_en
+            _demo_result = demo_result
+            fut_en = loop.run_in_executor(
+                None, lambda: generate_article_en(_paper, _seo_kw, _catalog_en, demo_result=_demo_result)
             )
+            elapsed = 0
+            while not fut_en.done():
+                await asyncio.sleep(8)
+                elapsed += 8
+                yield f'<script>window.scrollTo(0,document.body.scrollHeight);</script>\n'.encode("utf-8") if False else (
+                    f'<div class="log-line"><span class="ts">[{_ts()}]</span> <span style="color:#4b5563">⏳ generating… ({elapsed}s)</span></div>\n'
+                )
+            content_en = await fut_en
             if not content_en:
                 yield log_err(f"  EN generation returned empty — skipping paper {paper['arxiv_id']}")
                 continue
@@ -2164,9 +2178,17 @@ async def _run_blog_generation_verbose(count: int):
             yield log_ok(f"  EN article: <b>{len(content_en.split())}</b> words")
 
             yield log_info("  Translating to Arabic…")
-            content_ar = await loop.run_in_executor(
-                None, lambda: generate_article_ar(content_en, catalog_ar)
+            _content_en = content_en
+            _catalog_ar = catalog_ar
+            fut_ar = loop.run_in_executor(
+                None, lambda: generate_article_ar(_content_en, _catalog_ar)
             )
+            elapsed = 0
+            while not fut_ar.done():
+                await asyncio.sleep(8)
+                elapsed += 8
+                yield f'<div class="log-line"><span class="ts">[{_ts()}]</span> <span style="color:#4b5563">⏳ translating… ({elapsed}s)</span></div>\n'
+            content_ar = await fut_ar
             if not content_ar:
                 yield log_err(f"  AR translation returned empty — skipping paper {paper['arxiv_id']}")
                 continue

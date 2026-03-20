@@ -138,18 +138,18 @@ html[dir="rtl"] #article-body ul,
 html[dir="rtl"] #article-body ol { margin-left:0; margin-right:1.75rem; }
 html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px solid #7c3aed; border-radius:8px 0 0 8px; }
 /* اتجاه العربي يُطبَّق فقط داخل المدونة بدون تغيير dir الـ html */
-[data-blog-lang="ar"] {
-  direction: rtl;
-  text-align: right;
-  unicode-bidi: embed;
-}
-[data-blog-lang="ar"] h1,
-[data-blog-lang="ar"] h2,
-[data-blog-lang="ar"] h3,
+/* RTL للمدونة العربية — فقط على النصوص الطويلة */
 [data-blog-lang="ar"] p,
-[data-blog-lang="ar"] li,
+[data-blog-lang="ar"] li { direction: rtl; text-align: right; unicode-bidi: embed; }
+/* breadcrumb و admin bar */
 [data-blog-lang="ar"] .breadcrumb-text { direction: rtl; text-align: right; }
-[data-blog-lang="ar"] .admin-bar { direction: rtl; text-align: right; }
+[data-blog-lang="ar"] .admin-bar { direction: rtl; }
+/* article body headings فقط */
+[data-blog-lang="ar"] #article-body h1,
+[data-blog-lang="ar"] #article-body h2,
+[data-blog-lang="ar"] #article-body h3 { direction: rtl; text-align: right; }
+/* بطاقات المقالات في القائمة */
+[data-blog-lang="ar"] .blog-card h2 { direction: rtl; text-align: right; }
 /* الكود يبقى دائماً LTR بغض النظر عن لغة الصفحة */
 #article-body pre,
 #article-body code,
@@ -203,8 +203,8 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
   <section class="hero-glow pt-16 pb-12 px-4 text-center">
     <div class="max-w-3xl mx-auto">
 
-      <h1 class="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-white to-purple-300 bg-clip-text text-transparent">
-        {% if lang == 'ar' %}مدونة Orgteh{% else %}Orgteh Blog{% endif %}
+      <h1 class="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-white to-purple-300 bg-clip-text text-transparent" style="direction:ltr;text-align:center;">
+        {% if lang == 'ar' %}Orgteh مدونة{% else %}Orgteh Blog{% endif %}
       </h1>
       <p class="text-lg text-gray-500 dark:text-gray-400 max-w-xl mx-auto leading-relaxed">
         {% if lang == 'ar' %}تحليلات معمّقة لأحدث أبحاث الذكاء الاصطناعي — مع تطبيقات عملية يمكنك البناء عليها مباشرة.
