@@ -1597,21 +1597,33 @@ async def run_blog_generation(count: int = 3) -> dict:
 
 # ============================================================================
 # SECTION 4 — FASTAPI ROUTER
+"""
+PATCH لـ blog.py — استبدل كل شيء من السطر 1600 حتى النهاية بهذا الكود
+===========================================================================
+إصلاحان:
+  1. ترتيب الراوتات: /api/blog/cron كانت تُطابَق مع /{lang}/blog/{slug}
+     لأن FastAPI يمر على الراوتات بالترتيب → /api مطابق لـ {lang}="api"
+     الحل: ضع جميع مسارات /api/ قبل /{lang}/ دائماً
+
+  2. Cron endpoint جديد: يُرجع HTML streaming بطوابع زمنية تفصيلية
+     عند الدخول من المتصفح (Accept: text/html)
+     وJSON نظيف عند الاستدعاء من cron job (Accept: application/json)
+"""
+
+# ============================================================================
+# SECTION 4 — FASTAPI ROUTER
 # ============================================================================
 
 blog_router = APIRouter()
 
 # ─── Admin guard ─────────────────────────────────────────────────────────────
-# أضف ADMIN_EMAIL في متغيرات البيئة — فقط هذا الإيميل يقدر يشغّل التوليد
 _ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "").strip().lower()
 
 
 def _is_admin(email: str) -> bool:
-    """يتحقق أن المستخدم هو صاحب الحساب الإداري فقط."""
     if not _ADMIN_EMAIL or not email:
         return False
     return email.strip().lower() == _ADMIN_EMAIL
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 def _templates():
@@ -1623,7 +1635,6 @@ def _ctx(request: Request, lang: str, **kwargs) -> dict:
     try:
         from services.auth import get_template_context, get_current_user_email
         ctx = get_template_context(request, lang)
-        # أمرر is_admin للـ template — فقط صاحب ADMIN_EMAIL يراها
         email = get_current_user_email(request)
         ctx["is_admin"] = _is_admin(email or "")
     except Exception:
@@ -1646,6 +1657,515 @@ def _safe_posts(posts: list) -> list:
         result.append(sp)
     return result
 
+
+# ─── Cron secret ─────────────────────────────────────────────────────────────
+_CRON_SECRET = os.environ.get("BLOG_CRON_SECRET", "")
+
+
+# ============================================================================
+# ⚠️  مسارات /api/ يجب أن تكون قبل /{lang}/ دائماً
+#     لأن FastAPI يطابق الراوتات بالترتيب وسيعتبر "api" كـ {lang}
+# ============================================================================
+
+
+# ─── API: قائمة المقالات ──────────────────────────────────────────────────────
+@blog_router.get("/api/blog/posts")
+async def api_blog_list(page: int = 1, limit: int = 12):
+    posts, total = get_posts(page=max(1, page), limit=min(limit, 20))
+    safe = []
+    for p in _safe_posts(posts):
+        p.pop("content_en", None)
+        p.pop("content_ar", None)
+        safe.append(p)
+    return JSONResponse({"posts": safe, "total": total, "page": page})
+
+
+# ─── API: عرض الكتالوج (للتشخيص) ─────────────────────────────────────────────
+@blog_router.get("/api/blog/catalog")
+async def api_blog_catalog(request: Request):
+    """يعرض الكتالوج الحالي (للتشخيص)."""
+    from services.auth import get_current_user_email
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    if not _is_admin(email):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+    entries = _build_catalog_entries()
+    return JSONResponse({
+        "total":   len(entries),
+        "models":  [{"name": e["name"], "key": e["short_key"], "has_file": bool(e["desc"])} for e in entries if e["type"] == "model"],
+        "tools":   [{"name": e["name"], "key": e["short_key"]} for e in entries if e["type"] == "tool"],
+    })
+
+
+# ─── API Admin: توليد مقالات ──────────────────────────────────────────────────
+@blog_router.post("/api/admin/blog/generate")
+async def admin_generate_blog(request: Request):
+    from services.auth import get_current_user_email
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    if not _is_admin(email):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    count = max(1, min(int(body.get("count", 3)), 5))
+    try:
+        result = await run_blog_generation(count=count)
+        return JSONResponse(result)
+    except Exception as e:
+        logger.error(f"[BlogRoute] generate: {e}")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+# ─── API Admin: إعادة بناء الكتالوج ──────────────────────────────────────────
+@blog_router.post("/api/admin/blog/rebuild-catalog")
+async def admin_rebuild_catalog(request: Request):
+    from services.auth import get_current_user_email
+    email = get_current_user_email(request)
+    if not email:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    if not _is_admin(email):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+
+    conn = _get_conn()
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM blog_catalog_embeds")
+        except Exception as e:
+            logger.warning(f"[RebuildCatalog] TiDB clear: {e}")
+        finally:
+            conn.close()
+
+    r = _redis()
+    if r:
+        try:
+            r.delete(_CATALOG_HASH_KEY)
+        except Exception:
+            pass
+
+    stored = ensure_catalog_embeddings()
+    return JSONResponse({
+        "ok":      True,
+        "total":   len(stored),
+        "models":  [e["name"] for e in stored if e["type"] == "model"],
+        "tools":   [e["name"] for e in stored if e["type"] == "tool"],
+    })
+
+
+# ─── Cron / Browser Trigger ───────────────────────────────────────────────────
+#
+#  رابط GET محمي بـ secret — يعمل من المتصفح أو أي scheduler خارجي
+#  الرابط: https://orgteh.com/api/blog/cron?secret=YOUR_SECRET&count=3
+#
+#  • من المتصفح → صفحة HTML مباشرة بطوابع زمنية تفصيلية (streaming)
+#  • من cron job (curl/scheduler) → JSON نظيف
+#
+#  ⚠️  هذا المسار يجب أن يكون هنا قبل /{lang}/blog/{slug}
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _ts() -> str:
+    """Timestamp بصيغة HH:MM:SS UTC."""
+    return datetime.utcnow().strftime("%H:%M:%S")
+
+
+async def _run_blog_generation_verbose(count: int):
+    """
+    Generator يُنفّذ خط أنابيب التوليد خطوة بخطوة
+    ويُرسل سجلات HTML لحظةً بلحظة.
+
+    Yields: str  → سطر HTML جاهز للبث
+            أو tuple ("__done__", result_dict) في النهاية
+    """
+    import traceback
+
+    def log(icon: str, msg: str, color: str = "#e0e0e0") -> str:
+        ts = _ts()
+        return (
+            f'<div class="log-line">'
+            f'<span class="ts">[{ts}]</span> '
+            f'<span class="icon">{icon}</span> '
+            f'<span style="color:{color}">{msg}</span>'
+            f'</div>\n'
+            f'<script>window.scrollTo(0,document.body.scrollHeight);</script>\n'
+        )
+
+    def log_ok(msg):   return log("✅", msg, "#4ade80")
+    def log_info(msg): return log("📌", msg, "#93c5fd")
+    def log_warn(msg): return log("⚠️",  msg, "#fbbf24")
+    def log_err(msg):  return log("❌", msg, "#f87171")
+    def log_step(msg): return log("🔹", msg, "#c4b5fd")
+
+    # ─── Phase 1: جلب الأوراق ───────────────────────────────────────────────
+    yield log_step(f"Pipeline started — target: <b>{count}</b> article(s)")
+    yield log_info("Phase 1: Fetching papers from arXiv (4 queries) + HuggingFace Daily Papers…")
+
+    try:
+        papers = await fetch_all_papers()
+    except Exception as e:
+        yield log_err(f"fetch_all_papers() raised: {e}")
+        yield ("__done__", {"ok": False, "error": str(e)})
+        return
+
+    if not papers:
+        yield log_err("No papers returned from any source")
+        yield ("__done__", {"ok": False, "error": "Failed to fetch papers from all sources"})
+        return
+
+    yield log_ok(f"Fetched <b>{len(papers)}</b> unique papers total")
+
+    # ─── Phase 2: Exact dedup ────────────────────────────────────────────────
+    yield log_info("Phase 2: Exact dedup — checking Redis seen_ids + TiDB arxiv_ids…")
+    seen = get_seen_arxiv_ids()
+    yield log_info(f"Redis seen_ids: <b>{len(seen)}</b> entries")
+
+    try:
+        db_ids = set(get_all_arxiv_ids())
+        seen |= db_ids
+        yield log_info(f"TiDB published: <b>{len(db_ids)}</b> articles")
+    except Exception as e:
+        yield log_warn(f"Could not load TiDB arxiv_ids: {e}")
+
+    new_papers = [p for p in papers if p.get("arxiv_id") not in seen]
+    yield log_ok(f"New papers (not yet published): <b>{len(new_papers)}</b> / {len(papers)}")
+
+    if not new_papers:
+        yield log_warn("All fetched papers already published — nothing to generate")
+        yield ("__done__", {"ok": False, "error": "No new papers — all entries already published"})
+        return
+
+    # ─── Pre-scoring ─────────────────────────────────────────────────────────
+    yield log_info("Pre-scoring papers (recency + HF upvotes + practical keywords)…")
+    for p in new_papers:
+        p["_pre_score"] = _score_paper(p)
+    top_new = sorted(new_papers, key=lambda p: p["_pre_score"], reverse=True)[:30]
+    yield log_ok(f"Top-30 pre-scored. Best score: <b>{top_new[0]['_pre_score']}</b> — «{top_new[0]['title'][:60]}…»")
+
+    # ─── Phase 3: Semantic dedup ─────────────────────────────────────────────
+    yield log_info(f"Phase 3: Semantic dedup — embedding top {len(top_new)} papers (NVIDIA embed model)…")
+    embed_map: dict = {}
+    failed_embeds = 0
+    for p in top_new:
+        text = f"{p['title']}. {p['abstract'][:500]}"
+        emb  = _embed_text(text, input_type="passage")
+        if emb:
+            embed_map[p["arxiv_id"]] = emb
+            p["_embedding"] = emb
+        else:
+            failed_embeds += 1
+
+    if failed_embeds:
+        yield log_warn(f"{failed_embeds} papers failed embedding (will still be considered)")
+    yield log_ok(f"Embedded <b>{len(embed_map)}</b> papers")
+
+    semantic_dups = _batch_semantic_dedup(embed_map, threshold=0.87)
+    candidates    = [p for p in top_new if p["arxiv_id"] not in semantic_dups]
+    yield log_ok(
+        f"After semantic dedup: <b>{len(candidates)}</b> candidates "
+        f"(removed {len(semantic_dups)} duplicates, threshold=0.87)"
+    )
+
+    if not candidates:
+        yield log_err("All remaining papers are semantically similar to existing posts")
+        yield ("__done__", {"ok": False, "error": "All remaining papers are semantically similar to existing posts"})
+        return
+
+    # ─── Phase 4: LLM selection ──────────────────────────────────────────────
+    yield log_info(f"Phase 4: LLM selecting best {count} paper(s) from top-15 candidates…")
+    try:
+        selected = select_papers_with_llm(candidates, select_count=count)
+    except Exception as e:
+        yield log_warn(f"LLM selection failed ({e}) — using top-scored fallback")
+        selected = sorted(candidates, key=lambda p: p.get("_pre_score", 0), reverse=True)[:count]
+
+    yield log_ok(f"Selected <b>{len(selected)}</b> paper(s):")
+    for i, p in enumerate(selected, 1):
+        src = "🤗 HF" if p.get("source") == "hf_daily" else "📄 arXiv"
+        yield log("  ", f"{i}. [{src}] {p['title'][:80]}… (score={p.get('_pre_score',0)})", "#d1d5db")
+
+    # ─── Generation loop ──────────────────────────────────────────────────────
+    published = []
+
+    for idx, paper in enumerate(selected, 1):
+        yield log_step(f"━━━ Article {idx}/{len(selected)}: «{paper['title'][:65]}…» ━━━")
+
+        try:
+            yield log_info("  Generating SEO keywords (LLM + Google Autocomplete)…")
+            seo_kw = await get_seo_keywords(paper["title"], paper["abstract"])
+            yield log_ok(f"  SEO keywords: <b>{len(seo_kw)}</b> — [{', '.join(seo_kw[:5])}…]")
+
+            yield log_info("  RAG: retrieving relevant catalog models/tools…")
+            query = f"{paper['title']}. {paper['abstract'][:600]}"
+            relevant   = retrieve_relevant_catalog(query, top_k=_CATALOG_TOP_K)
+            catalog_en = _format_catalog_prompt(relevant, lang="en")
+            catalog_ar = _format_catalog_prompt(relevant, lang="ar")
+            rel_names  = [e["name"] for e in relevant]
+            yield log_ok(f"  Catalog: [{', '.join(rel_names)}]")
+
+            yield log_info("  Running live demo (classify paper complexity → run or suggest)…")
+            demo_result = await run_live_demo(paper, relevant)
+            if demo_result and demo_result.get("type") == "live":
+                yield log_ok(f"  Live demo ✅ — model: {demo_result.get('model_name','?')}")
+            elif demo_result and demo_result.get("type") == "note":
+                yield log_info("  Demo type: complex paper — written suggestion only")
+            else:
+                yield log_warn("  No demo captured — article will proceed without it")
+
+            yield log_info("  Generating English article (streaming, ~1600+ words)…")
+            content_en = generate_article_en(paper, seo_kw, catalog_en, demo_result=demo_result)
+            if not content_en:
+                yield log_err(f"  EN generation returned empty — skipping paper {paper['arxiv_id']}")
+                continue
+            yield log_ok(f"  EN article: <b>{len(content_en.split())}</b> words")
+
+            yield log_info("  Translating to Arabic…")
+            content_ar = generate_article_ar(content_en, catalog_ar)
+            if not content_ar:
+                yield log_err(f"  AR translation returned empty — skipping paper {paper['arxiv_id']}")
+                continue
+            yield log_ok(f"  AR article: <b>{len(content_ar.split())}</b> words")
+
+            title_en = _extract_h1(content_en)
+            title_ar = _extract_h1(content_ar)
+            slug     = _make_slug(title_en)
+
+            yield log_info(f"  Saving to DB — slug: <code>{slug}</code>")
+            save_blog_post({
+                "slug":         slug,
+                "arxiv_id":     paper["arxiv_id"],
+                "arxiv_url":    paper["url"],
+                "title_en":     title_en,
+                "title_ar":     title_ar,
+                "content_en":   content_en,
+                "content_ar":   content_ar,
+                "summary_en":   _extract_summary(content_en),
+                "summary_ar":   _extract_summary(content_ar),
+                "seo_keywords": json.dumps(seo_kw),
+                "published_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            })
+
+            mark_arxiv_id_seen(paper["arxiv_id"])
+            if paper.get("_embedding"):
+                store_article_embedding(paper["arxiv_id"], paper["_embedding"])
+
+            published.append({"slug": slug, "title_en": title_en, "arxiv_id": paper["arxiv_id"]})
+            yield log_ok(
+                f"  🎉 Published! "
+                f'<a href="/en/blog/{slug}" target="_blank" style="color:#818cf8">'
+                f'/en/blog/{slug}</a>'
+            )
+
+            if idx < len(selected):
+                yield log_info("  Waiting 3s before next article…")
+                await asyncio.sleep(3)
+
+        except Exception as e:
+            tb = traceback.format_exc()
+            yield log_err(f"  Unexpected error on {paper.get('arxiv_id')}: {e}")
+            yield log("  ", f"<pre style='color:#f87171;font-size:11px'>{tb[:600]}</pre>", "#f87171")
+            logger.error(f"[BlogGen] Error on {paper.get('arxiv_id')}: {e}\n{tb}")
+            continue
+
+    result = {
+        "ok":         True,
+        "generated":  len(published),
+        "articles":   published,
+        "triggered_at": datetime.utcnow().isoformat() + "Z",
+    }
+    if len(published) == 0:
+        result["ok"] = False
+        result["error"] = "Pipeline ran but no articles were saved"
+
+    yield ("__done__", result)
+
+
+_CRON_HTML_HEAD = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Orgteh Blog Cron — Live Log</title>
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    background: #0f0f1a;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    padding: 20px;
+  }}
+  .header {{
+    border-bottom: 1px solid #7c3aed55;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+  }}
+  .header h1 {{ color: #a78bfa; font-size: 18px; margin-bottom: 4px; }}
+  .header p  {{ color: #6b7280; font-size: 12px; }}
+  .log-line  {{ padding: 3px 0; line-height: 1.6; }}
+  .ts        {{ color: #4b5563; margin-right: 6px; }}
+  .icon      {{ margin-right: 4px; }}
+  code       {{ background: #1e1b4b; padding: 1px 5px; border-radius: 3px; color: #c4b5fd; }}
+  pre        {{ background: #1a0000; padding: 8px; border-radius: 4px; margin: 4px 0; overflow-x: auto; }}
+  a          {{ text-decoration: none; }}
+  a:hover    {{ text-decoration: underline; }}
+  .divider   {{ border-top: 1px solid #1e1b4b; margin: 10px 0; }}
+  .result-box {{
+    margin-top: 20px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    border: 1px solid;
+  }}
+  .result-ok  {{ border-color: #4ade80; background: #052e16; }}
+  .result-err {{ border-color: #f87171; background: #2d0a0a; }}
+  .result-box h2 {{ font-size: 15px; margin-bottom: 8px; }}
+  .result-box pre {{ background: #00000044; padding: 10px; border-radius: 4px; font-size: 12px; }}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🍄 Orgteh Blog — Cron Pipeline Log</h1>
+  <p>Started at {start_time} UTC — count={count}</p>
+</div>
+<div id="log">
+"""
+
+_CRON_HTML_FOOT_OK = """
+</div>
+<div class="result-box result-ok">
+  <h2>✅ Pipeline completed successfully</h2>
+  <pre>{result_json}</pre>
+</div>
+</body></html>
+"""
+
+_CRON_HTML_FOOT_ERR = """
+</div>
+<div class="result-box result-err">
+  <h2>❌ Pipeline finished with errors</h2>
+  <pre>{result_json}</pre>
+</div>
+</body></html>
+"""
+
+
+@blog_router.get("/api/blog/cron")
+async def blog_cron_trigger(request: Request, secret: str = "", count: int = 3):
+    """
+    GET /api/blog/cron?secret=YOUR_SECRET&count=3
+
+    • من المتصفح → يُرجع صفحة HTML streaming بسجلات لحظية تفصيلية
+    • من curl / cron job → يُرجع JSON نظيف (عند إرسال Accept: application/json)
+
+    secret  — يطابق BLOG_CRON_SECRET في متغيرات البيئة (إلزامي)
+    count   — عدد المقالات (1-5، افتراضي 3)
+    """
+    # ── التحقق من السيكريت ────────────────────────────────────────────────────
+    if not _CRON_SECRET:
+        logger.warning("[Cron] BLOG_CRON_SECRET not configured")
+        err = {"ok": False, "error": "Set BLOG_CRON_SECRET env variable first"}
+        # حتى في حالة الخطأ، أرجع HTML واضح إذا كان المتصفح
+        accept = request.headers.get("accept", "")
+        if "text/html" in accept:
+            html = (
+                "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
+                "<style>body{background:#0f0f1a;color:#f87171;font-family:monospace;"
+                "padding:30px}</style></head><body>"
+                "<h2>❌ BLOG_CRON_SECRET not configured</h2>"
+                "<p>Please set the <code>BLOG_CRON_SECRET</code> environment variable in Vercel.</p>"
+                "</body></html>"
+            )
+            from fastapi.responses import HTMLResponse
+            return HTMLResponse(html, status_code=503)
+        return JSONResponse(err, status_code=503)
+
+    if not secret or secret != _CRON_SECRET:
+        logger.warning("[Cron] Invalid secret")
+        err = {"ok": False, "error": "Invalid secret"}
+        accept = request.headers.get("accept", "")
+        if "text/html" in accept:
+            html = (
+                "<!DOCTYPE html><html><head><meta charset='UTF-8'>"
+                "<style>body{background:#0f0f1a;color:#f87171;font-family:monospace;"
+                "padding:30px}</style></head><body>"
+                "<h2>❌ 401 — Invalid secret</h2>"
+                "</body></html>"
+            )
+            from fastapi.responses import HTMLResponse
+            return HTMLResponse(html, status_code=401)
+        return JSONResponse(err, status_code=401)
+
+    count = max(1, min(int(count), 5))
+    logger.info(f"[Cron] Triggered — {count} article(s)")
+
+    # ── هل الطلب من متصفح؟ ────────────────────────────────────────────────────
+    accept     = request.headers.get("accept", "")
+    is_browser = "text/html" in accept
+
+    if not is_browser:
+        # ─ JSON mode لـ cron jobs و curl ─────────────────────────────────────
+        try:
+            result = await run_blog_generation(count=count)
+            result["triggered_at"] = datetime.utcnow().isoformat() + "Z"
+            return JSONResponse(result)
+        except Exception as e:
+            logger.error(f"[Cron] Error: {e}")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    # ─── HTML streaming mode للمتصفح ─────────────────────────────────────────
+    start_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    async def stream_html():
+        # الـ header الأولي يُكسر المخزن المؤقت فوراً
+        yield _CRON_HTML_HEAD.format(start_time=start_time, count=count).encode("utf-8")
+
+        final_result = {"ok": False, "error": "Generator did not complete"}
+
+        try:
+            async for item in _run_blog_generation_verbose(count=count):
+                if isinstance(item, tuple) and item[0] == "__done__":
+                    final_result = item[1]
+                else:
+                    # item هو سطر HTML
+                    yield item.encode("utf-8")
+                # أعطِ فرصة للـ event loop ليُرسل الـ chunk
+                await asyncio.sleep(0)
+
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            yield (
+                f'<div class="log-line"><span style="color:#f87171">❌ Fatal error: {e}</span></div>\n'
+                f'<pre style="color:#f87171;font-size:11px">{tb[:800]}</pre>\n'
+            ).encode("utf-8")
+            final_result = {"ok": False, "error": str(e)}
+
+        # الختام
+        result_json = json.dumps(final_result, ensure_ascii=False, indent=2)
+        if final_result.get("ok"):
+            yield _CRON_HTML_FOOT_OK.format(result_json=result_json).encode("utf-8")
+        else:
+            yield _CRON_HTML_FOOT_ERR.format(result_json=result_json).encode("utf-8")
+
+    from fastapi.responses import StreamingResponse as _SR
+    return _SR(
+        stream_html(),
+        media_type="text/html; charset=utf-8",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control":     "no-cache, no-transform",
+            "Transfer-Encoding": "chunked",
+        },
+    )
+
+
+# ============================================================================
+# ⬇️  مسارات /{lang}/ — يجب أن تأتي دائماً بعد جميع مسارات /api/
+#     سبب ذلك: FastAPI يطابق /{lang}/blog/{slug} مع /api/blog/cron
+#     إذا كانت /{lang}/ مُسجَّلة أولاً لأنه يعتبر "api" كـ {lang}
+# ============================================================================
 
 @blog_router.get("/{lang}/blog", response_class=HTMLResponse)
 async def blog_listing(request: Request, lang: str, page: int = 1):
@@ -1686,134 +2206,6 @@ async def blog_post_page(request: Request, lang: str, slug: str):
     return _templates().TemplateResponse("blog.html", _ctx(
         request, lang, view="post", post=post, meta_description=summary,
     ))
-
-
-@blog_router.post("/api/admin/blog/generate")
-async def admin_generate_blog(request: Request):
-    from services.auth import get_current_user_email
-    email = get_current_user_email(request)
-    if not email:
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
-    if not _is_admin(email):
-        return JSONResponse({"error": "Forbidden"}, status_code=403)
-    try:
-        body  = await request.json()
-    except Exception:
-        body  = {}
-    count = max(1, min(int(body.get("count", 3)), 5))
-    try:
-        result = await run_blog_generation(count=count)
-        return JSONResponse(result)
-    except Exception as e:
-        logger.error(f"[BlogRoute] generate: {e}")
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
-
-
-@blog_router.post("/api/admin/blog/rebuild-catalog")
-async def admin_rebuild_catalog(request: Request):
-    """
-    يجبر إعادة بناء تضمينات الكتالوج.
-    استخدمه بعد إضافة نموذج أو أداة جديدة لضمان تضمينها فوراً.
-    """
-    from services.auth import get_current_user_email
-    email = get_current_user_email(request)
-    if not email:
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
-    if not _is_admin(email):
-        return JSONResponse({"error": "Forbidden"}, status_code=403)
-
-    # امسح جدول TiDB + hash Redis ليُعاد البناء
-    conn = _get_conn()
-    if conn:
-        try:
-            with conn.cursor() as cur:
-                cur.execute("DELETE FROM blog_catalog_embeds")
-        except Exception as e:
-            logger.warning(f"[RebuildCatalog] TiDB clear: {e}")
-        finally:
-            conn.close()
-
-    r = _redis()
-    if r:
-        try:
-            r.delete(_CATALOG_HASH_KEY)
-        except Exception:
-            pass
-
-    stored = ensure_catalog_embeddings()
-    return JSONResponse({
-        "ok":      True,
-        "total":   len(stored),
-        "models":  [e["name"] for e in stored if e["type"] == "model"],
-        "tools":   [e["name"] for e in stored if e["type"] == "tool"],
-    })
-
-
-@blog_router.get("/api/blog/catalog")
-async def api_blog_catalog(request: Request):
-    """يعرض الكتالوج الحالي (للتشخيص)."""
-    from services.auth import get_current_user_email
-    email = get_current_user_email(request)
-    if not email:
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
-    if not _is_admin(email):
-        return JSONResponse({"error": "Forbidden"}, status_code=403)
-    entries = _build_catalog_entries()
-    return JSONResponse({
-        "total":   len(entries),
-        "models":  [{"name": e["name"], "key": e["short_key"], "has_file": bool(e["desc"])} for e in entries if e["type"] == "model"],
-        "tools":   [{"name": e["name"], "key": e["short_key"]} for e in entries if e["type"] == "tool"],
-    })
-
-
-@blog_router.get("/api/blog/posts")
-async def api_blog_list(page: int = 1, limit: int = 12):
-    posts, total = get_posts(page=max(1, page), limit=min(limit, 20))
-    safe = []
-    for p in _safe_posts(posts):
-        p.pop("content_en", None)
-        p.pop("content_ar", None)
-        safe.append(p)
-    return JSONResponse({"posts": safe, "total": total, "page": page})
-
-
-# ─── Cron / Browser trigger ───────────────────────────────────────────────────
-# رابط GET محمي بـ secret — يعمل من المتصفح أو أي scheduler خارجي
-# أضف BLOG_CRON_SECRET في متغيرات البيئة
-# الرابط: https://orgteh.com/api/blog/cron?secret=YOUR_SECRET&count=3
-# ─────────────────────────────────────────────────────────────────────────────
-
-_CRON_SECRET = os.environ.get("BLOG_CRON_SECRET", "")
-
-
-@blog_router.get("/api/blog/cron")
-async def blog_cron_trigger(secret: str = "", count: int = 3):
-    """
-    GET https://orgteh.com/api/blog/cron?secret=YOUR_SECRET&count=3
-
-    secret  — يطابق BLOG_CRON_SECRET في البيئة (إلزامي)
-    count   — عدد المقالات (1-5، افتراضي 3)
-    """
-    if not _CRON_SECRET:
-        logger.warning("[Cron] BLOG_CRON_SECRET not configured")
-        return JSONResponse(
-            {"ok": False, "error": "Set BLOG_CRON_SECRET env variable first"},
-            status_code=503,
-        )
-    if not secret or secret != _CRON_SECRET:
-        logger.warning("[Cron] Invalid secret")
-        return JSONResponse({"ok": False, "error": "Invalid secret"}, status_code=401)
-
-    count = max(1, min(int(count), 5))
-    logger.info(f"[Cron] Triggered — {count} article(s)")
-
-    try:
-        result = await run_blog_generation(count=count)
-        result["triggered_at"] = datetime.utcnow().isoformat() + "Z"
-        return JSONResponse(result)
-    except Exception as e:
-        logger.error(f"[Cron] Error: {e}")
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
 # ─── تهيئة عند الاستيراد ─────────────────────────────────────────────────────
