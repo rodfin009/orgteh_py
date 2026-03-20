@@ -558,19 +558,19 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
     const loadEl = document.getElementById("article-loading");
     if (!rawEl || !bodyEl) return;
 
-    // احذف أول H1 من الـ markdown — القالب يعرضه مسبقاً في الهيدر
     let md = rawEl.textContent || "";
-    md = md.replace(/^#[^#][^
-]*
-?/, '').trimStart();
 
-    // احذف أي blockquote مصدر داخل المحتوى (> **Source:** أو > **المصدر:**)
-    md = md.replace(/^>\s*\*\*(Source|المصدر):\*\*[^
-]*
-?/gm, '').replace(/
-{3,}/g, '
-
-');
+    // احذف أول H1 (العنوان يُعرض مسبقاً في الهيدر)
+    var mdLines = md.split("\n");
+    if (mdLines.length > 0 && mdLines[0].match(/^#[^#]/)) {
+      mdLines.shift();
+    }
+    // احذف blockquote المصدر إن وُجد داخل المحتوى
+    mdLines = mdLines.filter(function(l) {
+      var t = l.trim();
+      return !(t.indexOf(">") === 0 && (t.indexOf("Source:") !== -1 || t.indexOf("\u0627\u0644\u0645\u0635\u062f\u0631:") !== -1));
+    });
+    md = mdLines.join("\n").trim();
 
     marked.setOptions({ gfm: true, breaks: false, mangle: false });
 
