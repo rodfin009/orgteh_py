@@ -39,7 +39,7 @@
   </script>
 {% else %}
   <title>{% if lang == 'ar' %}مدونة Orgteh | رؤى الذكاء الاصطناعي{% else %}Orgteh Blog | AI Insights{% endif %}</title>
-  <meta name="description" content="{% if lang == 'ar' %}مقالات عملية عن وكلاء الذكاء الاصطناعي والـ LLMs والبرومبتات — مشتقة من أحدث الأبحاث.{% else %}Practical articles on AI agents, LLMs, and prompting — derived from the latest research papers.{% endif %}">
+  <meta name="description" content="{% if lang == 'ar' %}تحليلات معمّقة لأحدث أبحاث الذكاء الاصطناعي مع تطبيقات عملية يمكنك البناء عليها مباشرة.{% else %}In-depth analysis of the latest AI research with practical applications you can build on today.{% endif %}">
   <meta property="og:title" content="{% if lang == 'ar' %}مدونة Orgteh{% else %}Orgteh Blog{% endif %}">
 {% endif %}
 
@@ -181,16 +181,13 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
   {# Hero #}
   <section class="hero-glow pt-16 pb-12 px-4 text-center">
     <div class="max-w-3xl mx-auto">
-      <span class="inline-flex items-center gap-2 tag-pill mb-4">
-        <i class="fa-solid fa-rss text-xs"></i>
-        {% if lang == 'ar' %}مدونة مدعومة بالذكاء الاصطناعي{% else %}AI-Powered Blog{% endif %}
-      </span>
+
       <h1 class="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-white to-purple-300 bg-clip-text text-transparent">
         {% if lang == 'ar' %}مدونة Orgteh{% else %}Orgteh Blog{% endif %}
       </h1>
       <p class="text-lg text-gray-500 dark:text-gray-400 max-w-xl mx-auto leading-relaxed">
-        {% if lang == 'ar' %}مقالات عملية عن الذكاء الاصطناعي — وكلاء، برومبتات، LLMs — مستوحاة من أحدث الأبحاث.
-        {% else %}Practical AI articles — agents, prompting, LLMs — inspired by the latest research.{% endif %}
+        {% if lang == 'ar' %}تحليلات معمّقة لأحدث أبحاث الذكاء الاصطناعي — مع تطبيقات عملية يمكنك البناء عليها مباشرة.
+        {% else %}In-depth analysis of the latest AI research — with practical applications you can build on today.{% endif %}
       </p>
     </div>
   </section>
@@ -415,9 +412,9 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
             </p>
             <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">
               {% if lang == 'ar' %}
-                هذه المقالة مبنية على ورقة بحثية علمية — تمت إعادة صياغتها وإضافة تطبيقات عملية عليها.
+                هذه المقالة مبنية على ورقة بحثية علمية.
               {% else %}
-                This article is based on a peer-reviewed research paper — rewritten with practical applications added.
+                This article is based on a peer-reviewed research paper.
               {% endif %}
             </p>
             <a href="{{ post.arxiv_url }}" target="_blank" rel="noopener noreferrer"
