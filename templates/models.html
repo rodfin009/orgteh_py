@@ -738,8 +738,9 @@
     function generatePythonCode(modelId) {
         const formatPyVal = (v) => (v === true) ? "True" : (v === false ? "False" : v);
         const pyParams = Object.entries(currentParamsValues).map(([k,v]) => `    "${k}": ${formatPyVal(v)}`).join(',\n');
+        const isAr = (window.SERVER_LANG || 'en') === 'ar';
 
-        return `import requests
+        const baseCode = `import requests
 import json
 
 url = "${API_ENDPOINT}"
@@ -775,6 +776,41 @@ if payload.get("stream"):
 else:
     result = response.json()
     print(result['choices'][0]['message']['content'])`;
+
+        if (!modelId.includes('gemma')) return baseCode;
+
+        const c = isAr ? {
+            img:   '# لإرسال صورة — استبدل content بما يلي:',
+            aud:   '# لإرسال ملف صوتي — استبدل content بما يلي:',
+            vid:   '# لإرسال فيديو (إطار + صوت) — استبدل content بما يلي:',
+            note:  '# ملاحظة: base64 يحول الملف لنص مشفر قبل الإرسال',
+        } : {
+            img:   '# To send an image — replace content with:',
+            aud:   '# To send audio — replace content with:',
+            vid:   '# To send video (frame + audio) — replace content with:',
+            note:  '# Note: base64 encodes the file to a string before sending',
+        };
+
+        return baseCode + `
+
+import base64  ${c.note}
+
+${c.img}
+# with open("image.png", "rb") as f:
+#     img_b64 = base64.b64encode(f.read()).decode()
+# payload["messages"][0]["content"] = f'Describe this image <img src="data:image/png;base64,{img_b64}" />'
+
+${c.aud}
+# with open("audio.wav", "rb") as f:
+#     aud_b64 = base64.b64encode(f.read()).decode()
+# payload["messages"][0]["content"] = f'Transcribe this audio <audio src="data:audio/wav;base64,{aud_b64}" />'
+
+${c.vid}
+# with open("frame.png", "rb") as f:
+#     img_b64 = base64.b64encode(f.read()).decode()
+# with open("audio.wav", "rb") as f:
+#     aud_b64 = base64.b64encode(f.read()).decode()
+# payload["messages"][0]["content"] = f'Analyze <img src="data:image/png;base64,{img_b64}" /> <audio src="data:audio/wav;base64,{aud_b64}" />'`;
     }
 
     function generateJavaCode(modelId) {
@@ -907,42 +943,40 @@ console.log(data);`;
     }
 
     function copyCode() {
-        // نقرأ النص فوراً داخل user gesture — قبل أي async
         const codeEl = document.getElementById('code-block-' + currentTab);
         if (!codeEl) return;
         const text = codeEl.textContent || '';
         if (!text.trim()) return;
 
-        const btn = document.getElementById('copy-code-btn');
+        const btn  = document.getElementById('copy-code-btn');
         const isAr = (window.SERVER_LANG || 'en') === 'ar';
-        const origHTML = btn ? btn.innerHTML : '';
+        const orig = btn ? btn.innerHTML : '';
 
         function markDone() {
             if (!btn) return;
-            btn.innerHTML = isAr
-                ? '<i class="fa-solid fa-check"></i> تم'
-                : '<i class="fa-solid fa-check"></i> Copied!';
-            setTimeout(function() { if (btn) btn.innerHTML = origHTML; }, 2000);
+            btn.innerHTML = isAr ? '<i class="fa-solid fa-check"></i> تم' : '<i class="fa-solid fa-check"></i> Copied!';
+            setTimeout(function() { if (btn) btn.innerHTML = orig; }, 2000);
         }
 
-        // إنشاء input مؤقت وتنفيذ النسخ فوراً (sync) داخل user gesture
+        // execCommand sync — يجب أن يكون داخل user gesture مباشرة
         var tmp = document.createElement('input');
         tmp.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
         tmp.value = text;
         document.body.appendChild(tmp);
-        tmp.focus();
-        tmp.select();
-        var syncOk = false;
-        try { syncOk = document.execCommand('copy'); } catch(e) {}
+        tmp.focus(); tmp.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch(e) {}
         document.body.removeChild(tmp);
 
-        if (syncOk) {
-            markDone();
-        } else if (navigator.clipboard) {
-            // Clipboard API كـ fallback فقط
+        if (ok) { markDone(); return; }
+
+        // Clipboard API كـ fallback
+        if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text).then(markDone).catch(function() {
-                alert(isAr ? 'لم يتم النسخ — اضغط مطولاً وانسخ يدوياً' : 'Copy failed — please select and copy manually');
+                window.prompt(isAr ? 'انسخ الكود:' : 'Copy code:', text);
             });
+        } else {
+            window.prompt(isAr ? 'انسخ الكود:' : 'Copy code:', text);
         }
     }
 
@@ -1232,4 +1266,4 @@ console.log(data);`;
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     });
 </script>
-{% endblock %} 
+{% endblock %}

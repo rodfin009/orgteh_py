@@ -352,6 +352,39 @@ async def admin_visitor_stats(request: Request, period: str = "24h"):
     return JSONResponse(get_visitor_stats(period=period))
 
 # ============================================================================
+# API: WIDGETS (إدارة الودجتات)
+# ============================================================================
+
+@router.get("/api/admin/widget-stats")
+async def admin_widget_stats(request: Request):
+    """
+    يُعيد إحصائيات الودجتات.
+    ملاحظة: هذه نسخة مؤقتة — استبدلها بقاعدة بيانات حقيقية لاحقاً
+    """
+    verify_admin(request)
+
+    # بيانات افتراضية — استبدلها بالقراءة من Redis/TiDB حسب تنفيذك الحقيقي
+    return JSONResponse({
+        "total": 0,
+        "active": 0,
+        "daily_usage": 0,
+        "total_usage": 0
+    })
+
+@router.get("/api/admin/widgets")
+async def admin_widgets_list(request: Request):
+    """
+    يُعيد قائمة الودجتات المسجلة.
+    ملاحظة: هذه نسخة مؤقتة — استبدلها بقاعدة بيانات حقيقية لاحقاً
+    """
+    verify_admin(request)
+
+    # قائمة فارغة مؤقتاً — استبدلها بالقراءة من قاعدة البيانات
+    return JSONResponse({
+        "widgets": []
+    })
+
+# ============================================================================
 # API: GRANT PLAN
 # ============================================================================
 

@@ -154,6 +154,19 @@
         padding: 3px 10px; border-radius: 999px;
     }
     html.dark .gmail-badge { background: #064e3b; color: #6ee7b7; }
+
+    /* تحسينات إضافية للـ Widgets */
+    .widget-empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #9ca3af;
+    }
+    .error-state {
+        text-align: center;
+        padding: 20px;
+        color: #ef4444;
+        font-size: 14px;
+    }
 </style>
 {% endblock %}
 
@@ -364,25 +377,25 @@
     <div class="admin-card" id="widgetsSection" style="margin-top:20px;">
         <div class="admin-card-header">
             <span style="font-weight:800;font-size:15px;"><i class="fa-solid fa-puzzle-piece" style="color:#7c3aed;margin-left:8px;"></i>إدارة الودجتات (Widget)</span>
-            <span style="font-size:13px;font-weight:700;background:#ede9fe;color:#7c3aed;padding:4px 12px;border-radius:999px;" id="widgetTotalBadge">جارٍ التحميل...</span>
+            <span style="font-size:13px;font-weight:700;background:#ede9fe;color:#7c3aed;padding:4px 12px;border-radius:999px;" id="widgetTotalBadge">0 ودجت</span>
         </div>
 
         {# ── Stats Row ── #}
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;padding:20px;border-bottom:1px solid #f3f4f6;" class="dark:border-[#1a1a1a]" id="widgetStatsRow">
             <div style="text-align:center;padding:16px;background:#f9fafb;border-radius:12px;" class="dark:bg-[#111]">
-                <div style="font-size:24px;font-weight:900;color:#7c3aed;" id="ws-total">—</div>
+                <div style="font-size:24px;font-weight:900;color:#7c3aed;" id="ws-total">0</div>
                 <div style="font-size:11px;color:#9ca3af;margin-top:4px;">إجمالي الودجتات</div>
             </div>
             <div style="text-align:center;padding:16px;background:#f9fafb;border-radius:12px;" class="dark:bg-[#111]">
-                <div style="font-size:24px;font-weight:900;color:#22c55e;" id="ws-active">—</div>
+                <div style="font-size:24px;font-weight:900;color:#22c55e;" id="ws-active">0</div>
                 <div style="font-size:11px;color:#9ca3af;margin-top:4px;">نشطة</div>
             </div>
             <div style="text-align:center;padding:16px;background:#f9fafb;border-radius:12px;" class="dark:bg-[#111]">
-                <div style="font-size:24px;font-weight:900;color:#f59e0b;" id="ws-daily">—</div>
+                <div style="font-size:24px;font-weight:900;color:#f59e0b;" id="ws-daily">0</div>
                 <div style="font-size:11px;color:#9ca3af;margin-top:4px;">محادثات اليوم</div>
             </div>
             <div style="text-align:center;padding:16px;background:#f9fafb;border-radius:12px;" class="dark:bg-[#111]">
-                <div style="font-size:24px;font-weight:900;color:#3b82f6;" id="ws-total-usage">—</div>
+                <div style="font-size:24px;font-weight:900;color:#3b82f6;" id="ws-total-usage">0</div>
                 <div style="font-size:11px;color:#9ca3af;margin-top:4px;">إجمالي المحادثات</div>
             </div>
         </div>
@@ -407,7 +420,7 @@
             <span id="modalUserEmail">تفاصيل المستخدم</span>
         </h2>
         <div id="modalBody">
-            <div style="display:flex;justify-content:center;"><div class="spinner"></div></div>
+            <div style="display:flex;justify-content:center;padding:24px;"><div class="spinner"></div></div>
         </div>
         <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
             <button onclick="openGrantModal(currentModalEmail)" class="btn-grant" style="font-size:13px;padding:8px 16px;">
@@ -489,7 +502,22 @@ function setPeriod(p) {
 
 async function refreshAll() {
     document.getElementById('updateTime').textContent = new Date().toLocaleTimeString('ar-SA');
-    await Promise.all([loadStats(), loadUsers(), loadSysStats(), loadWidgetStats()]);
+
+    // استخدام Promise.allSettled بدلاً من Promise.all لضمان عدم توقف التحميل عند فشل جزء واحد
+    const results = await Promise.allSettled([
+        loadStats(), 
+        loadUsers(), 
+        loadSysStats(), 
+        loadWidgetStats()
+    ]);
+
+    // التحقق من الأخطاء وعرضها في الكونسول فقط
+    results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+            console.error(`Failed to load component ${index}:`, result.reason);
+        }
+    });
+
     showToast('✅ تم تحديث البيانات');
 }
 
@@ -498,13 +526,24 @@ async function loadStats() {
         const res  = await fetch(`/api/admin/dashboard-stats?period=${currentPeriod}`, {
             headers: { 'X-Admin-Token': ADMIN_TOKEN }
         });
+
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
         const data = await res.json();
         renderStats(data);
         renderCharts(data);
         renderVisitorStats(data.visitor_stats || {});
     } catch(e) {
         console.error('Stats error:', e);
-        showToast('خطأ في تحميل الإحصائيات', true);
+        showToast('خطأ في تحميل الإحصائيات الرئيسية', true);
+        document.getElementById('statsGrid').innerHTML = `
+            <div class="error-state" style="grid-column:1/-1;">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size:32px;color:#ef4444;margin-bottom:10px;"></i><br>
+                فشل تحميل الإحصائيات. تأكد من الاتصال بالخادم.
+            </div>
+        `;
     }
 }
 
@@ -643,17 +682,17 @@ function renderVisitorStats(vs) {
                             ? '📝 ' + p.path.split('/blog/')[1].replace(/-\d{12}$/, '').slice(0, 45)
                             : p.path.slice(0, 50);
                         const color  = isBlog ? '#7c3aed' : '#3b82f6';
-                        return \`<tr style="border-bottom:1px solid #f9fafb;" class="dark:border-[#111]">
-                            <td style="padding:8px 10px;font-size:11px;color:#9ca3af;text-align:left;">\${i+1}</td>
-                            <td style="padding:8px 10px;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" dir="ltr" title="\${p.path}">\${label}</td>
-                            <td style="padding:8px 10px;font-size:13px;font-weight:800;color:\${color};">\${p.visits.toLocaleString('ar-SA')}</td>
-                            <td style="padding:8px 10px;font-size:11px;color:#9ca3af;">\${p.unique.toLocaleString('ar-SA')}</td>
+                        return `<tr style="border-bottom:1px solid #f9fafb;" class="dark:border-[#111]">
+                            <td style="padding:8px 10px;font-size:11px;color:#9ca3af;text-align:left;">${i+1}</td>
+                            <td style="padding:8px 10px;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" dir="ltr" title="${p.path}">${label}</td>
+                            <td style="padding:8px 10px;font-size:13px;font-weight:800;color:${color};">${p.visits.toLocaleString('ar-SA')}</td>
+                            <td style="padding:8px 10px;font-size:11px;color:#9ca3af;">${p.unique.toLocaleString('ar-SA')}</td>
                             <td style="padding:8px 10px;min-width:80px;">
                                 <div style="background:#f3f4f6;border-radius:4px;height:6px;overflow:hidden;" class="dark:bg-[#1a1a1a]">
-                                    <div style="background:\${color};height:100%;width:\${pct}%;border-radius:4px;transition:width 0.5s;"></div>
+                                    <div style="background:${color};height:100%;width:${pct}%;border-radius:4px;transition:width 0.5s;"></div>
                                 </div>
                             </td>
-                        </tr>\`;
+                        </tr>`;
                     }).join('') : '<tr><td colspan="5" style="text-align:center;padding:10px;font-size:11px;color:#9ca3af;">لا توجد بيانات</td></tr>'}
                 </tbody>
             </table>
@@ -675,7 +714,7 @@ function renderVisitorStats(vs) {
                 </tbody>
             </table>
         </div>
-    \`;
+    `;
 }
 
 function formatNum(n) {
@@ -769,9 +808,12 @@ function renderCharts(d) {
 async function loadSysStats() {
     const container = document.getElementById('sysStatsContainer');
     try {
-        const res = await fetch(`/api/admin/dashboard-stats?period=${currentPeriod}`, {
+        const res  = await fetch(`/api/admin/dashboard-stats?period=${currentPeriod}`, {
             headers: { 'X-Admin-Token': ADMIN_TOKEN }
         });
+
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
         const d  = await res.json();
         const gs = d.global_stats || {};
         const rows = [
@@ -790,6 +832,7 @@ async function loadSysStats() {
         `).join('');
         loadRecentSubs(d.recent_subs || []);
     } catch(e) {
+        console.error('SysStats error:', e);
         container.innerHTML = '<p style="color:#ef4444;text-align:center;">خطأ في التحميل</p>';
     }
 }
@@ -821,10 +864,14 @@ async function loadUsers() {
         const res  = await fetch('/api/admin/users?gmail_only=true', {
             headers: { 'X-Admin-Token': ADMIN_TOKEN }
         });
+
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
         allUsers   = await res.json();
         document.getElementById('userCountBadge').textContent = `${allUsers.length} مستخدم (Gmail)`;
         renderUsersTable(allUsers);
     } catch(e) {
+        console.error('Users error:', e);
         wrapper.innerHTML = '<p style="text-align:center;color:#ef4444;padding:40px;">خطأ في تحميل المستخدمين</p>';
     }
 }
@@ -1079,11 +1126,16 @@ document.getElementById('userModal').addEventListener('click', e => { if (e.targ
 document.getElementById('grantModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeGrantModal(); });
 
 // ══════════════════════════════════════════════════════════
-//  Widget Admin Functions
+//  Widget Admin Functions — تم إصلاحها لمعالجة الأخطاء
 // ══════════════════════════════════════════════════════════
 async function loadWidgetStats() {
     try {
-        const res  = await fetch('/api/admin/widget-stats', { headers: { 'X-Admin-Token': ADMIN_TOKEN } });
+        const res  = await fetch('/api/admin/widget-stats', { 
+            headers: { 'X-Admin-Token': ADMIN_TOKEN } 
+        });
+
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
         const data = await res.json();
 
         const total = data.total || 0;
@@ -1094,12 +1146,23 @@ async function loadWidgetStats() {
         document.getElementById('widgetTotalBadge').textContent = `${total} ودجت`;
 
         // Load widgets list
-        const res2 = await fetch('/api/admin/widgets', { headers: { 'X-Admin-Token': ADMIN_TOKEN } });
+        const res2 = await fetch('/api/admin/widgets', { 
+            headers: { 'X-Admin-Token': ADMIN_TOKEN } 
+        });
+
+        if (!res2.ok) throw new Error(`HTTP error! status: ${res2.status}`);
+
         const data2 = await res2.json();
         renderWidgetsTable(data2.widgets || []);
     } catch(e) {
-        const el = document.getElementById('widgetsTableWrapper');
-        if (el) el.innerHTML = `<div style="padding:20px;color:#ef4444;text-align:center;">خطأ في تحميل الودجتات</div>`;
+        console.error('Widget stats error:', e);
+        // عرض حالة فارغة بدلاً من رسالة خطأ
+        document.getElementById('ws-total').textContent       = '0';
+        document.getElementById('ws-active').textContent      = '0';
+        document.getElementById('ws-daily').textContent       = '0';
+        document.getElementById('ws-total-usage').textContent = '0';
+        document.getElementById('widgetTotalBadge').textContent = '0 ودجت';
+        renderWidgetsTable([]);
     }
 }
 
@@ -1107,7 +1170,13 @@ function renderWidgetsTable(wList) {
     const wrapper = document.getElementById('widgetsTableWrapper');
     if (!wrapper) return;
     if (!wList.length) {
-        wrapper.innerHTML = `<div style="padding:40px;text-align:center;color:#9ca3af;font-size:14px;">لا توجد ودجتات بعد</div>`;
+        wrapper.innerHTML = `
+            <div class="widget-empty-state">
+                <i class="fa-solid fa-puzzle-piece" style="font-size:48px;color:#e5e7eb;margin-bottom:16px;"></i>
+                <div style="font-size:16px;font-weight:700;color:#6b7280;margin-bottom:8px;">لا توجد ودجتات</div>
+                <div style="font-size:13px;color:#9ca3af;">يمكنك إضافة ودجتات جديدة من خلال API</div>
+            </div>
+        `;
         return;
     }
     wrapper.innerHTML = `

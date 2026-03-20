@@ -17,70 +17,6 @@
             </tbody>
         </table>
     </div>
-
-    <h4 class="text-xl font-bold mt-6 mb-4 text-primary">Multimodal Code Examples:</h4>
-
-    <p class="mb-2 text-gray-600 dark:text-gray-300 text-sm font-semibold">📷 Image Input:</p>
-    <div class="overflow-x-auto mb-4">
-    <pre class="bg-gray-900 text-green-400 rounded-xl p-4 text-xs leading-relaxed"><code>import requests, base64
-
-with open("image.png", "rb") as f:
-    image_b64 = base64.b64encode(f.read()).decode()
-
-response = requests.post(
-    "https://orgteh.com/v1/chat/completions",
-    headers={"Authorization": "Bearer YOUR_KEY", "Content-Type": "application/json"},
-    json={
-        "model": "google/gemma-3n-e4b-it",
-        "messages": [{"role": "user",
-            "content": f'Describe this image &lt;img src="data:image/png;base64,{image_b64}" /&gt;'}],
-        "max_tokens": 512, "stream": False
-    }
-)
-print(response.json()["choices"][0]["message"]["content"])</code></pre>
-    </div>
-
-    <p class="mb-2 text-gray-600 dark:text-gray-300 text-sm font-semibold">🎵 Audio Input:</p>
-    <div class="overflow-x-auto mb-4">
-    <pre class="bg-gray-900 text-green-400 rounded-xl p-4 text-xs leading-relaxed"><code>import requests, base64
-
-with open("audio.wav", "rb") as f:
-    audio_b64 = base64.b64encode(f.read()).decode()
-
-response = requests.post(
-    "https://orgteh.com/v1/chat/completions",
-    headers={"Authorization": "Bearer YOUR_KEY", "Content-Type": "application/json"},
-    json={
-        "model": "google/gemma-3n-e4b-it",
-        "messages": [{"role": "user",
-            "content": f'Transcribe this audio: &lt;audio src="data:audio/wav;base64,{audio_b64}" /&gt;'}],
-        "max_tokens": 512, "stream": False
-    }
-)
-print(response.json()["choices"][0]["message"]["content"])</code></pre>
-    </div>
-
-    <p class="mb-2 text-gray-600 dark:text-gray-300 text-sm font-semibold">🎬 Video (Image + Audio):</p>
-    <div class="overflow-x-auto">
-    <pre class="bg-gray-900 text-green-400 rounded-xl p-4 text-xs leading-relaxed"><code>import requests, base64
-
-with open("frame.png", "rb") as f:
-    img_b64 = base64.b64encode(f.read()).decode()
-with open("audio.wav", "rb") as f:
-    aud_b64 = base64.b64encode(f.read()).decode()
-
-response = requests.post(
-    "https://orgteh.com/v1/chat/completions",
-    headers={"Authorization": "Bearer YOUR_KEY", "Content-Type": "application/json"},
-    json={
-        "model": "google/gemma-3n-e4b-it",
-        "messages": [{"role": "user",
-            "content": f'Analyze this video frame and audio: &lt;img src="data:image/png;base64,{img_b64}" /&gt; &lt;audio src="data:audio/wav;base64,{aud_b64}" /&gt;'}],
-        "max_tokens": 512, "stream": False
-    }
-)
-print(response.json()["choices"][0]["message"]["content"])</code></pre>
-    </div>
 </div>
 
 <div class="model-lang-content lang-ar hidden">
@@ -101,70 +37,6 @@ print(response.json()["choices"][0]["message"]["content"])</code></pre>
                 <tr><td class="px-4 py-2 font-semibold">سرعة الاستجابة</td><td class="px-4 py-2">فائقة (Optimized for Real-time apps)</td></tr>
             </tbody>
         </table>
-    </div>
-
-    <h4 class="text-xl font-bold mt-6 mb-4 text-primary">أمثلة كود متعدد الوسائط:</h4>
-
-    <p class="mb-2 text-gray-600 dark:text-gray-300 text-sm font-semibold">📷 إدخال صورة:</p>
-    <div class="overflow-x-auto mb-4">
-    <pre class="bg-gray-900 text-green-400 rounded-xl p-4 text-xs leading-relaxed" dir="ltr"><code>import requests, base64
-
-with open("image.png", "rb") as f:
-    image_b64 = base64.b64encode(f.read()).decode()
-
-response = requests.post(
-    "https://orgteh.com/v1/chat/completions",
-    headers={"Authorization": "Bearer YOUR_KEY", "Content-Type": "application/json"},
-    json={
-        "model": "google/gemma-3n-e4b-it",
-        "messages": [{"role": "user",
-            "content": f'صف هذه الصورة &lt;img src="data:image/png;base64,{image_b64}" /&gt;'}],
-        "max_tokens": 512, "stream": False
-    }
-)
-print(response.json()["choices"][0]["message"]["content"])</code></pre>
-    </div>
-
-    <p class="mb-2 text-gray-600 dark:text-gray-300 text-sm font-semibold">🎵 إدخال صوت:</p>
-    <div class="overflow-x-auto mb-4">
-    <pre class="bg-gray-900 text-green-400 rounded-xl p-4 text-xs leading-relaxed" dir="ltr"><code>import requests, base64
-
-with open("audio.wav", "rb") as f:
-    audio_b64 = base64.b64encode(f.read()).decode()
-
-response = requests.post(
-    "https://orgteh.com/v1/chat/completions",
-    headers={"Authorization": "Bearer YOUR_KEY", "Content-Type": "application/json"},
-    json={
-        "model": "google/gemma-3n-e4b-it",
-        "messages": [{"role": "user",
-            "content": f'انسخ هذا الصوت: &lt;audio src="data:audio/wav;base64,{audio_b64}" /&gt;'}],
-        "max_tokens": 512, "stream": False
-    }
-)
-print(response.json()["choices"][0]["message"]["content"])</code></pre>
-    </div>
-
-    <p class="mb-2 text-gray-600 dark:text-gray-300 text-sm font-semibold">🎬 فيديو (صورة + صوت):</p>
-    <div class="overflow-x-auto">
-    <pre class="bg-gray-900 text-green-400 rounded-xl p-4 text-xs leading-relaxed" dir="ltr"><code>import requests, base64
-
-with open("frame.png", "rb") as f:
-    img_b64 = base64.b64encode(f.read()).decode()
-with open("audio.wav", "rb") as f:
-    aud_b64 = base64.b64encode(f.read()).decode()
-
-response = requests.post(
-    "https://orgteh.com/v1/chat/completions",
-    headers={"Authorization": "Bearer YOUR_KEY", "Content-Type": "application/json"},
-    json={
-        "model": "google/gemma-3n-e4b-it",
-        "messages": [{"role": "user",
-            "content": f'حلل هذا الإطار والصوت: &lt;img src="data:image/png;base64,{img_b64}" /&gt; &lt;audio src="data:audio/wav;base64,{aud_b64}" /&gt;'}],
-        "max_tokens": 512, "stream": False
-    }
-)
-print(response.json()["choices"][0]["message"]["content"])</code></pre>
     </div>
 </div>
 
@@ -187,6 +59,8 @@ print(response.json()["choices"][0]["message"]["content"])</code></pre>
     }
 ]
 </script>
+
+
 
 <script>
     // 🔥 Updated to accept 'userSignal'
