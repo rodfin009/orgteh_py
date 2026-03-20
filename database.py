@@ -898,6 +898,20 @@ def get_visitor_stats(period: str = "24h") -> dict:
                 for r in cur.fetchall():
                     daily_trend.append({"date": str(r["day"]), "visits": r["cnt"]})
 
+                # ── أكثر الصفحات زيارة ────────────────────────────────────
+                top_pages = []
+                cur.execute(
+                    "SELECT path, COUNT(*) as cnt, COUNT(DISTINCT ip_address) as ucnt "
+                    "FROM site_visits WHERE visited_at >= %s AND path NOT LIKE '/api/%%' "
+                    "GROUP BY path ORDER BY cnt DESC LIMIT 30", (since,)
+                )
+                for r in cur.fetchall():
+                    top_pages.append({
+                        "path":   r["path"] or "/",
+                        "visits": r["cnt"]  or 0,
+                        "unique": r["ucnt"] or 0,
+                    })
+
         except Exception as e:
             print(f"⚠️ Visitor stats DB error: {e}")
         finally:
@@ -926,5 +940,6 @@ def get_visitor_stats(period: str = "24h") -> dict:
         "countries":       countries,
         "daily_trend":     daily_trend,
         "recent_visitors": recent_visitors,
+        "top_pages":       top_pages if "top_pages" in dir() else [],
         "period":          period,
     }

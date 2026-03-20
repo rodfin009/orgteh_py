@@ -570,6 +570,7 @@ function renderVisitorStats(vs) {
     const sources   = vs.sources || {};
     const countries = vs.countries || {};
     const recent    = vs.recent_visitors || [];
+    const topPages  = vs.top_pages || [];
 
     const sourceRows = Object.entries(sources).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([src,cnt]) => `
         <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
@@ -621,6 +622,43 @@ function renderVisitorStats(vs) {
             </div>
         </div>
 
+        <div style="font-size:11px;font-weight:800;color:#6b7280;margin-bottom:8px;text-transform:uppercase;">🏆 أكثر الصفحات زيارةً</div>
+        <div style="max-height:220px;overflow-y:auto;border:1px solid #f3f4f6;border-radius:8px;margin-bottom:16px;" class="dark:border-[#1a1a1a]">
+            <table style="width:100%;border-collapse:collapse;text-align:right;">
+                <thead style="background:#f9fafb;position:sticky;top:0;" class="dark:bg-[#111]">
+                    <tr>
+                        <th style="padding:8px 10px;font-size:10px;color:#9ca3af;text-align:left;">#</th>
+                        <th style="padding:8px 10px;font-size:10px;color:#9ca3af;">الصفحة</th>
+                        <th style="padding:8px 10px;font-size:10px;color:#9ca3af;">الزيارات</th>
+                        <th style="padding:8px 10px;font-size:10px;color:#9ca3af;">فريدون</th>
+                        <th style="padding:8px 10px;font-size:10px;color:#9ca3af;">الشريط</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${topPages.length ? topPages.map((p, i) => {
+                        const maxV = topPages[0].visits || 1;
+                        const pct  = Math.round((p.visits / maxV) * 100);
+                        const isBlog = p.path.includes('/blog/') && p.path.split('/blog/')[1];
+                        const label  = isBlog
+                            ? '📝 ' + p.path.split('/blog/')[1].replace(/-\d{12}$/, '').slice(0, 45)
+                            : p.path.slice(0, 50);
+                        const color  = isBlog ? '#7c3aed' : '#3b82f6';
+                        return \`<tr style="border-bottom:1px solid #f9fafb;" class="dark:border-[#111]">
+                            <td style="padding:8px 10px;font-size:11px;color:#9ca3af;text-align:left;">\${i+1}</td>
+                            <td style="padding:8px 10px;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" dir="ltr" title="\${p.path}">\${label}</td>
+                            <td style="padding:8px 10px;font-size:13px;font-weight:800;color:\${color};">\${p.visits.toLocaleString('ar-SA')}</td>
+                            <td style="padding:8px 10px;font-size:11px;color:#9ca3af;">\${p.unique.toLocaleString('ar-SA')}</td>
+                            <td style="padding:8px 10px;min-width:80px;">
+                                <div style="background:#f3f4f6;border-radius:4px;height:6px;overflow:hidden;" class="dark:bg-[#1a1a1a]">
+                                    <div style="background:\${color};height:100%;width:\${pct}%;border-radius:4px;transition:width 0.5s;"></div>
+                                </div>
+                            </td>
+                        </tr>\`;
+                    }).join('') : '<tr><td colspan="5" style="text-align:center;padding:10px;font-size:11px;color:#9ca3af;">لا توجد بيانات</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+
         <div style="font-size:11px;font-weight:800;color:#6b7280;margin-bottom:8px;text-transform:uppercase;">سجل الزيارات الدقيق وتتبع الـ IPs</div>
         <div style="max-height:180px;overflow-y:auto;border:1px solid #f3f4f6;border-radius:8px;" class="dark:border-[#1a1a1a]">
             <table style="width:100%;border-collapse:collapse;text-align:right;">
@@ -637,7 +675,7 @@ function renderVisitorStats(vs) {
                 </tbody>
             </table>
         </div>
-    `;
+    \`;
 }
 
 function formatNum(n) {

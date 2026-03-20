@@ -1279,9 +1279,19 @@ TARGET AUDIENCE: Software developers and AI practitioners who use LLM APIs daily
 
 SELECTION CRITERIA:
 ✅ Teaches something developers can IMMEDIATELY apply in their projects
-✅ Covers: AI agents, prompt engineering, RAG, tool use, code generation, multimodal AI, LLM evaluation
+✅ Covers: AI agents, prompt engineering, RAG, tool use, code generation, multimodal AI, LLM evaluation, LLM APIs, fine-tuning, inference optimization
 ✅ Has a clear practical angle — not pure theory or hardware benchmarks
 ✅ Novel enough to generate interesting content
+
+❌ REJECT papers about:
+- Motion generation / character animation / human motion synthesis
+- Robotics kinematics / robot manipulation / locomotion
+- Medical imaging / clinical AI / drug discovery
+- Autonomous driving / traffic prediction / vehicle control
+- Satellite imagery / remote sensing / geospatial AI
+- Pure hardware benchmarks / chip design / memory systems
+- Audio synthesis / speech recognition (unless LLM-related)
+- Topics with NO connection to LLM APIs, text generation, or developer tools
 
 PAPERS (pre-ranked by score — higher is better):
 {numbered}
