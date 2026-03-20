@@ -493,26 +493,21 @@
                 });
             } catch(e) {}
 
+            // إعادة تحميل كاملة للصفحة بعد تغيير اللغة
+            // ضروري لأن المحتوى server-rendered (عناوين المقالات، نصوص الصفحة)
             const currentPath = window.location.pathname;
             const pathParts = currentPath.split('/').filter(p => p);
+            let newUrl;
             if (pathParts.length > 0 && (pathParts[0] === 'ar' || pathParts[0] === 'en')) {
                 pathParts[0] = lang;
-                const newUrl = '/' + pathParts.join('/') + window.location.search;
-                window.history.replaceState({}, '', newUrl);
+                newUrl = '/' + pathParts.join('/') + window.location.search;
             } else if (pathParts.length === 0) {
-                window.history.replaceState({}, '', '/' + lang + '/');
+                newUrl = '/' + lang + '/';
+            } else {
+                newUrl = '/' + lang + '/' + pathParts.join('/') + window.location.search;
             }
-
-            // ── تحديث روابط التنقل بعد تغيير اللغة ──
-            document.querySelectorAll('a[href]').forEach(function(a) {
-                var href = a.getAttribute('href');
-                if (href && /^\/(ar|en)(\/|$)/.test(href)) {
-                    a.setAttribute('href', href.replace(/^\/(ar|en)/, '/' + lang));
-                }
-            });
-
-            updateLangCheckmarks(lang);
-            applyGlobalTranslations();
+            // full navigation → يُحمّل الصفحة من السيرفر باللغة الجديدة
+            window.location.href = newUrl;
         }
 
         function toggleLang() {
@@ -524,8 +519,8 @@
             const lang = window.SERVER_LANG || localStorage.getItem('lang') || 'en';
             document.documentElement.setAttribute('lang', lang);
 
-            // تم التعديل هنا لتثبيت الاتجاه دائماً على ltr
-            document.documentElement.setAttribute('dir', 'ltr');
+            // الاتجاه يتبع اللغة دائماً
+            document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
 
             updateLangCheckmarks(lang);
 
