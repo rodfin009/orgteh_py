@@ -251,7 +251,7 @@ def delete_blog_post(slug: str) -> bool:
 _CATALOG_HASH_KEY  = "blog:catalog_hash_v3"
 _CATALOG_TOP_K     = 10
 
-GENERATION_MODEL = "mistralai/mistral-large-3-675b-instruct-2512"
+GENERATION_MODEL = "meta/llama-3.1-405b-instruct"
 EMBED_MODEL      = "nvidia/llama-nemotron-embed-1b-v2"
 RERANK_MODEL     = "nvidia/llama-nemotron-rerank-1b-v2"
 _RERANK_THRESHOLD = 20
@@ -1364,22 +1364,18 @@ No explanation. No markdown. Raw JSON only."""
         logger.error(f"[Select] LLM selection: {e}")
     return top[:select_count]
 
-def generate_article_en(paper: dict, seo_keywords: list[str], catalog_ctx: str, demo_result: dict = None) -> Optional[str]:
+async def generate_article_en(paper: dict, seo_keywords: list[str], catalog_ctx: str, demo_result: dict = None) -> Optional[str]:
+    """توليد المقالة الإنجليزية — async httpx streaming مباشر، لا timeout."""
     kw_str = ", ".join(seo_keywords[:15])
-
     demo_type = demo_result.get("type", "") if demo_result else ""
 
     if demo_type == "live":
         demo_instruction = f"""REAL LIVE DEMO — INCLUDE THIS IN THE ARTICLE:
    We actually ran this on Orgteh API using {demo_result['model_name']}.
-
-   Concept being demonstrated: {demo_result['concept']}
-
-   In "## Integrating with Orgteh", write naturally:
-   "We ran a quick test using [{demo_result['model_name']}](/en/models/{demo_result['model_key']}) on Orgteh API
-   to demonstrate [concept]. Here is exactly what we sent and got back:"
-
-   Show these two fenced blocks:
+   Concept: {demo_result['concept']}
+   In "## Integrating with Orgteh":
+   "We ran a quick test using [{demo_result['model_name']}](/en/models/{demo_result['model_key']}) on Orgteh API."
+   Show these blocks:
    Input:
    ```
    {demo_result['prompt'][:400]}
@@ -1388,17 +1384,13 @@ def generate_article_en(paper: dict, seo_keywords: list[str], catalog_ctx: str, 
    ```
    {demo_result['response'][:500]}
    ```
-   Then add 2-3 sentences analyzing what the output shows about the paper's concept."""
-
+   Then add 2-3 sentences analyzing what the output shows."""
     elif demo_type == "note":
-        demo_instruction = f"""COMPLEX PAPER — DO NOT claim to have run a demo.
-   In "## Integrating with Orgteh", write this naturally in prose:
+        demo_instruction = f"""COMPLEX PAPER — In "## Integrating with Orgteh":
    "{demo_result['suggestion']}"
-   Then explain briefly what a developer would need to build to implement the full system."""
-
+   Explain briefly what a developer would need to build to implement the full system."""
     else:
-        demo_instruction = """In "## Integrating with Orgteh", recommend the relevant models/tools
-   with a clear explanation of why each one fits this paper's use case."""
+        demo_instruction = """In "## Integrating with Orgteh", recommend the relevant models/tools with clear explanation."""
 
     system = (
         "You are a senior technical writer for Orgteh (orgteh.com), "
@@ -1411,139 +1403,66 @@ Title: {paper['title']}
 Abstract: {paper['abstract']}
 Source: {paper['url']}
 
-=== SEO KEYWORDS (weave in naturally) ===
+=== SEO KEYWORDS ===
 {kw_str}
 
-=== ORGTEH MODELS & TOOLS — INJECT THESE INTO ARTICLE ===
+=== ORGTEH MODELS & TOOLS ===
 {catalog_ctx}
 
-=== ARTICLE REQUIREMENTS ===
-1. Minimum 1600 words — comprehensive and detailed
-2. Audience: developers and AI practitioners — practical, no heavy math
+=== REQUIREMENTS ===
+1. Minimum 900 words
+2. Audience: developers — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
-4. Required sections IN THIS ORDER:
-   ## Introduction
-   ## What This Research Found
-   ## Why It Matters for Developers
-   ## Practical Applications
-   ## Implementation Guide
-   ## Integrating with Orgteh
-   ## Key Takeaways
-
-5. DIAGRAM REQUIREMENT — include exactly ONE Mermaid diagram in the article:
-   - Place it inside "## What This Research Found" or "## Practical Applications"
-   - Use ```mermaid fenced block
-   - Choose the type that best fits the paper:
-     * flowchart LR  → for pipelines, architectures, workflows
-     * sequenceDiagram → for agent interactions, multi-step processes
-     * graph TD       → for hierarchies, decision trees
-   - Keep it simple: 5-9 nodes max, clear labels in English
-   - The diagram must illustrate the paper's CORE concept — not generic
-   - Example for an agent paper:
-     ```mermaid
-     flowchart LR
-       A[User Query] --> B[LLM Agent]
-       B --> C(Tool Needed?)
-       C -->|Yes| D[Tool Call]
-       C -->|No| E[Direct Answer]
-       D --> B
-     ```
-   - DO NOT add a diagram if the paper is purely statistical/math-heavy
-
-6. SECTION-SPECIFIC RULES:
-
-   "## Introduction":
-   - First paragraph ≤160 chars (used as meta description)
-   - Cite the source naturally: "A recent study published on arXiv..."
-   - Hook: why this research matters RIGHT NOW for developers
-
-   "## What This Research Found":
-   - Explain the core idea in plain language — no formulas
-   - Use analogies if helpful
-
-   "## Implementation Guide":
-   - MUST include a real Python code example that uses Orgteh API:
-     ```python
-     from openai import OpenAI
-     client = OpenAI(
-         base_url="https://orgteh.com/v1",
-         api_key="YOUR_ORGTEH_API_KEY"
-     )
-     # ... practical implementation of the paper's concept
-     ```
-   - The code must implement the paper's core idea using Orgteh API
-   - Add inline comments explaining what each part does
-
-   "## Integrating with Orgteh":
-   - Use the ORGTEH MODELS & TOOLS provided above
-   - Explain WHICH specific model/tool and WHY it fits this use case
-   - Natural prose, NOT bullet list
-   - Use exact markdown links (already have /en/ prefix)
-   - {demo_instruction}
-
-   "## Key Takeaways":
-   - 3-5 concrete actionable points
-   - End with a call-to-action toward Orgteh
-
-7. NO INLINE CITATIONS:
-   Do NOT include any "Source:" blockquote or arXiv link inside the article body.
-   The source citation is automatically appended below the article — do not duplicate it.
-
-8. Tone: conversational, like a senior engineer who READ the paper and TESTED the ideas
-
-DO NOT:
-- Copy sentences from the abstract verbatim
-- Add preamble before the # H1 title
-- Use /ar/ links (English article only)
-- Write the code without using Orgteh API
+4. Sections: ## Introduction, ## What This Research Found, ## Why It Matters for Developers, ## Practical Applications, ## Implementation Guide, ## Integrating with Orgteh, ## Key Takeaways
+5. DIAGRAM: include ONE Mermaid diagram in a relevant section
+6. Implementation Guide: MUST include Python code using Orgteh API (base_url="https://orgteh.com/v1")
+7. NO inline citations — source card is added automatically
+8. Tone: conversational, like a senior engineer
 
 Start directly with the # H1 title."""
 
-    import signal as _signal, threading as _threading
+    key = os.environ.get("NVIDIA_API_KEYS", os.environ.get("NVIDIA_API_KEY", ""))
+    if key:
+        key = key.split(",")[0].strip()
 
-    GENERATION_TIMEOUT = 200  # ثانية — إذا لم ينته بعدها نقطع ونُرجع ما جُمع
+    payload = {
+        "model": GENERATION_MODEL,
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+        "temperature": 0.65, "top_p": 0.72, "max_tokens": 4096, "stream": True,
+    }
 
+    content = ""
     try:
-        client  = _build_nvidia_client()
-        content = ""
-        chunks_received = 0
-        last_chunk_time = [datetime.utcnow()]
-
-        def _stream():
-            nonlocal content, chunks_received
-            for chunk in client.chat.completions.create(
-                model=GENERATION_MODEL,
-                messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-                temperature=0.65, top_p=0.72, max_tokens=5120, stream=True,
-            ):
-                if chunk.choices and chunk.choices[0].delta.content:
-                    content += chunk.choices[0].delta.content
-                    chunks_received += 1
-                    last_chunk_time[0] = datetime.utcnow()
-
-        t = _threading.Thread(target=_stream, daemon=True)
-        t.start()
-
-        # انتظر حتى الانتهاء مع فحص كل 5 ثوانٍ
-        deadline = datetime.utcnow().timestamp() + GENERATION_TIMEOUT
-        while t.is_alive():
-            t.join(timeout=5)
-            now = datetime.utcnow().timestamp()
-            idle = (datetime.utcnow() - last_chunk_time[0]).total_seconds()
-            if now > deadline:
-                logger.warning(f"[BlogGen] EN timeout after {GENERATION_TIMEOUT}s — got {chunks_received} chunks, {len(content)} chars")
-                break
-            if idle > 45 and chunks_received > 10:
-                logger.warning(f"[BlogGen] EN stream idle {idle:.0f}s — breaking early with {len(content)} chars")
-                break
-
-        logger.info(f"[BlogGen] EN done: {chunks_received} chunks, {len(content)} chars")
+        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=30.0)) as client:
+            async with client.stream(
+                "POST",
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json", "Accept": "text/event-stream"},
+                json=payload,
+            ) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line or not line.startswith("data: "):
+                        continue
+                    data_str = line[6:]
+                    if data_str.strip() == "[DONE]":
+                        break
+                    try:
+                        data = json.loads(data_str)
+                        delta = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        if delta:
+                            content += delta
+                    except Exception:
+                        pass
+        logger.info(f"[BlogGen] EN done: {len(content.split())} words")
         return content.strip() or None
     except Exception as e:
-        logger.error(f"[BlogGen] EN generation error: {type(e).__name__}: {e}")
-        return content.strip() if content else None
+        logger.error(f"[BlogGen] EN error: {type(e).__name__}: {e}")
+        return content.strip() if len(content) > 500 else None
 
-def generate_article_ar(english_content: str, catalog_ctx_ar: str) -> Optional[str]:
+
+async def generate_article_ar(english_content: str, catalog_ctx_ar: str) -> Optional[str]:
+    """ترجمة المقالة للعربية — async httpx streaming مباشر."""
     prompt = f"""Translate the following English blog post to Modern Standard Arabic (الفصحى المُيسَّرة).
 
 === ORGTEH LINKS FOR ARABIC ===
@@ -1551,68 +1470,60 @@ def generate_article_ar(english_content: str, catalog_ctx_ar: str) -> Optional[s
 
 === TRANSLATION RULES ===
 1. Translate ALL text: title, all headings, every paragraph
-2. Keep ALL markdown formatting exactly as-is (##, ###, **, blockquotes >, etc.)
+2. Keep ALL markdown formatting exactly as-is
 3. Keep code blocks EXACTLY as-is — do not translate ANY code
-4. Keep ```mermaid blocks EXACTLY as-is — do NOT translate diagram labels or content
-4. Keep model names, API names, arXiv, "Orgteh" in English
-5. CRITICAL LINK RULE — replace /en/ with /ar/ in ALL Orgteh internal links:
-   [Model Name](/en/models/key) → [اسم النموذج](/ar/models/key)
-   External http/https links stay completely unchanged.
-6. For the citation blockquote, translate only the label:
-   > **Source:** [...] → > **المصدر:** [...]  (keep URL unchanged)
-7. Translate naturally — write as if originally authored in Arabic
-8. First-person phrases like "We tested on Orgteh API" → "جربنا على Orgteh API"
-9. Do NOT add preamble like "إليك الترجمة" — output ONLY the translated markdown
-10. CRITICAL: Do NOT include any blockquote with "المصدر:" or "Source:" — the source card is added automatically by the template
-10. Technical terms: RAG, LLM, API, prompt, token, fine-tuning → keep in English
+4. Keep ```mermaid blocks EXACTLY as-is
+5. CRITICAL LINK RULE: replace /en/ with /ar/ in ALL Orgteh internal links
+6. Translate naturally — write as if originally authored in Arabic
+7. Do NOT add preamble — output ONLY the translated markdown
+8. Technical terms: RAG, LLM, API, prompt, token → keep in English
+9. Do NOT add preamble like "إليك الترجمة"
+10. CRITICAL: Do NOT include any blockquote with "المصدر:" or "Source:"
 
 === ENGLISH ARTICLE ===
 {english_content}
 
-OUTPUT: Complete Arabic markdown article only. Nothing else."""
+OUTPUT: Complete Arabic markdown article only."""
 
-    import threading as _threading
+    key = os.environ.get("NVIDIA_API_KEYS", os.environ.get("NVIDIA_API_KEY", ""))
+    if key:
+        key = key.split(",")[0].strip()
 
-    TRANSLATION_TIMEOUT = 200
+    payload = {
+        "model": GENERATION_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.25, "top_p": 0.67, "max_tokens": 4096, "stream": True,
+    }
 
+    content = ""
     try:
-        client  = _build_nvidia_client()
-        content = ""
-        chunks_received = 0
-        last_chunk_time = [datetime.utcnow()]
-
-        def _stream():
-            nonlocal content, chunks_received
-            for chunk in client.chat.completions.create(
-                model=GENERATION_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.25, top_p=0.67, max_tokens=5120, stream=True,
-            ):
-                if chunk.choices and chunk.choices[0].delta.content:
-                    content += chunk.choices[0].delta.content
-                    chunks_received += 1
-                    last_chunk_time[0] = datetime.utcnow()
-
-        t = _threading.Thread(target=_stream, daemon=True)
-        t.start()
-
-        deadline = datetime.utcnow().timestamp() + TRANSLATION_TIMEOUT
-        while t.is_alive():
-            t.join(timeout=5)
-            now = datetime.utcnow().timestamp()
-            idle = (datetime.utcnow() - last_chunk_time[0]).total_seconds()
-            if now > deadline:
-                logger.warning(f"[BlogGen] AR timeout after {TRANSLATION_TIMEOUT}s — got {chunks_received} chunks, {len(content)} chars")
-                break
-            if idle > 45 and chunks_received > 10:
-                logger.warning(f"[BlogGen] AR stream idle {idle:.0f}s — breaking early with {len(content)} chars")
-                break
-
-        logger.info(f"[BlogGen] AR done: {chunks_received} chunks, {len(content)} chars")
+        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=30.0)) as client:
+            async with client.stream(
+                "POST",
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json", "Accept": "text/event-stream"},
+                json=payload,
+            ) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line or not line.startswith("data: "):
+                        continue
+                    data_str = line[6:]
+                    if data_str.strip() == "[DONE]":
+                        break
+                    try:
+                        data = json.loads(data_str)
+                        delta = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        if delta:
+                            content += delta
+                    except Exception:
+                        pass
+        logger.info(f"[BlogGen] AR done: {len(content.split())} words")
         return content.strip() or None
     except Exception as e:
-        logger.error(f"[BlogGen] AR translation error: {type(e).__name__}: {e}")
-        return content.strip() if content else None
+        logger.error(f"[BlogGen] AR error: {type(e).__name__}: {e}")
+        return content.strip() if len(content) > 300 else None
+
 
 def _fix_model_links(content: str, relevant: list[dict], lang: str) -> str:
     """
@@ -1734,19 +1645,14 @@ async def run_blog_generation(count: int = 3) -> dict:
             else:
                 logger.info(f"[BlogGen] No demo — article will be written without it")
 
-            loop = asyncio.get_event_loop()
-            content_en = await loop.run_in_executor(
-                None, lambda: generate_article_en(paper, seo_kw, catalog_en, demo_result=demo_result)
-            )
+            content_en = await generate_article_en(paper, seo_kw, catalog_en, demo_result=demo_result)
             if not content_en:
                 logger.warning(f"[BlogGen] EN failed: {paper['arxiv_id']}")
                 continue
             content_en = _fix_model_links(content_en, relevant, lang="en")
             content_en = _clean_generated_content(content_en)
 
-            content_ar = await loop.run_in_executor(
-                None, lambda: generate_article_ar(content_en, catalog_ar)
-            )
+            content_ar = await generate_article_ar(content_en, catalog_ar)
             if not content_ar:
                 logger.warning(f"[BlogGen] AR failed: {paper['arxiv_id']}")
                 continue
@@ -2208,60 +2114,29 @@ async def _run_blog_generation_verbose(count: int):
             else:
                 yield log_warn("  No demo captured — article will proceed without it")
 
-            yield log_info("  Generating English article (streaming, ~1200+ words)…")
-            loop = asyncio.get_event_loop()
-
-            # نشغّل التوليد في thread منفصل مع keepalive كل 8 ثوانٍ
-            _paper = paper
-            _seo_kw = seo_kw
-            _catalog_en = catalog_en
-            _demo_result = demo_result
-            fut_en = loop.run_in_executor(
-                None, lambda: generate_article_en(_paper, _seo_kw, _catalog_en, demo_result=_demo_result)
-            )
-            elapsed = 0
-            while not fut_en.done():
-                await asyncio.sleep(8)
-                elapsed += 8
-                yield f'<script>window.scrollTo(0,document.body.scrollHeight);</script>\n'.encode("utf-8") if False else (
-                    f'<div class="log-line"><span class="ts">[{_ts()}]</span> <span style="color:#4b5563">⏳ generating… ({elapsed}s)</span></div>\n'
-                )
-            content_en = await fut_en
+            yield log_info("  Generating English article (async httpx streaming — no timeout)…")
+            t0 = datetime.utcnow()
+            content_en = await generate_article_en(paper, seo_kw, catalog_en, demo_result=demo_result)
+            elapsed_en = int((datetime.utcnow() - t0).total_seconds())
             if not content_en:
-                yield log_err(f"  EN generation returned empty after {elapsed}s — skipping {paper['arxiv_id']}")
-                yield log_err(f"  Check Vercel logs for [BlogGen] EN generation error details")
+                yield log_err(f"  EN generation failed after {elapsed_en}s — check Vercel logs: [BlogGen] EN error")
                 continue
             content_en = _fix_model_links(content_en, relevant, lang="en")
             content_en = _clean_generated_content(content_en)
             words_en = len(content_en.split())
-            chars_en = len(content_en)
-            if words_en < 200:
-                yield log_warn(f"  ⚠️ EN article very short: {words_en} words ({chars_en} chars) — may be truncated")
-            else:
-                yield log_ok(f"  EN article: <b>{words_en}</b> words ({chars_en} chars) in {elapsed}s")
+            yield log_ok(f"  EN article: <b>{words_en}</b> words in <b>{elapsed_en}s</b>")
 
-            yield log_info("  Translating to Arabic…")
-            _content_en = content_en
-            _catalog_ar = catalog_ar
-            fut_ar = loop.run_in_executor(
-                None, lambda: generate_article_ar(_content_en, _catalog_ar)
-            )
-            elapsed = 0
-            while not fut_ar.done():
-                await asyncio.sleep(8)
-                elapsed += 8
-                yield f'<div class="log-line"><span class="ts">[{_ts()}]</span> <span style="color:#4b5563">⏳ translating… ({elapsed}s)</span></div>\n'
-            content_ar = await fut_ar
+            yield log_info("  Translating to Arabic (async httpx streaming)…")
+            t0 = datetime.utcnow()
+            content_ar = await generate_article_ar(content_en, catalog_ar)
+            elapsed_ar = int((datetime.utcnow() - t0).total_seconds())
             if not content_ar:
-                yield log_err(f"  AR translation returned empty after {elapsed}s — skipping {paper['arxiv_id']}")
+                yield log_err(f"  AR translation failed after {elapsed_ar}s")
                 continue
             content_ar = _fix_model_links(content_ar, relevant, lang="ar")
             content_ar = _clean_generated_content(content_ar)
             words_ar = len(content_ar.split())
-            if words_ar < 150:
-                yield log_warn(f"  ⚠️ AR article very short: {words_ar} words — may be truncated")
-            else:
-                yield log_ok(f"  AR article: <b>{words_ar}</b> words in {elapsed}s")
+            yield log_ok(f"  AR article: <b>{words_ar}</b> words in <b>{elapsed_ar}s</b>")
             title_en = _extract_h1(content_en)
             title_ar = _extract_h1(content_ar)
             slug     = _make_slug(title_en)
