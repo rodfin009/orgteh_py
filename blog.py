@@ -120,6 +120,16 @@ def init_blog_tables():
                 created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             """)
+            # ── إصلاح الجداول القديمة: أضف updated_at إن لم يكن موجوداً ────
+            for _col_sql in [
+                "ALTER TABLE blog_posts ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+                "ALTER TABLE blog_posts ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP",
+            ]:
+                try:
+                    cur.execute(_col_sql)
+                    logger.info(f"[BlogDB] Applied migration: {_col_sql[:60]}…")
+                except Exception:
+                    pass  # العمود موجود مسبقاً — لا مشكلة
         logger.info("[BlogDB] All tables ready")
     except Exception as e:
         logger.error(f"[BlogDB] init error: {e}")
@@ -139,8 +149,8 @@ def save_blog_post(data: dict) -> int:
                title_en, title_ar,
                content_en, content_ar,
                summary_en, summary_ar,
-               seo_keywords, published_at, updated_at)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+               seo_keywords, published_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """, (
                 data["slug"], data["arxiv_id"], data.get("arxiv_url", ""),
                 data["title_en"], data["title_ar"],
@@ -148,7 +158,6 @@ def save_blog_post(data: dict) -> int:
                 data.get("summary_en", ""), data.get("summary_ar", ""),
                 data.get("seo_keywords", "[]"),
                 data.get("published_at", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")),
-                data.get("updated_at", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")),
             ))
             return cur.lastrowid
     except Exception as e:
