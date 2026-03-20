@@ -1403,23 +1403,56 @@ Title: {paper['title']}
 Abstract: {paper['abstract']}
 Source: {paper['url']}
 
-=== SEO KEYWORDS ===
+=== SEO KEYWORDS (weave naturally) ===
 {kw_str}
 
-=== ORGTEH MODELS & TOOLS ===
+=== ORGTEH MODELS & TOOLS — READ CAREFULLY ===
 {catalog_ctx}
 
 === REQUIREMENTS ===
-1. Minimum 900 words
-2. Audience: developers — practical, no heavy math
-3. Markdown: # H1, ## H2, ### H3
-4. Sections: ## Introduction, ## What This Research Found, ## Why It Matters for Developers, ## Practical Applications, ## Implementation Guide, ## Integrating with Orgteh, ## Key Takeaways
-5. DIAGRAM: include ONE Mermaid diagram in a relevant section
-6. Implementation Guide: MUST include Python code using Orgteh API (base_url="https://orgteh.com/v1")
-7. NO inline citations — source card is added automatically
-8. Tone: conversational, like a senior engineer
+1. Minimum 1400 words — detailed and comprehensive
+2. Audience: software developers and AI practitioners — practical, no heavy math
+3. Markdown: # H1, ## H2, ### H3, **bold**, `code`
+4. Required sections IN ORDER:
+   ## Introduction
+   ## What This Research Found
+   ## Why It Matters for Developers
+   ## Practical Applications
+   ## Implementation Guide
+   ## Integrating with Orgteh
+   ## Key Takeaways
 
-Start directly with the # H1 title."""
+5. HYPERLINKS — CRITICAL RULE:
+   In "## Integrating with Orgteh", you MUST write each model/tool as a clickable markdown link.
+   Use EXACTLY the markdown link shown in the ORGTEH MODELS & TOOLS section above.
+   Example of CORRECT format: [Llama 4 Scout](/en/models/llama-scout) supports long context.
+   Example of WRONG format: Llama 4 Scout supports long context. ← NO LINK = WRONG
+   Every model and tool mentioned MUST be a clickable link. No plain text names allowed.
+
+6. MERMAID DIAGRAM — CRITICAL RULES:
+   Include exactly ONE Mermaid diagram. Use ```mermaid fenced block.
+   ONLY use these simple node types — NO special characters inside node labels:
+     - Square: A[Label text]
+     - Round: A(Label text)
+     - Arrow: A --> B
+   DO NOT use curly braces like A{{label}} or angle brackets A>label] in node labels.
+   Keep labels SHORT (2-4 words max). Example of VALID diagram:
+   ```mermaid
+   flowchart LR
+     A[Input Data] --> B[Model Processing]
+     B --> C[Output Result]
+   ```
+
+7. Implementation Guide:
+   MUST include Python code using Orgteh API:
+   from openai import OpenAI
+   client = OpenAI(base_url="https://orgteh.com/v1", api_key="YOUR_ORGTEH_API_KEY")
+
+8. NO inline citations — source card added automatically by the website
+
+9. Tone: conversational, like a senior engineer who tested the ideas
+
+Start directly with the # H1 title. No preamble."""
 
     key = os.environ.get("NVIDIA_API_KEYS", os.environ.get("NVIDIA_API_KEY", ""))
     if key:
@@ -1428,7 +1461,7 @@ Start directly with the # H1 title."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.65, "top_p": 0.72, "max_tokens": 4096, "stream": True,
+        "temperature": 0.65, "top_p": 0.72, "max_tokens": 8192, "stream": True,
     }
 
     content = ""
@@ -1492,7 +1525,7 @@ OUTPUT: Complete Arabic markdown article only."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.25, "top_p": 0.67, "max_tokens": 4096, "stream": True,
+        "temperature": 0.25, "top_p": 0.67, "max_tokens": 8192, "stream": True,
     }
 
     content = ""
@@ -1526,40 +1559,63 @@ OUTPUT: Complete Arabic markdown article only."""
 
 
 def _fix_model_links(content: str, relevant: list[dict], lang: str) -> str:
-    """
-    يُصحّح روابط النماذج المكسورة في المحتوى المولَّد.
-    المشكلة: LLM أحياناً يكتب /ar/models بدون المفتاح.
-    """
     if not relevant or not content:
         return content
     for entry in relevant:
-        if entry.get("type") != "model":
-            continue
-        short_key = entry.get("short_key", "")
-        name      = entry.get("name", "")
+        short_key  = entry.get("short_key", "")
+        name       = entry.get("name", "")
+        entry_type = entry.get("type", "model")
         if not short_key or not name:
             continue
-        correct_link = "/" + lang + "/models/" + short_key
-        wrong_bare  = "](" + "/" + lang + "/models)"
-        wrong_slash = "](" + "/" + lang + "/models/)"
-        if wrong_bare in content or wrong_slash in content:
-            content = content.replace(wrong_bare,  "](" + correct_link + ")")
-            content = content.replace(wrong_slash, "](" + correct_link + ")")
-            logger.info(f"[PostProcess] Fixed bare link for {name} → {correct_link}")
+        if entry_type == "model":
+            correct_link = "/" + lang + "/models/" + short_key
+        else:
+            correct_link = "/" + lang + "/accesory/" + short_key
+        md_link = "[" + name + "](" + correct_link + ")"
+        # Fix 1: bare links
+        for wrong in ["](" + "/" + lang + "/models)", "](" + "/" + lang + "/models/)"]:
+            if wrong in content:
+                content = content.replace(wrong, "](" + correct_link + ")")
+        # Fix 2: unlinked names in Integrating section
+        if name in content and md_link not in content:
+            integ = content.find("## Integrating")
+            if integ > 0:
+                after = content[integ:]
+                bold = "**" + name + "**"
+                if bold in after and "[**" + name + "**]" not in after:
+                    content = content[:integ] + after.replace(bold, "[**" + name + "**](" + correct_link + ")", 1)
+                elif name in after and "[" + name not in after:
+                    content = content[:integ] + after.replace(name, md_link, 1)
     return content
 
 
 def _clean_generated_content(content):
-    result = []
+    import re as _re
+    out_lines = []
+    in_mermaid = False
     for line in content.splitlines():
         s = line.strip()
+        if s == "```mermaid":
+            in_mermaid = True
+            out_lines.append(line)
+            continue
+        if in_mermaid and s == "```":
+            in_mermaid = False
+            out_lines.append(line)
+            continue
+        if in_mermaid:
+            fixed = _re.sub(r'\{([^}]+)\}', r'(\1)', line)
+            fixed = _re.sub(r'>([^\]]+)\]', r'[\1]', fixed)
+            out_lines.append(fixed)
+            continue
         if s.startswith('>') and ('Source:' in s or '\u0627\u0644\u0645\u0635\u062f\u0631:' in s):
             continue
-        result.append(line)
-    out = '\n'.join(result)
-    while '\n\n\n' in out:
-        out = out.replace('\n\n\n', '\n\n')
-    return out.strip()
+        out_lines.append(line)
+    nl = "\n"
+    result = nl.join(out_lines)
+    while nl*3 in result:
+        result = result.replace(nl*3, nl*2)
+    return result.strip()
 
 
 def _extract_h1(md: str) -> str:
