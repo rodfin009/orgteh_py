@@ -342,15 +342,24 @@ def _build_catalog_entries() -> list[dict]:
 
     try:
         from tools.registry import TOOLS_DB
+        _TOOL_API_SNIPPETS = {
+        'orgteh-semantic-embed': "Semantic Core V2 — Vector Embeddings. API call: POST https://orgteh.com/api/tools/execute/orgteh-semantic-embed with headers {Authorization: Bearer YOUR_KEY} and body {text_input: 'your text', truncate: 'NONE'}. Returns {embedding: [float, ...], model: 'nemotron-embed-1b'}.",
+        'orgteh-web-scraper': "Web Scraper Tool. API call: POST https://orgteh.com/api/tools/execute/orgteh-web-scraper with headers {Authorization: Bearer YOUR_KEY} and body {url: 'https://example.com', format: 'markdown'}. Returns {content: 'scraped text', title: '...', url: '...'}.",
+        'orgteh-finance-rss': "Finance RSS Tool — live market news. API call: POST https://orgteh.com/api/tools/execute/orgteh-finance-rss with headers {Authorization: Bearer YOUR_KEY} and body {limit: 3, lang: 'en', time_filter: '1d', scrape_content: 'true'}. Returns list of {title, url, content, published_at}.",
+        'orgteh-news-general': "General News RSS Tool. API call: POST https://orgteh.com/api/tools/execute/orgteh-news-general with headers {Authorization: Bearer YOUR_KEY} and body {limit: 3, lang: 'en', time_filter: '1d'}. Returns list of {title, url, summary, source}.",
+        'orgteh-vision-ocr': "Vision OCR Tool — extract text from images. API call: POST https://orgteh.com/api/tools/execute/orgteh-vision-ocr with headers {Authorization: Bearer YOUR_KEY} and body {image_url: 'https://...', lang: 'en'}. Returns {text: 'extracted text', confidence: 0.99}.",
+        }
         for tool_id, tool in TOOLS_DB.items():
-            desc = (tool.get("desc_en") or tool.get("name_en") or tool_id)[:800]
+            base_desc = (tool.get("desc_en") or tool.get("name_en") or tool_id)[:600]
+            api_snippet = _TOOL_API_SNIPPETS.get(tool_id, "")
+            full_desc = (base_desc + " " + api_snippet).strip()[:1800]
             entries.append({
                 "type":      "tool",
                 "short_key": tool_id,
                 "name":      tool.get("name_en", tool_id),
                 "provider":  "Orgteh",
                 "link_tpl":  f"/{{lang}}/accesory/{tool_id}",
-                "desc":      desc,
+                "desc":      full_desc,
             })
     except Exception as e:
         logger.error(f"[Catalog] tools load error: {e}")
@@ -625,6 +634,17 @@ def _format_catalog_prompt(relevant: list[dict], lang: str) -> str:
     lines = [
         f"=== ORGTEH PLATFORM — RECOMMENDED RESOURCES FOR THIS ARTICLE ===",
         f"Article language: {lang.upper()} — ALL markdown links MUST start with /{lang}/",
+        "",
+        "IMPORTANT — ORGTEH TOOLS API FORMAT:",
+        "When writing code examples that use Orgteh TOOLS (not chat models), use this pattern:",
+        "  import requests",
+        "  response = requests.post(",
+        '      "https://orgteh.com/api/tools/execute/{tool_id}",',
+        '      headers={"Authorization": "Bearer YOUR_ORGTEH_API_KEY", "Content-Type": "application/json"},',
+        '      json={...tool_params...}',
+        "  )",
+        "DO NOT use openai client or nvidia endpoints for tools — tools use their own REST endpoint.",
+        "Each TOOL entry below includes its exact API call format in the Description.",
         "",
     ]
     for e in relevant:
