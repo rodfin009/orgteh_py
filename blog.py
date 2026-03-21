@@ -630,10 +630,11 @@ def _format_catalog_prompt(relevant: list[dict], lang: str) -> str:
     return "\n".join(lines)
 
 _ARXIV_QUERIES = [
-    "cat:cs.AI+AND+(LLM+agents+OR+autonomous+agents+OR+agentic+AI+OR+tool+use+OR+function+calling)",
-    "cat:cs.AI+cat:cs.IR+AND+(RAG+OR+retrieval+augmented+OR+knowledge+base+OR+long+context+OR+memory)",
-    "cat:cs.CL+AND+(prompt+engineering+OR+chain+of+thought+OR+instruction+tuning+OR+few+shot)",
-    "cat:cs.CV+cat:cs.CL+AND+(multimodal+LLM+OR+vision+language+OR+code+generation+OR+LLM+evaluation)",
+    "cat:cs.CL+AND+(LLM+agents+OR+autonomous+agents+OR+agentic+AI+OR+tool+use+OR+function+calling)",
+    "cat:cs.CL+AND+(RAG+OR+retrieval+augmented+OR+knowledge+base+OR+long+context+OR+memory+OR+embedding)",
+    "cat:cs.CL+AND+(prompt+engineering+OR+chain+of+thought+OR+instruction+tuning+OR+few+shot+OR+reasoning)",
+    "cat:cs.CL+AND+(code+generation+OR+LLM+evaluation+OR+benchmark+OR+fine+tuning+OR+alignment)",
+    "cat:cs.AI+AND+(large+language+model+OR+LLM+OR+GPT+OR+language+agent)+AND+(API+OR+developer+OR+application)",
 ]
 
 _HF_PAPERS_URL = "https://huggingface.co/api/daily_papers"
@@ -679,14 +680,26 @@ async def _fetch_hf_daily(client: httpx.AsyncClient) -> list[dict]:
     except Exception as e:
         logger.warning(f"[Fetch] HF daily failed: {e}")
         return []
+    SKIP_KEYWORDS = {
+        "gaussian splatting", "nerf", "3d generation", "novel view", "diffusion model",
+        "image generation", "video generation", "text-to-image", "text-to-video",
+        "audio", "speech", "music generation", "autonomous driving", "robotics",
+        "manipulation", "locomotion", "medical imaging", "drug discovery",
+        "protein", "molecular", "remote sensing", "satellite", "chip design",
+        "hardware", "fpga", "quantum", "3dgs", "gaussian splat",
+    }
     papers = []
-    for item in data[:30]:
+    for item in data[:50]:
         try:
             p        = item.get("paper", {})
             arxiv_id = p.get("id", "")
             title    = p.get("title", "").strip()
             abstract = p.get("summary", "").strip()
             if not (arxiv_id and title and abstract):
+                continue
+            combined = (title + " " + abstract[:300]).lower()
+            if any(kw in combined for kw in SKIP_KEYWORDS):
+                logger.debug(f"[HF] Skipped (keyword match): {title[:60]}")
                 continue
             papers.append({
                 "arxiv_id":  arxiv_id,
@@ -699,7 +712,7 @@ async def _fetch_hf_daily(client: httpx.AsyncClient) -> list[dict]:
             })
         except Exception:
             continue
-    logger.info(f"[Fetch] HF Daily: {len(papers)} papers")
+    logger.info(f"[Fetch] HF Daily: {len(papers)} papers (after keyword filter)")
     return papers
 
 async def fetch_all_papers(arxiv_offset: int = 0) -> list[dict]:
