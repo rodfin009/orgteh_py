@@ -1477,9 +1477,13 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
    - Include ONE Mermaid diagram here or in Practical Applications:
      * ENGLISH labels only — never Arabic or any non-Latin text in nodes
      * Use simple: A[Label] --> B[Label] syntax only
-     * NO curly braces {{}} in node labels
+     * NO quotes " or ' inside node labels — labels must be plain text
+     * NO backslash-n (\n) inside nodes — one line per node only
+     * NO arrow characters (→ ← ↔) inside node labels
+     * NO curly braces in node labels
+     * Keep node labels SHORT (max 4 words)
      * Example: flowchart LR
-  A[Input] --> B[Process] --> C[Output]
+  A[Input Text] --> B[QE Model] --> C[RL Agent] --> D[Translation]
 
    "## Implementation Guide":
    - MUST include a real Python code example that uses Orgteh API:
@@ -1798,6 +1802,24 @@ def _restore_mermaid_blocks(ar_content: str, en_content: str) -> str:
             result = result.replace(ar_block, en_blocks[i], 1)
     return result
 
+def _sanitize_mermaid_line(line: str) -> str:
+    import re as _re
+    fixed = line
+    fixed = _re.sub(r'\{([^}]+)\}', r'(\1)', fixed)
+    fixed = _re.sub(r'>([^\]\[]+)\]', r'[\1]', fixed)
+    fixed = fixed.replace('\\n', ' ').replace('\n', ' ')
+    fixed = fixed.replace('→', '-').replace('←', '-').replace('↔', '-')
+    def _clean_node(m):
+        label = m.group(1)
+        label = _re.sub(r'"([^"]*)"', r'\1', label)
+        label = _re.sub(r"'([^']*)'", r'\1', label)
+        label = label.replace('"', '').replace("'", '')
+        if any('\u0600' <= c <= '\u06ff' for c in label):
+            return '[Node]'
+        return '[' + label + ']'
+    fixed = _re.sub(r'\[([^\]]+)\]', _clean_node, fixed)
+    return fixed
+
 def _clean_generated_content(content):
     out_lines = []
     in_mermaid = False
@@ -1812,8 +1834,7 @@ def _clean_generated_content(content):
             out_lines.append(line)
             continue
         if in_mermaid:
-            fixed = re.sub(r'\{([^}]+)\}', r'(\1)', line)
-            out_lines.append(fixed)
+            out_lines.append(_sanitize_mermaid_line(line))
             continue
         if s.startswith('>') and ('Source:' in s or '\u0627\u0644\u0645\u0635\u062f\u0631:' in s):
             continue
