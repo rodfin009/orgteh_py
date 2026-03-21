@@ -209,7 +209,7 @@ def delete_blog_post(slug: str) -> bool:
 _CATALOG_HASH_KEY  = "blog:catalog_hash_v3"
 _CATALOG_TOP_K     = 10
 
-GENERATION_MODEL = "mistralai/mistral-large-3-675b-instruct-2512"
+GENERATION_MODEL = "mistralai/mistral-small-4-119b-2603"
 EMBED_MODEL      = "nvidia/llama-nemotron-embed-1b-v2"
 RERANK_MODEL     = "nvidia/llama-nemotron-rerank-1b-v2"
 _RERANK_THRESHOLD = 20
@@ -892,7 +892,7 @@ No explanation. No markdown fences. Raw JSON array only."""
         comp   = client.chat.completions.create(
             model=GENERATION_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.31, max_tokens=500, stream=False,
+            temperature=0.45, top_p=0.85, max_tokens=1024, stream=False,
         )
         raw   = comp.choices[0].message.content.strip()
         match = re.search(r"\[.*?\]", raw, re.DOTALL)
@@ -1031,7 +1031,7 @@ Reply with ONLY one word: SIMPLE or COMPLEX"""
         resp   = client.chat.completions.create(
             model=GENERATION_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.0, max_tokens=10, stream=False,
+            temperature=0.0, top_p=1.0, max_tokens=10, stream=False,
         )
         raw = resp.choices[0].message.content.strip().upper()
         result = "simple" if "SIMPLE" in raw else "complex"
@@ -1083,7 +1083,7 @@ Reply ONLY in this format. Nothing else."""
         resp    = client.chat.completions.create(
             model=GENERATION_MODEL,
             messages=[{"role": "user", "content": design_prompt}],
-            temperature=0.31, max_tokens=300, stream=False,
+            temperature=0.20, top_p=0.90, max_tokens=400, stream=False,
         )
         raw = resp.choices[0].message.content.strip()
         if "|||" not in raw:
@@ -1223,7 +1223,7 @@ No explanation. No markdown. Raw JSON only."""
         comp   = client.chat.completions.create(
             model=GENERATION_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.10, max_tokens=200, stream=False,
+            temperature=0.05, top_p=0.95, max_tokens=200, stream=False,
         )
         raw   = comp.choices[0].message.content.strip()
         match = re.search(r"\[.*?\]", raw, re.DOTALL)
@@ -1355,8 +1355,8 @@ Start directly with the # H1 title."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.35, "top_p": 0.75, "max_tokens": 8192, "stream": True,
-        "frequency_penalty": 0.0, "presence_penalty": 0.0,
+        "temperature": 0.40, "top_p": 0.95, "max_tokens": 16384, "stream": True,
+        "reasoning_effort": "high",
     }
 
     content = ""
@@ -1441,7 +1441,7 @@ Source: {paper['url']}
 {catalog_ctx}
 
 === ARTICLE REQUIREMENTS ===
-1. STRICT WORD COUNT: write between 1100 words — no more, no less. Count every word carefully. Each section must be fully developed. Stop at 1600 words maximum.
+1. STRICT WORD COUNT: write between 1500 and 1600 words — no more, no less. Count every word carefully. Each section must be fully developed. Stop at 1600 words maximum.
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
 4. Required sections IN THIS ORDER:
@@ -1507,8 +1507,8 @@ Start directly with the # H1 title."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.35, "top_p": 0.75, "max_tokens": 6000, "stream": True,
-        "frequency_penalty": 0.0, "presence_penalty": 0.0,
+        "temperature": 0.40, "top_p": 0.95, "max_tokens": 16384, "stream": True,
+        "reasoning_effort": "high",
     }
 
     content   = ""
@@ -1596,8 +1596,8 @@ OUTPUT: Complete Arabic markdown article only."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.20, "top_p": 0.70, "max_tokens": 6000, "stream": True,
-        "frequency_penalty": 0.0, "presence_penalty": 0.0,
+        "temperature": 0.10, "top_p": 0.90, "max_tokens": 16384, "stream": True,
+        "reasoning_effort": "high",
     }
 
     content = ""
@@ -1660,8 +1660,8 @@ OUTPUT: Complete Arabic markdown article only."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.20, "top_p": 0.70, "max_tokens": 8192, "stream": True,
-        "frequency_penalty": 0.0, "presence_penalty": 0.0,
+        "temperature": 0.10, "top_p": 0.90, "max_tokens": 16384, "stream": True,
+        "reasoning_effort": "high",
     }
 
     content   = ""
