@@ -2276,11 +2276,10 @@ async def blog_cron_trigger(request: Request, secret: str = "", count: int = 3):
     count = max(1, min(int(count), 5))
     logger.info(f"[Cron] Triggered — {count} article(s)")
 
-    start_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    accept = request.headers.get("accept", "")
-    want_json = "application/json" in accept and "text/html" not in accept
+    accept     = request.headers.get("accept", "")
+    is_browser = "text/html" in accept
 
-    if want_json:
+    if not is_browser:
         try:
             result = await run_blog_generation(count=count)
             result["triggered_at"] = datetime.utcnow().isoformat() + "Z"
@@ -2289,12 +2288,10 @@ async def blog_cron_trigger(request: Request, secret: str = "", count: int = 3):
             logger.error(f"[Cron] Error: {e}")
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
-    PADDING = b"<!-- " + b"x" * 2048 + b" -->\n"
+    start_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
     async def stream_html():
-        head = _CRON_HTML_HEAD.format(start_time=start_time, count=count).encode("utf-8")
-        yield head + PADDING
-        await asyncio.sleep(0)
+        yield _CRON_HTML_HEAD.format(start_time=start_time, count=count).encode("utf-8")
 
         final_result = {"ok": False, "error": "Generator did not complete"}
 
@@ -2326,10 +2323,9 @@ async def blog_cron_trigger(request: Request, secret: str = "", count: int = 3):
         stream_html(),
         media_type="text/html; charset=utf-8",
         headers={
-            "X-Accel-Buffering":  "no",
-            "Cache-Control":      "no-cache, no-store, no-transform",
-            "Transfer-Encoding":  "chunked",
-            "X-Content-Type-Options": "nosniff",
+            "X-Accel-Buffering": "no",
+            "Cache-Control":     "no-cache, no-transform",
+            "Transfer-Encoding": "chunked",
         },
     )
 
