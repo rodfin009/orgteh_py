@@ -1284,7 +1284,7 @@ Source: {paper['url']}
 {catalog_ctx}
 
 === ARTICLE REQUIREMENTS ===
-1. Minimum 1600 words — comprehensive and detailed
+1. MANDATORY MINIMUM 1600 words — count every word, do NOT stop early. Each section must be fully developed with multiple paragraphs. Short sections are NOT acceptable.
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
 4. Required sections IN THIS ORDER:
@@ -1355,7 +1355,8 @@ Start directly with the # H1 title."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.2, "top_p": 0.6, "max_tokens": 8192, "stream": True,
+        "temperature": 0.72, "top_p": 0.90, "max_tokens": 8192, "stream": True,
+        "frequency_penalty": 0.0, "presence_penalty": 0.0,
     }
 
     content = ""
@@ -1386,8 +1387,8 @@ Start directly with the # H1 title."""
         if not result:
             return None
         non_latin = sum(1 for c in result if ord(c) > 0x2E7F)
-        if non_latin > len(result) * 0.15:
-            logger.error(f"[BlogGen] EN rejected: non-Latin ratio {non_latin/len(result):.0%} — model generated wrong language")
+        if non_latin > len(result) * 0.30:
+            logger.error(f"[BlogGen] EN rejected: non-Latin ratio {non_latin/len(result):.0%}")
             return None
         return result
     except Exception as e:
@@ -1424,7 +1425,8 @@ OUTPUT: Complete Arabic markdown article only."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.20, "top_p": 0.6, "max_tokens": 8192, "stream": True,
+        "temperature": 0.40, "top_p": 0.80, "max_tokens": 8192, "stream": True,
+        "frequency_penalty": 0.0, "presence_penalty": 0.0,
     }
 
     content = ""
@@ -1484,8 +1486,35 @@ def _fix_model_links(content: str, relevant: list[dict], lang: str) -> str:
                     content = content[:integ] + after.replace(name, md_link, 1)
     return content
 
+def _extract_mermaid_blocks(content: str) -> list[str]:
+    blocks = []
+    in_block = False
+    current = []
+    for line in content.splitlines():
+        if line.strip() == "```mermaid":
+            in_block = True
+            current = [line]
+        elif in_block and line.strip() == "```":
+            current.append(line)
+            blocks.append("\n".join(current))
+            in_block = False
+            current = []
+        elif in_block:
+            current.append(line)
+    return blocks
+
+def _restore_mermaid_blocks(ar_content: str, en_content: str) -> str:
+    en_blocks = _extract_mermaid_blocks(en_content)
+    if not en_blocks:
+        return ar_content
+    ar_blocks = _extract_mermaid_blocks(ar_content)
+    result = ar_content
+    for i, ar_block in enumerate(ar_blocks):
+        if i < len(en_blocks):
+            result = result.replace(ar_block, en_blocks[i], 1)
+    return result
+
 def _clean_generated_content(content):
-    import re as _re
     out_lines = []
     in_mermaid = False
     for line in content.splitlines():
@@ -1499,13 +1528,7 @@ def _clean_generated_content(content):
             out_lines.append(line)
             continue
         if in_mermaid:
-            import re as _re2
-            fixed = _re2.sub(r'\{([^}]+)\}', r'(\1)', line)
-            fixed = _re2.sub(r'>([^\]]+)\]', r'[\1]', fixed)
-            def _ar_node(m):
-                lbl = m.group(1)
-                return '[Node]' if any('\u0600' <= c <= '\u06ff' for c in lbl) else m.group(0)
-            fixed = _re2.sub(r'\[([^\]]+)\]', _ar_node, fixed)
+            fixed = re.sub(r'\{([^}]+)\}', r'(\1)', line)
             out_lines.append(fixed)
             continue
         if s.startswith('>') and ('Source:' in s or '\u0627\u0644\u0645\u0635\u062f\u0631:' in s):
@@ -1613,32 +1636,7 @@ async def run_blog_generation(count: int = 3) -> dict:
                 continue
             content_ar = _fix_model_links(content_ar, relevant, lang="ar")
             content_ar = _clean_generated_content(content_ar)
-
-            title_en = _extract_h1(content_en)
-            title_ar = _extract_h1(content_ar)
-            slug     = _make_slug(title_en)
-
-            save_blog_post({
-                "slug":         slug,
-                "arxiv_id":     paper["arxiv_id"],
-                "arxiv_url":    paper["url"],
-                "title_en":     title_en,
-                "title_ar":     title_ar,
-                "content_en":   content_en,
-                "content_ar":   content_ar,
-                "summary_en":   _extract_summary(content_en),
-                "summary_ar":   _extract_summary(content_ar),
-                "seo_keywords": json.dumps(seo_kw),
-                "published_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-            })
-
-            mark_arxiv_id_seen(paper["arxiv_id"])
-            if paper.get("_embedding"):
-                store_article_embedding(paper["arxiv_id"], paper["_embedding"])
-
-            published.append({"slug": slug, "title_en": title_en, "arxiv_id": paper["arxiv_id"]})
-            logger.info(f"[BlogGen] Published: /{slug}")
-            await asyncio.sleep(3)
+            content_ar = _restore_mermaid_blocks(content_ar, content_en)
 
         except Exception as e:
             logger.error(f"[BlogGen] Error on {paper.get('arxiv_id')}: {e}")
@@ -2122,6 +2120,7 @@ async def _run_blog_generation_verbose(count: int):
                 continue
             content_ar = _fix_model_links(content_ar, relevant, lang="ar")
             content_ar = _clean_generated_content(content_ar)
+            content_ar = _restore_mermaid_blocks(content_ar, content_en)
             words_ar = len(content_ar.split())
             yield log_ok(f"  AR article: <b>{words_ar}</b> words in <b>{elapsed_ar}s</b>")
             title_en = _extract_h1(content_en)
