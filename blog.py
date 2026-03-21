@@ -1355,7 +1355,7 @@ Start directly with the # H1 title."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.72, "top_p": 0.9, "max_tokens": 8192, "stream": True,
+        "temperature": 0.2, "top_p": 0.6, "max_tokens": 8192, "stream": True,
     }
 
     content = ""
@@ -1424,7 +1424,7 @@ OUTPUT: Complete Arabic markdown article only."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.25, "top_p": 0.67, "max_tokens": 8192, "stream": True,
+        "temperature": 0.20, "top_p": 0.6, "max_tokens": 8192, "stream": True,
     }
 
     content = ""
