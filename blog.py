@@ -1325,6 +1325,7 @@ No explanation. Raw JSON only."""
 
 async def generate_article_en(paper: dict, seo_keywords: list[str], catalog_ctx: str, demo_result: dict = None) -> Optional[str]:
     kw_str = ", ".join(seo_keywords[:15])
+    papers_block = f"Title: {paper['title']}\nAbstract: {paper['abstract']}\nSource: {paper['url']}"
     demo_type = demo_result.get("type", "") if demo_result else ""
 
     if demo_type == "live":
@@ -1356,10 +1357,8 @@ async def generate_article_en(paper: dict, seo_keywords: list[str], catalog_ctx:
     )
     prompt = f"""Write a comprehensive English blog post based on the research paper below.
 
-=== PAPER ===
-Title: {paper['title']}
-Abstract: {paper['abstract']}
-Source: {paper['url']}
+=== RESEARCH PAPERS ===
+{papers_block}
 
 === SEO KEYWORDS (weave in naturally) ===
 {kw_str}
@@ -1389,8 +1388,10 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
 5. SECTION-SPECIFIC RULES:
 
    "## Introduction":
-   - First paragraph ≤160 chars (used as meta description)
-   - Hook: why this research matters RIGHT NOW for developers
+   - Start with a DIFFERENT hook sentence than the article's opening summary line
+   - The summary line (≤160 chars before the H1) is auto-generated separately — do NOT repeat it here
+   - Expand on WHY this matters NOW, who it affects, and what the reader will learn
+   - Minimum 3 paragraphs, each adds new information
 
    "## What This Research Found":
    - Explain the core idea in plain language — no formulas
@@ -1487,6 +1488,7 @@ Start directly with the # H1 title."""
 
 async def _stream_generate_en(paper: dict, seo_kw: list, catalog_ctx: str, demo_result: dict = None):
     kw_str    = ", ".join(seo_kw[:15])
+    papers_block = f"Title: {paper['title']}\nAbstract: {paper['abstract']}\nSource: {paper['url']}"
     demo_type = demo_result.get("type", "") if demo_result else ""
 
     if demo_type == "live":
@@ -1518,10 +1520,8 @@ async def _stream_generate_en(paper: dict, seo_kw: list, catalog_ctx: str, demo_
     )
     prompt = f"""Write a comprehensive English blog post based on the research paper below.
 
-=== PAPER ===
-Title: {paper['title']}
-Abstract: {paper['abstract']}
-Source: {paper['url']}
+=== RESEARCH PAPERS ===
+{papers_block}
 
 === SEO KEYWORDS (weave in naturally) ===
 {kw_str}
@@ -1551,8 +1551,10 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
 5. SECTION-SPECIFIC RULES:
 
    "## Introduction":
-   - First paragraph ≤160 chars (used as meta description)
-   - Hook: why this research matters RIGHT NOW for developers
+   - Start with a DIFFERENT hook sentence than the article's opening summary line
+   - The summary line (≤160 chars before the H1) is auto-generated separately — do NOT repeat it here
+   - Expand on WHY this matters NOW, who it affects, and what the reader will learn
+   - Minimum 3 paragraphs, each adds new information
 
    "## What This Research Found":
    - Explain the core idea in plain language — no formulas
