@@ -84,7 +84,6 @@ class SecurityHeadersMiddleware:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(scope=message)
                 headers["X-Content-Type-Options"] = "nosniff"
-                headers["X-Frame-Options"] = "SAMEORIGIN"
                 headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
                 headers["Permissions-Policy"] = (
                     "accelerometer=(), camera=(), geolocation=(), "
