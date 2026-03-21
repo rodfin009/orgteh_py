@@ -225,7 +225,7 @@ def delete_blog_post(slug: str) -> bool:
 _CATALOG_HASH_KEY  = "blog:catalog_hash_v3"
 _CATALOG_TOP_K     = 10
 
-GENERATION_MODEL = "mistralai/mistral-large-3-675b-instruct-2512"
+GENERATION_MODEL = "moonshotai/kimi-k2-instruct-0905"
 EMBED_MODEL      = "nvidia/llama-nemotron-embed-1b-v2"
 RERANK_MODEL     = "nvidia/llama-nemotron-rerank-1b-v2"
 _RERANK_THRESHOLD = 20
@@ -908,7 +908,7 @@ No explanation. No markdown fences. Raw JSON array only."""
         comp   = client.chat.completions.create(
             model=GENERATION_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.45, top_p=0.85, max_tokens=1024, stream=False,
+            temperature=0.45, top_p=0.85, max_tokens=512, stream=False,
         )
         raw   = comp.choices[0].message.content.strip()
         match = re.search(r"\[.*?\]", raw, re.DOTALL)
@@ -1306,7 +1306,7 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
 === END CONTEXT — DO NOT INCLUDE ANYTHING ABOVE THIS LINE IN THE ARTICLE ===
 
 === ARTICLE REQUIREMENTS ===
-1. WORD COUNT: write at least 1000 words, ideally 1100-1200. Each section must be fully developed with concrete examples.
+1. WORD COUNT: write at least 1500 words. Each section must be fully developed with concrete examples and depth.
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
 4. Required sections IN THIS ORDER:
@@ -1377,8 +1377,7 @@ Start directly with the # H1 title."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.25, "top_p": 0.60, "max_tokens": 8192, "stream": True,
-        "frequency_penalty": 0.00, "presence_penalty": 0.00,
+        "temperature": 0.29, "top_p": 0.70, "max_tokens": 16384, "stream": True,
     }
 
     content = ""
@@ -1469,7 +1468,7 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
 === END CONTEXT — DO NOT INCLUDE ANYTHING ABOVE THIS LINE IN THE ARTICLE ===
 
 === ARTICLE REQUIREMENTS ===
-1. WORD COUNT: write at least 1000 words, ideally 1100-1200. Each section must be fully developed with concrete examples.
+1. WORD COUNT: write at least 1500 words. Each section must be fully developed with concrete examples and depth.
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
 4. Required sections IN THIS ORDER:
@@ -1542,8 +1541,7 @@ Start directly with the # H1 title."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.25, "top_p": 0.60, "max_tokens": 8192, "stream": True,
-        "frequency_penalty": 0.00, "presence_penalty": 0.00,
+        "temperature": 0.29, "top_p": 0.70, "max_tokens": 16384, "stream": True,
     }
 
     content   = ""
@@ -1639,8 +1637,7 @@ OUTPUT: Complete Arabic markdown article only."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.20, "top_p": 0.60, "max_tokens": 8192, "stream": True,
-        "frequency_penalty": 0.00, "presence_penalty": 0.00,
+        "temperature": 0.20, "top_p": 0.65, "max_tokens": 16384, "stream": True,
     }
 
     content = ""
@@ -1711,8 +1708,7 @@ OUTPUT: Complete Arabic markdown article only."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.20, "top_p": 0.60, "max_tokens": 8192, "stream": True,
-        "frequency_penalty": 0.00, "presence_penalty": 0.00,
+        "temperature": 0.20, "top_p": 0.65, "max_tokens": 16384, "stream": True,
     }
 
     content   = ""
