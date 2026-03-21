@@ -1455,7 +1455,7 @@ Source: {paper['url']}
    - Use the ORGTEH MODELS & TOOLS provided above
    - Explain WHICH specific model/tool and WHY it fits this use case
    - Natural prose, NOT bullet list
-   - Use exact markdown links (already provided above with /{lang}/ prefix)
+   - Use exact markdown links (already provided above with /en/ prefix)
    - {demo_instruction}
 
    "## Key Takeaways":
