@@ -1290,7 +1290,7 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
 === END CONTEXT — DO NOT INCLUDE ANYTHING ABOVE THIS LINE IN THE ARTICLE ===
 
 === ARTICLE REQUIREMENTS ===
-1. STRICT WORD COUNT: write between 1500 and 1600 words — no more, no less. Count every word carefully. Each section must be fully developed. Stop at 1600 words maximum.
+1. STRICT WORD COUNT: write between 1200 and 1300 words — no more, no less. Be concise and precise. Each section must be focused and impactful. Stop at 1300 words maximum.
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
 4. Required sections IN THIS ORDER:
@@ -1453,7 +1453,7 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
 === END CONTEXT — DO NOT INCLUDE ANYTHING ABOVE THIS LINE IN THE ARTICLE ===
 
 === ARTICLE REQUIREMENTS ===
-1. STRICT WORD COUNT: write between 1500 and 1600 words — no more, no less. Count every word carefully. Each section must be fully developed. Stop at 1600 words maximum.
+1. STRICT WORD COUNT: write between 1200 and 1300 words — no more, no less. Be concise and precise. Each section must be focused and impactful. Stop at 1300 words maximum.
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
 4. Required sections IN THIS ORDER:
@@ -1599,6 +1599,7 @@ Use the links inside it ONLY to update /en/ → /ar/ in the translated article.
 
 === TRANSLATION RULES ===
 1. Translate ALL text: title, all headings, every paragraph
+1b. In the Arabic TITLE: wrap any English acronym or product name with ‪...‬ (LTR mark) — e.g. ‪VID-AD‬ or ‪WALAR‬ — so it renders correctly in RTL
 2. Keep ALL markdown formatting exactly as-is
 3. Keep code blocks EXACTLY as-is — do not translate ANY code
 4. Keep ```mermaid blocks EXACTLY as-is
@@ -1606,6 +1607,7 @@ Use the links inside it ONLY to update /en/ → /ar/ in the translated article.
 6. Translate naturally — write as if originally authored in Arabic
 7. Do NOT add preamble — output ONLY the translated markdown
 8. Technical terms: RAG, LLM, API, prompt, token → keep in English
+9. CRITICAL: For any English acronym or product name inside Arabic text (e.g. VID-AD, GPT, WALAR), wrap it with Unicode LTR markers: ‎{term}‎ — this ensures correct display direction
 9. Do NOT add preamble like "إليك الترجمة"
 10. CRITICAL: Do NOT include any blockquote with "المصدر:" or "Source:"
 
@@ -1669,6 +1671,7 @@ Use the links inside it ONLY to update /en/ → /ar/ in the translated article.
 
 === TRANSLATION RULES ===
 1. Translate ALL text: title, all headings, every paragraph
+1b. In the Arabic TITLE: wrap any English acronym or product name with ‪...‬ (LTR mark) — e.g. ‪VID-AD‬ or ‪WALAR‬ — so it renders correctly in RTL
 2. Keep ALL markdown formatting exactly as-is
 3. Keep code blocks EXACTLY as-is — do not translate ANY code
 4. Keep ```mermaid blocks EXACTLY as-is
@@ -1676,6 +1679,7 @@ Use the links inside it ONLY to update /en/ → /ar/ in the translated article.
 6. Translate naturally — write as if originally authored in Arabic
 7. Do NOT add preamble — output ONLY the translated markdown
 8. Technical terms: RAG, LLM, API, prompt, token → keep in English
+9. CRITICAL: For any English acronym or product name inside Arabic text (e.g. VID-AD, GPT, WALAR), wrap it with Unicode LTR markers: ‎{term}‎ — this ensures correct display direction
 9. Do NOT add preamble like "إليك الترجمة"
 10. CRITICAL: Do NOT include any blockquote with "المصدر:" or "Source:"
 
@@ -1795,11 +1799,17 @@ def _restore_mermaid_blocks(ar_content: str, en_content: str) -> str:
     en_blocks = _extract_mermaid_blocks(en_content)
     if not en_blocks:
         return ar_content
-    ar_blocks = _extract_mermaid_blocks(ar_content)
-    result = ar_content
-    for i, ar_block in enumerate(ar_blocks):
-        if i < len(en_blocks):
-            result = result.replace(ar_block, en_blocks[i], 1)
+    idx = [0]
+    def _replacer(m):
+        block = en_blocks[idx[0]] if idx[0] < len(en_blocks) else m.group(0)
+        idx[0] += 1
+        return block
+    result = re.sub(r"```mermaid.*?```", _replacer, ar_content, flags=re.DOTALL)
+    if result == ar_content:
+        ar_blocks = _extract_mermaid_blocks(ar_content)
+        for i, ar_block in enumerate(ar_blocks):
+            if i < len(en_blocks):
+                result = result.replace(ar_block, en_blocks[i], 1)
     return result
 
 def _sanitize_mermaid_line(line: str) -> str:
