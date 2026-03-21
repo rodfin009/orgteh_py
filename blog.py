@@ -1481,7 +1481,7 @@ Start directly with the # H1 title."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.72, "top_p": 0.9, "max_tokens": 8192, "stream": True,
+        "temperature": 0.3, "top_p": 0.7, "max_tokens": 8192, "stream": True,
     }
 
     content = ""
@@ -2490,4 +2490,4 @@ async def blog_post_page(request: Request, lang: str, slug: str):
 try:
     init_blog_tables()
 except Exception as _e:
-    logger.warning(f"[Blog] Table init deferred: {_e}")
+    logger.warning(f"[Blog] Table init deferred: {_e}") 
