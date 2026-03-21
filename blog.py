@@ -1207,30 +1207,46 @@ def select_papers_with_llm(papers: list[dict], select_count: int = 3) -> list[di
         f"   Abstract: {p['abstract'][:400]}..."
         for i, p in enumerate(top)
     )
-    prompt = f"""You are an AI content strategist for a developer platform. Select the best research papers for practical blog posts.
+    try:
+        from services.providers import MODELS_METADATA
+        platform_models = ", ".join(
+            f"{m.get('name','')} ({', '.join(m.get('modalities',[]))})"
+            for m in MODELS_METADATA if m.get("name")
+        )
+    except Exception:
+        platform_models = "Text LLM APIs, Embedding models"
 
-TARGET AUDIENCE: Software developers and AI practitioners who use LLM APIs daily.
+    try:
+        from tools.registry import TOOLS_DB
+        platform_tools = ", ".join(
+            t.get("name_en", tid) for tid, t in TOOLS_DB.items()
+        )
+    except Exception:
+        platform_tools = "Web Scraper, OCR, Semantic Embed, Finance RSS, News RSS"
 
-SELECTION CRITERIA:
-✅ Teaches something developers can IMMEDIATELY apply in their projects
-✅ Covers: AI agents, prompt engineering, RAG, tool use, code generation, multimodal AI, LLM evaluation, LLM APIs, fine-tuning, inference optimization
-✅ Has a clear practical angle — not pure theory or hardware benchmarks
-✅ Novel enough to generate interesting content
+    prompt = f"""You are an AI content strategist for Orgteh — an AI API platform for developers.
+Select the best research papers to write blog posts about.
 
-❌ REJECT papers about:
-- Motion generation / character animation / human motion synthesis
-- Robotics kinematics / robot manipulation / locomotion
-- Medical imaging / clinical AI / drug discovery
-- Autonomous driving / traffic prediction / vehicle control
-- Satellite imagery / remote sensing / geospatial AI
-- Pure hardware benchmarks / chip design / memory systems
-- Audio synthesis / speech recognition (unless LLM-related)
-- Topics with NO connection to LLM APIs, text generation, or developer tools
+TARGET AUDIENCE: Software developers and AI practitioners who use AI APIs daily.
+
+ORGTEH PLATFORM CAPABILITIES (what we actually offer right now):
+Models: {platform_models}
+Tools: {platform_tools}
+
+SELECTION RULE — one question only:
+"Can a developer implement or experiment with the core idea of this paper using the models/tools listed above?"
+→ YES → select it
+→ NO (requires hardware/APIs/infrastructure NOT listed above) → skip it
+
+Prefer papers that:
+✅ Teach something developers can immediately apply via API calls
+✅ Have a clear practical angle (not pure theory or hardware benchmarks)
+✅ Are novel and interesting for an AI developer audience
 
 PAPERS (pre-ranked by score — higher is better):
 {numbered}
 
-Select exactly {select_count} papers. Prefer higher-scored ones unless a lower-scored paper is clearly more practical.
+Select exactly {select_count} papers.
 Reply ONLY with a raw JSON array of arxiv IDs: ["2501.12345", "2501.67890"]
 No explanation. No markdown. Raw JSON only."""
 
@@ -1613,6 +1629,10 @@ Use the links inside it ONLY to update /en/ → /ar/ in the translated article.
 
 === TRANSLATION RULES ===
 1. Translate ALL text: title, all headings, every paragraph
+   TITLE RULE: If the English title starts with a proper noun/acronym (e.g. "3DreamBooth: ...", "WALAR: ..."),
+   put the Arabic description FIRST, then the English term at the end.
+   Example: "3DreamBooth: From One Photo to 360° Video" → "من صورة واحدة إلى فيديو 360°: ‪3DreamBooth‬"
+   This ensures correct RTL reading order in Arabic.
 1b. In the Arabic TITLE: wrap any English acronym or product name with ‪...‬ (LTR mark) — e.g. ‪VID-AD‬ or ‪WALAR‬ — so it renders correctly in RTL
 2. Keep ALL markdown formatting exactly as-is
 3. Keep code blocks EXACTLY as-is — do not translate ANY code
@@ -1684,6 +1704,10 @@ Use the links inside it ONLY to update /en/ → /ar/ in the translated article.
 
 === TRANSLATION RULES ===
 1. Translate ALL text: title, all headings, every paragraph
+   TITLE RULE: If the English title starts with a proper noun/acronym (e.g. "3DreamBooth: ...", "WALAR: ..."),
+   put the Arabic description FIRST, then the English term at the end.
+   Example: "3DreamBooth: From One Photo to 360° Video" → "من صورة واحدة إلى فيديو 360°: ‪3DreamBooth‬"
+   This ensures correct RTL reading order in Arabic.
 1b. In the Arabic TITLE: wrap any English acronym or product name with ‪...‬ (LTR mark) — e.g. ‪VID-AD‬ or ‪WALAR‬ — so it renders correctly in RTL
 2. Keep ALL markdown formatting exactly as-is
 3. Keep code blocks EXACTLY as-is — do not translate ANY code
