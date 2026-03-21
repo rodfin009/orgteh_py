@@ -1428,6 +1428,14 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
      ```
    - The code must implement the paper's core idea using Orgteh API
    - Add inline comments explaining what each part does
+   - ⚠️ CODE CORRECTNESS — MANDATORY BEFORE WRITING ANY CODE:
+     * Every variable you declare MUST be used — no dead/unused variables
+     * Every function you define MUST be called — no dead functions
+     * If you call loss.backward(), you MUST also call optimizer.step() and optimizer.zero_grad()
+     * If you define a mask (pos_mask, neg_mask, etc.), you MUST use it in a computation
+     * Return values must be logically correct — check the sign of penalties (adding penalties should increase loss, not decrease it)
+     * After writing the code, mentally trace through it top-to-bottom and verify: does every line serve a purpose?
+     * If showing a simplified/demo version, add a comment: # Note: replace X with real Y in production
 
    "## Integrating with Orgteh":
    - Use the ORGTEH MODELS & TOOLS provided above
@@ -1607,6 +1615,14 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
      ```
    - The code must implement the paper's core idea using Orgteh API
    - CRITICAL: Use ONLY real model short_keys from the catalog above (e.g. "deepseek", "llama-4-scout", "kimi-k2"). NEVER invent model names like "llama-scout" or "gpt-4". Copy the exact key from the markdown links provided.
+   - ⚠️ CODE CORRECTNESS — MANDATORY BEFORE WRITING ANY CODE:
+     * Every variable you declare MUST be used — no dead/unused variables
+     * Every function you define MUST be called — no dead functions
+     * If you call loss.backward(), you MUST also call optimizer.step() and optimizer.zero_grad()
+     * If you define a mask (pos_mask, neg_mask, etc.), you MUST use it in a computation
+     * Return values must be logically correct — check the sign of penalties (adding penalties should increase loss, not decrease it)
+     * After writing the code, mentally trace through it top-to-bottom and verify: does every line serve a purpose?
+     * If showing a simplified/demo version, add a comment: # Note: replace X with real Y in production
 
    "## Integrating with Orgteh":
    - Use the ORGTEH MODELS & TOOLS provided above
@@ -2041,6 +2057,98 @@ def _make_slug(title: str) -> str:
     suffix = datetime.utcnow().strftime("%Y%m%d%H%M")
     return f"{title}-{suffix}"
 
+def review_and_fix_code_blocks(content: str) -> str:
+    """
+    يستخرج كل Python blocks من المقالة، يُرسلها للنموذج للمراجعة والإصلاح،
+    ثم يستبدل كل block بالنسخة المُصحَّحة. يُعيد المقالة كما هي عند الفشل.
+    """
+    pattern = re.compile(r"(```python\n)(.*?)(```)", re.DOTALL)
+    matches = list(pattern.finditer(content))
+
+    if not matches:
+        logger.info("[CodeReview] No Python blocks — skipping")
+        return content
+
+    logger.info(f"[CodeReview] {len(matches)} Python block(s) found — reviewing")
+
+    blocks_text = ""
+    for i, m in enumerate(matches, 1):
+        blocks_text += f"=== BLOCK {i} ===\n{m.group(2).strip()}\n\n"
+
+    review_prompt = f"""You are a senior Python code reviewer. Review the code block(s) below from a technical blog article and fix any bugs.
+
+CHECK AND FIX:
+1. Dead variables — declared but never used (e.g. pos_mask defined but ignored in computation)
+2. Dead functions — defined but never called in the snippet
+3. Missing optimizer steps — if loss.backward() appears, also add optimizer.zero_grad() and optimizer.step() (or a comment marking where to call them)
+4. Wrong signs — penalties that should INCREASE loss must be added (+), not subtracted (-)
+5. Logic errors — formula does not match its stated intent
+6. Wrong/missing return values
+
+RULES:
+- Return ONLY the corrected blocks in the exact format below
+- If a block is already correct, return it unchanged
+- Do NOT add prose, explanation, or markdown outside the code
+- Minimal changes only — do not refactor correct code
+- When adding a missing line, add a brief inline comment explaining why
+
+OUTPUT FORMAT (strict):
+=== BLOCK 1 ===
+<corrected python code>
+
+=== BLOCK 2 ===
+<corrected python code>
+
+BLOCKS TO REVIEW:
+{blocks_text}"""
+
+    try:
+        client = _build_nvidia_client()
+        resp   = client.chat.completions.create(
+            model=GENERATION_MODEL,
+            messages=[
+                {"role": "system", "content": "You are a strict Python code reviewer. Return only corrected code blocks in the exact requested format. No prose."},
+                {"role": "user",   "content": review_prompt},
+            ],
+            temperature=0.05,
+            top_p=0.90,
+            max_tokens=8192,
+            stream=False,
+        )
+        raw = resp.choices[0].message.content.strip()
+    except Exception as e:
+        logger.warning(f"[CodeReview] API failed: {e} — keeping original")
+        return content
+
+    # استخراج الـ blocks المُصحَّحة
+    fixed_blocks: dict[int, str] = {}
+    for bm in re.finditer(r"=== BLOCK (\d+) ===\s*\n(.*?)(?=\n=== BLOCK \d+ ===|\Z)", raw, re.DOTALL):
+        idx  = int(bm.group(1))
+        code = bm.group(2).strip()
+        code = re.sub(r"^```python\s*\n?", "", code)
+        code = re.sub(r"\n?```\s*$",       "", code)
+        fixed_blocks[idx] = code
+
+    if not fixed_blocks:
+        logger.warning("[CodeReview] Unparseable response — keeping original")
+        return content
+
+    # استبدال في المقالة
+    result  = content
+    changed = 0
+    for i, m in enumerate(matches, 1):
+        if i not in fixed_blocks:
+            continue
+        fixed_code = fixed_blocks[i]
+        if fixed_code == m.group(2).strip():
+            continue  # لا تغيير
+        result  = result.replace(m.group(0), f"```python\n{fixed_code}\n```", 1)
+        changed += 1
+
+    logger.info(f"[CodeReview] ✅ Done — {len(matches)} block(s) reviewed, {changed} fixed")
+    return result
+
+
 async def run_blog_generation(count: int = 3) -> dict:
     count = max(1, min(count, 5))
     logger.info(f"[BlogGen] Starting pipeline — target {count} article(s)")
@@ -2106,6 +2214,7 @@ async def run_blog_generation(count: int = 3) -> dict:
             content_en = _strip_summary_marker(content_en)
             content_en = _fix_model_links(content_en, relevant, lang="en")
             content_en = _clean_generated_content(content_en)
+            content_en = await asyncio.to_thread(review_and_fix_code_blocks, content_en)
 
             content_ar = await generate_article_ar(content_en, catalog_ar)
             if not content_ar:
@@ -2575,7 +2684,10 @@ async def _run_blog_generation_verbose(count: int):
             content_en = _strip_summary_marker(content_en)
             content_en = _fix_model_links(content_en, relevant, lang="en")
             content_en = _clean_generated_content(content_en)
+            yield log_info("  Code review: sending Python blocks to model for verification…")
+            content_en = await asyncio.to_thread(review_and_fix_code_blocks, content_en)
             words_en   = len(content_en.split())
+            yield log_ok("  Code review complete ✅")
             yield log_ok(f"  EN article: <b>{words_en}</b> words in <b>{elapsed_en}s</b>")
 
             title_en = _extract_h1(content_en)
