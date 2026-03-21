@@ -209,7 +209,7 @@ def delete_blog_post(slug: str) -> bool:
 _CATALOG_HASH_KEY  = "blog:catalog_hash_v3"
 _CATALOG_TOP_K     = 10
 
-GENERATION_MODEL = "mistralai/mistral-small-4-119b-2603"
+GENERATION_MODEL = "mistralai/mistral-large-3-675b-instruct-2512"
 EMBED_MODEL      = "nvidia/llama-nemotron-embed-1b-v2"
 RERANK_MODEL     = "nvidia/llama-nemotron-rerank-1b-v2"
 _RERANK_THRESHOLD = 20
@@ -1290,7 +1290,7 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
 === END CONTEXT — DO NOT INCLUDE ANYTHING ABOVE THIS LINE IN THE ARTICLE ===
 
 === ARTICLE REQUIREMENTS ===
-1. STRICT WORD COUNT: write between 1200 and 1300 words — no more, no less. Be concise and precise. Each section must be focused and impactful. Stop at 1300 words maximum.
+1. WORD COUNT: write at least 1000 words, ideally 1100-1200. Each section must be fully developed with concrete examples.
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
 4. Required sections IN THIS ORDER:
@@ -1361,8 +1361,8 @@ Start directly with the # H1 title."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.40, "top_p": 0.95, "max_tokens": 16384, "stream": True,
-        "reasoning_effort": "high",
+        "temperature": 0.25, "top_p": 0.60, "max_tokens": 8192, "stream": True,
+        "frequency_penalty": 0.00, "presence_penalty": 0.00,
     }
 
     content = ""
@@ -1453,7 +1453,7 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
 === END CONTEXT — DO NOT INCLUDE ANYTHING ABOVE THIS LINE IN THE ARTICLE ===
 
 === ARTICLE REQUIREMENTS ===
-1. STRICT WORD COUNT: write between 1200 and 1300 words — no more, no less. Be concise and precise. Each section must be focused and impactful. Stop at 1300 words maximum.
+1. WORD COUNT: write at least 1000 words, ideally 1100-1200. Each section must be fully developed with concrete examples.
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
 4. Required sections IN THIS ORDER:
@@ -1526,8 +1526,8 @@ Start directly with the # H1 title."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.40, "top_p": 0.95, "max_tokens": 16384, "stream": True,
-        "reasoning_effort": "high",
+        "temperature": 0.25, "top_p": 0.60, "max_tokens": 8192, "stream": True,
+        "frequency_penalty": 0.00, "presence_penalty": 0.00,
     }
 
     content   = ""
@@ -1623,8 +1623,8 @@ OUTPUT: Complete Arabic markdown article only."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.10, "top_p": 0.90, "max_tokens": 16384, "stream": True,
-        "reasoning_effort": "high",
+        "temperature": 0.20, "top_p": 0.60, "max_tokens": 8192, "stream": True,
+        "frequency_penalty": 0.00, "presence_penalty": 0.00,
     }
 
     content = ""
@@ -1695,8 +1695,8 @@ OUTPUT: Complete Arabic markdown article only."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.10, "top_p": 0.90, "max_tokens": 16384, "stream": True,
-        "reasoning_effort": "high",
+        "temperature": 0.20, "top_p": 0.60, "max_tokens": 8192, "stream": True,
+        "frequency_penalty": 0.00, "presence_penalty": 0.00,
     }
 
     content   = ""
