@@ -1191,22 +1191,21 @@ def select_papers_with_llm(papers: list[dict], select_count: int = 3) -> list[di
 
     if len(top) > _RERANK_THRESHOLD:
         rerank_query = (
-            "Practical AI research paper for software developers: "
-            "LLM agents, RAG, prompt engineering, code generation, tool use, multimodal AI"
+            "Practical AI research for developers: agents, prompting, RAG, tool use, LLM APIs"
         )
-        passages  = [f"{p['title']}. {p['abstract'][:600]}" for p in top]
-        indices   = _rerank(rerank_query, passages)
+        passages = [f"{p['title']}. {p['abstract'][:600]}" for p in top]
+        indices  = _rerank(rerank_query, passages)
         if indices:
             top = [top[i] for i in indices if i < len(top)]
-            logger.info(f"[Select] Papers reranked: {[p['arxiv_id'] for p in top[:5]]}")
 
     top = top[:15]
     numbered = "\n".join(
-        f"{i+1}. [{p['arxiv_id']}] score={p.get('_pre_score',0)} src={p.get('source','arxiv')}\n"
+        f"{i+1}. [{p['arxiv_id']}] score={p.get('_pre_score',0)}\n"
         f"   Title: {p['title']}\n"
-        f"   Abstract: {p['abstract'][:400]}..."
+        f"   Abstract: {p['abstract'][:350]}..."
         for i, p in enumerate(top)
     )
+
     try:
         from services.providers import MODELS_METADATA
         platform_models = ", ".join(
@@ -1224,39 +1223,51 @@ def select_papers_with_llm(papers: list[dict], select_count: int = 3) -> list[di
     except Exception:
         platform_tools = "Web Scraper, OCR, Semantic Embed, Finance RSS, News RSS"
 
-    prompt = f"""You are an AI content strategist for Orgteh — an AI API platform for developers.
-Select the best research papers to write blog posts about.
+    prompt = f"""You are a technical blog editor for Orgteh — an AI API platform for developers.
 
-TARGET AUDIENCE: Software developers and AI practitioners who use AI APIs daily.
-
-ORGTEH PLATFORM CAPABILITIES (what we actually offer right now):
+ORGTEH PLATFORM (what developers can actually use via API):
 Models: {platform_models}
 Tools: {platform_tools}
 
-SELECTION RULE — ask these two questions:
-1. "Can a developer call the Orgteh API (text chat completions / embeddings / listed tools) to meaningfully experiment with this paper's core idea?"
-2. "Would the code example be REAL and runnable — not a fake simulation of something the API cannot actually do?"
-→ BOTH YES → select it
-→ EITHER NO → skip it
+YOUR TASK:
+From the papers below, select {select_count} paper(s) that would make great blog articles for developers who use LLM APIs daily.
 
-✅ SELECT: Papers about prompting, RAG, agents, reasoning, text classification, code gen, embeddings, search, tool use, fine-tuning concepts, LLM evaluation
-❌ SKIP: Papers whose core contribution is image/video/audio/3D generation, diffusion models, NeRF, flow matching for pixels, robotics control, hardware acceleration — EVEN IF they mention LLMs tangentially
+GOOD ARTICLE TOPICS (pick papers that fit one of these angles):
+- Building AI agents / autonomous systems with LLMs
+- Prompt engineering techniques that improve model output
+- RAG, retrieval, memory systems for LLMs
+- LLM evaluation, benchmarking, and reliability
+- Tool use, function calling, structured outputs
+- Code generation and developer productivity with AI
+- Multi-model workflows and chaining
+- LLM reasoning strategies (chain-of-thought, self-consistency, etc.)
+- Fine-tuning concepts a developer can apply via API
 
-CRITICAL: Do NOT select a paper just because you can write a plausible-looking code snippet. The code must do what the paper actually describes using real Orgteh API capabilities.
+REJECT papers that are ONLY about:
+- How to train/architect neural networks from scratch
+- Internal model math (attention mechanisms, weight initialization, etc.)
+- Image/video/audio/3D generation or diffusion models
+- Robotics, autonomous driving, medical imaging
+- Hardware benchmarks or chip design
+- Anything requiring infrastructure beyond a simple API call
 
-PAPERS (pre-ranked by score — higher is better):
+KEY TEST: "Can a developer reading this article immediately try something new using the Orgteh API?"
+If yes → select. If no → skip.
+
+You may select papers that cover the SAME theme and combine them into one article angle.
+
+PAPERS:
 {numbered}
 
-Select exactly {select_count} papers.
-Reply ONLY with a raw JSON array of arxiv IDs: ["2501.12345", "2501.67890"]
-No explanation. No markdown. Raw JSON only."""
+Reply ONLY with a JSON array of the arxiv IDs you selected: ["2501.xxxxx", ...]
+No explanation. Raw JSON only."""
 
     try:
         client = _build_nvidia_client()
         comp   = client.chat.completions.create(
             model=GENERATION_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.05, top_p=0.95, max_tokens=200, stream=False,
+            temperature=0.05, top_p=0.95, max_tokens=300, stream=False,
         )
         raw   = comp.choices[0].message.content.strip()
         match = re.search(r"\[.*?\]", raw, re.DOTALL)
@@ -1267,10 +1278,35 @@ No explanation. No markdown. Raw JSON only."""
                 selected = [p for p in papers if p["arxiv_id"] in ids]
             if selected:
                 logger.info(f"[Select] LLM chose: {[p['arxiv_id'] for p in selected]}")
-                return selected
+                return selected[:select_count]
+
+        logger.warning("[Select] LLM returned no valid IDs — retrying with simpler prompt")
+        simple_prompt = (
+            f"From these AI research papers, pick {select_count} that a developer can "
+            f"immediately apply using a text LLM API (prompting, agents, RAG, tool use). "
+            f"Avoid papers about training internals, image/video generation, or hardware. "
+            f"Reply ONLY with a JSON array of arxiv IDs.\n\n{numbered}"
+        )
+        comp2  = client.chat.completions.create(
+            model=GENERATION_MODEL,
+            messages=[{"role": "user", "content": simple_prompt}],
+            temperature=0.0, top_p=1.0, max_tokens=300, stream=False,
+        )
+        raw2   = comp2.choices[0].message.content.strip()
+        match2 = re.search(r"\[.*?\]", raw2, re.DOTALL)
+        if match2:
+            ids2      = json.loads(match2.group())
+            selected2 = [p for p in top if p["arxiv_id"] in ids2]
+            if selected2:
+                logger.info(f"[Select] Retry chose: {[p['arxiv_id'] for p in selected2]}")
+                return selected2[:select_count]
+
+        logger.error("[Select] Both attempts failed — no suitable papers found in this batch")
+        return []
+
     except Exception as e:
         logger.error(f"[Select] LLM selection: {e}")
-    return top[:select_count]
+        return []
 
 async def generate_article_en(paper: dict, seo_keywords: list[str], catalog_ctx: str, demo_result: dict = None) -> Optional[str]:
     kw_str = ", ".join(seo_keywords[:15])
@@ -2390,6 +2426,11 @@ async def _run_blog_generation_verbose(count: int):
     except Exception as e:
         yield log_warn(f"LLM selection failed ({e}) — using top-scored fallback")
         selected = sorted(candidates, key=lambda p: p.get("_pre_score", 0), reverse=True)[:count]
+
+    if not selected:
+        yield log_err("No suitable papers found in this batch — all were rejected as incompatible with Orgteh platform. Try again later for a fresh batch.")
+        yield ("__done__", {"ok": False, "error": "No suitable papers found — batch rejected by platform compatibility filter"})
+        return
 
     yield log_ok(f"Selected <b>{len(selected)}</b> paper(s):")
     for i, p in enumerate(selected, 1):
