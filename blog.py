@@ -1441,7 +1441,7 @@ Source: {paper['url']}
 {catalog_ctx}
 
 === ARTICLE REQUIREMENTS ===
-1. STRICT WORD COUNT: write between 1500 and 1600 words — no more, no less. Count every word carefully. Each section must be fully developed. Stop at 1600 words maximum.
+1. STRICT WORD COUNT: write between 1300 words — no more, no less. Count every word carefully. Each section must be fully developed. Stop at 1600 words maximum.
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
 4. Required sections IN THIS ORDER:
@@ -1507,7 +1507,7 @@ Start directly with the # H1 title."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.35, "top_p": 0.75, "max_tokens": 8192, "stream": True,
+        "temperature": 0.35, "top_p": 0.75, "max_tokens": 6000, "stream": True,
         "frequency_penalty": 0.0, "presence_penalty": 0.0,
     }
 
@@ -1596,7 +1596,7 @@ OUTPUT: Complete Arabic markdown article only."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.20, "top_p": 0.70, "max_tokens": 8192, "stream": True,
+        "temperature": 0.20, "top_p": 0.70, "max_tokens": 6000, "stream": True,
         "frequency_penalty": 0.0, "presence_penalty": 0.0,
     }
 
