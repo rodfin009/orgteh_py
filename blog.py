@@ -1388,10 +1388,16 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
 5. SECTION-SPECIFIC RULES:
 
    "## Introduction":
-   - Start with a DIFFERENT hook sentence than the article's opening summary line
-   - The summary line (≤160 chars before the H1) is auto-generated separately — do NOT repeat it here
-   - Expand on WHY this matters NOW, who it affects, and what the reader will learn
-   - Minimum 3 paragraphs, each adds new information
+   ⚠️ CRITICAL — NO REPETITION RULE:
+   The website auto-generates a preview card from the FIRST paragraph of ## Introduction.
+   This means your ## Introduction WILL be shown twice if you repeat content.
+
+   RULES:
+   - Write the ## Introduction as if the reader has NEVER seen any summary yet
+   - The first paragraph of ## Introduction (≤160 chars) becomes the meta description automatically
+   - Each paragraph in ## Introduction must contain DIFFERENT information — never rephrase the same idea
+   - DO NOT write a separate "teaser" or "hook" sentence before the ## Introduction heading
+   - Minimum 3 paragraphs total, each adding genuinely new context or angle
 
    "## What This Research Found":
    - Explain the core idea in plain language — no formulas
@@ -1551,10 +1557,16 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
 5. SECTION-SPECIFIC RULES:
 
    "## Introduction":
-   - Start with a DIFFERENT hook sentence than the article's opening summary line
-   - The summary line (≤160 chars before the H1) is auto-generated separately — do NOT repeat it here
-   - Expand on WHY this matters NOW, who it affects, and what the reader will learn
-   - Minimum 3 paragraphs, each adds new information
+   ⚠️ CRITICAL — NO REPETITION RULE:
+   The website auto-generates a preview card from the FIRST paragraph of ## Introduction.
+   This means your ## Introduction WILL be shown twice if you repeat content.
+
+   RULES:
+   - Write the ## Introduction as if the reader has NEVER seen any summary yet
+   - The first paragraph of ## Introduction (≤160 chars) becomes the meta description automatically
+   - Each paragraph in ## Introduction must contain DIFFERENT information — never rephrase the same idea
+   - DO NOT write a separate "teaser" or "hook" sentence before the ## Introduction heading
+   - Minimum 3 paragraphs total, each adding genuinely new context or angle
 
    "## What This Research Found":
    - Explain the core idea in plain language — no formulas
@@ -1597,13 +1609,20 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
 
 DO NOT:
 - Copy sentences from the abstract verbatim
-- Add preamble before the # H1 title
+- Write ANYTHING before the # H1 title — the article must start with # immediately
 - Use /ar/ links (English article only)
 - Reproduce, print, or include ANY part of the "ORGTEH MODELS & TOOLS — CONTEXT ONLY" block
 - Include any === section headers from the prompt
 - Print the catalog descriptions, tool descriptions, or link templates verbatim
+- Repeat content between sections — every paragraph must contain new information not stated elsewhere in the article
 
-Start directly with the # H1 title."""
+The article structure must be:
+# Title
+## Introduction
+## What This Research Found
+...
+
+Start with # Title on the very first line. Nothing before it."""
 
     key = os.environ.get("NVIDIA_API_KEYS", os.environ.get("NVIDIA_API_KEY", ""))
     if key:
@@ -1684,11 +1703,25 @@ Use the links inside it ONLY to update /en/ → /ar/ in the translated article.
 
 === TRANSLATION RULES ===
 1. Translate ALL text: title, all headings, every paragraph
-   TITLE RULE: If the English title starts with a proper noun/acronym (e.g. "3DreamBooth: ...", "WALAR: ..."),
-   put the Arabic description FIRST, then the English term at the end.
-   Example: "3DreamBooth: From One Photo to 360° Video" → "من صورة واحدة إلى فيديو 360°: ‪3DreamBooth‬"
-   This ensures correct RTL reading order in Arabic.
-1b. In the Arabic TITLE: wrap any English acronym or product name with ‪...‬ (LTR mark) — e.g. ‪VID-AD‬ or ‪WALAR‬ — so it renders correctly in RTL
+   TITLE RULE — CRITICAL for RTL readability:
+   Arabic titles must be readable right-to-left WITHOUT any English breaking the flow.
+
+   Strategy: Move ALL English acronyms/product names to the END of the title after a colon.
+
+   Examples:
+   ❌ BAD:  "متعدّد الوكلاء RAG نظام فَنَار: كيف يعمل"   ← RAG breaks RTL reading
+   ✅ GOOD: "كيف يعمل نظام فَنَار متعدّد الوكلاء: RAG"   ← Arabic flows, English at end
+
+   ❌ BAD:  "نموذج WALAR يحلّ مشكلة الترجمة"
+   ✅ GOOD: "حلّ مشكلة الترجمة متعدّدة اللغات: WALAR"
+
+   ❌ BAD:  "طريقة COT-FM تُسرّع التدفق"
+   ✅ GOOD: "تسريع التدفق المطابق بدون تعديل الشبكة: COT-FM"
+
+   RULE: Write the full Arabic meaning first, put the English code/acronym last after ":".
+   If there is no English acronym in the title, write it naturally in Arabic RTL.
+
+1b. In the BODY TEXT: wrap any English acronym inline with ‎ENGLISH‎ markers for correct direction
 2. Keep ALL markdown formatting exactly as-is
 3. Keep code blocks EXACTLY as-is — do not translate ANY code
 4. Keep ```mermaid blocks EXACTLY as-is
@@ -1759,11 +1792,25 @@ Use the links inside it ONLY to update /en/ → /ar/ in the translated article.
 
 === TRANSLATION RULES ===
 1. Translate ALL text: title, all headings, every paragraph
-   TITLE RULE: If the English title starts with a proper noun/acronym (e.g. "3DreamBooth: ...", "WALAR: ..."),
-   put the Arabic description FIRST, then the English term at the end.
-   Example: "3DreamBooth: From One Photo to 360° Video" → "من صورة واحدة إلى فيديو 360°: ‪3DreamBooth‬"
-   This ensures correct RTL reading order in Arabic.
-1b. In the Arabic TITLE: wrap any English acronym or product name with ‪...‬ (LTR mark) — e.g. ‪VID-AD‬ or ‪WALAR‬ — so it renders correctly in RTL
+   TITLE RULE — CRITICAL for RTL readability:
+   Arabic titles must be readable right-to-left WITHOUT any English breaking the flow.
+
+   Strategy: Move ALL English acronyms/product names to the END of the title after a colon.
+
+   Examples:
+   ❌ BAD:  "متعدّد الوكلاء RAG نظام فَنَار: كيف يعمل"   ← RAG breaks RTL reading
+   ✅ GOOD: "كيف يعمل نظام فَنَار متعدّد الوكلاء: RAG"   ← Arabic flows, English at end
+
+   ❌ BAD:  "نموذج WALAR يحلّ مشكلة الترجمة"
+   ✅ GOOD: "حلّ مشكلة الترجمة متعدّدة اللغات: WALAR"
+
+   ❌ BAD:  "طريقة COT-FM تُسرّع التدفق"
+   ✅ GOOD: "تسريع التدفق المطابق بدون تعديل الشبكة: COT-FM"
+
+   RULE: Write the full Arabic meaning first, put the English code/acronym last after ":".
+   If there is no English acronym in the title, write it naturally in Arabic RTL.
+
+1b. In the BODY TEXT: wrap any English acronym inline with ‎ENGLISH‎ markers for correct direction
 2. Keep ALL markdown formatting exactly as-is
 3. Keep code blocks EXACTLY as-is — do not translate ANY code
 4. Keep ```mermaid blocks EXACTLY as-is
