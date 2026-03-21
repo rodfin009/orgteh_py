@@ -1435,6 +1435,7 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
      * If you define a mask (pos_mask, neg_mask, etc.), you MUST use it in a computation
      * Return values must be logically correct — check the sign of penalties (adding penalties should increase loss, not decrease it)
      * After writing the code, mentally trace through it top-to-bottom and verify: does every line serve a purpose?
+     * API call results MUST be used — if you write resp = client.chat.completions.create(...), you MUST extract and use resp.choices[0].message.content (or logprobs etc.) in actual logic. Never store an API response in a variable and then ignore it.
      * If showing a simplified/demo version, add a comment: # Note: replace X with real Y in production
 
    "## Integrating with Orgteh":
@@ -1622,6 +1623,7 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
      * If you define a mask (pos_mask, neg_mask, etc.), you MUST use it in a computation
      * Return values must be logically correct — check the sign of penalties (adding penalties should increase loss, not decrease it)
      * After writing the code, mentally trace through it top-to-bottom and verify: does every line serve a purpose?
+     * API call results MUST be used — if you write resp = client.chat.completions.create(...), you MUST extract and use resp.choices[0].message.content (or logprobs etc.) in actual logic. Never store an API response in a variable and then ignore it.
      * If showing a simplified/demo version, add a comment: # Note: replace X with real Y in production
 
    "## Integrating with Orgteh":
@@ -2081,9 +2083,10 @@ CHECK AND FIX:
 1. Dead variables — declared but never used (e.g. pos_mask defined but ignored in computation)
 2. Dead functions — defined but never called in the snippet
 3. Missing optimizer steps — if loss.backward() appears, also add optimizer.zero_grad() and optimizer.step() (or a comment marking where to call them)
-4. Wrong signs — penalties that should INCREASE loss must be added (+), not subtracted (-)
-5. Logic errors — formula does not match its stated intent
-6. Wrong/missing return values
+4. API call results stored but never used — if resp = client.chat.completions.create(...) is assigned, resp.choices[0].message.content (or .logprobs) MUST be extracted and used. If the variable is unused, either use it or remove the call entirely.
+5. Wrong signs — penalties that should INCREASE loss must be added (+), not subtracted (-)
+6. Logic errors — formula does not match its stated intent
+7. Wrong/missing return values
 
 RULES:
 - Return ONLY the corrected blocks in the exact format below
