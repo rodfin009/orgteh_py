@@ -117,6 +117,22 @@ def save_blog_post(data: dict) -> int:
     finally:
         conn.close()
 
+def update_blog_post_ar(slug: str, title_ar: str, content_ar: str, summary_ar: str):
+    conn = _get_conn()
+    if not conn:
+        raise RuntimeError("[BlogDB] No DB connection")
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+            UPDATE blog_posts SET title_ar=%s, content_ar=%s, summary_ar=%s WHERE slug=%s LIMIT 1
+            """, (title_ar, content_ar, summary_ar, slug))
+        logger.info(f"[BlogDB] AR updated: {slug}")
+    except Exception as e:
+        logger.error(f"[BlogDB] update_blog_post_ar: {e}")
+        raise
+    finally:
+        conn.close()
+
 def get_posts(page: int = 1, limit: int = 12) -> tuple[list[dict], int]:
     conn = _get_conn()
     if not conn:
@@ -2405,54 +2421,53 @@ async def _run_blog_generation_verbose(count: int):
             words_en   = len(content_en.split())
             yield log_ok(f"  EN article: <b>{words_en}</b> words in <b>{elapsed_en}s</b>")
 
-            yield log_info("  Translating to Arabic (direct NVIDIA stream)…")
-            t0         = datetime.utcnow()
-            content_ar = None
-            async for event, payload_data in _stream_generate_ar(content_en, catalog_ar):
-                if event == "progress":
-                    yield payload_data
-                elif event == "done":
-                    content_ar = payload_data
-                elif event == "error":
-                    yield log_err(f"  AR stream error: {payload_data}")
-            elapsed_ar = int((datetime.utcnow() - t0).total_seconds())
-            if not content_ar:
-                yield log_err(f"  AR translation failed after {elapsed_ar}s")
-                continue
-            content_ar = _fix_model_links(content_ar, relevant, lang="ar")
-            content_ar = _clean_generated_content(content_ar)
-            content_ar = _restore_mermaid_blocks(content_ar, content_en)
-            words_ar = len(content_ar.split())
-            yield log_ok(f"  AR article: <b>{words_ar}</b> words in <b>{elapsed_ar}s</b>")
             title_en = _extract_h1(content_en)
-            title_ar = _extract_h1(content_ar)
             slug     = _make_slug(title_en)
 
-            yield log_info(f"  Saving to DB — slug: <code>{slug}</code>")
+            yield log_info(f"  Saving EN to DB — slug: <code>{slug}</code>")
             save_blog_post({
                 "slug":         slug,
                 "arxiv_id":     paper["arxiv_id"],
                 "arxiv_url":    paper["url"],
                 "title_en":     title_en,
-                "title_ar":     title_ar,
+                "title_ar":     title_en,
                 "content_en":   content_en,
-                "content_ar":   content_ar,
+                "content_ar":   "",
                 "summary_en":   _extract_summary(content_en),
-                "summary_ar":   _extract_summary(content_ar),
+                "summary_ar":   "",
                 "seo_keywords": json.dumps(seo_kw),
                 "published_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
             })
-
             mark_arxiv_id_seen(paper["arxiv_id"])
             if paper.get("_embedding"):
                 store_article_embedding(paper["arxiv_id"], paper["_embedding"])
+            yield log_ok(f'  EN saved! <a href="/en/blog/{slug}" target="_blank" style="color:#818cf8">/en/blog/{slug}</a>')
 
-            published.append({"slug": slug, "title_en": title_en, "arxiv_id": paper["arxiv_id"]})
-            yield log_ok(
-                f"  🎉 Published! "
-                f'<a href="/en/blog/{slug}" target="_blank" style="color:#818cf8">'
-                f'/en/blog/{slug}</a>'
+            yield log_info("  Translating to Arabic — opening fresh connection…")
+            yield (
+                f'<script>\n'
+                f'(function(){{\n'
+                f'  var slug="{slug}";\n'
+                f'  var secret=new URLSearchParams(window.location.search).get("secret");\n'
+                f'  var logDiv=document.getElementById("log");\n'
+                f'  fetch("/api/blog/translate-ar?slug="+encodeURIComponent(slug)+"&secret="+encodeURIComponent(secret||""),{{\n'
+                f'    method:"GET",credentials:"same-origin"\n'
+                f'  }}).then(function(r){{\n'
+                f'    var reader=r.body.getReader(),dec=new TextDecoder();\n'
+                f'    function read(){{reader.read().then(function(v){{\n'
+                f'      if(v.done)return;\n'
+                f'      var lines=dec.decode(v.value).split("\\n");\n'
+                f'      lines.forEach(function(l){{if(l){{var d=document.createElement("div");d.innerHTML=l;logDiv.appendChild(d);}}}});\n'
+                f'      window.scrollTo(0,document.body.scrollHeight);\n'
+                f'      read();\n'
+                f'    }})}}\n'
+                f'    read();\n'
+                f'  }});\n'
+                f'}})();\n'
+                f'</script>\n'
             )
+
+            published.append({"slug": slug, "title_en": title_en, "arxiv_id": paper["arxiv_id"], "pending_ar": True})
 
             if idx < len(selected):
                 yield log_info("  Waiting 3s before next article…")
@@ -2638,6 +2653,75 @@ async def blog_cron_trigger(request: Request, secret: str = "", count: int = 3):
             "Transfer-Encoding":  "chunked",
             "X-Content-Type-Options": "nosniff",
         },
+    )
+
+@blog_router.get("/api/blog/translate-ar")
+async def blog_translate_ar(request: Request, slug: str = "", secret: str = ""):
+    if not _CRON_SECRET or secret != _CRON_SECRET:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    if not slug:
+        return JSONResponse({"error": "slug required"}, status_code=400)
+
+    post = get_post_by_slug(slug)
+    if not post:
+        return JSONResponse({"error": "slug not found"}, status_code=404)
+
+    content_en = post.get("content_en", "")
+    if not content_en:
+        return JSONResponse({"error": "no EN content"}, status_code=400)
+
+    async def stream_ar():
+        from datetime import datetime as _dt
+        ts = lambda: _dt.utcnow().strftime("%H:%M:%S")
+
+        def _line(icon, msg, color="#e0e0e0"):
+            return (
+                f'<div class="log-line"><span class="ts">[{ts()}]</span> '
+                f'<span>{icon}</span> <span style="color:{color}">{msg}</span></div>\n'
+            )
+
+        yield (_line("📌", "AR translation started (fresh connection)…", "#93c5fd")).encode()
+
+        relevant = await asyncio.to_thread(
+            retrieve_relevant_catalog,
+            (post.get("title_en","") + ". " + content_en[:300]),
+            _CATALOG_TOP_K
+        )
+        catalog_ar = _format_catalog_prompt(relevant, lang="ar")
+
+        content_ar = None
+        t0 = _dt.utcnow()
+        async for event, data in _stream_generate_ar(content_en, catalog_ar):
+            if event == "progress":
+                yield data.encode()
+            elif event == "done":
+                content_ar = data
+            elif event == "error":
+                yield (_line("❌", f"AR error: {data}", "#f87171")).encode()
+        elapsed = int((_dt.utcnow() - t0).total_seconds())
+
+        if not content_ar:
+            yield (_line("❌", f"AR translation failed after {elapsed}s", "#f87171")).encode()
+            return
+
+        content_ar = _fix_model_links(content_ar, relevant, lang="ar")
+        content_ar = _clean_generated_content(content_ar)
+        content_ar = _restore_mermaid_blocks(content_ar, content_en)
+        title_ar   = _extract_h1(content_ar)
+        summary_ar = _extract_summary(content_ar)
+
+        try:
+            update_blog_post_ar(slug, title_ar, content_ar, summary_ar)
+            words_ar = len(content_ar.split())
+            yield (_line("✅", f"AR done: <b>{words_ar}</b> words in <b>{elapsed}s</b> — <a href=\"/ar/blog/{slug}\" target=\"_blank\" style=\"color:#818cf8\">/ar/blog/{slug}</a>", "#4ade80")).encode()
+        except Exception as e:
+            yield (_line("❌", f"DB update failed: {e}", "#f87171")).encode()
+
+    from fastapi.responses import StreamingResponse as _SR
+    return _SR(
+        stream_ar(),
+        media_type="text/html; charset=utf-8",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache, no-store"},
     )
 
 @blog_router.get("/{lang}/blog", response_class=HTMLResponse)
