@@ -1441,7 +1441,7 @@ Source: {paper['url']}
 {catalog_ctx}
 
 === ARTICLE REQUIREMENTS ===
-1. STRICT WORD COUNT: write between 1300 words — no more, no less. Count every word carefully. Each section must be fully developed. Stop at 1600 words maximum.
+1. STRICT WORD COUNT: write between 1100 words — no more, no less. Count every word carefully. Each section must be fully developed. Stop at 1600 words maximum.
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
 4. Required sections IN THIS ORDER:
