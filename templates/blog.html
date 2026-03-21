@@ -395,9 +395,6 @@ html[dir="rtl"] #article-body blockquote { border-left:none; border-right:4px so
         <h1 class="text-3xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white mb-4">
           {{ post['title_' ~ lang] or post.title_en }}
         </h1>
-        <p class="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">
-          {{ post['summary_' ~ lang] or post.summary_en or '' }}
-        </p>
       </header>
 
       <div class="h-px w-full bg-gradient-to-r from-transparent via-purple-500/40 to-transparent mb-8"></div>
