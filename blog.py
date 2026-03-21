@@ -1403,21 +1403,17 @@ Title: {paper['title']}
 Abstract: {paper['abstract']}
 Source: {paper['url']}
 
-=== SEO KEYWORDS (weave naturally) ===
+=== SEO KEYWORDS (weave in naturally) ===
 {kw_str}
 
-=== ORGTEH MODELS & TOOLS — READ CAREFULLY ===
+=== ORGTEH MODELS & TOOLS — INJECT THESE INTO ARTICLE ===
 {catalog_ctx}
 
-=== REQUIREMENTS ===
-1. LENGTH: Write AT LEAST 1400 words. Do not stop early. Each section must be thorough: Introduction (150+ words), What This Research Found (250+ words), Why It Matters (200+ words), Practical Applications (200+ words), Implementation Guide (300+ words with full code), Integrating with Orgteh (150+ words), Key Takeaways (100+ words).
-2. Audience: software developers and AI practitioners — practical, no heavy math
-3. Markdown formatting:
-   - Headings: ALWAYS use ATX style: ## Heading (NEVER underline with === or ---)
-   - Bold: **text**
-   - Code: `inline` or ```python blocks
-   - Lists: - item or 1. item
-4. Required sections IN ORDER:
+=== ARTICLE REQUIREMENTS ===
+1. Minimum 1600 words — comprehensive and detailed
+2. Audience: developers and AI practitioners — practical, no heavy math
+3. Markdown: # H1, ## H2, ### H3
+4. Required sections IN THIS ORDER:
    ## Introduction
    ## What This Research Found
    ## Why It Matters for Developers
@@ -1426,37 +1422,57 @@ Source: {paper['url']}
    ## Integrating with Orgteh
    ## Key Takeaways
 
-5. HYPERLINKS — CRITICAL RULE:
-   In "## Integrating with Orgteh", you MUST write each model/tool as a clickable markdown link.
-   Use EXACTLY the markdown link shown in the ORGTEH MODELS & TOOLS section above.
-   Example of CORRECT format: [Llama 4 Scout](/en/models/llama-scout) supports long context.
-   Example of WRONG format: Llama 4 Scout supports long context. ← NO LINK = WRONG
-   Every model and tool mentioned MUST be a clickable link. No plain text names allowed.
+5. SECTION-SPECIFIC RULES:
 
-6. MERMAID DIAGRAM — CRITICAL RULES:
-   Include exactly ONE Mermaid diagram in ```mermaid fenced block.
-   ⚠️ ALL node labels MUST be in ENGLISH ONLY — NEVER use Arabic, Chinese, or any non-Latin text in Mermaid nodes.
-   ONLY use: A[English Label] --> B[English Label]
-   DO NOT use: curly braces {{ }}, angle brackets >label], or any special chars in labels.
-   Keep labels SHORT (2-4 English words). VALID example:
-   ```mermaid
-   flowchart LR
-     A[Input Data] --> B[Process]
-     B --> C[Output]
-     B --> D[Store Result]
-   ```
-   INVALID (will break): A[بيانات المدخل] or A{{label}} or A>label]
+   "## Introduction":
+   - First paragraph ≤160 chars (used as meta description)
+   - Hook: why this research matters RIGHT NOW for developers
 
-7. Implementation Guide:
-   MUST include Python code using Orgteh API:
-   from openai import OpenAI
-   client = OpenAI(base_url="https://orgteh.com/v1", api_key="YOUR_ORGTEH_API_KEY")
+   "## What This Research Found":
+   - Explain the core idea in plain language — no formulas
+   - Use analogies if helpful
+   - Include ONE Mermaid diagram here or in Practical Applications:
+     * ENGLISH labels only — never Arabic or any non-Latin text in nodes
+     * Use simple: A[Label] --> B[Label] syntax only
+     * NO curly braces {{}} in node labels
+     * Example: flowchart LR 
+  A[Input] --> B[Process] --> C[Output]
 
-8. NO inline citations — source card added automatically by the website
+   "## Implementation Guide":
+   - MUST include a real Python code example that uses Orgteh API:
+     ```python
+     from openai import OpenAI
+     client = OpenAI(
+         base_url="https://orgteh.com/v1",
+         api_key="YOUR_ORGTEH_API_KEY"
+     )
+     # ... practical implementation of the paper's concept
+     ```
+   - The code must implement the paper's core idea using Orgteh API
+   - Add inline comments explaining what each part does
 
-9. Tone: conversational, like a senior engineer who tested the ideas
+   "## Integrating with Orgteh":
+   - Use the ORGTEH MODELS & TOOLS provided above
+   - Explain WHICH specific model/tool and WHY it fits this use case
+   - Natural prose, NOT bullet list
+   - Use exact markdown links (already provided above with /{lang}/ prefix)
+   - {demo_instruction}
 
-Start directly with the # H1 title. No preamble."""
+   "## Key Takeaways":
+   - 3-5 concrete actionable points
+   - End with a call-to-action toward Orgteh
+
+6. NO inline citations — source card is added automatically by the website
+
+7. Tone: conversational, like a senior engineer who READ the paper and TESTED the ideas
+
+DO NOT:
+- Copy sentences from the abstract verbatim
+- Add preamble before the # H1 title
+- Use /ar/ links (English article only)
+- Write the code without using Orgteh API
+
+Start directly with the # H1 title."""
 
     key = os.environ.get("NVIDIA_API_KEYS", os.environ.get("NVIDIA_API_KEY", ""))
     if key:
@@ -1465,7 +1481,7 @@ Start directly with the # H1 title. No preamble."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.65, "top_p": 0.72, "max_tokens": 8192, "stream": True,
+        "temperature": 0.72, "top_p": 0.9, "max_tokens": 8192, "stream": True,
     }
 
     content = ""
@@ -1492,7 +1508,15 @@ Start directly with the # H1 title. No preamble."""
                     except Exception:
                         pass
         logger.info(f"[BlogGen] EN done: {len(content.split())} words")
-        return content.strip() or None
+        result = content.strip()
+        if not result:
+            return None
+        # تحقق: إذا المحتوى يحتوي كثير من غير اللاتيني (صيني/ياباني) نرفضه
+        non_latin = sum(1 for c in result if ord(c) > 0x2E7F)
+        if non_latin > len(result) * 0.15:
+            logger.error(f"[BlogGen] EN rejected: non-Latin ratio {non_latin/len(result):.0%} — model generated wrong language")
+            return None
+        return result
     except Exception as e:
         logger.error(f"[BlogGen] EN error: {type(e).__name__}: {e}")
         return content.strip() if len(content) > 500 else None
