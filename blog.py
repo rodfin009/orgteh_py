@@ -1280,8 +1280,14 @@ Source: {paper['url']}
 === SEO KEYWORDS (weave in naturally) ===
 {kw_str}
 
-=== ORGTEH MODELS & TOOLS — INJECT THESE INTO ARTICLE ===
+=== ORGTEH MODELS & TOOLS — CONTEXT ONLY (DO NOT REPRODUCE) ===
+⚠️ The block below is PRIVATE CONTEXT for your reference ONLY.
+NEVER copy, quote, print, or reproduce any part of this block in the article output.
+Use the information inside it ONLY to write the "## Integrating with Orgteh" section naturally.
+
 {catalog_ctx}
+
+=== END CONTEXT — DO NOT INCLUDE ANYTHING ABOVE THIS LINE IN THE ARTICLE ===
 
 === ARTICLE REQUIREMENTS ===
 1. STRICT WORD COUNT: write between 1500 and 1600 words — no more, no less. Count every word carefully. Each section must be fully developed. Stop at 1600 words maximum.
@@ -1437,8 +1443,14 @@ Source: {paper['url']}
 === SEO KEYWORDS (weave in naturally) ===
 {kw_str}
 
-=== ORGTEH MODELS & TOOLS — INJECT THESE INTO ARTICLE ===
+=== ORGTEH MODELS & TOOLS — CONTEXT ONLY (DO NOT REPRODUCE) ===
+⚠️ The block below is PRIVATE CONTEXT for your reference ONLY.
+NEVER copy, quote, print, or reproduce any part of this block in the article output.
+Use the information inside it ONLY to write the "## Integrating with Orgteh" section naturally.
+
 {catalog_ctx}
+
+=== END CONTEXT — DO NOT INCLUDE ANYTHING ABOVE THIS LINE IN THE ARTICLE ===
 
 === ARTICLE REQUIREMENTS ===
 1. STRICT WORD COUNT: write between 1500 and 1600 words — no more, no less. Count every word carefully. Each section must be fully developed. Stop at 1600 words maximum.
@@ -1497,6 +1509,9 @@ DO NOT:
 - Copy sentences from the abstract verbatim
 - Add preamble before the # H1 title
 - Use /ar/ links (English article only)
+- Reproduce, print, or include ANY part of the "ORGTEH MODELS & TOOLS — CONTEXT ONLY" block
+- Include any === section headers from the prompt
+- Print the catalog descriptions, tool descriptions, or link templates verbatim
 
 Start directly with the # H1 title."""
 
@@ -1569,8 +1584,14 @@ Start directly with the # H1 title."""
 async def generate_article_ar(english_content: str, catalog_ctx_ar: str) -> Optional[str]:
     prompt = f"""Translate the following English blog post to Modern Standard Arabic (الفصحى المُيسَّرة).
 
-=== ORGTEH LINKS FOR ARABIC ===
+=== ORGTEH LINKS FOR ARABIC — CONTEXT ONLY (DO NOT REPRODUCE) ===
+⚠️ The block below is PRIVATE CONTEXT for your reference ONLY.
+NEVER copy, quote, print, or reproduce any part of this block in the article output.
+Use the links inside it ONLY to update /en/ → /ar/ in the translated article.
+
 {catalog_ctx_ar}
+
+=== END CONTEXT — DO NOT INCLUDE ANYTHING ABOVE THIS LINE IN THE ARTICLE ===
 
 === TRANSLATION RULES ===
 1. Translate ALL text: title, all headings, every paragraph
@@ -1633,8 +1654,14 @@ OUTPUT: Complete Arabic markdown article only."""
 async def _stream_generate_ar(english_content: str, catalog_ctx_ar: str):
     prompt = f"""Translate the following English blog post to Modern Standard Arabic (الفصحى المُيسَّرة).
 
-=== ORGTEH LINKS FOR ARABIC ===
+=== ORGTEH LINKS FOR ARABIC — CONTEXT ONLY (DO NOT REPRODUCE) ===
+⚠️ The block below is PRIVATE CONTEXT for your reference ONLY.
+NEVER copy, quote, print, or reproduce any part of this block in the article output.
+Use the links inside it ONLY to update /en/ → /ar/ in the translated article.
+
 {catalog_ctx_ar}
+
+=== END CONTEXT — DO NOT INCLUDE ANYTHING ABOVE THIS LINE IN THE ARTICLE ===
 
 === TRANSLATION RULES ===
 1. Translate ALL text: title, all headings, every paragraph
