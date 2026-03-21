@@ -1233,15 +1233,16 @@ ORGTEH PLATFORM CAPABILITIES (what we actually offer right now):
 Models: {platform_models}
 Tools: {platform_tools}
 
-SELECTION RULE — one question only:
-"Can a developer implement or experiment with the core idea of this paper using the models/tools listed above?"
-→ YES → select it
-→ NO (requires hardware/APIs/infrastructure NOT listed above) → skip it
+SELECTION RULE — ask these two questions:
+1. "Can a developer call the Orgteh API (text chat completions / embeddings / listed tools) to meaningfully experiment with this paper's core idea?"
+2. "Would the code example be REAL and runnable — not a fake simulation of something the API cannot actually do?"
+→ BOTH YES → select it
+→ EITHER NO → skip it
 
-Prefer papers that:
-✅ Teach something developers can immediately apply via API calls
-✅ Have a clear practical angle (not pure theory or hardware benchmarks)
-✅ Are novel and interesting for an AI developer audience
+✅ SELECT: Papers about prompting, RAG, agents, reasoning, text classification, code gen, embeddings, search, tool use, fine-tuning concepts, LLM evaluation
+❌ SKIP: Papers whose core contribution is image/video/audio/3D generation, diffusion models, NeRF, flow matching for pixels, robotics control, hardware acceleration — EVEN IF they mention LLMs tangentially
+
+CRITICAL: Do NOT select a paper just because you can write a plausible-looking code snippet. The code must do what the paper actually describes using real Orgteh API capabilities.
 
 PAPERS (pre-ranked by score — higher is better):
 {numbered}
