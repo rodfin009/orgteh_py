@@ -2224,12 +2224,18 @@ _CRON_HTML_HEAD = """<!DOCTYPE html>
   <p>Started at {start_time} UTC — count={count}</p>
 </div>
 <div id="log">
+"""
+
+_CRON_HTML_FOOT_OK = """
 </div>
 <div class="result-box result-ok">
   <h2>✅ Pipeline completed successfully</h2>
   <pre>{result_json}</pre>
 </div>
 </body></html>
+"""
+
+_CRON_HTML_FOOT_ERR = """
 </div>
 <div class="result-box result-err">
   <h2>❌ Pipeline finished with errors</h2>
