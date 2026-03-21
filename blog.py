@@ -251,7 +251,7 @@ def delete_blog_post(slug: str) -> bool:
 _CATALOG_HASH_KEY  = "blog:catalog_hash_v3"
 _CATALOG_TOP_K     = 10
 
-GENERATION_MODEL = "mistralai/mistral-large-3-675b-instruct-2512"
+GENERATION_MODEL = "meta/llama-3.1-405b-instruct"
 EMBED_MODEL      = "nvidia/llama-nemotron-embed-1b-v2"
 RERANK_MODEL     = "nvidia/llama-nemotron-rerank-1b-v2"
 _RERANK_THRESHOLD = 20
@@ -2206,7 +2206,24 @@ async def _run_blog_generation_verbose(count: int):
 
             yield log_info("  Generating English article (async httpx streaming — no timeout)…")
             t0 = datetime.utcnow()
-            content_en = await generate_article_en(paper, seo_kw, catalog_en, demo_result=demo_result)
+            _task_en = asyncio.create_task(
+                generate_article_en(paper, seo_kw, catalog_en, demo_result=demo_result)
+            )
+            while not _task_en.done():
+                try:
+                    await asyncio.wait_for(asyncio.shield(_task_en), timeout=8.0)
+                except asyncio.TimeoutError:
+                    _secs = int((datetime.utcnow() - t0).total_seconds())
+                    yield (
+                        f'<div class="log-line">'
+                        f'<span class="ts">[{_ts()}]</span> '
+                        f'<span style="color:#4b5563">⏳ EN generating… {_secs}s elapsed</span>'
+                        f'</div>\n'
+                        f'<script>window.scrollTo(0,document.body.scrollHeight);</script>\n'
+                    )
+                except Exception:
+                    break
+            content_en = _task_en.result() if not _task_en.exception() else None
             elapsed_en = int((datetime.utcnow() - t0).total_seconds())
             if not content_en:
                 yield log_err(f"  EN generation failed after {elapsed_en}s — check Vercel logs: [BlogGen] EN error")
@@ -2218,7 +2235,24 @@ async def _run_blog_generation_verbose(count: int):
 
             yield log_info("  Translating to Arabic (async httpx streaming)…")
             t0 = datetime.utcnow()
-            content_ar = await generate_article_ar(content_en, catalog_ar)
+            _task_ar = asyncio.create_task(
+                generate_article_ar(content_en, catalog_ar)
+            )
+            while not _task_ar.done():
+                try:
+                    await asyncio.wait_for(asyncio.shield(_task_ar), timeout=8.0)
+                except asyncio.TimeoutError:
+                    _secs = int((datetime.utcnow() - t0).total_seconds())
+                    yield (
+                        f'<div class="log-line">'
+                        f'<span class="ts">[{_ts()}]</span> '
+                        f'<span style="color:#4b5563">⏳ AR translating… {_secs}s elapsed</span>'
+                        f'</div>\n'
+                        f'<script>window.scrollTo(0,document.body.scrollHeight);</script>\n'
+                    )
+                except Exception:
+                    break
+            content_ar = _task_ar.result() if not _task_ar.exception() else None
             elapsed_ar = int((datetime.utcnow() - t0).total_seconds())
             if not content_ar:
                 yield log_err(f"  AR translation failed after {elapsed_ar}s")
