@@ -1607,7 +1607,7 @@ Use the links inside it ONLY to update /en/ → /ar/ in the translated article.
 6. Translate naturally — write as if originally authored in Arabic
 7. Do NOT add preamble — output ONLY the translated markdown
 8. Technical terms: RAG, LLM, API, prompt, token → keep in English
-9. CRITICAL: For any English acronym or product name inside Arabic text (e.g. VID-AD, GPT, WALAR), wrap it with Unicode LTR markers: ‎{term}‎ — this ensures correct display direction
+9. CRITICAL: For any English acronym or product name inside Arabic text (e.g. VID-AD, GPT, WALAR), wrap it with Unicode LTR markers: ‎ENGLISH_WORD‎ — this ensures correct display direction
 9. Do NOT add preamble like "إليك الترجمة"
 10. CRITICAL: Do NOT include any blockquote with "المصدر:" or "Source:"
 
@@ -1679,7 +1679,7 @@ Use the links inside it ONLY to update /en/ → /ar/ in the translated article.
 6. Translate naturally — write as if originally authored in Arabic
 7. Do NOT add preamble — output ONLY the translated markdown
 8. Technical terms: RAG, LLM, API, prompt, token → keep in English
-9. CRITICAL: For any English acronym or product name inside Arabic text (e.g. VID-AD, GPT, WALAR), wrap it with Unicode LTR markers: ‎{term}‎ — this ensures correct display direction
+9. CRITICAL: For any English acronym or product name inside Arabic text (e.g. VID-AD, GPT, WALAR), wrap it with Unicode LTR markers: ‎ENGLISH_WORD‎ — this ensures correct display direction
 9. Do NOT add preamble like "إليك الترجمة"
 10. CRITICAL: Do NOT include any blockquote with "المصدر:" or "Source:"
 
