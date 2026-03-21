@@ -1578,6 +1578,7 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
      )
      ```
    - The code must implement the paper's core idea using Orgteh API
+   - CRITICAL: Use ONLY real model short_keys from the catalog above (e.g. "deepseek", "llama-4-scout", "kimi-k2"). NEVER invent model names like "llama-scout" or "gpt-4". Copy the exact key from the markdown links provided.
 
    "## Integrating with Orgteh":
    - Use the ORGTEH MODELS & TOOLS provided above
