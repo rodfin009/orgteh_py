@@ -2717,6 +2717,37 @@ async def blog_cron_trigger(request: Request, secret: str = "", count: int = 3):
         },
     )
 
+@blog_router.get("/api/admin/blog/clear-seen-ids")
+async def admin_clear_seen_ids_get(request: Request, secret: str = "", mode: str = "stale"):
+    if not _CRON_SECRET or secret != _CRON_SECRET:
+        return JSONResponse({"error": "Invalid secret"}, status_code=401)
+
+    r = _redis()
+    if not r:
+        return JSONResponse({"error": "Redis unavailable"}, status_code=503)
+
+    if mode == "all":
+        r.delete("blog:seen_arxiv_ids")
+        return JSONResponse({"ok": True, "mode": "all", "message": "All seen_ids cleared"})
+
+    db_ids  = set(get_all_arxiv_ids())
+    members = r.smembers("blog:seen_arxiv_ids") or set()
+    stale   = [
+        m.decode() if isinstance(m, bytes) else m
+        for m in members
+        if (m.decode() if isinstance(m, bytes) else m) not in db_ids
+    ]
+    if stale:
+        r.srem("blog:seen_arxiv_ids", *stale)
+    return JSONResponse({
+        "ok": True,
+        "mode": "stale",
+        "total_in_redis": len(members),
+        "in_db": len(db_ids),
+        "removed_stale": len(stale),
+        "remaining": len(members) - len(stale),
+    })
+
 @blog_router.post("/api/admin/blog/clear-seen-ids")
 async def admin_clear_seen_ids(request: Request):
     from services.auth import get_current_user_email
