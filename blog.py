@@ -1373,6 +1373,13 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
 === END CONTEXT — DO NOT INCLUDE ANYTHING ABOVE THIS LINE IN THE ARTICLE ===
 
 === ARTICLE REQUIREMENTS ===
+0. SUMMARY LINE — MANDATORY FIRST LINE:
+   Write exactly ONE line at the very start before the # title:
+   %%SUMMARY: <one sentence, max 160 chars, describing the article>%%
+   This line will be extracted and removed from the article body automatically.
+   It will NOT appear in the article — it is metadata only.
+   Example: %%SUMMARY: How WALAR uses reinforcement learning to improve low-resource translation without parallel data.%%
+
 1. WORD COUNT: write at least 1500 words. Each section must be fully developed with concrete examples and depth.
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
@@ -1542,6 +1549,13 @@ Use the information inside it ONLY to write the "## Integrating with Orgteh" sec
 === END CONTEXT — DO NOT INCLUDE ANYTHING ABOVE THIS LINE IN THE ARTICLE ===
 
 === ARTICLE REQUIREMENTS ===
+0. SUMMARY LINE — MANDATORY FIRST LINE:
+   Write exactly ONE line at the very start before the # title:
+   %%SUMMARY: <one sentence, max 160 chars, describing the article>%%
+   This line will be extracted and removed from the article body automatically.
+   It will NOT appear in the article — it is metadata only.
+   Example: %%SUMMARY: How WALAR uses reinforcement learning to improve low-resource translation without parallel data.%%
+
 1. WORD COUNT: write at least 1500 words. Each section must be fully developed with concrete examples and depth.
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
@@ -1968,6 +1982,11 @@ def _sanitize_mermaid_line(line: str) -> str:
     fixed = _re.sub(r'\[([^\]]+)\]', _clean_node, fixed)
     return fixed
 
+def _strip_summary_marker(content: str) -> str:
+    lines = content.splitlines()
+    cleaned = [l for l in lines if not (l.strip().startswith("%%SUMMARY:") and l.strip().endswith("%%"))]
+    return "\n".join(cleaned).strip()
+
 def _clean_generated_content(content):
     out_lines = []
     in_mermaid = False
@@ -2003,7 +2022,11 @@ def _extract_h1(md: str) -> str:
 def _extract_summary(md: str, max_chars: int = 220) -> str:
     for line in md.splitlines():
         line = line.strip()
-        if not line or line.startswith("#") or line.startswith("```") or line.startswith("---"):
+        if line.startswith("%%SUMMARY:") and line.endswith("%%"):
+            return line[10:-2].strip()[:max_chars]
+    for line in md.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or line.startswith("```") or line.startswith("---") or line.startswith("%%"):
             continue
         clean = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", line)
         clean = re.sub(r"\*{1,3}([^*]+)\*{1,3}", r"\1", clean)
@@ -2080,6 +2103,7 @@ async def run_blog_generation(count: int = 3) -> dict:
             if not content_en:
                 logger.warning(f"[BlogGen] EN failed: {paper['arxiv_id']}")
                 continue
+            content_en = _strip_summary_marker(content_en)
             content_en = _fix_model_links(content_en, relevant, lang="en")
             content_en = _clean_generated_content(content_en)
 
@@ -2548,6 +2572,7 @@ async def _run_blog_generation_verbose(count: int):
             if not content_en:
                 yield log_err(f"  EN generation failed after {elapsed_en}s")
                 continue
+            content_en = _strip_summary_marker(content_en)
             content_en = _fix_model_links(content_en, relevant, lang="en")
             content_en = _clean_generated_content(content_en)
             words_en   = len(content_en.split())
