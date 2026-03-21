@@ -366,16 +366,16 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / (mag_a * mag_b) if mag_a and mag_b else 0.0
 
 def _rerank(query: str, passages: list[str], top_k: int = None) -> list[int]:
-    """
-    يُعيد مؤشرات passages مرتبة من الأكثر صلة للأقل.
-    يستخدم NVIDIA Rerank API المباشر (ليس OpenAI compatible).
+\
+\
+\
+\
+\
+\
+\
+\
+\
 
-    الاستخدام:
-      indices = _rerank("موضوع المقالة", ["وصف نموذج 1", "وصف نموذج 2", ...])
-      # indices[0] = رقم النموذج الأنسب
-
-    Fallback: إذا فشل API يُرجع الترتيب الأصلي بدون تغيير.
-    """
     if not passages:
         return list(range(len(passages)))
 
@@ -736,18 +736,18 @@ def _score_paper(paper: dict) -> float:
     return round(score, 3)
 
 def _batch_semantic_dedup(embeddings_map: dict, threshold: float = 0.87) -> set:
-    """
-    فلترة دلالية batch لمنع تكرار المواضيع.
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
 
-    المرحلة 1 — cosine (دائماً):
-      يجد الأوراق المشبوهة بسرعة (threshold = 0.87)
-
-    المرحلة 2 — Rerank للتحقق (عند وجود مقالات منشورة كثيرة > _RERANK_THRESHOLD):
-      يتحقق هل الورقة "مكررة دلالياً فعلاً" بدقة أعلى
-      يقلل False Positives: cosine أحياناً يعتبر ورقتين متشابهتين وهما مختلفتان
-
-    Returns: set of arxiv_ids التي تُعتبر مكررة
-    """
     if not embeddings_map:
         return set()
     stored = _load_article_embeddings()
@@ -998,11 +998,11 @@ async def get_seo_keywords(paper_title: str, paper_abstract: str = "") -> list[s
     return final[:25]
 
 def _classify_paper_complexity(paper: dict) -> str:
-    """
-    يُصنّف الورقة إلى SIMPLE أو COMPLEX.
-    يعتمد على LLM لأنه أدق من keywords.
-    يُرجع: "simple" أو "complex"
-    """
+\
+\
+\
+\
+
     prompt = f"""Classify this AI research paper as SIMPLE or COMPLEX for live API demos.
 
 SIMPLE = can be demonstrated with ONE single API call (one prompt → one response):
@@ -1284,7 +1284,7 @@ Source: {paper['url']}
 {catalog_ctx}
 
 === ARTICLE REQUIREMENTS ===
-1. MANDATORY MINIMUM 1600 words — count every word, do NOT stop early. Each section must be fully developed with multiple paragraphs. Short sections are NOT acceptable.
+1. STRICT WORD COUNT: write between 1500 and 1600 words — no more, no less. Count every word carefully. Each section must be fully developed. Stop at 1600 words maximum.
 2. Audience: developers and AI practitioners — practical, no heavy math
 3. Markdown: # H1, ## H2, ### H3
 4. Required sections IN THIS ORDER:
@@ -1355,7 +1355,7 @@ Start directly with the # H1 title."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.72, "top_p": 0.90, "max_tokens": 8192, "stream": True,
+        "temperature": 0.35, "top_p": 0.75, "max_tokens": 8192, "stream": True,
         "frequency_penalty": 0.0, "presence_penalty": 0.0,
     }
 
@@ -1425,7 +1425,7 @@ OUTPUT: Complete Arabic markdown article only."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.40, "top_p": 0.80, "max_tokens": 8192, "stream": True,
+        "temperature": 0.20, "top_p": 0.70, "max_tokens": 8192, "stream": True,
         "frequency_penalty": 0.0, "presence_penalty": 0.0,
     }
 
@@ -1930,13 +1930,13 @@ def _ts() -> str:
     return datetime.utcnow().strftime("%H:%M:%S")
 
 async def _run_blog_generation_verbose(count: int):
-    """
-    Generator يُنفّذ خط أنابيب التوليد خطوة بخطوة
-    ويُرسل سجلات HTML لحظةً بلحظة.
+\
+\
+\
+\
+\
+\
 
-    Yields: str  → سطر HTML جاهز للبث
-            أو tuple ("__done__", result_dict) في النهاية
-    """
     import traceback
 
     def log(icon: str, msg: str, color: str = "#e0e0e0") -> str:
@@ -2276,10 +2276,11 @@ async def blog_cron_trigger(request: Request, secret: str = "", count: int = 3):
     count = max(1, min(int(count), 5))
     logger.info(f"[Cron] Triggered — {count} article(s)")
 
-    accept     = request.headers.get("accept", "")
-    is_browser = "text/html" in accept
+    start_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    accept = request.headers.get("accept", "")
+    want_json = "application/json" in accept and "text/html" not in accept
 
-    if not is_browser:
+    if want_json:
         try:
             result = await run_blog_generation(count=count)
             result["triggered_at"] = datetime.utcnow().isoformat() + "Z"
@@ -2288,10 +2289,12 @@ async def blog_cron_trigger(request: Request, secret: str = "", count: int = 3):
             logger.error(f"[Cron] Error: {e}")
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
-    start_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    PADDING = b"<!-- " + b"x" * 2048 + b" -->\n"
 
     async def stream_html():
-        yield _CRON_HTML_HEAD.format(start_time=start_time, count=count).encode("utf-8")
+        head = _CRON_HTML_HEAD.format(start_time=start_time, count=count).encode("utf-8")
+        yield head + PADDING
+        await asyncio.sleep(0)
 
         final_result = {"ok": False, "error": "Generator did not complete"}
 
@@ -2323,9 +2326,10 @@ async def blog_cron_trigger(request: Request, secret: str = "", count: int = 3):
         stream_html(),
         media_type="text/html; charset=utf-8",
         headers={
-            "X-Accel-Buffering": "no",
-            "Cache-Control":     "no-cache, no-transform",
-            "Transfer-Encoding": "chunked",
+            "X-Accel-Buffering":  "no",
+            "Cache-Control":      "no-cache, no-store, no-transform",
+            "Transfer-Encoding":  "chunked",
+            "X-Content-Type-Options": "nosniff",
         },
     )
 
