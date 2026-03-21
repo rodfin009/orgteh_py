@@ -1410,9 +1410,13 @@ Source: {paper['url']}
 {catalog_ctx}
 
 === REQUIREMENTS ===
-1. Minimum 1400 words — detailed and comprehensive
+1. LENGTH: Write AT LEAST 1400 words. Do not stop early. Each section must be thorough: Introduction (150+ words), What This Research Found (250+ words), Why It Matters (200+ words), Practical Applications (200+ words), Implementation Guide (300+ words with full code), Integrating with Orgteh (150+ words), Key Takeaways (100+ words).
 2. Audience: software developers and AI practitioners — practical, no heavy math
-3. Markdown: # H1, ## H2, ### H3, **bold**, `code`
+3. Markdown formatting:
+   - Headings: ALWAYS use ATX style: ## Heading (NEVER underline with === or ---)
+   - Bold: **text**
+   - Code: `inline` or ```python blocks
+   - Lists: - item or 1. item
 4. Required sections IN ORDER:
    ## Introduction
    ## What This Research Found
@@ -1430,19 +1434,19 @@ Source: {paper['url']}
    Every model and tool mentioned MUST be a clickable link. No plain text names allowed.
 
 6. MERMAID DIAGRAM — CRITICAL RULES:
-   Include exactly ONE Mermaid diagram. Use ```mermaid fenced block.
-   ONLY use these simple node types — NO special characters inside node labels:
-     - Square: A[Label text]
-     - Round: A(Label text)
-     - Arrow: A --> B
-   DO NOT use curly braces like A{{label}} or angle brackets A>label] in node labels.
-   Keep labels SHORT (2-4 words max). Example of VALID diagram:
+   Include exactly ONE Mermaid diagram in ```mermaid fenced block.
+   ⚠️ ALL node labels MUST be in ENGLISH ONLY — NEVER use Arabic, Chinese, or any non-Latin text in Mermaid nodes.
+   ONLY use: A[English Label] --> B[English Label]
+   DO NOT use: curly braces {{ }}, angle brackets >label], or any special chars in labels.
+   Keep labels SHORT (2-4 English words). VALID example:
    ```mermaid
    flowchart LR
-     A[Input Data] --> B[Model Processing]
-     B --> C[Output Result]
+     A[Input Data] --> B[Process]
+     B --> C[Output]
+     B --> D[Store Result]
    ```
- 
+   INVALID (will break): A[بيانات المدخل] or A{{label}} or A>label]
+
 7. Implementation Guide:
    MUST include Python code using Orgteh API:
    from openai import OpenAI
@@ -1604,8 +1608,14 @@ def _clean_generated_content(content):
             out_lines.append(line)
             continue
         if in_mermaid:
-            fixed = _re.sub(r'\{([^}]+)\}', r'(\1)', line)
-            fixed = _re.sub(r'>([^\]]+)\]', r'[\1]', fixed)
+            import re as _re2
+            fixed = _re2.sub(r'\{([^}]+)\}', r'(\1)', line)
+            fixed = _re2.sub(r'>([^\]]+)\]', r'[\1]', fixed)
+            # إذا الـ node label يحتوي عربي → [Node]
+            def _ar_node(m):
+                lbl = m.group(1)
+                return '[Node]' if any('\u0600' <= c <= '\u06ff' for c in lbl) else m.group(0)
+            fixed = _re2.sub(r'\[([^\]]+)\]', _ar_node, fixed)
             out_lines.append(fixed)
             continue
         if s.startswith('>') and ('Source:' in s or '\u0627\u0644\u0645\u0635\u062f\u0631:' in s):
@@ -2456,4 +2466,4 @@ async def blog_post_page(request: Request, lang: str, slug: str):
 try:
     init_blog_tables()
 except Exception as _e:
-    logger.warning(f"[Blog] Table init deferred: {_e}") 
+    logger.warning(f"[Blog] Table init deferred: {_e}")
