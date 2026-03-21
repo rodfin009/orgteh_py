@@ -252,7 +252,6 @@ _CATALOG_HASH_KEY  = "blog:catalog_hash_v3"
 _CATALOG_TOP_K     = 10
 
 GENERATION_MODEL = "mistralai/mistral-large-3-675b-instruct-2512"
-"
 EMBED_MODEL      = "nvidia/llama-nemotron-embed-1b-v2"
 RERANK_MODEL     = "nvidia/llama-nemotron-rerank-1b-v2"
 _RERANK_THRESHOLD = 20
@@ -1482,7 +1481,7 @@ Start directly with the # H1 title."""
     payload = {
         "model": GENERATION_MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
-        "temperature": 0.3, "top_p": 0.7, "max_tokens": 8192, "stream": True,
+        "temperature": 0.72, "top_p": 0.9, "max_tokens": 8192, "stream": True,
     }
 
     content = ""
@@ -2491,4 +2490,4 @@ async def blog_post_page(request: Request, lang: str, slug: str):
 try:
     init_blog_tables()
 except Exception as _e:
-    logger.warning(f"[Blog] Table init deferred: {_e}") 
+    logger.warning(f"[Blog] Table init deferred: {_e}")
