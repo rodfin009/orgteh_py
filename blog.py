@@ -1442,7 +1442,7 @@ Source: {paper['url']}
      A[Input Data] --> B[Model Processing]
      B --> C[Output Result]
    ```
-
+ 
 7. Implementation Guide:
    MUST include Python code using Orgteh API:
    from openai import OpenAI
