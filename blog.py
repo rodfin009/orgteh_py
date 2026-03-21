@@ -2456,4 +2456,4 @@ async def blog_post_page(request: Request, lang: str, slug: str):
 try:
     init_blog_tables()
 except Exception as _e:
-    logger.warning(f"[Blog] Table init deferred: {_e}")
+    logger.warning(f"[Blog] Table init deferred: {_e}") 
