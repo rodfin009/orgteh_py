@@ -2258,20 +2258,26 @@ async def _run_blog_generation_verbose(count: int):
     yield log_info(f"Phase 3: Semantic dedup — embedding top {len(top_new)} papers (NVIDIA embed model)…")
     embed_map: dict = {}
     failed_embeds = 0
-    for p in top_new:
+    for i, p in enumerate(top_new, 1):
         text = f"{p['title']}. {p['abstract'][:500]}"
-        emb  = _embed_text(text, input_type="passage")
+        emb  = await asyncio.to_thread(_embed_text, text, "passage")
         if emb:
             embed_map[p["arxiv_id"]] = emb
             p["_embedding"] = emb
         else:
             failed_embeds += 1
+        yield (
+            f'<div class="log-line"><span class="ts">[{_ts()}]</span> '
+            f'<span style="color:#4b5563">📎 Embedding {i}/{len(top_new)}: {p["title"][:55]}…</span></div>\n'
+            f'<script>window.scrollTo(0,document.body.scrollHeight);</script>\n'
+        )
 
     if failed_embeds:
         yield log_warn(f"{failed_embeds} papers failed embedding (will still be considered)")
     yield log_ok(f"Embedded <b>{len(embed_map)}</b> papers")
 
-    semantic_dups = _batch_semantic_dedup(embed_map, threshold=0.87)
+    yield log_info("Running semantic dedup (cosine similarity)…")
+    semantic_dups = await asyncio.to_thread(_batch_semantic_dedup, embed_map, 0.87)
     candidates    = [p for p in top_new if p["arxiv_id"] not in semantic_dups]
     yield log_ok(
         f"After semantic dedup: <b>{len(candidates)}</b> candidates "
@@ -2285,7 +2291,7 @@ async def _run_blog_generation_verbose(count: int):
 
     yield log_info(f"Phase 4: LLM selecting best {count} paper(s) from top-15 candidates…")
     try:
-        selected = select_papers_with_llm(candidates, select_count=count)
+        selected = await asyncio.to_thread(select_papers_with_llm, candidates, count)
     except Exception as e:
         yield log_warn(f"LLM selection failed ({e}) — using top-scored fallback")
         selected = sorted(candidates, key=lambda p: p.get("_pre_score", 0), reverse=True)[:count]
@@ -2307,7 +2313,7 @@ async def _run_blog_generation_verbose(count: int):
 
             yield log_info("  RAG: retrieving relevant catalog models/tools…")
             query = f"{paper['title']}. {paper['abstract'][:600]}"
-            relevant   = retrieve_relevant_catalog(query, top_k=_CATALOG_TOP_K)
+            relevant   = await asyncio.to_thread(retrieve_relevant_catalog, query, _CATALOG_TOP_K)
             catalog_en = _format_catalog_prompt(relevant, lang="en")
             catalog_ar = _format_catalog_prompt(relevant, lang="ar")
             rel_names  = [e["name"] for e in relevant]
