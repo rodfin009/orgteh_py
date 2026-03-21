@@ -1361,7 +1361,7 @@ Start directly with the # H1 title."""
 
     content = ""
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=30.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(1800.0, connect=30.0, read=1800.0)) as client:
             async with client.stream(
                 "POST",
                 "https://integrate.api.nvidia.com/v1/chat/completions",
@@ -1394,6 +1394,177 @@ Start directly with the # H1 title."""
     except Exception as e:
         logger.error(f"[BlogGen] EN error: {type(e).__name__}: {e}")
         return content.strip() if len(content) > 500 else None
+
+
+async def _stream_generate_en(paper: dict, seo_kw: list, catalog_ctx: str, demo_result: dict = None):
+    kw_str    = ", ".join(seo_kw[:15])
+    demo_type = demo_result.get("type", "") if demo_result else ""
+
+    if demo_type == "live":
+        demo_instruction = f"""REAL LIVE DEMO — INCLUDE THIS IN THE ARTICLE:
+   We actually ran this on Orgteh API using {demo_result['model_name']}.
+   Concept: {demo_result['concept']}
+   In "## Integrating with Orgteh":
+   "We ran a quick test using [{demo_result['model_name']}](/en/models/{demo_result['model_key']}) on Orgteh API."
+   Show these blocks:
+   Input:
+   ```
+   {demo_result['prompt'][:400]}
+   ```
+   Output from {demo_result['model_name']}:
+   ```
+   {demo_result['response'][:500]}
+   ```
+   Then add 2-3 sentences analyzing what the output shows."""
+    elif demo_type == "note":
+        demo_instruction = f"""COMPLEX PAPER — In "## Integrating with Orgteh":
+   "{demo_result['suggestion']}"
+   Explain briefly what a developer would need to build to implement the full system."""
+    else:
+        demo_instruction = """In "## Integrating with Orgteh", recommend the relevant models/tools with clear explanation."""
+
+    system = (
+        "You are a senior technical writer for Orgteh (orgteh.com), "
+        "an AI API platform for developers. Write clear, practical, engaging articles."
+    )
+    prompt = f"""Write a comprehensive English blog post based on the research paper below.
+
+=== PAPER ===
+Title: {paper['title']}
+Abstract: {paper['abstract']}
+Source: {paper['url']}
+
+=== SEO KEYWORDS (weave in naturally) ===
+{kw_str}
+
+=== ORGTEH MODELS & TOOLS — INJECT THESE INTO ARTICLE ===
+{catalog_ctx}
+
+=== ARTICLE REQUIREMENTS ===
+1. STRICT WORD COUNT: write between 1500 and 1600 words — no more, no less. Count every word carefully. Each section must be fully developed. Stop at 1600 words maximum.
+2. Audience: developers and AI practitioners — practical, no heavy math
+3. Markdown: # H1, ## H2, ### H3
+4. Required sections IN THIS ORDER:
+   ## Introduction
+   ## What This Research Found
+   ## Why It Matters for Developers
+   ## Practical Applications
+   ## Implementation Guide
+   ## Integrating with Orgteh
+   ## Key Takeaways
+
+5. SECTION-SPECIFIC RULES:
+
+   "## Introduction":
+   - First paragraph ≤160 chars (used as meta description)
+   - Hook: why this research matters RIGHT NOW for developers
+
+   "## What This Research Found":
+   - Explain the core idea in plain language — no formulas
+   - Use analogies if helpful
+   - Include ONE Mermaid diagram here or in Practical Applications:
+     * ENGLISH labels only — never Arabic or any non-Latin text in nodes
+     * Use simple: A[Label] --> B[Label] syntax only
+     * NO curly braces {{}} in node labels
+     * Example: flowchart LR
+  A[Input] --> B[Process] --> C[Output]
+
+   "## Implementation Guide":
+   - MUST include a real Python code example that uses Orgteh API:
+     ```python
+     from openai import OpenAI
+     client = OpenAI(
+         base_url="https://orgteh.com/v1",
+         api_key="YOUR_ORGTEH_API_KEY"
+     )
+     ```
+   - The code must implement the paper's core idea using Orgteh API
+
+   "## Integrating with Orgteh":
+   - Use the ORGTEH MODELS & TOOLS provided above
+   - Natural prose, NOT bullet list
+   - Use exact markdown links
+   - {demo_instruction}
+
+   "## Key Takeaways":
+   - 3-5 concrete actionable points
+   - End with a call-to-action toward Orgteh
+
+6. NO inline citations
+7. Tone: conversational, like a senior engineer who READ the paper and TESTED the ideas
+
+DO NOT:
+- Copy sentences from the abstract verbatim
+- Add preamble before the # H1 title
+- Use /ar/ links (English article only)
+
+Start directly with the # H1 title."""
+
+    key = os.environ.get("NVIDIA_API_KEYS", os.environ.get("NVIDIA_API_KEY", ""))
+    if key:
+        key = key.split(",")[0].strip()
+
+    payload = {
+        "model": GENERATION_MODEL,
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+        "temperature": 0.35, "top_p": 0.75, "max_tokens": 8192, "stream": True,
+        "frequency_penalty": 0.0, "presence_penalty": 0.0,
+    }
+
+    content   = ""
+    tok_count = 0
+    t0        = datetime.utcnow()
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(1800.0, connect=30.0, read=1800.0)) as client:
+            async with client.stream(
+                "POST",
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json", "Accept": "text/event-stream"},
+                json=payload,
+            ) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line or not line.startswith("data: "):
+                        continue
+                    data_str = line[6:]
+                    if data_str.strip() == "[DONE]":
+                        break
+                    try:
+                        data  = json.loads(data_str)
+                        delta = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        if delta:
+                            content   += delta
+                            tok_count += 1
+                            if tok_count % 80 == 0:
+                                secs  = int((datetime.utcnow() - t0).total_seconds())
+                                words = len(content.split())
+                                yield (
+                                    "progress",
+                                    f'<div class="log-line"><span class="ts">[{_ts()}]</span> '
+                                    f'<span style="color:#4b5563">⏳ EN streaming… '
+                                    f'{words} words / {secs}s</span></div>\n'
+                                    f'<script>window.scrollTo(0,document.body.scrollHeight);</script>\n'
+                                )
+                    except Exception:
+                        pass
+
+        result = content.strip()
+        if not result:
+            yield ("error", "EN generation returned empty content")
+            return
+        non_latin = sum(1 for c in result if ord(c) > 0x2E7F)
+        if non_latin > len(result) * 0.30:
+            yield ("error", f"EN rejected: wrong language ratio {non_latin/len(result):.0%}")
+            return
+        yield ("done", result)
+
+    except Exception as e:
+        logger.error(f"[BlogGen] _stream_generate_en: {type(e).__name__}: {e}")
+        if len(content) > 500:
+            yield ("done", content.strip())
+        else:
+            yield ("error", str(e))
 
 async def generate_article_ar(english_content: str, catalog_ctx_ar: str) -> Optional[str]:
     prompt = f"""Translate the following English blog post to Modern Standard Arabic (الفصحى المُيسَّرة).
@@ -1431,7 +1602,7 @@ OUTPUT: Complete Arabic markdown article only."""
 
     content = ""
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=30.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(1800.0, connect=30.0, read=1800.0)) as client:
             async with client.stream(
                 "POST",
                 "https://integrate.api.nvidia.com/v1/chat/completions",
@@ -1457,6 +1628,92 @@ OUTPUT: Complete Arabic markdown article only."""
     except Exception as e:
         logger.error(f"[BlogGen] AR error: {type(e).__name__}: {e}")
         return content.strip() if len(content) > 300 else None
+
+
+async def _stream_generate_ar(english_content: str, catalog_ctx_ar: str):
+    prompt = f"""Translate the following English blog post to Modern Standard Arabic (الفصحى المُيسَّرة).
+
+=== ORGTEH LINKS FOR ARABIC ===
+{catalog_ctx_ar}
+
+=== TRANSLATION RULES ===
+1. Translate ALL text: title, all headings, every paragraph
+2. Keep ALL markdown formatting exactly as-is
+3. Keep code blocks EXACTLY as-is — do not translate ANY code
+4. Keep ```mermaid blocks EXACTLY as-is
+5. CRITICAL LINK RULE: replace /en/ with /ar/ in ALL Orgteh internal links
+6. Translate naturally — write as if originally authored in Arabic
+7. Do NOT add preamble — output ONLY the translated markdown
+8. Technical terms: RAG, LLM, API, prompt, token → keep in English
+9. Do NOT add preamble like "إليك الترجمة"
+10. CRITICAL: Do NOT include any blockquote with "المصدر:" or "Source:"
+
+=== ENGLISH ARTICLE ===
+{english_content}
+
+OUTPUT: Complete Arabic markdown article only."""
+
+    key = os.environ.get("NVIDIA_API_KEYS", os.environ.get("NVIDIA_API_KEY", ""))
+    if key:
+        key = key.split(",")[0].strip()
+
+    payload = {
+        "model": GENERATION_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.20, "top_p": 0.70, "max_tokens": 8192, "stream": True,
+        "frequency_penalty": 0.0, "presence_penalty": 0.0,
+    }
+
+    content   = ""
+    tok_count = 0
+    t0        = datetime.utcnow()
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(1800.0, connect=30.0, read=1800.0)) as client:
+            async with client.stream(
+                "POST",
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json", "Accept": "text/event-stream"},
+                json=payload,
+            ) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line or not line.startswith("data: "):
+                        continue
+                    data_str = line[6:]
+                    if data_str.strip() == "[DONE]":
+                        break
+                    try:
+                        data  = json.loads(data_str)
+                        delta = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        if delta:
+                            content   += delta
+                            tok_count += 1
+                            if tok_count % 80 == 0:
+                                secs  = int((datetime.utcnow() - t0).total_seconds())
+                                words = len(content.split())
+                                yield (
+                                    "progress",
+                                    f'<div class="log-line"><span class="ts">[{_ts()}]</span> '
+                                    f'<span style="color:#4b5563">⏳ AR streaming… '
+                                    f'{words} words / {secs}s</span></div>\n'
+                                    f'<script>window.scrollTo(0,document.body.scrollHeight);</script>\n'
+                                )
+                    except Exception:
+                        pass
+
+        result = content.strip()
+        if result:
+            yield ("done", result)
+        else:
+            yield ("error", "AR generation returned empty content")
+
+    except Exception as e:
+        logger.error(f"[BlogGen] _stream_generate_ar: {type(e).__name__}: {e}")
+        if len(content) > 300:
+            yield ("done", content.strip())
+        else:
+            yield ("error", str(e))
 
 def _fix_model_links(content: str, relevant: list[dict], lang: str) -> str:
     if not relevant or not content:
@@ -2065,55 +2322,35 @@ async def _run_blog_generation_verbose(count: int):
             else:
                 yield log_warn("  No demo captured — article will proceed without it")
 
-            yield log_info("  Generating English article (async httpx streaming — no timeout)…")
-            t0 = datetime.utcnow()
-            _task_en = asyncio.create_task(
-                generate_article_en(paper, seo_kw, catalog_en, demo_result=demo_result)
-            )
-            while not _task_en.done():
-                try:
-                    await asyncio.wait_for(asyncio.shield(_task_en), timeout=8.0)
-                except asyncio.TimeoutError:
-                    _secs = int((datetime.utcnow() - t0).total_seconds())
-                    yield (
-                        f'<div class="log-line">'
-                        f'<span class="ts">[{_ts()}]</span> '
-                        f'<span style="color:#4b5563">⏳ EN generating… {_secs}s elapsed</span>'
-                        f'</div>\n'
-                        f'<script>window.scrollTo(0,document.body.scrollHeight);</script>\n'
-                    )
-                except Exception:
-                    break
-            content_en = _task_en.result() if not _task_en.exception() else None
+            yield log_info("  Generating English article (direct NVIDIA stream)…")
+            t0         = datetime.utcnow()
+            content_en = None
+            async for event, payload_data in _stream_generate_en(paper, seo_kw, catalog_en, demo_result=demo_result):
+                if event == "progress":
+                    yield payload_data
+                elif event == "done":
+                    content_en = payload_data
+                elif event == "error":
+                    yield log_err(f"  EN stream error: {payload_data}")
             elapsed_en = int((datetime.utcnow() - t0).total_seconds())
             if not content_en:
-                yield log_err(f"  EN generation failed after {elapsed_en}s — check Vercel logs: [BlogGen] EN error")
+                yield log_err(f"  EN generation failed after {elapsed_en}s")
                 continue
             content_en = _fix_model_links(content_en, relevant, lang="en")
             content_en = _clean_generated_content(content_en)
-            words_en = len(content_en.split())
+            words_en   = len(content_en.split())
             yield log_ok(f"  EN article: <b>{words_en}</b> words in <b>{elapsed_en}s</b>")
 
-            yield log_info("  Translating to Arabic (async httpx streaming)…")
-            t0 = datetime.utcnow()
-            _task_ar = asyncio.create_task(
-                generate_article_ar(content_en, catalog_ar)
-            )
-            while not _task_ar.done():
-                try:
-                    await asyncio.wait_for(asyncio.shield(_task_ar), timeout=8.0)
-                except asyncio.TimeoutError:
-                    _secs = int((datetime.utcnow() - t0).total_seconds())
-                    yield (
-                        f'<div class="log-line">'
-                        f'<span class="ts">[{_ts()}]</span> '
-                        f'<span style="color:#4b5563">⏳ AR translating… {_secs}s elapsed</span>'
-                        f'</div>\n'
-                        f'<script>window.scrollTo(0,document.body.scrollHeight);</script>\n'
-                    )
-                except Exception:
-                    break
-            content_ar = _task_ar.result() if not _task_ar.exception() else None
+            yield log_info("  Translating to Arabic (direct NVIDIA stream)…")
+            t0         = datetime.utcnow()
+            content_ar = None
+            async for event, payload_data in _stream_generate_ar(content_en, catalog_ar):
+                if event == "progress":
+                    yield payload_data
+                elif event == "done":
+                    content_ar = payload_data
+                elif event == "error":
+                    yield log_err(f"  AR stream error: {payload_data}")
             elapsed_ar = int((datetime.utcnow() - t0).total_seconds())
             if not content_ar:
                 yield log_err(f"  AR translation failed after {elapsed_ar}s")
