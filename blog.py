@@ -638,11 +638,12 @@ _ARXIV_QUERIES = [
 
 _HF_PAPERS_URL = "https://huggingface.co/api/daily_papers"
 
-async def _fetch_arxiv_one(client: httpx.AsyncClient, query: str, per_query: int = 15) -> list[dict]:
+async def _fetch_arxiv_one(client: httpx.AsyncClient, query: str, per_query: int = 25, start: int = 0) -> list[dict]:
     url = (
         "http://export.arxiv.org/api/query"
         f"?search_query={query}"
         "&sortBy=submittedDate&sortOrder=descending"
+        f"&start={start}"
         f"&max_results={per_query}"
     )
     try:
@@ -701,10 +702,11 @@ async def _fetch_hf_daily(client: httpx.AsyncClient) -> list[dict]:
     logger.info(f"[Fetch] HF Daily: {len(papers)} papers")
     return papers
 
-async def fetch_all_papers() -> list[dict]:
+async def fetch_all_papers(arxiv_offset: int = 0) -> list[dict]:
     async with httpx.AsyncClient() as client:
-        tasks   = [_fetch_arxiv_one(client, q) for q in _ARXIV_QUERIES]
-        tasks.append(_fetch_hf_daily(client))
+        tasks   = [_fetch_arxiv_one(client, q, per_query=25, start=arxiv_offset) for q in _ARXIV_QUERIES]
+        if arxiv_offset == 0:
+            tasks.append(_fetch_hf_daily(client))
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
     seen_ids: set[str] = set()
@@ -1301,12 +1303,12 @@ No explanation. Raw JSON only."""
                 logger.info(f"[Select] Retry chose: {[p['arxiv_id'] for p in selected2]}")
                 return selected2[:select_count]
 
-        logger.error("[Select] Both attempts failed — no suitable papers found in this batch")
-        return []
+        logger.error("[Select] Both attempts failed — falling back to top-scored papers")
+        return top[:select_count]
 
     except Exception as e:
         logger.error(f"[Select] LLM selection: {e}")
-        return []
+        return top[:select_count]
 
 async def generate_article_en(paper: dict, seo_keywords: list[str], catalog_ctx: str, demo_result: dict = None) -> Optional[str]:
     kw_str = ", ".join(seo_keywords[:15])
@@ -2345,94 +2347,99 @@ async def _run_blog_generation_verbose(count: int):
     def log_step(msg): return log("🔹", msg, "#c4b5fd")
 
     yield log_step(f"Pipeline started — target: <b>{count}</b> article(s)")
-    yield log_info("Phase 1: Fetching papers from arXiv (4 queries) + HuggingFace Daily Papers…")
 
-    try:
-        papers = await fetch_all_papers()
-    except Exception as e:
-        yield log_err(f"fetch_all_papers() raised: {e}")
-        yield ("__done__", {"ok": False, "error": str(e)})
-        return
-
-    if not papers:
-        yield log_err("No papers returned from any source")
-        yield ("__done__", {"ok": False, "error": "Failed to fetch papers from all sources"})
-        return
-
-    yield log_ok(f"Fetched <b>{len(papers)}</b> unique papers total")
-
-    yield log_info("Phase 2: Exact dedup — checking Redis seen_ids + TiDB arxiv_ids…")
     seen = get_seen_arxiv_ids()
-    yield log_info(f"Redis seen_ids: <b>{len(seen)}</b> entries")
-
     try:
         db_ids = set(get_all_arxiv_ids())
         seen |= db_ids
-        yield log_info(f"TiDB published: <b>{len(db_ids)}</b> articles")
     except Exception as e:
         yield log_warn(f"Could not load TiDB arxiv_ids: {e}")
+        db_ids = set()
 
-    new_papers = [p for p in papers if p.get("arxiv_id") not in seen]
-    yield log_ok(f"New papers (not yet published): <b>{len(new_papers)}</b> / {len(papers)}")
+    yield log_info(f"Known papers (Redis+TiDB): <b>{len(seen)}</b> — searching for new ones…")
 
-    if not new_papers:
-        yield log_warn("All fetched papers already published — nothing to generate")
-        yield ("__done__", {"ok": False, "error": "No new papers — all entries already published"})
-        return
+    selected  = []
+    all_seen_this_run: set[str] = set()
+    batch_num = 0
+    max_batches = 5
 
-    yield log_info("Pre-scoring papers (recency + HF upvotes + practical keywords)…")
-    for p in new_papers:
-        p["_pre_score"] = _score_paper(p)
-    top_new = sorted(new_papers, key=lambda p: p["_pre_score"], reverse=True)[:30]
-    yield log_ok(f"Top-30 pre-scored. Best score: <b>{top_new[0]['_pre_score']}</b> — «{top_new[0]['title'][:60]}…»")
+    while len(selected) < count and batch_num < max_batches:
+        arxiv_offset = batch_num * 25
+        yield log_info(f"📡 Batch {batch_num+1}/{max_batches}: fetching arXiv (offset={arxiv_offset}) + {'HuggingFace' if batch_num==0 else 'arXiv only'}…")
 
-    yield log_info(f"Phase 3: Semantic dedup — embedding top {len(top_new)} papers (NVIDIA embed model)…")
-    embed_map: dict = {}
-    failed_embeds = 0
-    for i, p in enumerate(top_new, 1):
-        text = f"{p['title']}. {p['abstract'][:500]}"
-        emb  = await asyncio.to_thread(_embed_text, text, "passage")
-        if emb:
-            embed_map[p["arxiv_id"]] = emb
-            p["_embedding"] = emb
+        try:
+            papers = await fetch_all_papers(arxiv_offset=arxiv_offset)
+        except Exception as e:
+            yield log_err(f"Fetch failed: {e}")
+            break
+
+        if not papers:
+            yield log_warn("No papers returned — stopping search")
+            break
+
+        yield log_ok(f"Fetched <b>{len(papers)}</b> papers in batch {batch_num+1}")
+
+        new_papers = [p for p in papers if p.get("arxiv_id") not in seen and p.get("arxiv_id") not in all_seen_this_run]
+        yield log_info(f"New (unseen): <b>{len(new_papers)}</b> / {len(papers)}")
+
+        if not new_papers:
+            yield log_warn("All papers in this batch already seen — trying next offset…")
+            batch_num += 1
+            continue
+
+        for p in new_papers:
+            p["_pre_score"] = _score_paper(p)
+        top_new = sorted(new_papers, key=lambda p: p["_pre_score"], reverse=True)[:30]
+        yield log_ok(f"Top-30 scored. Best: <b>{top_new[0]['_pre_score']}</b> — «{top_new[0]['title'][:55]}…»")
+
+        yield log_info(f"Embedding {len(top_new)} papers…")
+        embed_map: dict = {}
+        for i, p in enumerate(top_new, 1):
+            text = f"{p['title']}. {p['abstract'][:500]}"
+            emb  = await asyncio.to_thread(_embed_text, text, "passage")
+            if emb:
+                embed_map[p["arxiv_id"]] = emb
+                p["_embedding"] = emb
+            yield (
+                f'<div class="log-line"><span class="ts">[{_ts()}]</span> '
+                f'<span style="color:#4b5563">📎 {i}/{len(top_new)}: {p["title"][:50]}…</span></div>\n'
+                f'<script>window.scrollTo(0,document.body.scrollHeight);</script>\n'
+            )
+
+        semantic_dups = await asyncio.to_thread(_batch_semantic_dedup, embed_map, 0.87)
+        candidates    = [p for p in top_new if p["arxiv_id"] not in semantic_dups]
+        yield log_ok(f"After dedup: <b>{len(candidates)}</b> candidates (removed {len(semantic_dups)})")
+
+        for p in top_new:
+            all_seen_this_run.add(p["arxiv_id"])
+
+        if not candidates:
+            yield log_warn("All candidates semantically similar — trying next batch…")
+            batch_num += 1
+            continue
+
+        need = count - len(selected)
+        yield log_info(f"Phase 4: LLM selecting {need} paper(s) from {len(candidates)} candidates…")
+        try:
+            batch_selected = await asyncio.to_thread(select_papers_with_llm, candidates, need)
+        except Exception as e:
+            yield log_warn(f"LLM selection failed ({e}) — using score fallback")
+            batch_selected = sorted(candidates, key=lambda p: p.get("_pre_score", 0), reverse=True)[:need]
+
+        if batch_selected:
+            selected.extend(batch_selected)
+            yield log_ok(f"Selected <b>{len(batch_selected)}</b> paper(s) from batch {batch_num+1} — total: {len(selected)}/{count}")
         else:
-            failed_embeds += 1
-        yield (
-            f'<div class="log-line"><span class="ts">[{_ts()}]</span> '
-            f'<span style="color:#4b5563">📎 Embedding {i}/{len(top_new)}: {p["title"][:55]}…</span></div>\n'
-            f'<script>window.scrollTo(0,document.body.scrollHeight);</script>\n'
-        )
+            yield log_warn(f"No suitable papers in batch {batch_num+1} — trying next…")
 
-    if failed_embeds:
-        yield log_warn(f"{failed_embeds} papers failed embedding (will still be considered)")
-    yield log_ok(f"Embedded <b>{len(embed_map)}</b> papers")
-
-    yield log_info("Running semantic dedup (cosine similarity)…")
-    semantic_dups = await asyncio.to_thread(_batch_semantic_dedup, embed_map, 0.87)
-    candidates    = [p for p in top_new if p["arxiv_id"] not in semantic_dups]
-    yield log_ok(
-        f"After semantic dedup: <b>{len(candidates)}</b> candidates "
-        f"(removed {len(semantic_dups)} duplicates, threshold=0.87)"
-    )
-
-    if not candidates:
-        yield log_err("All remaining papers are semantically similar to existing posts")
-        yield ("__done__", {"ok": False, "error": "All remaining papers are semantically similar to existing posts"})
-        return
-
-    yield log_info(f"Phase 4: LLM selecting best {count} paper(s) from top-15 candidates…")
-    try:
-        selected = await asyncio.to_thread(select_papers_with_llm, candidates, count)
-    except Exception as e:
-        yield log_warn(f"LLM selection failed ({e}) — using top-scored fallback")
-        selected = sorted(candidates, key=lambda p: p.get("_pre_score", 0), reverse=True)[:count]
+        batch_num += 1
 
     if not selected:
-        yield log_err("No suitable papers found in this batch — all were rejected as incompatible with Orgteh platform. Try again later for a fresh batch.")
-        yield ("__done__", {"ok": False, "error": "No suitable papers found — batch rejected by platform compatibility filter"})
+        yield log_err("Exhausted all batches — no suitable papers found. Try again tomorrow for fresh arXiv submissions.")
+        yield ("__done__", {"ok": False, "error": "No suitable papers found after searching all batches"})
         return
 
-    yield log_ok(f"Selected <b>{len(selected)}</b> paper(s):")
+    yield log_ok(f"Final selection: <b>{len(selected)}</b> paper(s):")
     for i, p in enumerate(selected, 1):
         src = "🤗 HF" if p.get("source") == "hf_daily" else "📄 arXiv"
         yield log("  ", f"{i}. [{src}] {p['title'][:80]}… (score={p.get('_pre_score',0)})", "#d1d5db")
@@ -2718,34 +2725,42 @@ async def blog_cron_trigger(request: Request, secret: str = "", count: int = 3):
     )
 
 @blog_router.get("/api/admin/blog/clear-seen-ids")
-async def admin_clear_seen_ids_get(request: Request, secret: str = "", mode: str = "stale"):
+async def admin_clear_seen_ids_get(request: Request, secret: str = "", mode: str = "all"):
     if not _CRON_SECRET or secret != _CRON_SECRET:
         return JSONResponse({"error": "Invalid secret"}, status_code=401)
 
     r = _redis()
-    if not r:
-        return JSONResponse({"error": "Redis unavailable"}, status_code=503)
+    redis_count = 0
+    if r:
+        try:
+            members = r.smembers("blog:seen_arxiv_ids") or set()
+            redis_count = len(members)
+            r.delete("blog:seen_arxiv_ids")
+        except Exception as e:
+            logger.warning(f"[ClearSeen] Redis: {e}")
 
+    db_count = 0
     if mode == "all":
-        r.delete("blog:seen_arxiv_ids")
-        return JSONResponse({"ok": True, "mode": "all", "message": "All seen_ids cleared"})
+        conn = _get_conn()
+        if conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT COUNT(*) AS cnt FROM blog_posts")
+                    row = cur.fetchone()
+                    db_count = row["cnt"] if row else 0
+                    cur.execute("DELETE FROM blog_posts")
+                    cur.execute("DELETE FROM blog_article_embeds")
+            except Exception as e:
+                logger.warning(f"[ClearSeen] TiDB: {e}")
+            finally:
+                conn.close()
 
-    db_ids  = set(get_all_arxiv_ids())
-    members = r.smembers("blog:seen_arxiv_ids") or set()
-    stale   = [
-        m.decode() if isinstance(m, bytes) else m
-        for m in members
-        if (m.decode() if isinstance(m, bytes) else m) not in db_ids
-    ]
-    if stale:
-        r.srem("blog:seen_arxiv_ids", *stale)
     return JSONResponse({
         "ok": True,
-        "mode": "stale",
-        "total_in_redis": len(members),
-        "in_db": len(db_ids),
-        "removed_stale": len(stale),
-        "remaining": len(members) - len(stale),
+        "mode": mode,
+        "redis_seen_ids_cleared": redis_count,
+        "tidb_posts_deleted": db_count if mode == "all" else 0,
+        "message": "Full reset complete — ready for fresh batch" if mode == "all" else "Redis cleared only",
     })
 
 @blog_router.post("/api/admin/blog/clear-seen-ids")
