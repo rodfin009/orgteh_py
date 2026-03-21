@@ -251,7 +251,8 @@ def delete_blog_post(slug: str) -> bool:
 _CATALOG_HASH_KEY  = "blog:catalog_hash_v3"
 _CATALOG_TOP_K     = 10
 
-GENERATION_MODEL = "meta/llama-3.1-405b-instruct"
+GENERATION_MODEL = "mistralai/mistral-large-3-675b-instruct-2512"
+"
 EMBED_MODEL      = "nvidia/llama-nemotron-embed-1b-v2"
 RERANK_MODEL     = "nvidia/llama-nemotron-rerank-1b-v2"
 _RERANK_THRESHOLD = 20
