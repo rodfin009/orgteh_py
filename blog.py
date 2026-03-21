@@ -1,30 +1,3 @@
-"""
-blog.py — نظام المدونة الكامل لـ Orgteh
-===========================================
-يحتوي على:
-  1. blog_db      — طبقة قاعدة البيانات (TiDB الأساسي + Redis للمؤقت فقط)
-  2. blog_catalog — بناء كتالوج RAG تلقائي من ملفات النماذج وقاعدة الأدوات
-  3. blog_gen     — محرك التوليد (arxiv → AI → AR/EN → حفظ)
-  4. blog_router  — راوتر FastAPI (الصفحات + API)
-
-توزيع التخزين:
-  TiDB (5GB) — كل البيانات الدائمة:
-    • blog_posts          → المقالات الكاملة
-    • blog_catalog_embeds → تضمينات النماذج/الأدوات للـ RAG
-    • blog_article_embeds → تضمينات المقالات للـ semantic dedup
-
-  Redis (250MB) — فقط المؤقت وسريع الوصول:
-    • blog:seen_arxiv_ids → SET صغير للفحص السريع (< 75KB)
-    • blog:catalog_hash   → string لـ invalidation check (< 20 bytes)
-
-نظام RAG للكتالوج:
-  - المصدر: ملفات HTML في static/models_translation/ + TOOLS_DB
-  - التضمين: nvidia/llama-nemotron-embed-1b-v2
-  - التخزين: TiDB (UPSERT تلقائي)
-  - الاسترجاع: cosine similarity → top-K أكثر صلة
-  - Hash Invalidation: يعيد البناء عند إضافة نماذج جديدة
-"""
-
 import os
 import re
 import json
@@ -58,16 +31,6 @@ def _redis():
         return None
 
 def init_blog_tables():
-    """
-    ينشئ ثلاثة جداول في TiDB — كل التخزين الدائم هنا:
-      1. blog_posts          — المقالات الكاملة (EN + AR)
-      2. blog_catalog_embeds — تضمينات النماذج/الأدوات للـ RAG
-      3. blog_article_embeds — تضمينات المقالات للـ semantic dedup
-
-    Redis يبقى فقط لـ:
-      - blog:seen_arxiv_ids → SET صغير للفحص السريع (< 75KB)
-      - blog:catalog_hash   → string صغير لـ invalidation check
-    """
     conn = _get_conn()
     if not conn:
         logger.warning("[BlogDB] No DB connection — skipping init")
@@ -91,8 +54,6 @@ def init_blog_tables():
                 updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
             )
-            """)
-            cur.execute("""
             CREATE TABLE IF NOT EXISTS blog_catalog_embeds (
                 id           INT AUTO_INCREMENT PRIMARY KEY,
                 short_key    VARCHAR(80)   UNIQUE NOT NULL,
@@ -105,8 +66,6 @@ def init_blog_tables():
                 catalog_hash VARCHAR(20),
                 updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
-            """)
-            cur.execute("""
             CREATE TABLE IF NOT EXISTS blog_article_embeds (
                 id           INT AUTO_INCREMENT PRIMARY KEY,
                 arxiv_id     VARCHAR(60)   UNIQUE NOT NULL,
@@ -232,7 +191,6 @@ def get_all_slugs_with_dates() -> list[dict]:
         conn.close()
 
 def delete_blog_post(slug: str) -> bool:
-    """يحذف مقالة من DB بالـ slug."""
     conn = _get_conn()
     if not conn:
         return False
@@ -251,13 +209,12 @@ def delete_blog_post(slug: str) -> bool:
 _CATALOG_HASH_KEY  = "blog:catalog_hash_v3"
 _CATALOG_TOP_K     = 10
 
-GENERATION_MODEL = "meta/llama-3.1-405b-instruct"
+GENERATION_MODEL = "mistralai/mistral-large-3-675b-instruct-2512"
 EMBED_MODEL      = "nvidia/llama-nemotron-embed-1b-v2"
 RERANK_MODEL     = "nvidia/llama-nemotron-rerank-1b-v2"
 _RERANK_THRESHOLD = 20
 
 class _HTMLTextExtractor(HTMLParser):
-    """يسحب النص الخام من HTML — stdlib فقط، بدون مكتبات خارجية."""
     def __init__(self):
         super().__init__()
         self._parts: list[str] = []
@@ -294,10 +251,6 @@ def _get_static_dir() -> Path:
     return Path(__file__).resolve().parent / "static"
 
 def _read_model_description_en(short_key: str) -> str:
-    """
-    يقرأ الوصف الإنجليزي للنموذج من ملف HTML المقابل له.
-    هذا نفس الملف الذي تستخدمه صفحة النماذج — مصدر موحد واحد.
-    """
     path = _get_static_dir() / "models_translation" / f"{short_key}.html"
     if not path.exists():
         return ""
@@ -315,10 +268,6 @@ def _read_model_description_en(short_key: str) -> str:
         return ""
 
 def _build_catalog_entries() -> list[dict]:
-    """
-    يبني قائمة موحدة لكل النماذج والأدوات مع أوصافها النصية.
-    تلقائية بالكامل — تتحدث عند إضافة أي نموذج أو أداة جديدة.
-    """
     entries = []
 
     try:
@@ -386,7 +335,6 @@ def _build_catalog_entries() -> list[dict]:
     return entries
 
 def _catalog_hash(entries: list[dict]) -> str:
-    """MD5 من قائمة المفاتيح — يُستخدم للكشف عن تغييرات."""
     ids = sorted(e["short_key"] for e in entries)
     return hashlib.md5(json.dumps(ids).encode()).hexdigest()[:12]
 
@@ -475,13 +423,6 @@ def _rerank(query: str, passages: list[str], top_k: int = None) -> list[int]:
         return list(range(len(passages)))
 
 def ensure_catalog_embeddings() -> list[dict]:
-    """
-    يضمن وجود تضمينات حديثة في TiDB.
-    Redis يُستخدم فقط للـ hash check (أسرع من query TiDB في كل طلب).
-    يعيد البناء إذا:
-      - لم تكن التضمينات موجودة في TiDB
-      - تغيرت قائمة النماذج (hash مختلف)
-    """
     entries  = _build_catalog_entries()
     cur_hash = _catalog_hash(entries)
     r        = _redis()
@@ -518,7 +459,6 @@ def ensure_catalog_embeddings() -> list[dict]:
     return stored
 
 def _load_catalog_from_tidb() -> list[dict]:
-    """يقرأ جميع تضمينات الكتالوج من TiDB."""
     conn = _get_conn()
     if not conn:
         return []
@@ -555,7 +495,6 @@ def _load_catalog_from_tidb() -> list[dict]:
         conn.close()
 
 def _save_catalog_to_tidb(stored: list[dict], cur_hash: str):
-    """يحفظ/يحدّث تضمينات الكتالوج في TiDB (UPSERT)."""
     conn = _get_conn()
     if not conn:
         logger.error("[Catalog] No DB connection for save")
@@ -591,19 +530,6 @@ def _save_catalog_to_tidb(stored: list[dict], cur_hash: str):
         conn.close()
 
 def retrieve_relevant_catalog(query_text: str, top_k: int = _CATALOG_TOP_K) -> list[dict]:
-    """
-    يسترجع أكثر top_k نموذج/أداة صلةً بالمقالة.
-
-    المرحلة 1 — cosine (دائماً):
-      يُرتّب كل الكتالوج بسرعة عبر التشابه الرياضي
-      → يأخذ أفضل min(top_k × 3, len(catalog)) مرشحاً
-
-    المرحلة 2 — Rerank (تلقائي عند المرشحون > _RERANK_THRESHOLD):
-      يفهم السياق الدلالي العميق ويُعيد الترتيب بدقة أعلى
-      → يُطبَّق فقط عند الحاجة (لا تكلفة غير ضرورية)
-
-    Fallback: أول top_k من القائمة إذا فشل الـ embedding.
-    """
     catalog   = ensure_catalog_embeddings()
     query_emb = _embed_text(query_text[:1500], input_type="query")
 
@@ -640,10 +566,6 @@ def retrieve_relevant_catalog(query_text: str, top_k: int = _CATALOG_TOP_K) -> l
     return top
 
 def _format_catalog_prompt(relevant: list[dict], lang: str) -> str:
-    """
-    يبني نص البرومبت للـ LLM من النتائج المسترجعة.
-    الروابط صحيحة تلقائياً بناءً على اللغة.
-    """
     if not relevant:
         return "(No specific Orgteh models are particularly relevant to this topic.)"
 
@@ -733,7 +655,6 @@ async def _fetch_arxiv_one(client: httpx.AsyncClient, query: str, per_query: int
     return papers
 
 async def _fetch_hf_daily(client: httpx.AsyncClient) -> list[dict]:
-    """HuggingFace Daily Papers — مختارة يدوياً، مجانية بدون مفتاح."""
     try:
         resp = await client.get(_HF_PAPERS_URL, timeout=15)
         resp.raise_for_status()
@@ -765,7 +686,6 @@ async def _fetch_hf_daily(client: httpx.AsyncClient) -> list[dict]:
     return papers
 
 async def fetch_all_papers() -> list[dict]:
-    """يجلب من جميع المصادر بشكل متوازٍ ويُزيل التكرار."""
     async with httpx.AsyncClient() as client:
         tasks   = [_fetch_arxiv_one(client, q) for q in _ARXIV_QUERIES]
         tasks.append(_fetch_hf_daily(client))
@@ -786,15 +706,6 @@ async def fetch_all_papers() -> list[dict]:
     return merged
 
 def _score_paper(paper: dict) -> float:
-    """
-    نقاط مسبقة لكل ورقة قبل الإرسال للـ LLM:
-      +2.0  من HuggingFace (مختارة يدوياً)
-      +0.1/upvote على HF (حتى +2.0)
-      +1.0  نُشرت خلال 7 أيام
-      +0.5  نُشرت خلال 14 يوماً
-      +0.3  ملخص مفصّل (> 200 كلمة)
-      +0.3  يحتوي كلمات عملية
-    """
     score = 0.0
     now   = datetime.utcnow()
 
@@ -908,7 +819,6 @@ def mark_arxiv_id_seen(arxiv_id: str):
         logger.error(f"[BlogGen] Redis sadd: {e}")
 
 def _load_article_embeddings() -> list[dict]:
-    """يقرأ جميع تضمينات المقالات من TiDB."""
     conn = _get_conn()
     if not conn:
         return []
@@ -940,7 +850,6 @@ def is_semantic_duplicate(embedding: list[float], threshold: float = 0.87) -> bo
     return False
 
 def store_article_embedding(arxiv_id: str, embedding: list[float]):
-    """يحفظ تضمين المقالة في TiDB (UPSERT)."""
     conn = _get_conn()
     if not conn:
         return
@@ -960,10 +869,6 @@ _DATAFORSEO_LOGIN    = os.environ.get("DATAFORSEO_LOGIN", "")
 _DATAFORSEO_PASSWORD = os.environ.get("DATAFORSEO_PASSWORD", "")
 
 def _get_seo_keywords_llm(paper_title: str, paper_abstract: str) -> list[str]:
-    """
-    Layer 1: يطلب من النموذج توليد كلمات SEO مدروسة.
-    النموذج يفهم موضوع المقالة ويختار كلمات ذات نية بحث حقيقية.
-    """
     prompt = f"""You are an SEO specialist for an AI developer platform.
 Generate a list of high-value SEO keywords for a blog post about the following research topic.
 
@@ -1000,9 +905,6 @@ No explanation. No markdown fences. Raw JSON array only."""
     return []
 
 async def _get_seo_keywords_autocomplete(topic: str) -> list[str]:
-    """
-    Layer 2: Google Autocomplete — يكمّل Layer 1 بكلمات شائعة فعلاً.
-    """
     keywords: set[str] = set()
     queries = [topic, f"how to {topic}", f"{topic} tutorial", f"{topic} python"]
     async with httpx.AsyncClient(timeout=8) as client:
@@ -1022,13 +924,6 @@ async def _get_seo_keywords_autocomplete(topic: str) -> list[str]:
     return list(keywords)
 
 async def _get_seo_keywords_dataforseo(topic: str) -> list[str]:
-    """
-    Layer 3: DataForSEO Keyword Suggestions API (اختياري).
-    يُفعَّل تلقائياً إذا كانت بيانات الدخول موجودة في البيئة.
-    يعطي: keyword + monthly_searches + competition_level
-    نُرجع فقط الكلمات ذات البحث المرتفع (volume > 100) والمنافسة المنخفضة.
-    الوثائق: https://docs.dataforseo.com/v3/keywords_data/google_ads/keywords_for_keywords/live/
-    """
     if not _DATAFORSEO_LOGIN or not _DATAFORSEO_PASSWORD:
         return []
 
@@ -1076,10 +971,6 @@ async def _get_seo_keywords_dataforseo(topic: str) -> list[str]:
         return []
 
 async def get_seo_keywords(paper_title: str, paper_abstract: str = "") -> list[str]:
-    """
-    يجمع الثلاث طبقات ويُزيل التكرار.
-    النتيجة: قائمة مرتبة — LLM أولاً (الأقوى)، ثم DataForSEO، ثم Autocomplete.
-    """
     llm_kws = _get_seo_keywords_llm(paper_title, paper_abstract)
 
     autocomplete_kws, dataforseo_kws = await asyncio.gather(
@@ -1151,12 +1042,6 @@ Reply with ONLY one word: SIMPLE or COMPLEX"""
         return "complex"
 
 async def _run_simple_demo(paper: dict, relevant_models: list[dict]) -> dict:
-    """
-    يُشغّل demo حقيقي للأوراق البسيطة.
-    خطوتان فقط:
-      1. LLM يصمم prompt مناسب (≤150 كلمة)
-      2. نُرسله فعلاً للنموذج ونلتقط الرد
-    """
     demo_model_id   = "deepseek-ai/deepseek-v3.2"
     demo_model_name = "DeepSeek V3.2"
     demo_model_key  = "deepseek"
@@ -1247,10 +1132,6 @@ Reply ONLY in this format. Nothing else."""
         return {}
 
 def _build_complex_note(relevant_models: list[dict]) -> dict:
-    """
-    للأوراق المعقدة: يبني نص اقتراح بدلاً من التجربة الفعلية.
-    يختار أنسب النماذج من الكتالوج ويقترح استخدامها.
-    """
     model_mentions = []
     for entry in relevant_models[:2]:
         if entry.get("type") == "model":
@@ -1279,12 +1160,6 @@ def _build_complex_note(relevant_models: list[dict]) -> dict:
     }
 
 async def run_live_demo(paper: dict, relevant_models: list[dict]) -> dict:
-    """
-    نقطة الدخول الرئيسية:
-      1. صنّف الورقة (SIMPLE / COMPLEX)
-      2. SIMPLE  → شغّل demo حقيقي
-      3. COMPLEX → ابنِ اقتراح نصي فقط
-    """
     complexity = _classify_paper_complexity(paper)
 
     if complexity == "simple":
@@ -1365,7 +1240,6 @@ No explanation. No markdown. Raw JSON only."""
     return top[:select_count]
 
 async def generate_article_en(paper: dict, seo_keywords: list[str], catalog_ctx: str, demo_result: dict = None) -> Optional[str]:
-    """توليد المقالة الإنجليزية — async httpx streaming مباشر، لا timeout."""
     kw_str = ", ".join(seo_keywords[:15])
     demo_type = demo_result.get("type", "") if demo_result else ""
 
@@ -1511,7 +1385,6 @@ Start directly with the # H1 title."""
         result = content.strip()
         if not result:
             return None
-        # تحقق: إذا المحتوى يحتوي كثير من غير اللاتيني (صيني/ياباني) نرفضه
         non_latin = sum(1 for c in result if ord(c) > 0x2E7F)
         if non_latin > len(result) * 0.15:
             logger.error(f"[BlogGen] EN rejected: non-Latin ratio {non_latin/len(result):.0%} — model generated wrong language")
@@ -1521,9 +1394,7 @@ Start directly with the # H1 title."""
         logger.error(f"[BlogGen] EN error: {type(e).__name__}: {e}")
         return content.strip() if len(content) > 500 else None
 
-
 async def generate_article_ar(english_content: str, catalog_ctx_ar: str) -> Optional[str]:
-    """ترجمة المقالة للعربية — async httpx streaming مباشر."""
     prompt = f"""Translate the following English blog post to Modern Standard Arabic (الفصحى المُيسَّرة).
 
 === ORGTEH LINKS FOR ARABIC ===
@@ -1585,7 +1456,6 @@ OUTPUT: Complete Arabic markdown article only."""
         logger.error(f"[BlogGen] AR error: {type(e).__name__}: {e}")
         return content.strip() if len(content) > 300 else None
 
-
 def _fix_model_links(content: str, relevant: list[dict], lang: str) -> str:
     if not relevant or not content:
         return content
@@ -1600,11 +1470,9 @@ def _fix_model_links(content: str, relevant: list[dict], lang: str) -> str:
         else:
             correct_link = "/" + lang + "/accesory/" + short_key
         md_link = "[" + name + "](" + correct_link + ")"
-        # Fix 1: bare links
         for wrong in ["](" + "/" + lang + "/models)", "](" + "/" + lang + "/models/)"]:
             if wrong in content:
                 content = content.replace(wrong, "](" + correct_link + ")")
-        # Fix 2: unlinked names in Integrating section
         if name in content and md_link not in content:
             integ = content.find("## Integrating")
             if integ > 0:
@@ -1615,7 +1483,6 @@ def _fix_model_links(content: str, relevant: list[dict], lang: str) -> str:
                 elif name in after and "[" + name not in after:
                     content = content[:integ] + after.replace(name, md_link, 1)
     return content
-
 
 def _clean_generated_content(content):
     import re as _re
@@ -1635,7 +1502,6 @@ def _clean_generated_content(content):
             import re as _re2
             fixed = _re2.sub(r'\{([^}]+)\}', r'(\1)', line)
             fixed = _re2.sub(r'>([^\]]+)\]', r'[\1]', fixed)
-            # إذا الـ node label يحتوي عربي → [Node]
             def _ar_node(m):
                 lbl = m.group(1)
                 return '[Node]' if any('\u0600' <= c <= '\u06ff' for c in lbl) else m.group(0)
@@ -1650,7 +1516,6 @@ def _clean_generated_content(content):
     while nl*3 in result:
         result = result.replace(nl*3, nl*2)
     return result.strip()
-
 
 def _extract_h1(md: str) -> str:
     for line in md.splitlines():
@@ -1846,7 +1711,6 @@ async def api_blog_list(page: int = 1, limit: int = 12):
 
 @blog_router.get("/api/blog/catalog")
 async def api_blog_catalog(request: Request):
-    """يعرض الكتالوج الحالي (للتشخيص)."""
     from services.auth import get_current_user_email
     email = get_current_user_email(request)
     if not email:
@@ -2065,7 +1929,6 @@ async def admin_update_post(request: Request, slug: str):
         conn.close()
 
 def _ts() -> str:
-    """Timestamp بصيغة HH:MM:SS UTC."""
     return datetime.utcnow().strftime("%H:%M:%S")
 
 async def _run_blog_generation_verbose(count: int):
@@ -2362,18 +2225,12 @@ _CRON_HTML_HEAD = """<!DOCTYPE html>
   <p>Started at {start_time} UTC — count={count}</p>
 </div>
 <div id="log">
-"""
-
-_CRON_HTML_FOOT_OK = """
 </div>
 <div class="result-box result-ok">
   <h2>✅ Pipeline completed successfully</h2>
   <pre>{result_json}</pre>
 </div>
 </body></html>
-"""
-
-_CRON_HTML_FOOT_ERR = """
 </div>
 <div class="result-box result-err">
   <h2>❌ Pipeline finished with errors</h2>
@@ -2384,15 +2241,6 @@ _CRON_HTML_FOOT_ERR = """
 
 @blog_router.get("/api/blog/cron")
 async def blog_cron_trigger(request: Request, secret: str = "", count: int = 3):
-    """
-    GET /api/blog/cron?secret=YOUR_SECRET&count=3
-
-    • من المتصفح → يُرجع صفحة HTML streaming بسجلات لحظية تفصيلية
-    • من curl / cron job → يُرجع JSON نظيف (عند إرسال Accept: application/json)
-
-    secret  — يطابق BLOG_CRON_SECRET في متغيرات البيئة (إلزامي)
-    count   — عدد المقالات (1-5، افتراضي 3)
-    """
     if not _CRON_SECRET:
         logger.warning("[Cron] BLOG_CRON_SECRET not configured")
         err = {"ok": False, "error": "Set BLOG_CRON_SECRET env variable first"}
